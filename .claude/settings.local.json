@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell.exe -Command \"cd D:\\\\Users\\\\User\\\\Dropbox\\\\POSO\\\\claudecode\\\\myphoto.my.id\\\\apps\\\\web; node_modules\\\\.bin\\\\tsc --noEmit\")",
+      "Bash(powershell.exe -Command \"cd D:\\\\Users\\\\User\\\\Dropbox\\\\POSO\\\\claudecode\\\\myphoto.my.id\\\\apps\\\\web; & .\\\\node_modules\\\\.bin\\\\tsc --noEmit\")"
+    ]
+  }
+}

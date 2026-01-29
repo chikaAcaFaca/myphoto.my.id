@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isFamilyMember(familyId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/families/$(familyId)) &&
+             request.auth.uid in get(/databases/$(database)/documents/families/$(familyId)).data.memberIds;
+    }
+
+    function isFamilyAdmin(familyId) {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/families/$(familyId)) &&
+             request.auth.uid == get(/databases/$(database)/documents/families/$(familyId)).data.adminId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) &&
+                       // Prevent user from modifying protected fields
+                       !request.resource.data.diff(resource.data).affectedKeys()
+                         .hasAny(['subscriptionIds', 'storageLimit', 'role']);
+      allow delete: if false; // Users cannot delete their own accounts directly
+
+      // Allow admin operations from server
+      allow write: if request.auth.token.admin == true;
+    }
+
+    // Files collection
+    match /files/{fileId} {
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) ||
+        (resource.data.familyId != null && isFamilyMember(resource.data.familyId))
+      );
+
+      allow create: if isAuthenticated() &&
+                       isOwner(request.resource.data.userId) &&
+                       // Validate required fields
+                       request.resource.data.keys().hasAll(['userId', 'type', 'name', 'size', 'mimeType', 's3Key']);
+
+      allow update: if isAuthenticated() &&
+                       isOwner(resource.data.userId) &&
+                       // Users can only update certain fields
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['name', 'isFavorite', 'isArchived', 'isTrashed', 'trashedAt', 'albumIds', 'updatedAt']);
+
+      allow delete: if isAuthenticated() &&
+                       isOwner(resource.data.userId) &&
+                       resource.data.isTrashed == true;
+    }
+
+    // Albums collection
+    match /albums/{albumId} {
+      allow read: if isAuthenticated() && (
+        isOwner(resource.data.userId) ||
+        resource.data.isShared == true ||
+        request.auth.uid in resource.data.sharedWith
+      );
+
+      allow create: if isAuthenticated() &&
+                       isOwner(request.resource.data.userId);
+
+      allow update: if isAuthenticated() &&
+                       isOwner(resource.data.userId);
+
+      allow delete: if isAuthenticated() &&
+                       isOwner(resource.data.userId);
+    }
+
+    // Families collection
+    match /families/{familyId} {
+      allow read: if isFamilyMember(familyId);
+
+      allow create: if isAuthenticated() &&
+                       request.resource.data.adminId == request.auth.uid &&
+                       request.resource.data.memberIds.hasOnly([request.auth.uid]);
+
+      allow update: if isFamilyAdmin(familyId) &&
+                       // Cannot change admin to non-member
+                       request.resource.data.adminId in request.resource.data.memberIds &&
+                       // Max 5 members
+                       request.resource.data.memberIds.size() <= 5;
+
+      allow delete: if isFamilyAdmin(familyId);
+    }
+
+    // Subscriptions collection (read-only for users, managed by server)
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() &&
+                     isOwner(resource.data.userId);
+
+      // Only server can write subscriptions
+      allow write: if false;
+    }
+
+    // People collection (face recognition clusters)
+    match /people/{personId} {
+      allow read: if isAuthenticated() &&
+                     isOwner(resource.data.userId);
+
+      allow create: if isAuthenticated() &&
+                       isOwner(request.resource.data.userId);
+
+      allow update: if isAuthenticated() &&
+                       isOwner(resource.data.userId) &&
+                       // Users can only update name
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['name', 'updatedAt']);
+
+      allow delete: if isAuthenticated() &&
+                       isOwner(resource.data.userId);
+    }
+
+    // Shared links collection (for public album sharing)
+    match /shared/{shareToken} {
+      allow read: if true; // Public access for shared links
+      allow write: if false; // Only server can manage
+    }
+  }
+}
