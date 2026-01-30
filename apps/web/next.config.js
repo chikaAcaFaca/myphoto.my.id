@@ -22,6 +22,24 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    serverComponentsExternalPackages: ['undici'],
+  },
+  webpack: (config, { isServer }) => {
+    // Exclude undici from client-side bundling
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        net: false,
+        tls: false,
+        fs: false,
+      };
+    }
+    // Ignore undici module parsing issues
+    config.module.rules.push({
+      test: /node_modules[\\/]undici[\\/]/,
+      use: 'null-loader',
+    });
+    return config;
   },
 };
 

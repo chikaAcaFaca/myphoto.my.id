@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import Link from 'next/link';
+import NextImage from 'next/image';
 import { Cloud, Image, Shield, Zap } from 'lucide-react';
 
 export default function HomePage() {
@@ -29,10 +30,14 @@ export default function HomePage() {
       {/* Header */}
       <header className="container mx-auto px-4 py-6">
         <nav className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Cloud className="h-8 w-8 text-primary-500" />
-            <span className="text-xl font-bold">MyPhoto</span>
-          </div>
+          <NextImage
+            src="/logo.png"
+            alt="MyPhoto.my.id"
+            width={240}
+            height={72}
+            className="h-16 w-auto"
+            priority
+          />
           <div className="flex items-center gap-4">
             <Link href="/login" className="btn-ghost">
               Log in
@@ -130,10 +135,13 @@ export default function HomePage() {
       <footer className="border-t border-gray-200 py-10 dark:border-gray-700">
         <div className="container mx-auto px-4">
           <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
-            <div className="flex items-center gap-2">
-              <Cloud className="h-6 w-6 text-primary-500" />
-              <span className="font-semibold">MyPhoto</span>
-            </div>
+            <NextImage
+              src="/logo.png"
+              alt="MyPhoto.my.id"
+              width={180}
+              height={54}
+              className="h-12 w-auto"
+            />
             <div className="flex gap-6 text-sm text-gray-600 dark:text-gray-400">
               <Link href="/privacy" className="hover:text-primary-500">
                 Privacy

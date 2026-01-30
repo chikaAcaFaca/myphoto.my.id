@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Cloud, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import Image from 'next/image';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
 
 export default function LoginPage() {
@@ -49,9 +50,15 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-gray-900">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <Cloud className="h-10 w-10 text-primary-500" />
-            <span className="text-2xl font-bold">MyPhoto</span>
+          <Link href="/" className="inline-block">
+            <Image
+              src="/logo.png"
+              alt="MyPhoto.my.id"
+              width={300}
+              height={90}
+              className="h-20 w-auto"
+              priority
+            />
           </Link>
           <h1 className="mt-6 text-2xl font-bold">Welcome back</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">

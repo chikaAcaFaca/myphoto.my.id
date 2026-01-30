@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import NextImage from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
-  Cloud,
   Image,
   Video,
   FolderOpen,
@@ -60,10 +60,23 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
-        <Link href="/photos" className="flex items-center gap-2">
-          <Cloud className="h-8 w-8 text-primary-500" />
-          {!isSidebarCollapsed && (
-            <span className="text-xl font-bold">MyPhoto</span>
+        <Link href="/photos" className="flex items-center">
+          {isSidebarCollapsed ? (
+            <NextImage
+              src="/logo.png"
+              alt="MyPhoto"
+              width={56}
+              height={56}
+              className="h-14 w-14 object-contain"
+            />
+          ) : (
+            <NextImage
+              src="/logo.png"
+              alt="MyPhoto.my.id"
+              width={225}
+              height={60}
+              className="h-14 w-auto"
+            />
           )}
         </Link>
         <button
