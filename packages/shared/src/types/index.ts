@@ -181,9 +181,18 @@ export interface StorageTier {
   name: string;
   storageBytes: number;
   storageDisplay: string;
+  // Standard pricing (without AI)
   priceMonthly: number;
   priceYearly: number;
   paddleProductId: string;
+  // AI pricing
+  priceMonthlyAI: number;
+  priceYearlyAI: number;
+  paddleProductIdAI: string;
+  // Features
+  features: string[];
+  aiFeatures?: string[];
+  isPopular?: boolean;
 }
 
 // Memory/Suggestion Types
