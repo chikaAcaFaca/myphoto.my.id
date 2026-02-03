@@ -1,14 +1,7 @@
-import * as faceapi from '@vladmandic/face-api';
-import * as tf from '@tensorflow/tfjs-node';
-import * as canvas from 'canvas';
-import path from 'path';
-
-// Polyfill for face-api.js in Node.js
-const { Canvas, Image, ImageData } = canvas;
-faceapi.env.monkeyPatch({ Canvas, Image, ImageData } as any);
-
-let modelsLoaded = false;
-const MODELS_PATH = path.join(process.cwd(), 'public', 'models', 'face-api');
+/**
+ * Face Detection module
+ * Uses Cloudflare Workers AI for server-side processing
+ */
 
 export interface FaceDetection {
   boundingBox: {
@@ -31,75 +24,38 @@ export interface FaceDetection {
   expression?: string;
 }
 
-export async function loadFaceModels(): Promise<void> {
-  if (modelsLoaded) return;
-
-  try {
-    // Load models from disk
-    await faceapi.nets.ssdMobilenetv1.loadFromDisk(MODELS_PATH);
-    await faceapi.nets.faceLandmark68Net.loadFromDisk(MODELS_PATH);
-    await faceapi.nets.faceRecognitionNet.loadFromDisk(MODELS_PATH);
-    // Optional: age/gender/expression models
-    // await faceapi.nets.ageGenderNet.loadFromDisk(MODELS_PATH);
-    // await faceapi.nets.faceExpressionNet.loadFromDisk(MODELS_PATH);
-
-    modelsLoaded = true;
-    console.log('Face detection models loaded successfully');
-  } catch (error) {
-    console.error('Failed to load face detection models:', error);
-    throw error;
-  }
-}
+const CLOUDFLARE_WORKER_URL = process.env.CLOUDFLARE_AI_WORKER_URL;
 
 export async function detectFaces(imageBuffer: Buffer): Promise<FaceDetection[]> {
+  if (!CLOUDFLARE_WORKER_URL) {
+    console.log('Cloudflare Worker URL not configured, skipping face detection');
+    return [];
+  }
+
   try {
-    await loadFaceModels();
-
-    // Create canvas from buffer
-    const img = await canvas.loadImage(imageBuffer);
-    const canvasEl = canvas.createCanvas(img.width, img.height);
-    const ctx = canvasEl.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-
-    // Detect faces with landmarks and descriptors
-    const detections = await faceapi
-      .detectAllFaces(canvasEl as any)
-      .withFaceLandmarks()
-      .withFaceDescriptors();
-
-    return detections.map((detection) => ({
-      boundingBox: {
-        x: detection.detection.box.x,
-        y: detection.detection.box.y,
-        width: detection.detection.box.width,
-        height: detection.detection.box.height,
+    const response = await fetch(`${CLOUDFLARE_WORKER_URL}/detect-faces`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Authorization': `Bearer ${process.env.CLOUDFLARE_AI_TOKEN || ''}`,
       },
-      landmarks: {
-        positions: detection.landmarks.positions.map((p) => ({ x: p.x, y: p.y })),
-        leftEye: getCenter(detection.landmarks.getLeftEye()),
-        rightEye: getCenter(detection.landmarks.getRightEye()),
-        nose: getCenter(detection.landmarks.getNose()),
-        mouth: getCenter(detection.landmarks.getMouth()),
-      },
-      descriptor: Array.from(detection.descriptor),
-      confidence: detection.detection.score,
-    }));
+      body: imageBuffer,
+    });
+
+    if (!response.ok) {
+      console.error('Face detection API error:', response.status);
+      return [];
+    }
+
+    const result = await response.json();
+    return result.faces || [];
   } catch (error) {
     console.error('Face detection error:', error);
     return [];
   }
 }
 
-function getCenter(points: faceapi.Point[]): { x: number; y: number } {
-  const sumX = points.reduce((sum, p) => sum + p.x, 0);
-  const sumY = points.reduce((sum, p) => sum + p.y, 0);
-  return {
-    x: sumX / points.length,
-    y: sumY / points.length,
-  };
-}
-
-// Face matching and grouping
+// Face matching and grouping (runs locally, no native deps needed)
 
 export interface Person {
   id: string;
@@ -109,7 +65,7 @@ export interface Person {
   representativeDescriptor: number[];
 }
 
-const SIMILARITY_THRESHOLD = 0.6; // Lower = more strict matching
+const SIMILARITY_THRESHOLD = 0.6;
 
 export function euclideanDistance(a: number[], b: number[]): number {
   if (a.length !== b.length) return Infinity;
@@ -163,15 +119,12 @@ export function groupFacesByPerson(
     const matchingPerson = findMatchingPerson(face.descriptor, people);
 
     if (matchingPerson) {
-      // Add to existing person
       matchingPerson.descriptors.push(face.descriptor);
       matchingPerson.fileIds.push(face.fileId);
-      // Update representative descriptor
       matchingPerson.representativeDescriptor = averageDescriptor(
         matchingPerson.descriptors
       );
     } else {
-      // Create new person
       const newPerson: Person = {
         id: `person_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         descriptors: [face.descriptor],
@@ -185,7 +138,6 @@ export function groupFacesByPerson(
   return people;
 }
 
-// Merge two people (when user confirms they're the same person)
 export function mergePeople(person1: Person, person2: Person): Person {
   return {
     id: person1.id,
@@ -199,7 +151,6 @@ export function mergePeople(person1: Person, person2: Person): Person {
   };
 }
 
-// Extract face thumbnail
 export async function extractFaceThumbnail(
   imageBuffer: Buffer,
   boundingBox: { x: number; y: number; width: number; height: number },
@@ -212,7 +163,6 @@ export async function extractFaceThumbnail(
     throw new Error('Could not get image dimensions');
   }
 
-  // Add padding around face
   const paddingX = boundingBox.width * padding;
   const paddingY = boundingBox.height * padding;
 

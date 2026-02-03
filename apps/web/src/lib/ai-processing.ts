@@ -1,6 +1,4 @@
 import sharp from 'sharp';
-import * as tf from '@tensorflow/tfjs-node';
-import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { WASABI_REGION, WASABI_ENDPOINT, THUMBNAIL_SIZES } from '@myphoto/shared';
 import { initAdmin, db } from './firebase-admin';
@@ -8,16 +6,9 @@ import { generateUploadUrl } from './s3';
 import { extractExifData, type ExifData } from './ai/exif-extractor';
 import { detectFaces, type FaceDetection } from './ai/face-detection';
 import { calculatePHash } from './ai/duplicate-detection';
+import * as admin from 'firebase-admin';
 
-// Initialize TensorFlow model (cached)
-let cocoModel: cocoSsd.ObjectDetection | null = null;
-
-async function getCocoModel(): Promise<cocoSsd.ObjectDetection> {
-  if (!cocoModel) {
-    cocoModel = await cocoSsd.load();
-  }
-  return cocoModel;
-}
+const CLOUDFLARE_WORKER_URL = process.env.CLOUDFLARE_AI_WORKER_URL;
 
 // S3 Client for reading files
 const s3Client = new S3Client({
@@ -229,7 +220,7 @@ async function processFacesForPeople(
       for (const person of existingPeople) {
         const distance = euclideanDistance(
           face.descriptor,
-          person.faceEmbedding || []
+          (person as any).faceEmbedding || []
         );
         if (distance < 0.6 && distance < bestDistance) {
           matchedPersonId = person.id;
@@ -271,34 +262,34 @@ function euclideanDistance(a: number[], b: number[]): number {
   return Math.sqrt(sum);
 }
 
-// Import admin for FieldValue
-import * as admin from 'firebase-admin';
-
+// Object detection via Cloudflare Workers AI
 async function detectObjects(imageBuffer: Buffer): Promise<string[]> {
+  if (!CLOUDFLARE_WORKER_URL) {
+    console.log('Cloudflare Worker URL not configured, skipping object detection');
+    return [];
+  }
+
   try {
-    // Convert buffer to tensor
-    const decoded = tf.node.decodeImage(imageBuffer, 3);
-    const batched = decoded.expandDims(0);
+    const response = await fetch(`${CLOUDFLARE_WORKER_URL}/detect-objects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Authorization': `Bearer ${process.env.CLOUDFLARE_AI_TOKEN || ''}`,
+      },
+      body: imageBuffer,
+    });
 
-    // Load model and detect
-    const model = await getCocoModel();
-    const predictions = await model.detect(batched as tf.Tensor3D);
+    if (!response.ok) {
+      console.error('Object detection API error:', response.status);
+      return [];
+    }
 
-    // Clean up tensors
-    decoded.dispose();
-    batched.dispose();
+    const result = await response.json();
+    const labels = result.labels || [];
 
-    // Extract unique labels with confidence > 0.5
-    const labels = [
-      ...new Set(
-        predictions.filter((p) => p.score > 0.5).map((p) => p.class.toLowerCase())
-      ),
-    ];
-
-    // Add additional contextual labels based on detected objects
+    // Add contextual labels
     const contextualLabels = addContextualLabels(labels);
-
-    return [...labels, ...contextualLabels].slice(0, 20); // Limit to 20 labels
+    return [...labels, ...contextualLabels].slice(0, 20);
   } catch (error) {
     console.error('Object detection error:', error);
     return [];
@@ -308,7 +299,6 @@ async function detectObjects(imageBuffer: Buffer): Promise<string[]> {
 function addContextualLabels(detectedObjects: string[]): string[] {
   const contextual: string[] = [];
 
-  // Add context based on detected objects
   if (detectedObjects.includes('person')) {
     contextual.push('people', 'portrait');
   }
@@ -367,26 +357,16 @@ function addContextualLabels(detectedObjects: string[]): string[] {
 function detectSceneType(labels: string[]): string {
   const combined = labels.map((s) => s.toLowerCase());
 
-  if (
-    combined.some((l) => ['beach', 'ocean', 'sand', 'surfboard'].includes(l))
-  ) {
+  if (combined.some((l) => ['beach', 'ocean', 'sand', 'surfboard'].includes(l))) {
     return 'beach';
   }
-  if (
-    combined.some((l) => ['mountain', 'hiking', 'cliff', 'snow'].includes(l))
-  ) {
+  if (combined.some((l) => ['mountain', 'hiking', 'cliff', 'snow'].includes(l))) {
     return 'mountain';
   }
-  if (
-    combined.some((l) => ['cake', 'candle', 'balloon', 'party'].includes(l))
-  ) {
+  if (combined.some((l) => ['cake', 'candle', 'balloon', 'party'].includes(l))) {
     return 'birthday';
   }
-  if (
-    combined.some((l) =>
-      ['wine', 'dinner', 'restaurant', 'food', 'pizza'].includes(l)
-    )
-  ) {
+  if (combined.some((l) => ['wine', 'dinner', 'restaurant', 'food', 'pizza'].includes(l))) {
     return 'dining';
   }
   if (combined.filter((l) => l === 'person').length >= 3) {
@@ -411,7 +391,6 @@ async function generateThumbnail(
 ): Promise<{ key: string; buffer: Buffer }> {
   const { width, height } = THUMBNAIL_SIZES.medium;
 
-  // Generate thumbnail using Sharp
   const thumbnailBuffer = await sharp(imageBuffer)
     .resize(width, height, {
       fit: 'cover',
@@ -420,13 +399,11 @@ async function generateThumbnail(
     .webp({ quality: 80 })
     .toBuffer();
 
-  // Generate thumbnail key
   const keyParts = originalKey.split('/');
   const userId = keyParts[1];
   const fileId = keyParts[keyParts.length - 1].split('.')[0];
   const thumbnailKey = `users/${userId}/thumbnails/${fileId}_thumb.webp`;
 
-  // Upload thumbnail to S3
   await uploadToS3(thumbnailBuffer, thumbnailKey, 'image/webp');
 
   return {
@@ -441,44 +418,35 @@ async function calculateQualityScore(imageBuffer: Buffer): Promise<number> {
     const metadata = await image.metadata();
     const stats = await image.stats();
 
-    // Factors for quality score
-    let score = 50; // Base score
+    let score = 50;
 
-    // Resolution factor (higher is better, up to 4K)
     const pixels = (metadata.width || 0) * (metadata.height || 0);
-    if (pixels >= 8294400) score += 20; // 4K
-    else if (pixels >= 2073600) score += 15; // 1080p
-    else if (pixels >= 921600) score += 10; // 720p
-    else if (pixels >= 307200) score += 5; // VGA
+    if (pixels >= 8294400) score += 20;
+    else if (pixels >= 2073600) score += 15;
+    else if (pixels >= 921600) score += 10;
+    else if (pixels >= 307200) score += 5;
 
-    // Sharpness estimate based on channel statistics
     const sharpness =
-      stats.channels.reduce((sum, ch) => {
-        return sum + (ch.stdev || 0);
-      }, 0) / stats.channels.length;
+      stats.channels.reduce((sum, ch) => sum + (ch.stdev || 0), 0) / stats.channels.length;
 
     if (sharpness > 60) score += 15;
     else if (sharpness > 40) score += 10;
     else if (sharpness > 20) score += 5;
 
-    // Brightness/exposure check
     const meanBrightness =
-      stats.channels.reduce((sum, ch) => sum + (ch.mean || 0), 0) /
-      stats.channels.length;
-    if (meanBrightness > 40 && meanBrightness < 220) score += 10; // Well exposed
-    else if (meanBrightness > 20 && meanBrightness < 240) score += 5; // Acceptable
+      stats.channels.reduce((sum, ch) => sum + (ch.mean || 0), 0) / stats.channels.length;
+    if (meanBrightness > 40 && meanBrightness < 220) score += 10;
+    else if (meanBrightness > 20 && meanBrightness < 240) score += 5;
 
-    // Clamp score between 0 and 100
     return Math.min(100, Math.max(0, score));
   } catch (error) {
     console.error('Quality score calculation error:', error);
-    return 50; // Default score
+    return 50;
   }
 }
 
 async function extractDominantColors(imageBuffer: Buffer): Promise<string[]> {
   try {
-    // Resize to small size for faster processing
     const smallImage = await sharp(imageBuffer)
       .resize(100, 100, { fit: 'inside' })
       .raw()
@@ -487,7 +455,6 @@ async function extractDominantColors(imageBuffer: Buffer): Promise<string[]> {
     const { data, info } = smallImage;
     const pixels: { r: number; g: number; b: number }[] = [];
 
-    // Extract pixels
     for (let i = 0; i < data.length; i += info.channels) {
       pixels.push({
         r: data[i],
@@ -496,10 +463,7 @@ async function extractDominantColors(imageBuffer: Buffer): Promise<string[]> {
       });
     }
 
-    // Simple k-means clustering for dominant colors
     const colors = kMeansColors(pixels, 5);
-
-    // Convert to hex
     return colors.map((c) => rgbToHex(c.r, c.g, c.b));
   } catch (error) {
     console.error('Color extraction error:', error);
@@ -511,12 +475,9 @@ function kMeansColors(
   pixels: { r: number; g: number; b: number }[],
   k: number
 ): { r: number; g: number; b: number }[] {
-  // Initialize centroids randomly
   const centroids = pixels.sort(() => Math.random() - 0.5).slice(0, k);
 
-  // Run k-means iterations
   for (let iter = 0; iter < 10; iter++) {
-    // Assign pixels to nearest centroid
     const clusters: { r: number; g: number; b: number }[][] = Array(k)
       .fill(null)
       .map(() => []);
@@ -536,19 +497,12 @@ function kMeansColors(
       clusters[closestIdx].push(pixel);
     }
 
-    // Update centroids
     for (let i = 0; i < k; i++) {
       if (clusters[i].length > 0) {
         centroids[i] = {
-          r: Math.round(
-            clusters[i].reduce((s, p) => s + p.r, 0) / clusters[i].length
-          ),
-          g: Math.round(
-            clusters[i].reduce((s, p) => s + p.g, 0) / clusters[i].length
-          ),
-          b: Math.round(
-            clusters[i].reduce((s, p) => s + p.b, 0) / clusters[i].length
-          ),
+          r: Math.round(clusters[i].reduce((s, p) => s + p.r, 0) / clusters[i].length),
+          g: Math.round(clusters[i].reduce((s, p) => s + p.g, 0) / clusters[i].length),
+          b: Math.round(clusters[i].reduce((s, p) => s + p.b, 0) / clusters[i].length),
         };
       }
     }
@@ -562,9 +516,7 @@ function colorDistance(
   c2: { r: number; g: number; b: number }
 ): number {
   return Math.sqrt(
-    Math.pow(c1.r - c2.r, 2) +
-      Math.pow(c1.g - c2.g, 2) +
-      Math.pow(c1.b - c2.b, 2)
+    Math.pow(c1.r - c2.r, 2) + Math.pow(c1.g - c2.g, 2) + Math.pow(c1.b - c2.b, 2)
   );
 }
 
