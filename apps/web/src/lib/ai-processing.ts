@@ -44,7 +44,7 @@ async function uploadToS3(buffer: Buffer, key: string, contentType: string): Pro
 
   await fetch(url, {
     method: 'PUT',
-    body: buffer,
+    body: new Uint8Array(buffer),
     headers: {
       'Content-Type': contentType,
     },
@@ -276,7 +276,7 @@ async function detectObjects(imageBuffer: Buffer): Promise<string[]> {
         'Content-Type': 'application/octet-stream',
         'Authorization': `Bearer ${process.env.CLOUDFLARE_AI_TOKEN || ''}`,
       },
-      body: imageBuffer,
+      body: new Uint8Array(imageBuffer),
     });
 
     if (!response.ok) {

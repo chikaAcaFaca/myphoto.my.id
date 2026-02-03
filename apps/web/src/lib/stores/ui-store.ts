@@ -1,10 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+type ViewMode = 'grid' | 'list';
+
 interface UIState {
   // Sidebar
   isSidebarOpen: boolean;
   isSidebarCollapsed: boolean;
+
+  // View Mode
+  viewMode: ViewMode;
 
   // Modals
   isUploadModalOpen: boolean;
@@ -32,6 +37,7 @@ interface UIState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  setViewMode: (mode: ViewMode) => void;
 
   openUploadModal: () => void;
   closeUploadModal: () => void;
@@ -77,6 +83,7 @@ export const useUIStore = create<UIState>()(
       // Initial state
       isSidebarOpen: true,
       isSidebarCollapsed: false,
+      viewMode: 'grid' as ViewMode,
       isUploadModalOpen: false,
       isCreateAlbumModalOpen: false,
       isShareModalOpen: false,
@@ -94,6 +101,7 @@ export const useUIStore = create<UIState>()(
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
       setSidebarOpen: (open) => set({ isSidebarOpen: open }),
       setSidebarCollapsed: (collapsed) => set({ isSidebarCollapsed: collapsed }),
+      setViewMode: (mode) => set({ viewMode: mode }),
 
       // Modal actions
       openUploadModal: () => set({ isUploadModalOpen: true }),

@@ -39,7 +39,7 @@ export async function detectFaces(imageBuffer: Buffer): Promise<FaceDetection[]>
         'Content-Type': 'application/octet-stream',
         'Authorization': `Bearer ${process.env.CLOUDFLARE_AI_TOKEN || ''}`,
       },
-      body: imageBuffer,
+      body: new Uint8Array(imageBuffer),
     });
 
     if (!response.ok) {
