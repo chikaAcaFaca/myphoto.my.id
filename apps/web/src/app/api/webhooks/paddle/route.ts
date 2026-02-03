@@ -4,8 +4,6 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { initAdmin, db } from '@/lib/firebase-admin';
 import { STORAGE_TIERS, FREE_STORAGE_LIMIT } from '@myphoto/shared';
 
-initAdmin();
-
 const PADDLE_WEBHOOK_SECRET = process.env.PADDLE_WEBHOOK_SECRET!;
 
 interface PaddleWebhookEvent {
@@ -73,6 +71,9 @@ function getTierFromProductId(productId: string): number | null {
 }
 
 export async function POST(request: NextRequest) {
+  // Initialize Firebase Admin (lazy)
+  initAdmin();
+
   try {
     const payload = await request.text();
     const signature = request.headers.get('paddle-signature');
