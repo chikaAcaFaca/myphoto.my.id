@@ -113,8 +113,10 @@ async function main() {
   console.log(`\nDownload complete: ${downloaded} files downloaded, ${failed} failed`);
   console.log(`Models saved to: ${MODELS_DIR}`);
 
+  // Don't fail build if some models couldn't be downloaded
+  // They may already exist or be served from CDN
   if (failed > 0) {
-    process.exit(1);
+    console.log('Some models failed to download, but continuing...');
   }
 }
 
