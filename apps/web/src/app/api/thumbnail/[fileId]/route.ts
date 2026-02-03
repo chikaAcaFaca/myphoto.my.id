@@ -3,6 +3,8 @@ import { db } from '@/lib/firebase-admin';
 import { checkIpRateLimit } from '@/lib/auth-utils';
 import { generateDownloadUrl } from '@/lib/s3';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { fileId: string } }

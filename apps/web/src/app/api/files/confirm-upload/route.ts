@@ -6,6 +6,8 @@ import { objectExists } from '@/lib/s3';
 import { getFileType } from '@myphoto/shared';
 import { processImageAI } from '@/lib/ai-processing';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Verify auth and check rate limit

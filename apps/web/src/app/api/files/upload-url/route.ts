@@ -4,6 +4,8 @@ import { generateUploadUrl } from '@/lib/s3';
 import { generateS3Key, generateFileId, getFileExtension, isSupportedMimeType, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { db } from '@/lib/firebase-admin';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Verify auth and check rate limit

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { getAllMemories } from '@/lib/ai/memories';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Verify auth and check rate limit

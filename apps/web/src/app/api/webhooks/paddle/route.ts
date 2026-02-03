@@ -4,6 +4,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { initAdmin, db } from '@/lib/firebase-admin';
 import { STORAGE_TIERS, FREE_STORAGE_LIMIT } from '@myphoto/shared';
 
+export const dynamic = 'force-dynamic';
+
 const PADDLE_WEBHOOK_SECRET = process.env.PADDLE_WEBHOOK_SECRET!;
 
 interface PaddleWebhookEvent {

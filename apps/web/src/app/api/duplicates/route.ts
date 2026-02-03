@@ -3,6 +3,8 @@ import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { findDuplicates } from '@/lib/ai/duplicate-detection';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // Verify auth and check rate limit
