@@ -8,8 +8,6 @@ import {
   type RateLimitResult,
 } from '@/lib/rate-limit';
 
-initAdmin();
-
 export interface AuthResult {
   success: true;
   userId: string;
@@ -33,6 +31,9 @@ export async function verifyAuthWithRateLimit(
   request: NextRequest,
   type: RateLimitType
 ): Promise<AuthResult | AuthError> {
+  // Initialize Firebase Admin (lazy)
+  initAdmin();
+
   // Get auth token
   const authHeader = request.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {

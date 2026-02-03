@@ -3,37 +3,57 @@ import { Redis } from '@upstash/redis';
 import { RATE_LIMITS } from '@myphoto/shared';
 import { NextResponse } from 'next/server';
 
-// Initialize Redis client
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+// Lazy initialization of Redis client
+let redis: Redis | null = null;
+let _rateLimiters: RateLimiters | null = null;
 
-// Rate limiter instances for each category using sliding window algorithm
-export const rateLimiters = {
-  upload: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(RATE_LIMITS.upload, '1 m'),
-    prefix: 'ratelimit:upload',
-  }),
-  download: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(RATE_LIMITS.download, '1 m'),
-    prefix: 'ratelimit:download',
-  }),
-  search: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(RATE_LIMITS.search, '1 m'),
-    prefix: 'ratelimit:search',
-  }),
-  api: new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(RATE_LIMITS.api, '1 m'),
-    prefix: 'ratelimit:api',
-  }),
-} as const;
+function getRedis(): Redis {
+  if (!redis) {
+    redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+  }
+  return redis;
+}
 
-export type RateLimitType = keyof typeof rateLimiters;
+interface RateLimiters {
+  upload: Ratelimit;
+  download: Ratelimit;
+  search: Ratelimit;
+  api: Ratelimit;
+}
+
+function getRateLimiters(): RateLimiters {
+  if (!_rateLimiters) {
+    const r = getRedis();
+    _rateLimiters = {
+      upload: new Ratelimit({
+        redis: r,
+        limiter: Ratelimit.slidingWindow(RATE_LIMITS.upload, '1 m'),
+        prefix: 'ratelimit:upload',
+      }),
+      download: new Ratelimit({
+        redis: r,
+        limiter: Ratelimit.slidingWindow(RATE_LIMITS.download, '1 m'),
+        prefix: 'ratelimit:download',
+      }),
+      search: new Ratelimit({
+        redis: r,
+        limiter: Ratelimit.slidingWindow(RATE_LIMITS.search, '1 m'),
+        prefix: 'ratelimit:search',
+      }),
+      api: new Ratelimit({
+        redis: r,
+        limiter: Ratelimit.slidingWindow(RATE_LIMITS.api, '1 m'),
+        prefix: 'ratelimit:api',
+      }),
+    };
+  }
+  return _rateLimiters;
+}
+
+export type RateLimitType = 'upload' | 'download' | 'search' | 'api';
 
 export interface RateLimitResult {
   success: boolean;
@@ -49,7 +69,8 @@ export async function checkRateLimit(
   identifier: string,
   type: RateLimitType
 ): Promise<RateLimitResult> {
-  const limiter = rateLimiters[type];
+  const limiters = getRateLimiters();
+  const limiter = limiters[type];
   const { success, limit, remaining, reset } = await limiter.limit(identifier);
 
   return {
