@@ -6,9 +6,9 @@ import { Providers } from './providers';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'MyPhoto - Your Photos, Securely Stored',
-  description: 'Store, organize, and share your photos and videos with AI-powered features.',
-  keywords: ['photo storage', 'cloud photos', 'photo backup', 'image sharing'],
+  title: 'MyPhoto.my.id - Your Photos, Securely Stored',
+  description: 'Store, organize, and share your photos and videos with AI-powered features. Privacy-first cloud storage.',
+  keywords: ['photo storage', 'cloud photos', 'photo backup', 'image sharing', 'privacy'],
 };
 
 export default function RootLayout({
