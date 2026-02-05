@@ -311,7 +311,7 @@ export default function HomePage() {
               </Link>
             </div>
             <p className="text-sm text-gray-500">
-              &copy; {new Date().getFullYear()} MyPhoto. Sva prava zadržana.
+              &copy; {new Date().getFullYear()} MyPhoto.my.id - Sva prava zadržana.
             </p>
           </div>
         </div>
