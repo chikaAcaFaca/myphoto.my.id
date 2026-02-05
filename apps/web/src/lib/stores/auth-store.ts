@@ -41,20 +41,32 @@ export const useAuthStore = create<AuthState>()(
 
       initialize: () => {
         const unsubscribe = onAuthChange(async (firebaseUser) => {
-          if (firebaseUser) {
-            const userDoc = await getUserDocument(firebaseUser.uid);
+          try {
+            if (firebaseUser) {
+              const userDoc = await getUserDocument(firebaseUser.uid);
+              set({
+                firebaseUser,
+                user: userDoc,
+                isLoading: false,
+                isInitialized: true,
+              });
+            } else {
+              set({
+                firebaseUser: null,
+                user: null,
+                isLoading: false,
+                isInitialized: true,
+              });
+            }
+          } catch (error) {
+            console.error('Auth initialization error:', error);
+            // Still mark as initialized so app doesn't hang
             set({
               firebaseUser,
-              user: userDoc,
-              isLoading: false,
-              isInitialized: true,
-            });
-          } else {
-            set({
-              firebaseUser: null,
               user: null,
               isLoading: false,
               isInitialized: true,
+              error: error instanceof Error ? error.message : 'Failed to initialize auth',
             });
           }
         });
