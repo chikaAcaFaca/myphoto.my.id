@@ -6,15 +6,11 @@ import {
   collection,
   query,
   where,
-  orderBy,
-  limit,
-  startAfter,
   getDocs,
   doc,
   getDoc,
   updateDoc,
   deleteDoc,
-  addDoc,
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
@@ -51,49 +47,55 @@ export function useFiles(params?: FilesQueryParams) {
 
   return useInfiniteQuery({
     queryKey: ['files', user?.id, params],
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam = 0 }) => {
       if (!user) throw new Error('Not authenticated');
 
-      let q = query(
+      // Simple query - only filter by userId (no composite index needed)
+      const q = query(
         collection(db, 'files'),
-        where('userId', '==', user.id),
-        orderBy('createdAt', 'desc'),
-        limit(PAGE_SIZE)
+        where('userId', '==', user.id)
       );
 
+      const snapshot = await getDocs(q);
+      let files = snapshot.docs.map(docToFile);
+
+      // Client-side filtering
       if (params?.type) {
-        q = query(q, where('type', '==', params.type));
+        files = files.filter((f) => f.type === params.type);
       }
       if (params?.isFavorite !== undefined) {
-        q = query(q, where('isFavorite', '==', params.isFavorite));
+        files = files.filter((f) => f.isFavorite === params.isFavorite);
       }
       if (params?.isArchived !== undefined) {
-        q = query(q, where('isArchived', '==', params.isArchived));
+        files = files.filter((f) => f.isArchived === params.isArchived);
       }
       if (params?.isTrashed !== undefined) {
-        q = query(q, where('isTrashed', '==', params.isTrashed));
+        files = files.filter((f) => f.isTrashed === params.isTrashed);
       }
       if (params?.albumId) {
-        q = query(q, where('albumIds', 'array-contains', params.albumId));
+        files = files.filter((f) => f.albumIds?.includes(params.albumId!));
       }
 
-      if (pageParam) {
-        q = query(q, startAfter(pageParam));
-      }
+      // Client-side sorting (newest first)
+      files.sort((a, b) => {
+        const dateA = (a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt)).getTime();
+        const dateB = (b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt)).getTime();
+        return dateB - dateA;
+      });
 
-      const snapshot = await getDocs(q);
-      const files = snapshot.docs.map(docToFile);
-      const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+      // Client-side pagination
+      const start = pageParam as number;
+      const paginatedFiles = files.slice(start, start + PAGE_SIZE);
 
       return {
-        files,
-        lastDoc,
-        hasMore: snapshot.docs.length === PAGE_SIZE,
+        files: paginatedFiles,
+        nextOffset: start + PAGE_SIZE,
+        hasMore: start + PAGE_SIZE < files.length,
       };
     },
-    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.lastDoc : undefined),
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextOffset : undefined),
     enabled: !!user,
-    initialPageParam: null as any,
+    initialPageParam: 0,
   });
 }
 
