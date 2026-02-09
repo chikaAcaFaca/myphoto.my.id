@@ -20,8 +20,8 @@ import {
 } from 'firebase/firestore';
 import type { FileMetadata } from '@myphoto/shared';
 import { useAuthStore } from '../stores';
-import { generateUploadUrl, deleteObject, generateDownloadUrl } from '../s3';
-import { generateS3Key, generateFileId, getFileExtension, getFileType } from '@myphoto/shared';
+import { generateDownloadUrl, deleteObject } from '../s3';
+import { getIdToken } from '../firebase';
 
 const PAGE_SIZE = 50;
 
@@ -122,15 +122,32 @@ export function useUploadFile() {
     mutationFn: async (file: File) => {
       if (!user) throw new Error('Not authenticated');
 
-      const fileId = generateFileId();
-      const extension = getFileExtension(file.name, file.type);
-      const s3Key = generateS3Key(user.id, fileId, extension);
+      const token = await getIdToken();
+      if (!token) throw new Error('Not authenticated');
 
-      // 1. Get pre-signed URL
-      const { url, expiresAt } = await generateUploadUrl(s3Key, file.type, file.size);
+      // 1. Get pre-signed upload URL from server
+      const urlRes = await fetch('/api/files/upload-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size,
+        }),
+      });
 
-      // 2. Upload to S3
-      const uploadResponse = await fetch(url, {
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to get upload URL');
+      }
+
+      const { uploadUrl, fileId, s3Key } = await urlRes.json();
+
+      // 2. Upload directly to S3 using pre-signed URL
+      const uploadResponse = await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
         headers: {
@@ -139,43 +156,31 @@ export function useUploadFile() {
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file');
+        throw new Error('Failed to upload file to storage');
       }
 
-      // 3. Create Firestore document
-      const fileData: Omit<FileMetadata, 'id' | 'createdAt' | 'updatedAt'> = {
-        userId: user.id,
-        type: getFileType(file.type),
-        name: file.name,
-        size: file.size,
-        mimeType: file.type,
-        s3Key,
-        albumIds: [],
-        isFavorite: false,
-        isArchived: false,
-        isTrashed: false,
-      };
-
-      const docRef = await addDoc(collection(db, 'files'), {
-        ...fileData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      // 3. Confirm upload - creates Firestore doc and updates storage
+      const confirmRes = await fetch('/api/files/confirm-upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fileId,
+          s3Key,
+          name: file.name,
+          size: file.size,
+          mimeType: file.type,
+        }),
       });
 
-      // 4. Update user storage
-      const userRef = doc(db, 'users', user.id);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const currentUsed = userSnap.data().storageUsed || 0;
-        await updateDoc(userRef, { storageUsed: currentUsed + file.size });
+      if (!confirmRes.ok) {
+        const err = await confirmRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to confirm upload');
       }
 
-      return {
-        id: docRef.id,
-        ...fileData,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      } as FileMetadata;
+      return await confirmRes.json() as FileMetadata;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['files'] });
