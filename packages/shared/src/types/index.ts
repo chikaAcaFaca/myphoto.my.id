@@ -93,6 +93,25 @@ export interface Album {
   updatedAt: Date;
 }
 
+// Shared Link Types
+export interface SharedLink {
+  token: string;
+  type: 'file' | 'album';
+  fileId: string;
+  userId: string;
+  // Denormalized from FileMetadata for public display (avoids reading private files collection)
+  fileName: string;
+  fileType: FileType;
+  mimeType: string;
+  width?: number;
+  height?: number;
+  // Metadata
+  createdAt: Date;
+  expiresAt?: Date;
+  viewCount: number;
+  isActive: boolean;
+}
+
 // Family Types
 export interface Family {
   id: string;

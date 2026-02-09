@@ -21,11 +21,12 @@ import {
   ZoomIn,
   ZoomOut,
   Play,
+  Loader2,
 } from 'lucide-react';
 import type { FileMetadata } from '@myphoto/shared';
 import { formatDate, formatBytes } from '@myphoto/shared';
 import { useUIStore } from '@/lib/stores';
-import { useFiles, useGetDownloadUrl, useUpdateFile, useDeleteFile } from '@/lib/hooks';
+import { useFiles, useGetDownloadUrl, useUpdateFile, useDeleteFile, useShareFile } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 
 // ─── Main PhotoLightbox ─────────────────────────────────────────────────────
@@ -155,16 +156,23 @@ export function PhotoLightbox() {
     [hasPrev, hasNext, goToPrev, goToNext]
   );
 
-  // Preload adjacent images
+  // Preload adjacent ±2 images (thumbnails + full-res for immediate neighbors)
   useEffect(() => {
     if (currentIndex < 0) return;
-    const toPreload: string[] = [];
-    if (currentIndex > 0) toPreload.push(allFiles[currentIndex - 1].id);
-    if (currentIndex < allFiles.length - 1) toPreload.push(allFiles[currentIndex + 1].id);
-    toPreload.forEach((id) => {
-      const img = new window.Image();
-      img.src = `/api/thumbnail/${id}?size=large`;
-    });
+    for (let offset = -2; offset <= 2; offset++) {
+      if (offset === 0) continue;
+      const idx = currentIndex + offset;
+      if (idx < 0 || idx >= allFiles.length) continue;
+      const id = allFiles[idx].id;
+      // Preload thumbnail
+      const thumb = new window.Image();
+      thumb.src = `/api/thumbnail/${id}`;
+      // Preload full-res for immediate neighbors
+      if (Math.abs(offset) === 1) {
+        const full = new window.Image();
+        full.src = `/api/thumbnail/${id}?size=large`;
+      }
+    }
   }, [currentIndex, allFiles]);
 
   if (!isLightboxOpen || !currentFile) return null;
@@ -279,31 +287,125 @@ export function PhotoLightbox() {
 // ─── ZoomableImage ──────────────────────────────────────────────────────────
 
 function ZoomableImage({ file }: { file: FileMetadata }) {
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [transformOrigin, setTransformOrigin] = useState('center center');
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isFullResLoaded, setIsFullResLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Pinch tracking refs
+  const pinchStartDistRef = useRef(0);
+  const pinchStartScaleRef = useRef(1);
+  const isPinchingRef = useRef(false);
+
+  // Pan tracking refs
+  const panStartRef = useRef({ x: 0, y: 0 });
+  const panTranslateRef = useRef({ x: 0, y: 0 });
+  const isPanningRef = useRef(false);
+  const didGestureRef = useRef(false);
+
   // Reset zoom when file changes
   useEffect(() => {
-    setIsZoomed(false);
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
     setIsFullResLoaded(false);
+    isPinchingRef.current = false;
+    isPanningRef.current = false;
+    didGestureRef.current = false;
   }, [file.id]);
 
+  // Desktop click-to-zoom
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
+      // Ignore if a touch gesture just happened
+      if (didGestureRef.current) {
+        didGestureRef.current = false;
+        return;
+      }
       if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      setTransformOrigin(`${x}% ${y}%`);
-      setIsZoomed((z) => !z);
+
+      if (scale > 1) {
+        // Zoom out
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+      } else {
+        // Zoom in to 2x at click point
+        const rect = containerRef.current.getBoundingClientRect();
+        const clickX = e.clientX - rect.left - rect.width / 2;
+        const clickY = e.clientY - rect.top - rect.height / 2;
+        setScale(2);
+        setTranslate({ x: -clickX, y: -clickY });
+      }
     },
-    []
+    [scale]
   );
+
+  // Touch handlers for pinch-to-zoom and pan
+  const getTouchDistance = (t1: React.Touch, t2: React.Touch) => {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.touches.length === 2) {
+        // Pinch start
+        isPinchingRef.current = true;
+        isPanningRef.current = false;
+        didGestureRef.current = true;
+        pinchStartDistRef.current = getTouchDistance(e.touches[0], e.touches[1]);
+        pinchStartScaleRef.current = scale;
+      } else if (e.touches.length === 1 && scale > 1) {
+        // Pan start (only when zoomed)
+        isPanningRef.current = true;
+        didGestureRef.current = true;
+        panStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        panTranslateRef.current = { ...translate };
+      }
+    },
+    [scale, translate]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (isPinchingRef.current && e.touches.length === 2) {
+        e.preventDefault();
+        const dist = getTouchDistance(e.touches[0], e.touches[1]);
+        const ratio = dist / pinchStartDistRef.current;
+        const newScale = Math.min(4, Math.max(1, pinchStartScaleRef.current * ratio));
+        setScale(newScale);
+        if (newScale <= 1) {
+          setTranslate({ x: 0, y: 0 });
+        }
+      } else if (isPanningRef.current && e.touches.length === 1 && scale > 1) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - panStartRef.current.x;
+        const dy = e.touches[0].clientY - panStartRef.current.y;
+        setTranslate({
+          x: panTranslateRef.current.x + dx,
+          y: panTranslateRef.current.y + dy,
+        });
+      }
+    },
+    [scale]
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (isPinchingRef.current) {
+      isPinchingRef.current = false;
+      // Snap to 1x if close
+      if (scale < 1.1) {
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+      }
+    }
+    isPanningRef.current = false;
+  }, [scale]);
 
   const thumbnailUrl = `/api/thumbnail/${file.id}`;
   const fullResUrl = `/api/thumbnail/${file.id}?size=large`;
+
+  const isZoomed = scale > 1;
 
   return (
     <div
@@ -313,12 +415,18 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
         isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'
       )}
       onClick={handleClick}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{ touchAction: isZoomed ? 'none' : 'pan-x' }}
     >
       <div
-        className="transition-transform duration-300 ease-out"
+        className={cn(
+          'will-change-transform',
+          isPinchingRef.current || isPanningRef.current ? '' : 'transition-transform duration-300 ease-out'
+        )}
         style={{
-          transform: isZoomed ? 'scale(2)' : 'scale(1)',
-          transformOrigin,
+          transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
         }}
       >
         {/* Thumbnail shown immediately */}
@@ -332,6 +440,7 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
             isFullResLoaded ? 'hidden' : 'block'
           )}
           priority
+          draggable={false}
         />
         {/* Full-res loaded in background, swapped when ready */}
         <Image
@@ -345,6 +454,7 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
           )}
           onLoad={() => setIsFullResLoaded(true)}
           priority
+          draggable={false}
         />
       </div>
 
@@ -426,6 +536,7 @@ function LightboxToolbar({
   const { mutate: getDownloadUrl } = useGetDownloadUrl();
   const { mutate: updateFile } = useUpdateFile();
   const { mutate: deleteFile } = useDeleteFile();
+  const { mutate: shareFile, isPending: isSharing } = useShareFile();
 
   const handleToggleFavorite = () => {
     updateFile(
@@ -500,10 +611,48 @@ function LightboxToolbar({
         onClick={handleDownload}
       />
       <ToolbarButton
-        icon={<Share2 className="h-5 w-5" />}
+        icon={
+          isSharing ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Share2 className="h-5 w-5" />
+          )
+        }
         label="Share"
         onClick={() => {
-          addNotification({ type: 'info', title: 'Sharing coming soon' });
+          if (isSharing) return;
+          shareFile(file.id, {
+            onSuccess: async (data) => {
+              const fullUrl = `${window.location.origin}${data.shareUrl}`;
+              // Try native share on mobile first
+              if (navigator.share) {
+                try {
+                  await navigator.share({
+                    title: file.name,
+                    text: `Pogledaj "${file.name}" na MyPhoto.my.id`,
+                    url: fullUrl,
+                  });
+                  return;
+                } catch {
+                  // User cancelled or share failed, fall through to clipboard
+                }
+              }
+              // Fallback: copy to clipboard
+              try {
+                await navigator.clipboard.writeText(fullUrl);
+                addNotification({ type: 'success', title: 'Link kopiran!' });
+              } catch {
+                addNotification({ type: 'error', title: 'Kopiranje nije uspelo' });
+              }
+            },
+            onError: () => {
+              addNotification({
+                type: 'error',
+                title: 'Greška pri deljenju',
+                message: 'Pokušajte ponovo',
+              });
+            },
+          });
         }}
       />
       <ToolbarButton
