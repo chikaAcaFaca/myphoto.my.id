@@ -308,7 +308,7 @@ export const ALL_SUPPORTED_TYPES = [
 ];
 
 // Wasabi S3 Configuration
-export const WASABI_REGION = 'eu-central-1';
+export const WASABI_REGION = 'eu-central-2';
 export const WASABI_ENDPOINT = `https://s3.${WASABI_REGION}.wasabisys.com`;
 
 // API Rate Limits
