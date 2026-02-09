@@ -411,8 +411,8 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
     <div
       ref={containerRef}
       className={cn(
-        'relative flex max-h-full max-w-full items-center justify-center overflow-hidden',
-        isZoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'
+        'relative flex items-center justify-center',
+        isZoomed ? 'cursor-zoom-out h-full w-full' : 'cursor-zoom-in max-h-full max-w-full overflow-hidden'
       )}
       onClick={handleClick}
       onTouchStart={handleTouchStart}
