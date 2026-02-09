@@ -92,3 +92,42 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(results, { status: 200 });
 }
+
+// POST: Admin actions (e.g., set storage limit)
+export async function POST(request: NextRequest) {
+  try {
+    initAdmin();
+    const body = await request.json();
+    const { action, userId, value } = body;
+
+    if (action === 'setStorageLimit') {
+      if (!userId || value === undefined) {
+        return NextResponse.json({ error: 'Missing userId or value' }, { status: 400 });
+      }
+      await db.collection('users').doc(userId).update({ storageLimit: value });
+      const doc = await db.collection('users').doc(userId).get();
+      return NextResponse.json({ success: true, user: { id: doc.id, ...doc.data() } });
+    }
+
+    if (action === 'getUser') {
+      if (!userId) {
+        return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
+      }
+      const doc = await db.collection('users').doc(userId).get();
+      if (!doc.exists) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      return NextResponse.json({ user: { id: doc.id, ...doc.data() } });
+    }
+
+    if (action === 'listUsers') {
+      const snapshot = await db.collection('users').get();
+      const users = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      return NextResponse.json({ users });
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
