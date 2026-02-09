@@ -14,10 +14,10 @@ export function initAdmin() {
         privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       }),
     });
-    _db = getFirestore(app);
+    _db = getFirestore(app, 'myphoto');
   } else {
     app = getApps()[0];
-    _db = getFirestore(app);
+    _db = getFirestore(app, 'myphoto');
   }
 }
 
