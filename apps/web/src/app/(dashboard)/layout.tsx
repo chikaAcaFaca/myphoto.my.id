@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { UploadModal } from '@/components/modals/upload-modal';
 import { CreateAlbumModal } from '@/components/modals/create-album-modal';
+import { PhotoLightbox } from '@/components/gallery/photo-lightbox';
 import { Notifications } from '@/components/ui/notifications';
 
 export default function DashboardLayout({
@@ -50,6 +51,7 @@ export default function DashboardLayout({
       {/* Modals */}
       <UploadModal />
       <CreateAlbumModal />
+      <PhotoLightbox />
 
       {/* Notifications */}
       <Notifications />
