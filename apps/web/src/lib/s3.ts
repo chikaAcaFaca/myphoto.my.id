@@ -4,6 +4,8 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  PutBucketCorsCommand,
+  GetBucketCorsCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { WASABI_REGION, WASABI_ENDPOINT, PRESIGNED_URL_EXPIRY } from '@myphoto/shared';
@@ -91,6 +93,38 @@ export async function getObjectMetadata(
       contentLength: response.ContentLength || 0,
       contentType: response.ContentType || 'application/octet-stream',
     };
+  } catch {
+    return null;
+  }
+}
+
+export async function configureBucketCors(): Promise<void> {
+  const command = new PutBucketCorsCommand({
+    Bucket: BUCKET_NAME,
+    CORSConfiguration: {
+      CORSRules: [
+        {
+          AllowedHeaders: ['*'],
+          AllowedMethods: ['PUT', 'GET', 'HEAD'],
+          AllowedOrigins: [
+            'https://myphoto.my.id',
+            'https://*.vercel.app',
+            'http://localhost:3000',
+          ],
+          ExposeHeaders: ['ETag'],
+          MaxAgeSeconds: 3600,
+        },
+      ],
+    },
+  });
+
+  await s3Client.send(command);
+}
+
+export async function getBucketCors() {
+  try {
+    const command = new GetBucketCorsCommand({ Bucket: BUCKET_NAME });
+    return await s3Client.send(command);
   } catch {
     return null;
   }

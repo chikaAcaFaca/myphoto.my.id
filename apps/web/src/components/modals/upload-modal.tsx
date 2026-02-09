@@ -55,6 +55,8 @@ export function UploadModal() {
     }
 
     setIsUploading(true);
+    let successCount = 0;
+    let failCount = 0;
 
     for (const item of pendingItems) {
       setUploadStatus(item.id, 'uploading');
@@ -70,7 +72,9 @@ export function UploadModal() {
         clearInterval(progressInterval);
         updateUploadProgress(item.id, 100);
         setUploadStatus(item.id, 'completed');
+        successCount++;
       } catch (error) {
+        failCount++;
         setUploadStatus(
           item.id,
           'error',
@@ -80,11 +84,26 @@ export function UploadModal() {
     }
 
     setIsUploading(false);
-    addNotification({
-      type: 'success',
-      title: 'Upload complete',
-      message: `${pendingItems.length} files uploaded successfully`,
-    });
+
+    if (successCount > 0 && failCount === 0) {
+      addNotification({
+        type: 'success',
+        title: 'Upload complete',
+        message: `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`,
+      });
+    } else if (successCount > 0 && failCount > 0) {
+      addNotification({
+        type: 'warning',
+        title: 'Upload partially complete',
+        message: `${successCount} uploaded, ${failCount} failed`,
+      });
+    } else {
+      addNotification({
+        type: 'error',
+        title: 'Upload failed',
+        message: `${failCount} file${failCount > 1 ? 's' : ''} failed to upload`,
+      });
+    }
   };
 
   const handleRemoveItem = (id: string) => {

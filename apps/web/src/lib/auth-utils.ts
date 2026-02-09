@@ -43,13 +43,24 @@ export async function verifyAuthWithRateLimit(
     };
   }
 
+  // Verify Firebase token
+  let userId: string;
   try {
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await getAuth().verifyIdToken(token);
-    const userId = decodedToken.uid;
+    userId = decodedToken.uid;
+  } catch (authError) {
+    console.error('Auth token verification failed:', authError);
+    return {
+      success: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    };
+  }
 
-    // Check rate limit using user ID as identifier
-    const rateLimitResult = await checkRateLimit(`user:${userId}`, type);
+  // Check rate limit (fail-open: allow request if rate limiter is unavailable)
+  let rateLimitResult: RateLimitResult = { success: true, limit: 0, remaining: 0, reset: 0 };
+  try {
+    rateLimitResult = await checkRateLimit(`user:${userId}`, type);
 
     if (!rateLimitResult.success) {
       return {
@@ -57,18 +68,16 @@ export async function verifyAuthWithRateLimit(
         response: rateLimitExceededResponse(rateLimitResult),
       };
     }
-
-    return {
-      success: true,
-      userId,
-      rateLimitResult,
-    };
-  } catch {
-    return {
-      success: false,
-      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-    };
+  } catch (rateLimitError) {
+    console.error('Rate limit check failed (allowing request):', rateLimitError);
+    // Fail-open: allow the request through if rate limiting is unavailable
   }
+
+  return {
+    success: true,
+    userId,
+    rateLimitResult,
+  };
 }
 
 /**

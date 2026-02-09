@@ -75,9 +75,10 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error confirming upload:', error);
+    console.error('Error confirming upload:', error instanceof Error ? error.message : error);
+    console.error('Stack:', error instanceof Error ? error.stack : 'N/A');
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }

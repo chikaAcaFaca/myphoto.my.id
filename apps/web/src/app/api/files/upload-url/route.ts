@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { generateUploadUrl } from '@/lib/s3';
+import { generateUploadUrl, configureBucketCors } from '@/lib/s3';
 import { generateS3Key, generateFileId, getFileExtension, isSupportedMimeType, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { db } from '@/lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
+
+// One-time CORS setup for the S3 bucket
+let corsConfigured = false;
+async function ensureCorsConfigured() {
+  if (corsConfigured) return;
+  try {
+    await configureBucketCors();
+    corsConfigured = true;
+    console.log('S3 bucket CORS configured successfully');
+  } catch (err) {
+    console.error('Failed to configure S3 CORS (non-fatal):', err);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +27,9 @@ export async function POST(request: NextRequest) {
       return authResult.response;
     }
     const { userId } = authResult;
+
+    // Ensure CORS is configured (runs once per cold start)
+    await ensureCorsConfigured();
 
     // Parse request body
     const body = await request.json();
@@ -73,9 +89,10 @@ export async function POST(request: NextRequest) {
       expiresAt: expiresAt.toISOString(),
     });
   } catch (error) {
-    console.error('Error generating upload URL:', error);
+    console.error('Error generating upload URL:', error instanceof Error ? error.message : error);
+    console.error('Stack:', error instanceof Error ? error.stack : 'N/A');
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     );
   }
