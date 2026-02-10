@@ -54,6 +54,7 @@ export function PhotoLightbox() {
   const [isToolbarVisible, setIsToolbarVisible] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isChildZoomed, setIsChildZoomed] = useState(false);
 
   // Detect mobile
   useEffect(() => {
@@ -247,7 +248,7 @@ export function PhotoLightbox() {
           >
             <motion.div
               key={currentFile.id}
-              drag={isMobile ? 'x' : false}
+              drag={isMobile && !isChildZoomed ? 'x' : false}
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.2}
               onDragEnd={handleDragEnd}
@@ -256,7 +257,10 @@ export function PhotoLightbox() {
               {currentFile.type === 'video' ? (
                 <VideoPlayer file={currentFile} />
               ) : (
-                <ZoomableImage file={currentFile} />
+                <ZoomableImage
+                  file={currentFile}
+                  onZoomChange={setIsChildZoomed}
+                />
               )}
             </motion.div>
           </div>
@@ -287,7 +291,7 @@ export function PhotoLightbox() {
 
 // ─── ZoomableImage ──────────────────────────────────────────────────────────
 
-function ZoomableImage({ file }: { file: FileMetadata }) {
+function ZoomableImage({ file, onZoomChange }: { file: FileMetadata; onZoomChange?: (zoomed: boolean) => void }) {
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isFullResLoaded, setIsFullResLoaded] = useState(false);
@@ -304,6 +308,11 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
   const isPanningRef = useRef(false);
   const didGestureRef = useRef(false);
 
+  // Notify parent when zoom state changes
+  useEffect(() => {
+    onZoomChange?.(scale > 1);
+  }, [scale, onZoomChange]);
+
   // Reset zoom when file changes
   useEffect(() => {
     setScale(1);
@@ -314,12 +323,55 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
     didGestureRef.current = false;
   }, [file.id]);
 
-  // Desktop click-to-zoom
+  // ── Desktop mouse handlers ────────────────────────────────────────────────
+  const isDraggingRef = useRef(false);
+  const dragStartMouseRef = useRef({ x: 0, y: 0 });
+  const dragStartTranslateRef = useRef({ x: 0, y: 0 });
+  const didDragRef = useRef(false);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return; // left click only
+      if (scale <= 1) return; // only pan when zoomed
+      e.preventDefault();
+      isDraggingRef.current = true;
+      didDragRef.current = false;
+      dragStartMouseRef.current = { x: e.clientX, y: e.clientY };
+      dragStartTranslateRef.current = { ...translate };
+    },
+    [scale, translate]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!isDraggingRef.current) return;
+      const dx = e.clientX - dragStartMouseRef.current.x;
+      const dy = e.clientY - dragStartMouseRef.current.y;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        didDragRef.current = true;
+      }
+      setTranslate({
+        x: dragStartTranslateRef.current.x + dx,
+        y: dragStartTranslateRef.current.y + dy,
+      });
+    },
+    []
+  );
+
+  const handleMouseUp = useCallback(() => {
+    isDraggingRef.current = false;
+  }, []);
+
+  // Click: toggle zoom (only if not a drag)
   const handleClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      // Ignore if a touch gesture just happened
+      // Ignore if a touch gesture or drag just happened
       if (didGestureRef.current) {
         didGestureRef.current = false;
+        return;
+      }
+      if (didDragRef.current) {
+        didDragRef.current = false;
         return;
       }
       if (!containerRef.current) return;
@@ -338,6 +390,34 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
       }
     },
     [scale]
+  );
+
+  // Mouse wheel zoom (desktop)
+  const handleWheel = useCallback(
+    (e: React.WheelEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      if (!containerRef.current) return;
+
+      const rect = containerRef.current.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left - rect.width / 2;
+      const cursorY = e.clientY - rect.top - rect.height / 2;
+
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const newScale = Math.min(4, Math.max(1, scale * zoomFactor));
+
+      if (newScale <= 1) {
+        setScale(1);
+        setTranslate({ x: 0, y: 0 });
+      } else {
+        const ratio = newScale / scale;
+        setScale(newScale);
+        setTranslate({
+          x: cursorX - (cursorX - translate.x) * ratio,
+          y: cursorY - (cursorY - translate.y) * ratio,
+        });
+      }
+    },
+    [scale, translate]
   );
 
   // Touch handlers for pinch-to-zoom and pan
@@ -413,9 +493,19 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
       ref={containerRef}
       className={cn(
         'relative flex items-center justify-center',
-        isZoomed ? 'cursor-zoom-out h-full w-full' : 'cursor-zoom-in max-h-full max-w-full overflow-hidden'
+        isZoomed
+          ? 'h-full w-full'
+          : 'max-h-full max-w-full overflow-hidden',
+        isZoomed
+          ? (isDraggingRef.current ? 'cursor-grabbing' : 'cursor-grab')
+          : 'cursor-zoom-in'
       )}
       onClick={handleClick}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
