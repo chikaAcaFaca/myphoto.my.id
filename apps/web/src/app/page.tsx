@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import Link from 'next/link';
@@ -20,11 +20,16 @@ import {
   Users,
   Star,
 } from 'lucide-react';
+import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
+
+const HERO_TIERS = STORAGE_TIERS.slice(0, 3); // Free, Starter, Plus
 
 export default function HomePage() {
   const { user, isLoading } = useAuthStore();
   const router = useRouter();
+  const [planType, setPlanType] = useState<'standard' | 'ai'>('standard');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
     if (!isLoading && user) {
@@ -39,6 +44,28 @@ export default function HomePage() {
       </div>
     );
   }
+
+  const getMonthlyPrice = (tier: typeof STORAGE_TIERS[0]) => {
+    if (planType === 'ai') return tier.priceMonthlyAI;
+    return tier.priceMonthly;
+  };
+
+  const getYearlyMonthlyEquiv = (tier: typeof STORAGE_TIERS[0]) => {
+    if (planType === 'ai') return tier.priceYearlyAI / 12;
+    return tier.priceYearly / 12;
+  };
+
+  const getYearlyTotal = (tier: typeof STORAGE_TIERS[0]) => {
+    if (planType === 'ai') return tier.priceYearlyAI;
+    return tier.priceYearly;
+  };
+
+  const getSavingsPercent = (tier: typeof STORAGE_TIERS[0]) => {
+    const monthly = getMonthlyPrice(tier);
+    if (monthly === 0) return 0;
+    const equiv = getYearlyMonthlyEquiv(tier);
+    return Math.round((1 - equiv / monthly) * 100);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -64,40 +91,196 @@ export default function HomePage() {
         </nav>
       </header>
 
-      {/* Hero */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <h1 className="mb-6 text-4xl font-bold leading-tight md:text-6xl">
-          Vaše slike.
-          <br />
+      {/* Hero with Interactive Pricing */}
+      <section className="container mx-auto px-4 py-10 text-center">
+        <h1 className="mb-3 text-4xl font-bold leading-tight md:text-5xl">
+          Vaše slike.{' '}
           <span className="text-primary-500">Samo vaše.</span>
         </h1>
-        <p className="mx-auto mb-8 max-w-2xl text-lg text-gray-600 dark:text-gray-300">
-          Cloud storage koji poštuje vašu privatnost, nudi AI funkcije za svakoga,
-          i ne kompromituje kvalitet vaših uspomena.
+        <p className="mx-auto mb-6 max-w-xl text-gray-600 dark:text-gray-300">
+          Privatni cloud storage sa AI funkcijama. Bez kompresije, bez kompromisa.
         </p>
 
-        {/* Trust Badges */}
-        <div className="mb-8 flex flex-wrap items-center justify-center gap-3">
-          <div className="flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-400">
-            <Shield className="h-4 w-4" />
-            <span>Ne koristimo slike za AI trening</span>
+        {/* Trust Badges - compact */}
+        <div className="mb-8 flex flex-wrap items-center justify-center gap-2">
+          <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-400">
+            <Shield className="h-3.5 w-3.5" />
+            Ne koristimo slike za AI trening
+          </span>
+          <span className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+            <Server className="h-3.5 w-3.5" />
+            EU Serveri
+          </span>
+          <span className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-xs text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+            <Lock className="h-3.5 w-3.5" />
+            GDPR
+          </span>
+        </div>
+
+        {/* Toggles */}
+        <div className="mb-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-6">
+          {/* Standard / AI toggle */}
+          <div className="inline-flex items-center rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+            <button
+              onClick={() => setPlanType('standard')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                planType === 'standard'
+                  ? 'bg-white text-gray-900 shadow dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-600 dark:text-gray-400'
+              )}
+            >
+              <Image className="h-4 w-4" />
+              Standard
+            </button>
+            <button
+              onClick={() => setPlanType('ai')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                planType === 'ai'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow'
+                  : 'text-gray-600 dark:text-gray-400'
+              )}
+            >
+              <Sparkles className="h-4 w-4" />
+              AI Powered
+            </button>
           </div>
-          <div className="flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-            <Server className="h-4 w-4" />
-            <span>EU Serveri</span>
-          </div>
-          <div className="flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
-            <Lock className="h-4 w-4" />
-            <span>GDPR Compliant</span>
+
+          {/* Monthly / Yearly toggle */}
+          <div className="inline-flex items-center rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={cn(
+                'rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                billingCycle === 'monthly'
+                  ? 'bg-white text-gray-900 shadow dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-600 dark:text-gray-400'
+              )}
+            >
+              {BILLING_PERIODS.monthly.label}
+            </button>
+            <button
+              onClick={() => setBillingCycle('yearly')}
+              className={cn(
+                'rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                billingCycle === 'yearly'
+                  ? 'bg-white text-gray-900 shadow dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-600 dark:text-gray-400'
+              )}
+            >
+              {BILLING_PERIODS.yearly.label}
+              <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                2 mes. gratis
+              </span>
+            </button>
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          <Link href="/register" className="btn-primary px-8 py-3 text-lg">
-            Započni besplatno - 10GB
-          </Link>
-          <Link href="/pricing" className="btn-secondary px-8 py-3 text-lg">
-            Pogledaj planove
+        {/* Pricing Cards */}
+        <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-3">
+          {HERO_TIERS.map((tier) => {
+            const monthlyPrice = getMonthlyPrice(tier);
+            const yearlyEquiv = getYearlyMonthlyEquiv(tier);
+            const yearlyTotal = getYearlyTotal(tier);
+            const savings = getSavingsPercent(tier);
+            const isPopular = tier.isPopular;
+            const isFree = tier.tier === 0;
+
+            return (
+              <div
+                key={tier.tier}
+                className={cn(
+                  'relative rounded-2xl p-6 text-left transition-transform hover:scale-105',
+                  isPopular
+                    ? 'bg-gradient-to-b from-primary-500 to-primary-600 text-white shadow-xl ring-4 ring-primary-200 dark:ring-primary-800'
+                    : 'bg-white shadow-lg dark:bg-gray-800'
+                )}
+              >
+                {isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-yellow-900">
+                    NAJPOPULARNIJI
+                  </div>
+                )}
+
+                <h3 className="text-lg font-semibold">{tier.name}</h3>
+                <p className={cn(
+                  'text-2xl font-medium',
+                  isPopular ? 'text-primary-100' : 'text-gray-600 dark:text-gray-300'
+                )}>
+                  {tier.storageDisplay}
+                </p>
+
+                {/* Pricing */}
+                <div className="mt-3 mb-4">
+                  {isFree ? (
+                    <p className="text-3xl font-bold">Besplatno</p>
+                  ) : billingCycle === 'monthly' ? (
+                    <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
+                      ${monthlyPrice.toFixed(2)}
+                      <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                        /mes
+                      </span>
+                    </p>
+                  ) : (
+                    <div>
+                      <p className={cn('text-lg line-through', isPopular ? 'text-primary-200' : 'text-gray-400')}>
+                        ${monthlyPrice.toFixed(2)}/mes
+                      </p>
+                      <p className="text-3xl font-bold text-green-500">
+                        ${yearlyEquiv.toFixed(2)}
+                        <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                          /mes
+                        </span>
+                      </p>
+                      <p className={cn('text-sm', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                        ${yearlyTotal.toFixed(2)}/god
+                        {savings > 0 && (
+                          <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                            -{savings}%
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Features */}
+                <ul className="mb-6 space-y-1.5">
+                  {tier.features.slice(0, 3).map((feature, i) => (
+                    <li key={i} className={cn('flex items-center gap-2 text-sm', isPopular ? 'text-primary-50' : 'text-gray-600 dark:text-gray-300')}>
+                      <Check className={cn('h-4 w-4 flex-shrink-0', isPopular ? 'text-primary-100' : 'text-primary-500')} />
+                      {feature}
+                    </li>
+                  ))}
+                  {planType === 'ai' && tier.aiFeatures && tier.aiFeatures.slice(0, 2).map((feature, i) => (
+                    <li key={`ai-${i}`} className={cn('flex items-center gap-2 text-sm', isPopular ? 'text-primary-50' : 'text-purple-600 dark:text-purple-400')}>
+                      <Sparkles className={cn('h-4 w-4 flex-shrink-0', isPopular ? 'text-yellow-300' : 'text-purple-500')} />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href={isFree ? '/register' : `/register?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
+                  className={cn(
+                    'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
+                    isPopular
+                      ? 'bg-white text-primary-600 hover:bg-primary-50'
+                      : 'bg-primary-500 text-white hover:bg-primary-600'
+                  )}
+                >
+                  {isFree ? 'Započni besplatno' : 'Izaberi plan'}
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 text-center">
+          <Link href="/pricing" className="inline-flex items-center gap-2 text-primary-500 hover:underline">
+            Pogledaj sve planove
+            <span>&rarr;</span>
           </Link>
         </div>
       </section>
@@ -143,7 +326,7 @@ export default function HomePage() {
             <ul className="space-y-2 text-purple-100">
               <li className="flex items-start gap-2">
                 <Search className="mt-1 h-4 w-4 flex-shrink-0" />
-                Smart Search - "slike sa plaže"
+                Smart Search - &quot;slike sa plaže&quot;
               </li>
               <li className="flex items-start gap-2">
                 <Users className="mt-1 h-4 w-4 flex-shrink-0" />
@@ -206,50 +389,6 @@ export default function HomePage() {
               description="Upload i pristup slikama munjevitom brzinom sa bilo kog mesta."
             />
           </div>
-        </div>
-      </section>
-
-      {/* Pricing Preview */}
-      <section className="container mx-auto px-4 py-16">
-        <h2 className="mb-4 text-center text-3xl font-bold">Fleksibilni planovi</h2>
-        <p className="mb-4 text-center text-gray-600 dark:text-gray-300">
-          Izaberite Standard ili AI Powered verziju
-        </p>
-        <div className="mb-8 flex justify-center gap-4">
-          <span className="rounded-full bg-gray-200 px-4 py-1 text-sm dark:bg-gray-700">
-            Standard - od $2.49/mes
-          </span>
-          <span className="rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-1 text-sm text-white">
-            AI Powered - od $2.99/mes
-          </span>
-        </div>
-        <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3">
-          <PricingCard
-            name="Free"
-            price="$0"
-            storage="10 GB"
-            features={['AI demo (50 slika/mes)', 'Web & mobile pristup', 'Deljenje albuma']}
-          />
-          <PricingCard
-            name="Plus + AI"
-            price="$4.49"
-            storage="250 GB"
-            features={['Smart search', 'Auto-tagging', 'Face recognition', 'Family sharing']}
-            highlighted
-            badge="Najpopularniji"
-          />
-          <PricingCard
-            name="Pro+ + AI"
-            price="$17.99"
-            storage="1.25 TB"
-            features={['Unlimited AI', 'Premium support', 'API pristup', 'Priority processing']}
-          />
-        </div>
-        <div className="mt-8 text-center">
-          <Link href="/pricing" className="inline-flex items-center gap-2 text-primary-500 hover:underline">
-            Pogledaj sve planove
-            <span>&rarr;</span>
-          </Link>
         </div>
       </section>
 
@@ -415,60 +554,7 @@ function TestimonialCard({ testimonial }: { testimonial: typeof TESTIMONIALS[num
           />
         ))}
       </div>
-      <p className="text-gray-600 dark:text-gray-300">"{testimonial.quote}"</p>
-    </div>
-  );
-}
-
-function PricingCard({
-  name,
-  price,
-  storage,
-  features,
-  highlighted,
-  badge,
-}: {
-  name: string;
-  price: string;
-  storage: string;
-  features: string[];
-  highlighted?: boolean;
-  badge?: string;
-}) {
-  return (
-    <div
-      className={`relative rounded-xl p-6 ${
-        highlighted
-          ? 'bg-gradient-to-b from-primary-500 to-primary-600 text-white shadow-xl'
-          : 'bg-white shadow-lg dark:bg-gray-800'
-      }`}
-    >
-      {badge && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-yellow-900">
-          {badge}
-        </div>
-      )}
-      <h3 className="mb-2 text-lg font-semibold">{name}</h3>
-      <div className="mb-4">
-        <span className="text-3xl font-bold">{price}</span>
-        <span className={highlighted ? 'text-primary-100' : 'text-gray-500'}>/mes</span>
-      </div>
-      <p className={`mb-6 text-2xl font-medium ${highlighted ? 'text-primary-100' : 'text-gray-600 dark:text-gray-300'}`}>
-        {storage}
-      </p>
-      <ul className="space-y-2">
-        {features.map((feature, i) => (
-          <li
-            key={i}
-            className={`flex items-center gap-2 text-sm ${
-              highlighted ? 'text-primary-100' : 'text-gray-600 dark:text-gray-300'
-            }`}
-          >
-            <Check className={`h-4 w-4 ${highlighted ? 'text-white' : 'text-primary-500'}`} />
-            {feature}
-          </li>
-        ))}
-      </ul>
+      <p className="text-gray-600 dark:text-gray-300">&quot;{testimonial.quote}&quot;</p>
     </div>
   );
 }

@@ -472,15 +472,42 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
 function VideoPlayer({ file }: { file: FileMetadata }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { mutate: getDownloadUrl } = useGetDownloadUrl();
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
-    getDownloadUrl(file.s3Key, {
-      onSuccess: (url) => setVideoSrc(url),
-    });
-  }, [file.s3Key, getDownloadUrl]);
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    setVideoSrc(null);
+    setVideoError(null);
+
+    fetch(`/api/stream/${file.id}`, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: { url: string }) => {
+        if (!cancelled) setVideoSrc(data.url);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setVideoError(
+            err.name === 'AbortError'
+              ? 'Video učitavanje isteklo. Pokušajte ponovo.'
+              : 'Greška pri učitavanju videa.'
+          );
+        }
+      })
+      .finally(() => clearTimeout(timeout));
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [file.id]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -558,6 +585,44 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
 
   const thumbnailUrl = `/api/thumbnail/${file.id}`;
 
+  if (videoError) {
+    return (
+      <div className="flex items-center justify-center">
+        <div className="relative">
+          <Image
+            src={thumbnailUrl}
+            alt={file.name}
+            width={file.width || 1920}
+            height={file.height || 1080}
+            className="max-h-screen max-w-full object-contain opacity-30"
+          />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <p className="text-sm text-white/80">{videoError}</p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setVideoError(null);
+                setVideoSrc(null);
+                // re-trigger fetch by forcing a remount via key isn't possible here,
+                // so we manually re-fetch
+                fetch(`/api/stream/${file.id}`)
+                  .then((res) => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                  })
+                  .then((data: { url: string }) => setVideoSrc(data.url))
+                  .catch(() => setVideoError('Greška pri učitavanju videa.'));
+              }}
+              className="rounded-lg bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30"
+            >
+              Pokušaj ponovo
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!videoSrc) {
     return (
       <div className="flex items-center justify-center">
@@ -591,6 +656,7 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
         autoPlay
         playsInline
         className="max-h-screen max-w-full object-contain"
+        onError={() => setVideoError('Video format nije podržan ili je fajl oštećen.')}
       >
         Your browser does not support the video tag.
       </video>

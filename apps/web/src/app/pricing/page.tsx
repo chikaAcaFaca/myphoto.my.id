@@ -29,6 +29,10 @@ export default function PricingPage() {
 
   const periodConfig = BILLING_PERIODS[billingCycle];
 
+  const getMonthlyBase = (tier: typeof STORAGE_TIERS[0]) => {
+    return planType === 'ai' ? tier.priceMonthlyAI : tier.priceMonthly;
+  };
+
   const getMonthlyEquivalent = (tier: typeof STORAGE_TIERS[0]) => {
     if (planType === 'ai') {
       switch (billingCycle) {
@@ -64,7 +68,7 @@ export default function PricingPage() {
   };
 
   const getSavingsPercent = (tier: typeof STORAGE_TIERS[0]) => {
-    const monthly = planType === 'ai' ? tier.priceMonthlyAI : tier.priceMonthly;
+    const monthly = getMonthlyBase(tier);
     if (monthly === 0) return 0;
     const monthlyEquiv = getMonthlyEquivalent(tier);
     return Math.round((1 - monthlyEquiv / monthly) * 100);
@@ -95,35 +99,30 @@ export default function PricingPage() {
         </nav>
       </header>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-4xl font-bold md:text-5xl">
-          Vaše slike. Samo vaše.
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600 dark:text-gray-300">
-          Cloud storage koji poštuje vašu privatnost, nudi AI funkcije za svakoga,
-          i ne kompromituje kvalitet vaših uspomena.
-        </p>
-
-        {/* Trust Badges */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
-          <div className="flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm text-green-800 dark:bg-green-900/30 dark:text-green-400">
-            <Shield className="h-4 w-4" />
-            <span>Ne koristimo slike za AI trening</span>
-          </div>
-          <div className="flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-            <Server className="h-4 w-4" />
-            <span>EU Serveri</span>
-          </div>
-          <div className="flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
-            <Lock className="h-4 w-4" />
-            <span>GDPR Compliant</span>
+      {/* Main content — pricing immediately */}
+      <main className="container mx-auto px-4 py-8">
+        {/* Title + Trust Badges (compact) */}
+        <div className="mb-6 text-center">
+          <h1 className="text-4xl font-bold md:text-5xl">Izaberite plan</h1>
+          <p className="mx-auto mt-2 max-w-xl text-gray-600 dark:text-gray-300">
+            Fleksibilni planovi za svakoga. Otkazivanje bilo kad.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-400">
+              <Shield className="h-3.5 w-3.5" />
+              Ne koristimo slike za AI trening
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+              <Server className="h-3.5 w-3.5" />
+              EU Serveri
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-xs text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+              <Lock className="h-3.5 w-3.5" />
+              GDPR
+            </span>
           </div>
         </div>
-      </section>
 
-      {/* Main content */}
-      <main className="container mx-auto px-4 py-8">
         {/* Toggle Section */}
         <div className="mb-8 flex flex-col items-center gap-6">
           {/* Plan Type Toggle (AI / Standard) */}
@@ -220,10 +219,13 @@ export default function PricingPage() {
         {/* Pricing cards - First 5 tiers */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {STORAGE_TIERS.slice(0, 5).map((tier) => {
+            const monthlyBase = getMonthlyBase(tier);
             const monthlyEquiv = getMonthlyEquivalent(tier);
             const periodTotal = getPeriodTotal(tier);
             const isPopular = tier.isPopular;
             const savings = getSavingsPercent(tier);
+            const isFree = tier.tier === 0;
+            const showSavings = billingCycle !== 'monthly' && !isFree;
 
             return (
               <div
@@ -242,36 +244,42 @@ export default function PricingPage() {
                 )}
 
                 <h3 className="text-lg font-semibold">{tier.name}</h3>
-                <p className={cn(
-                  'text-3xl font-bold',
-                  isPopular ? '' : 'text-gray-900 dark:text-white'
-                )}>
-                  {tier.tier === 0 ? (
-                    'Besplatno'
+
+                {/* Price display */}
+                <div className="mt-1 mb-1">
+                  {isFree ? (
+                    <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
+                      Besplatno
+                    </p>
+                  ) : showSavings ? (
+                    <div>
+                      <p className={cn('text-base line-through', isPopular ? 'text-primary-200' : 'text-gray-400')}>
+                        ${monthlyBase.toFixed(2)}/mes
+                      </p>
+                      <p className="text-3xl font-bold text-green-500">
+                        ${monthlyEquiv.toFixed(2)}
+                        <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                          /mes
+                        </span>
+                      </p>
+                      <p className={cn('text-sm', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                        ${periodTotal.toFixed(2)}/{periodConfig.labelShort}
+                        {savings > 0 && (
+                          <span className="ml-1.5 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                            -{savings}%
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   ) : (
-                    <>
+                    <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
                       ${monthlyEquiv.toFixed(2)}
-                      <span className={cn(
-                        'text-sm font-normal',
-                        isPopular ? 'text-primary-100' : 'text-gray-500'
-                      )}>
+                      <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
                         /mes
                       </span>
-                    </>
+                    </p>
                   )}
-                </p>
-
-                {billingCycle !== 'monthly' && tier.tier > 0 && (
-                  <p className={cn(
-                    'text-sm',
-                    isPopular ? 'text-primary-100' : 'text-gray-500'
-                  )}>
-                    ${periodTotal.toFixed(2)}/{periodConfig.labelShort}
-                    {savings > 0 && (
-                      <span className="ml-1 text-green-400">(-{savings}%)</span>
-                    )}
-                  </p>
-                )}
+                </div>
 
                 <p className={cn(
                   'mb-4 mt-2 text-2xl font-medium',
@@ -306,7 +314,7 @@ export default function PricingPage() {
                 </ul>
 
                 <Link
-                  href={tier.tier === 0 ? '/register' : `/register?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
+                  href={isFree ? '/register' : `/register?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
                   className={cn(
                     'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
                     isPopular
@@ -314,7 +322,7 @@ export default function PricingPage() {
                       : 'bg-primary-500 text-white hover:bg-primary-600'
                   )}
                 >
-                  {tier.tier === 0 ? 'Započni besplatno' : 'Izaberi plan'}
+                  {isFree ? 'Započni besplatno' : 'Izaberi plan'}
                 </Link>
               </div>
             );
@@ -326,8 +334,11 @@ export default function PricingPage() {
           <h2 className="mb-6 text-center text-2xl font-bold">Treba vam više prostora?</h2>
           <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2 lg:grid-cols-4">
             {STORAGE_TIERS.slice(5).map((tier) => {
+              const monthlyBase = getMonthlyBase(tier);
               const monthlyEquiv = getMonthlyEquivalent(tier);
               const periodTotal = getPeriodTotal(tier);
+              const savings = getSavingsPercent(tier);
+              const showSavings = billingCycle !== 'monthly';
 
               return (
                 <div
@@ -344,12 +355,28 @@ export default function PricingPage() {
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
                       {tier.storageDisplay}
                     </p>
-                    <p className="mt-1 text-xl font-bold text-primary-600">
-                      ${monthlyEquiv.toFixed(2)}/mes
-                    </p>
-                    {billingCycle !== 'monthly' && (
-                      <p className="text-sm text-gray-500">
-                        ${periodTotal.toFixed(2)}/{periodConfig.labelShort}
+
+                    {/* Price with savings */}
+                    {showSavings ? (
+                      <div className="mt-1">
+                        <p className="text-sm text-gray-400 line-through">
+                          ${monthlyBase.toFixed(2)}/mes
+                        </p>
+                        <p className="text-xl font-bold text-green-500">
+                          ${monthlyEquiv.toFixed(2)}/mes
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          ${periodTotal.toFixed(2)}/{periodConfig.labelShort}
+                          {savings > 0 && (
+                            <span className="ml-1.5 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                              -{savings}%
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xl font-bold text-primary-600">
+                        ${monthlyEquiv.toFixed(2)}/mes
                       </p>
                     )}
                   </div>
@@ -459,7 +486,7 @@ export default function PricingPage() {
                 <Search className="mb-2 h-8 w-8 text-purple-500" />
                 <h4 className="font-semibold">Smart Search</h4>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  "Pokaži slike sa plaže iz leta 2023"
+                  &quot;Pokaži slike sa plaže iz leta 2023&quot;
                 </p>
               </div>
               <div className="rounded-xl bg-white p-4 shadow dark:bg-gray-800">
@@ -480,7 +507,7 @@ export default function PricingPage() {
                 <Brain className="mb-2 h-8 w-8 text-purple-500" />
                 <h4 className="font-semibold">AI Assistant</h4>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  "Napravi album od putovanja u Grčku"
+                  &quot;Napravi album od putovanja u Grčku&quot;
                 </p>
               </div>
             </div>
@@ -544,7 +571,7 @@ export default function PricingPage() {
               Započni besplatno - 10GB
             </Link>
             <Link
-              href="#"
+              href="/contact"
               className="rounded-lg border-2 border-white px-8 py-3 font-semibold text-white transition-colors hover:bg-white/10"
             >
               Kontaktirajte nas
@@ -561,7 +588,7 @@ export default function PricingPage() {
             <span className="font-semibold">MyPhoto</span>
           </div>
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} MyPhoto. Sva prava zadržana.
+            &copy; {new Date().getFullYear()} MyPhoto. Sva prava zadržana.
           </p>
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">Privatnost</Link>
@@ -585,7 +612,7 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
         className="flex w-full items-center justify-between text-left"
       >
         <span className="font-medium">{question}</span>
-        <span className="ml-4 text-gray-400">{isOpen ? '−' : '+'}</span>
+        <span className="ml-4 text-gray-400">{isOpen ? '\u2212' : '+'}</span>
       </button>
       {isOpen && (
         <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{answer}</p>
