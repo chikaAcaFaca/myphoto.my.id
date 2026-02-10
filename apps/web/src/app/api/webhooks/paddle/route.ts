@@ -68,7 +68,16 @@ function verifyWebhookSignature(
 }
 
 function getTierFromProductId(productId: string): number | null {
-  const tier = STORAGE_TIERS.find((t) => t.paddleProductId === productId);
+  const tier = STORAGE_TIERS.find((t) =>
+    t.paddleProductId === productId ||
+    t.paddleProductIdAI === productId ||
+    t.paddleQuarterlyId === productId ||
+    t.paddleQuarterlyIdAI === productId ||
+    t.paddleSemiAnnualId === productId ||
+    t.paddleSemiAnnualIdAI === productId ||
+    t.paddleYearlyId === productId ||
+    t.paddleYearlyIdAI === productId
+  );
   return tier ? tier.tier : null;
 }
 

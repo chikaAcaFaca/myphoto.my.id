@@ -131,6 +131,7 @@ export interface Subscription {
   tier: number;
   storageAmount: number;
   status: SubscriptionStatus;
+  billingPeriod?: BillingPeriod;
   currentPeriodEnd: Date;
   paddleCustomerId: string;
   createdAt: Date;
@@ -194,6 +195,9 @@ export interface AIProcessingResult {
   qualityScore: number;
 }
 
+// Billing Period Types
+export type BillingPeriod = 'monthly' | 'quarterly' | 'semiAnnual' | 'yearly';
+
 // Storage Tier Types
 export interface StorageTier {
   tier: number;
@@ -202,12 +206,22 @@ export interface StorageTier {
   storageDisplay: string;
   // Standard pricing (without AI)
   priceMonthly: number;
+  priceQuarterly: number;
+  priceSemiAnnual: number;
   priceYearly: number;
   paddleProductId: string;
+  paddleQuarterlyId: string;
+  paddleSemiAnnualId: string;
+  paddleYearlyId: string;
   // AI pricing
   priceMonthlyAI: number;
+  priceQuarterlyAI: number;
+  priceSemiAnnualAI: number;
   priceYearlyAI: number;
   paddleProductIdAI: string;
+  paddleQuarterlyIdAI: string;
+  paddleSemiAnnualIdAI: string;
+  paddleYearlyIdAI: string;
   // Features
   features: string[];
   aiFeatures?: string[];

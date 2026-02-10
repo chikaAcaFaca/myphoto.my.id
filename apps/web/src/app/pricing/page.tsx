@@ -17,30 +17,66 @@ import {
   Users,
   Zap
 } from 'lucide-react';
-import { STORAGE_TIERS } from '@myphoto/shared';
+import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
+import type { BillingPeriod } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 
+const BILLING_OPTIONS: BillingPeriod[] = ['monthly', 'quarterly', 'semiAnnual', 'yearly'];
+
 export default function PricingPage() {
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingCycle, setBillingCycle] = useState<BillingPeriod>('monthly');
   const [planType, setPlanType] = useState<'standard' | 'ai'>('ai');
 
-  const getPrice = (tier: typeof STORAGE_TIERS[0]) => {
+  const periodConfig = BILLING_PERIODS[billingCycle];
+
+  const getMonthlyEquivalent = (tier: typeof STORAGE_TIERS[0]) => {
     if (planType === 'ai') {
-      return billingCycle === 'monthly' ? tier.priceMonthlyAI : tier.priceYearlyAI / 12;
+      switch (billingCycle) {
+        case 'monthly': return tier.priceMonthlyAI;
+        case 'quarterly': return tier.priceQuarterlyAI / 3;
+        case 'semiAnnual': return tier.priceSemiAnnualAI / 6;
+        case 'yearly': return tier.priceYearlyAI / 12;
+      }
     }
-    return billingCycle === 'monthly' ? tier.priceMonthly : tier.priceYearly / 12;
+    switch (billingCycle) {
+      case 'monthly': return tier.priceMonthly;
+      case 'quarterly': return tier.priceQuarterly / 3;
+      case 'semiAnnual': return tier.priceSemiAnnual / 6;
+      case 'yearly': return tier.priceYearly / 12;
+    }
   };
 
-  const getYearlyPrice = (tier: typeof STORAGE_TIERS[0]) => {
-    return planType === 'ai' ? tier.priceYearlyAI : tier.priceYearly;
+  const getPeriodTotal = (tier: typeof STORAGE_TIERS[0]) => {
+    if (planType === 'ai') {
+      switch (billingCycle) {
+        case 'monthly': return tier.priceMonthlyAI;
+        case 'quarterly': return tier.priceQuarterlyAI;
+        case 'semiAnnual': return tier.priceSemiAnnualAI;
+        case 'yearly': return tier.priceYearlyAI;
+      }
+    }
+    switch (billingCycle) {
+      case 'monthly': return tier.priceMonthly;
+      case 'quarterly': return tier.priceQuarterly;
+      case 'semiAnnual': return tier.priceSemiAnnual;
+      case 'yearly': return tier.priceYearly;
+    }
   };
 
   const getSavingsPercent = (tier: typeof STORAGE_TIERS[0]) => {
     const monthly = planType === 'ai' ? tier.priceMonthlyAI : tier.priceMonthly;
-    const yearly = planType === 'ai' ? tier.priceYearlyAI : tier.priceYearly;
     if (monthly === 0) return 0;
-    const yearlyMonthly = yearly / 12;
-    return Math.round((1 - yearlyMonthly / monthly) * 100);
+    const monthlyEquiv = getMonthlyEquivalent(tier);
+    return Math.round((1 - monthlyEquiv / monthly) * 100);
+  };
+
+  const getDiscountBadge = (period: BillingPeriod) => {
+    switch (period) {
+      case 'monthly': return null;
+      case 'quarterly': return '-2.5%';
+      case 'semiAnnual': return '-5%';
+      case 'yearly': return '2 mes. besplatno';
+    }
   };
 
   return (
@@ -124,35 +160,32 @@ export default function PricingPage() {
             </div>
           </div>
 
-          {/* Billing Cycle Toggle */}
+          {/* Billing Cycle Toggle - 4 options */}
           <div className="flex flex-col items-center gap-2">
             <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Period plaćanja</span>
             <div className="inline-flex items-center rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-              <button
-                onClick={() => setBillingCycle('monthly')}
-                className={cn(
-                  'rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                  billingCycle === 'monthly'
-                    ? 'bg-white text-gray-900 shadow dark:bg-gray-700 dark:text-white'
-                    : 'text-gray-600 dark:text-gray-400'
-                )}
-              >
-                Mesečno
-              </button>
-              <button
-                onClick={() => setBillingCycle('yearly')}
-                className={cn(
-                  'rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                  billingCycle === 'yearly'
-                    ? 'bg-white text-gray-900 shadow dark:bg-gray-700 dark:text-white'
-                    : 'text-gray-600 dark:text-gray-400'
-                )}
-              >
-                Godišnje
-                <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                  Uštedi ~10%
-                </span>
-              </button>
+              {BILLING_OPTIONS.map((period) => {
+                const badge = getDiscountBadge(period);
+                return (
+                  <button
+                    key={period}
+                    onClick={() => setBillingCycle(period)}
+                    className={cn(
+                      'rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                      billingCycle === period
+                        ? 'bg-white text-gray-900 shadow dark:bg-gray-700 dark:text-white'
+                        : 'text-gray-600 dark:text-gray-400'
+                    )}
+                  >
+                    {BILLING_PERIODS[period].label}
+                    {badge && (
+                      <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        {badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -187,7 +220,8 @@ export default function PricingPage() {
         {/* Pricing cards - First 5 tiers */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {STORAGE_TIERS.slice(0, 5).map((tier) => {
-            const price = getPrice(tier);
+            const monthlyEquiv = getMonthlyEquivalent(tier);
+            const periodTotal = getPeriodTotal(tier);
             const isPopular = tier.isPopular;
             const savings = getSavingsPercent(tier);
 
@@ -216,7 +250,7 @@ export default function PricingPage() {
                     'Besplatno'
                   ) : (
                     <>
-                      ${price.toFixed(2)}
+                      ${monthlyEquiv.toFixed(2)}
                       <span className={cn(
                         'text-sm font-normal',
                         isPopular ? 'text-primary-100' : 'text-gray-500'
@@ -227,12 +261,12 @@ export default function PricingPage() {
                   )}
                 </p>
 
-                {billingCycle === 'yearly' && tier.tier > 0 && (
+                {billingCycle !== 'monthly' && tier.tier > 0 && (
                   <p className={cn(
                     'text-sm',
                     isPopular ? 'text-primary-100' : 'text-gray-500'
                   )}>
-                    ${getYearlyPrice(tier).toFixed(2)}/godišnje
+                    ${periodTotal.toFixed(2)}/{periodConfig.labelShort}
                     {savings > 0 && (
                       <span className="ml-1 text-green-400">(-{savings}%)</span>
                     )}
@@ -272,7 +306,7 @@ export default function PricingPage() {
                 </ul>
 
                 <Link
-                  href={tier.tier === 0 ? '/register' : `/register?tier=${tier.tier}&ai=${planType === 'ai'}`}
+                  href={tier.tier === 0 ? '/register' : `/register?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
                   className={cn(
                     'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
                     isPopular
@@ -292,7 +326,8 @@ export default function PricingPage() {
           <h2 className="mb-6 text-center text-2xl font-bold">Treba vam više prostora?</h2>
           <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2 lg:grid-cols-4">
             {STORAGE_TIERS.slice(5).map((tier) => {
-              const price = getPrice(tier);
+              const monthlyEquiv = getMonthlyEquivalent(tier);
+              const periodTotal = getPeriodTotal(tier);
 
               return (
                 <div
@@ -310,16 +345,16 @@ export default function PricingPage() {
                       {tier.storageDisplay}
                     </p>
                     <p className="mt-1 text-xl font-bold text-primary-600">
-                      ${price.toFixed(2)}/mes
+                      ${monthlyEquiv.toFixed(2)}/mes
                     </p>
-                    {billingCycle === 'yearly' && (
+                    {billingCycle !== 'monthly' && (
                       <p className="text-sm text-gray-500">
-                        ${getYearlyPrice(tier).toFixed(2)}/godišnje
+                        ${periodTotal.toFixed(2)}/{periodConfig.labelShort}
                       </p>
                     )}
                   </div>
                   <Link
-                    href={`/register?tier=${tier.tier}&ai=${planType === 'ai'}`}
+                    href={`/register?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
                     className="mt-4 block rounded-lg bg-gray-100 py-2 text-center font-medium text-gray-900 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     Izaberi
@@ -382,7 +417,7 @@ export default function PricingPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                  ~10% popust na godišnje planove
+                  Do 2 meseca besplatno na godišnjem planu
                 </li>
               </ul>
             </div>
@@ -463,6 +498,10 @@ export default function PricingPage() {
             <FaqItem
               question="Da li se moje slike koriste za trening AI modela?"
               answer="Ne. Nikada ne koristimo vaše slike za trening AI modela. Vaši podaci ostaju vaši i služe isključivo za funkcije koje vi koristite."
+            />
+            <FaqItem
+              question="Koji su periodi plaćanja dostupni?"
+              answer="Nudimo 4 perioda plaćanja: mesečno, kvartalno (2.5% popust), polugodišnje (5% popust) i godišnje (2 meseca besplatno, ušteda ~16.7%). Duži period = veći popust."
             />
             <FaqItem
               question="Mogu li kombinovati više planova?"
