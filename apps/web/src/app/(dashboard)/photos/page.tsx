@@ -4,7 +4,7 @@ import { useCallback, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, Grid, List } from 'lucide-react';
 import { useFiles, useUploadFile } from '@/lib/hooks';
-import { useFilesStore, useUIStore } from '@/lib/stores';
+import { useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { ALL_SUPPORTED_TYPES } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
@@ -14,11 +14,41 @@ export default function PhotosPage() {
     isTrashed: false,
     isArchived: false,
   });
-  const { viewMode, setViewMode, openUploadModal, addNotification } = useUIStore();
-  const { mutate: uploadFile, isPending: isUploading } = useUploadFile();
+  const { viewMode, setViewMode, addNotification } = useUIStore();
+  const { mutate: uploadFile } = useUploadFile();
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const files = data?.pages.flatMap((page) => page.files) ?? [];
+
+  // Direct file input handler for Upload button
+  const handleFileInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFiles = e.target.files;
+      if (!selectedFiles) return;
+      for (const file of Array.from(selectedFiles)) {
+        uploadFile(file, {
+          onSuccess: () => {
+            addNotification({
+              type: 'success',
+              title: 'Upload complete',
+              message: `${file.name} has been uploaded`,
+            });
+          },
+          onError: (error) => {
+            addNotification({
+              type: 'error',
+              title: 'Upload failed',
+              message: error.message,
+            });
+          },
+        });
+      }
+      // Reset input so the same files can be selected again
+      e.target.value = '';
+    },
+    [uploadFile, addNotification]
+  );
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -87,6 +117,16 @@ export default function PhotosPage() {
     >
       <input {...getInputProps()} />
 
+      {/* Hidden file input for direct upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept={ALL_SUPPORTED_TYPES.join(',')}
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -98,9 +138,8 @@ export default function PhotosPage() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={openUploadModal}
+            onClick={() => fileInputRef.current?.click()}
             className="btn-primary"
-            disabled={isUploading}
           >
             <Upload className="mr-2 h-4 w-4" />
             Upload
@@ -174,7 +213,7 @@ export default function PhotosPage() {
             Drag and drop photos here, or click the Upload button to get started.
             Your memories are waiting!
           </p>
-          <button onClick={openUploadModal} className="btn-primary mt-6">
+          <button onClick={() => fileInputRef.current?.click()} className="btn-primary mt-6">
             <Upload className="mr-2 h-4 w-4" />
             Upload Photos
           </button>

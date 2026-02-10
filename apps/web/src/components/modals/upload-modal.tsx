@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, File, Check, AlertCircle, Image } from 'lucide-react';
@@ -16,32 +16,11 @@ export function UploadModal() {
   const { mutateAsync: uploadFile } = useUploadFile();
   const { data: storage } = useStorage();
   const [isUploading, setIsUploading] = useState(false);
+  const uploadingRef = useRef(false);
 
-  const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      const newItems: UploadItem[] = acceptedFiles.map((file) => ({
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        file,
-        progress: 0,
-        status: 'pending',
-      }));
-      addToUploadQueue(newItems);
-    },
-    [addToUploadQueue]
-  );
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: ALL_SUPPORTED_TYPES.reduce(
-      (acc, type) => ({ ...acc, [type]: [] }),
-      {} as Record<string, string[]>
-    ),
-    maxSize: MAX_UPLOAD_SIZE,
-  });
-
-  const handleUploadAll = async () => {
-    const pendingItems = uploadQueue.filter((item) => item.status === 'pending');
-    if (pendingItems.length === 0) return;
+  const handleUploadAll = useCallback(async () => {
+    const pendingItems = useFilesStore.getState().uploadQueue.filter((item) => item.status === 'pending');
+    if (pendingItems.length === 0 || uploadingRef.current) return;
 
     // Check storage
     const totalSize = pendingItems.reduce((sum, item) => sum + item.file.size, 0);
@@ -54,6 +33,7 @@ export function UploadModal() {
       return;
     }
 
+    uploadingRef.current = true;
     setIsUploading(true);
     let successCount = 0;
     let failCount = 0;
@@ -62,9 +42,9 @@ export function UploadModal() {
       setUploadStatus(item.id, 'uploading');
 
       try {
-        // Simulate progress (in production, use XMLHttpRequest for real progress)
         const progressInterval = setInterval(() => {
-          updateUploadProgress(item.id, Math.min(item.progress + 10, 90));
+          const current = useFilesStore.getState().uploadQueue.find((q) => q.id === item.id);
+          updateUploadProgress(item.id, Math.min((current?.progress ?? 0) + 10, 90));
         }, 200);
 
         await uploadFile(item.file);
@@ -83,6 +63,7 @@ export function UploadModal() {
       }
     }
 
+    uploadingRef.current = false;
     setIsUploading(false);
 
     if (successCount > 0 && failCount === 0) {
@@ -91,6 +72,8 @@ export function UploadModal() {
         title: 'Upload complete',
         message: `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`,
       });
+      // Auto-close modal on full success
+      closeUploadModal();
     } else if (successCount > 0 && failCount > 0) {
       addNotification({
         type: 'warning',
@@ -104,7 +87,31 @@ export function UploadModal() {
         message: `${failCount} file${failCount > 1 ? 's' : ''} failed to upload`,
       });
     }
-  };
+  }, [storage, addNotification, uploadFile, setUploadStatus, updateUploadProgress, closeUploadModal]);
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const newItems: UploadItem[] = acceptedFiles.map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        progress: 0,
+        status: 'pending' as const,
+      }));
+      addToUploadQueue(newItems);
+      // Auto-start upload after adding to queue
+      setTimeout(() => handleUploadAll(), 0);
+    },
+    [addToUploadQueue, handleUploadAll]
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: ALL_SUPPORTED_TYPES.reduce(
+      (acc, type) => ({ ...acc, [type]: [] }),
+      {} as Record<string, string[]>
+    ),
+    maxSize: MAX_UPLOAD_SIZE,
+  });
 
   const handleRemoveItem = (id: string) => {
     removeFromUploadQueue(id);
@@ -169,7 +176,7 @@ export function UploadModal() {
                     <span className="text-primary-500">browse</span>
                   </p>
                   <p className="mt-2 text-sm text-gray-500">
-                    Supports images, videos, and documents up to 10GB
+                    Files will upload automatically when selected
                   </p>
                 </>
               )}
@@ -198,6 +205,7 @@ export function UploadModal() {
               <div className="mt-6">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="font-medium">
+                    {isUploading && 'Uploading... '}
                     {pendingCount > 0 && `${pendingCount} pending`}
                     {pendingCount > 0 && completedCount > 0 && ' · '}
                     {completedCount > 0 && `${completedCount} completed`}
@@ -287,24 +295,7 @@ export function UploadModal() {
           {/* Footer */}
           <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
             <button onClick={closeUploadModal} className="btn-secondary">
-              Cancel
-            </button>
-            <button
-              onClick={handleUploadAll}
-              disabled={pendingCount === 0 || isUploading}
-              className="btn-primary"
-            >
-              {isUploading ? (
-                <>
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload {pendingCount > 0 ? `(${pendingCount})` : ''}
-                </>
-              )}
+              {isUploading ? 'Close (uploads continue)' : 'Close'}
             </button>
           </div>
         </motion.div>

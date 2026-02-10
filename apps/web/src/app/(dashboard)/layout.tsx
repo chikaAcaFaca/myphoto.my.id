@@ -9,6 +9,7 @@ import { UploadModal } from '@/components/modals/upload-modal';
 import { CreateAlbumModal } from '@/components/modals/create-album-modal';
 import { PhotoLightbox } from '@/components/gallery/photo-lightbox';
 import { Notifications } from '@/components/ui/notifications';
+import { UploadToast } from '@/components/upload/upload-toast';
 
 export default function DashboardLayout({
   children,
@@ -52,6 +53,9 @@ export default function DashboardLayout({
       <UploadModal />
       <CreateAlbumModal />
       <PhotoLightbox />
+
+      {/* Upload progress toast */}
+      <UploadToast />
 
       {/* Notifications */}
       <Notifications />
