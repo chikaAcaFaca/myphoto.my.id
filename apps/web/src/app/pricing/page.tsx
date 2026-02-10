@@ -567,6 +567,7 @@ export default function PricingPage() {
             <Link href="/privacy" className="hover:text-primary-500">Privatnost</Link>
             <Link href="/terms" className="hover:text-primary-500">Uslovi</Link>
             <Link href="/contact" className="hover:text-primary-500">Kontakt</Link>
+            <Link href="/support" className="hover:text-primary-500">Podrška</Link>
           </div>
         </div>
       </footer>

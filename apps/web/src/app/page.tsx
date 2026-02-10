@@ -17,8 +17,10 @@ import {
   Check,
   Brain,
   Search,
-  Users
+  Users,
+  Star,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function HomePage() {
   const { user, isLoading } = useAuthStore();
@@ -251,15 +253,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Social Proof / Trust */}
-      <section className="bg-primary-500 py-12 text-white">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-xl font-medium">
-            "Vaše uspomene zaslužuju privatnost i kvalitet koji veliki tech giganti ne nude."
+      {/* Testimonials */}
+      <section className="bg-gray-50 py-16 dark:bg-gray-900/50">
+        <div className="container mx-auto px-4">
+          <h2 className="mb-4 text-center text-3xl font-bold">Šta kažu naši korisnici</h2>
+          <p className="mb-12 text-center text-gray-600 dark:text-gray-300">
+            Pridružite se korisnicima koji čuvaju svoje uspomene privatno i sigurno.
           </p>
-          <p className="mt-4 text-primary-100">
-            Pridružite se korisnicima koji čuvaju svoje slike privatno i sigurno.
-          </p>
+          <div className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2">
+            {TESTIMONIALS.map((t) => (
+              <TestimonialCard key={t.name} testimonial={t} />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -309,6 +314,9 @@ export default function HomePage() {
               <Link href="/support" className="hover:text-primary-500">
                 Podrška
               </Link>
+              <Link href="/contact" className="hover:text-primary-500">
+                Kontakt
+              </Link>
             </div>
             <p className="text-sm text-gray-500">
               &copy; {new Date().getFullYear()} MyPhoto.my.id - Sva prava zadržana.
@@ -334,6 +342,80 @@ function FeatureCard({
       <div className="mb-4">{icon}</div>
       <h3 className="mb-2 text-lg font-semibold">{title}</h3>
       <p className="text-sm text-gray-600 dark:text-gray-300">{description}</p>
+    </div>
+  );
+}
+
+const TESTIMONIALS = [
+  {
+    name: 'Marko P.',
+    role: 'Fotograf',
+    initials: 'MP',
+    gradient: 'from-blue-500 to-cyan-500',
+    avatarImg: 'https://i.pravatar.cc/150?img=12',
+    quote: 'Konačno servis koji ne kompresuje moje slike. Original kvalitet, EU serveri, i niko ne koristi moje fotke za AI trening. Tačno ono što sam tražio.',
+    rating: 5,
+  },
+  {
+    name: 'Ana S.',
+    role: 'Mama dvoje dece',
+    initials: 'AS',
+    gradient: 'from-pink-500 to-rose-500',
+    avatarImg: 'https://i.pravatar.cc/150?img=5',
+    quote: 'Family sharing je savršen — muž i ja delimo storage, a slike ostaju privatne. Deca odrastaju, a uspomene su na sigurnom.',
+    rating: 5,
+  },
+  {
+    name: 'Nikola D.',
+    role: 'Softverski inženjer',
+    initials: 'ND',
+    gradient: 'from-green-500 to-emerald-500',
+    avatarImg: 'https://i.pravatar.cc/150?img=68',
+    quote: 'AI pretraga je neverovatna — kucam "zalazak sunca na moru" i nađe tačno te slike. A cena? Jeftiniji od Google One za istu količinu prostora.',
+    rating: 5,
+  },
+  {
+    name: 'Jelena M.',
+    role: 'Dizajner',
+    initials: 'JM',
+    gradient: 'from-purple-500 to-violet-500',
+    avatarImg: 'https://i.pravatar.cc/150?img=9',
+    quote: 'Prešla sam sa Google Photos-a jer su počeli da kompresuju slike. Ovde imam pun kvalitet, GDPR zaštitu i lepši interfejs.',
+    rating: 4,
+  },
+];
+
+function TestimonialCard({ testimonial }: { testimonial: typeof TESTIMONIALS[number] }) {
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-lg dark:bg-gray-800">
+      <div className="mb-4 flex items-center gap-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={testimonial.avatarImg}
+          alt={testimonial.name}
+          width={48}
+          height={48}
+          className="h-12 w-12 rounded-full object-cover"
+        />
+        <div>
+          <p className="font-semibold">{testimonial.name}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{testimonial.role}</p>
+        </div>
+      </div>
+      <div className="mb-3 flex gap-0.5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star
+            key={i}
+            className={cn(
+              'h-4 w-4',
+              i < testimonial.rating
+                ? 'fill-yellow-400 text-yellow-400'
+                : 'fill-gray-200 text-gray-200 dark:fill-gray-600 dark:text-gray-600'
+            )}
+          />
+        ))}
+      </div>
+      <p className="text-gray-600 dark:text-gray-300">"{testimonial.quote}"</p>
     </div>
   );
 }

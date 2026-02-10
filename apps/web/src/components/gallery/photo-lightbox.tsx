@@ -22,6 +22,7 @@ import {
   ZoomOut,
   Play,
   Loader2,
+  Maximize,
 } from 'lucide-react';
 import type { FileMetadata } from '@myphoto/shared';
 import { formatDate, formatBytes } from '@myphoto/shared';
@@ -470,14 +471,90 @@ function ZoomableImage({ file }: { file: FileMetadata }) {
 
 function VideoPlayer({ file }: { file: FileMetadata }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { mutate: getDownloadUrl } = useGetDownloadUrl();
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     getDownloadUrl(file.s3Key, {
       onSuccess: (url) => setVideoSrc(url),
     });
   }, [file.s3Key, getDownloadUrl]);
+
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Auto-fullscreen on landscape orientation (mobile only)
+  useEffect(() => {
+    if (!videoSrc) return;
+    const screen = window.screen;
+    const orientation = screen?.orientation;
+    if (!orientation) return; // Desktop — graceful degradation
+
+    const handleOrientationChange = () => {
+      const type = orientation.type;
+      if (type.startsWith('landscape') && videoRef.current && !document.fullscreenElement) {
+        enterFullscreen();
+      } else if (type.startsWith('portrait') && document.fullscreenElement) {
+        exitFullscreen();
+      }
+    };
+
+    orientation.addEventListener('change', handleOrientationChange);
+    return () => {
+      orientation.removeEventListener('change', handleOrientationChange);
+    };
+  }, [videoSrc]);
+
+  const enterFullscreen = useCallback(() => {
+    const container = containerRef.current;
+    const video = videoRef.current;
+    if (!container && !video) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyContainer = container as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyVideo = video as any;
+
+    // Try container fullscreen first (standard API)
+    if (container?.requestFullscreen) {
+      container.requestFullscreen().catch(() => {});
+    } else if (anyContainer?.webkitRequestFullscreen) {
+      anyContainer.webkitRequestFullscreen();
+    } else if (anyVideo?.webkitEnterFullscreen) {
+      // iOS Safari fallback — only video element supports fullscreen
+      anyVideo.webkitEnterFullscreen();
+    }
+  }, []);
+
+  const exitFullscreen = useCallback(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const anyDoc = document as any;
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else if (anyDoc.webkitExitFullscreen) {
+      anyDoc.webkitExitFullscreen();
+    }
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (isFullscreen) {
+      exitFullscreen();
+    } else {
+      enterFullscreen();
+    }
+  }, [isFullscreen, enterFullscreen, exitFullscreen]);
 
   const thumbnailUrl = `/api/thumbnail/${file.id}`;
 
@@ -501,17 +578,31 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
   }
 
   return (
-    <video
-      ref={videoRef}
-      src={videoSrc}
-      poster={thumbnailUrl}
-      controls
-      autoPlay
-      className="max-h-screen max-w-full"
+    <div
+      ref={containerRef}
+      className="relative flex items-center justify-center"
       onClick={(e) => e.stopPropagation()}
     >
-      Your browser does not support the video tag.
-    </video>
+      <video
+        ref={videoRef}
+        src={videoSrc}
+        poster={thumbnailUrl}
+        controls
+        autoPlay
+        playsInline
+        className="max-h-screen max-w-full object-contain"
+      >
+        Your browser does not support the video tag.
+      </video>
+      {/* Fullscreen button */}
+      <button
+        onClick={toggleFullscreen}
+        className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white/80 transition-colors hover:bg-black/70 hover:text-white"
+        title="Fullscreen"
+      >
+        <Maximize className="h-5 w-5" />
+      </button>
+    </div>
   );
 }
 

@@ -251,6 +251,12 @@ export default async function SharedPhotoPage({ params }: PageProps) {
               <Link href="/terms" className="hover:text-gray-300">
                 Uslovi
               </Link>
+              <Link href="/contact" className="hover:text-gray-300">
+                Kontakt
+              </Link>
+              <Link href="/support" className="hover:text-gray-300">
+                Podrška
+              </Link>
             </div>
             <p className="text-xs text-gray-600">
               &copy; {new Date().getFullYear()} MyPhoto.my.id
