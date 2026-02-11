@@ -32,7 +32,11 @@ export async function GET(
 
     const url = await generateDownloadUrl(key);
 
-    return NextResponse.json({ url });
+    return NextResponse.json({ url }, {
+      headers: {
+        'Cache-Control': 'private, max-age=600',
+      },
+    });
   } catch (error) {
     console.error('Error generating stream URL:', error);
     return NextResponse.json(

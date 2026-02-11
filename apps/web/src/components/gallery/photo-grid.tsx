@@ -155,8 +155,7 @@ function PhotoCard({ file, isSelected, onSelect, onOpen }: PhotoCardProps) {
     setShowMenu(false);
   };
 
-  // Generate thumbnail URL - in production this would be a CDN URL
-  const thumbnailUrl = `/api/thumbnail/${file.id}`;
+  const thumbnailUrl = `/api/thumbnail/${file.id}?size=small`;
 
   return (
     <motion.div

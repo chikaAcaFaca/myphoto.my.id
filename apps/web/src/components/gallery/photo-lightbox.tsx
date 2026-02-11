@@ -158,7 +158,7 @@ export function PhotoLightbox() {
     [hasPrev, hasNext, goToPrev, goToNext]
   );
 
-  // Preload adjacent ±2 images (thumbnails + full-res for immediate neighbors)
+  // Preload adjacent ±2 images (small for far, medium+large for neighbors)
   useEffect(() => {
     if (currentIndex < 0) return;
     for (let offset = -2; offset <= 2; offset++) {
@@ -166,13 +166,16 @@ export function PhotoLightbox() {
       const idx = currentIndex + offset;
       if (idx < 0 || idx >= allFiles.length) continue;
       const id = allFiles[idx].id;
-      // Preload thumbnail
-      const thumb = new window.Image();
-      thumb.src = `/api/thumbnail/${id}`;
-      // Preload full-res for immediate neighbors
       if (Math.abs(offset) === 1) {
+        // Immediate neighbors: preload medium + large
+        const med = new window.Image();
+        med.src = `/api/thumbnail/${id}?size=medium`;
         const full = new window.Image();
         full.src = `/api/thumbnail/${id}?size=large`;
+      } else {
+        // Farther images: preload small only
+        const sm = new window.Image();
+        sm.src = `/api/thumbnail/${id}?size=small`;
       }
     }
   }, [currentIndex, allFiles]);
@@ -483,7 +486,7 @@ function ZoomableImage({ file, onZoomChange }: { file: FileMetadata; onZoomChang
     isPanningRef.current = false;
   }, [scale]);
 
-  const thumbnailUrl = `/api/thumbnail/${file.id}`;
+  const thumbnailUrl = `/api/thumbnail/${file.id}?size=medium`;
   const fullResUrl = `/api/thumbnail/${file.id}?size=large`;
 
   const isZoomed = scale > 1;
@@ -673,7 +676,7 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
     }
   }, [isFullscreen, enterFullscreen, exitFullscreen]);
 
-  const thumbnailUrl = `/api/thumbnail/${file.id}`;
+  const thumbnailUrl = `/api/thumbnail/${file.id}?size=medium`;
 
   if (videoError) {
     return (
@@ -1097,7 +1100,7 @@ function InfoContent({ file }: { file: FileMetadata }) {
       {/* Thumbnail preview */}
       <div className="overflow-hidden rounded-lg">
         <Image
-          src={`/api/thumbnail/${file.id}`}
+          src={`/api/thumbnail/${file.id}?size=small`}
           alt={file.name}
           width={320}
           height={200}

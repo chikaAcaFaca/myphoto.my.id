@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { checkIpRateLimit } from '@/lib/auth-utils';
-import { generateDownloadUrl } from '@/lib/s3';
+import { getObject } from '@/lib/s3';
 
-export const dynamic = 'force-dynamic';
+type ThumbnailSize = 'small' | 'medium' | 'large';
+
+const SIZE_KEYS: Record<ThumbnailSize, string> = {
+  small: 'smallThumbKey',
+  medium: 'thumbnailKey',
+  large: 'largeThumbKey',
+};
 
 export async function GET(
   request: NextRequest,
@@ -18,6 +24,11 @@ export async function GET(
 
     const { fileId } = params;
 
+    // Parse size param (default: medium)
+    const url = new URL(request.url);
+    const sizeParam = url.searchParams.get('size') as ThumbnailSize | null;
+    const size: ThumbnailSize = sizeParam && SIZE_KEYS[sizeParam] ? sizeParam : 'medium';
+
     // Get file document
     const fileDoc = await db.collection('files').doc(fileId).get();
 
@@ -27,14 +38,29 @@ export async function GET(
 
     const fileData = fileDoc.data()!;
 
-    // Use thumbnail if available, otherwise use original
-    const key = fileData.thumbnailKey || fileData.s3Key;
+    // Pick the best available key for the requested size
+    // Fallback chain: requested size → medium (thumbnailKey) → skip (don't serve original video!)
+    const key =
+      fileData[SIZE_KEYS[size]] ||
+      fileData.thumbnailKey ||
+      (size !== 'large' ? fileData.thumbnailKey : null);
 
-    // Generate signed URL
-    const url = await generateDownloadUrl(key);
+    if (!key) {
+      // No thumbnail available at all — return a 404 instead of serving the original file
+      // (avoids serving full-size videos as "thumbnails")
+      return NextResponse.json({ error: 'Thumbnail not available' }, { status: 404 });
+    }
 
-    // Redirect to signed URL
-    return NextResponse.redirect(url);
+    // Proxy the object from S3
+    const { body, contentType } = await getObject(key);
+
+    return new Response(body, {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'CDN-Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
   } catch (error) {
     console.error('Error getting thumbnail:', error);
     return NextResponse.json(

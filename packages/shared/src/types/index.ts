@@ -50,6 +50,8 @@ export interface FileMetadata {
   mimeType: string;
   s3Key: string;
   thumbnailKey?: string;
+  smallThumbKey?: string;
+  largeThumbKey?: string;
 
   // Image/Video metadata
   width?: number;

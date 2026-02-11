@@ -130,4 +130,18 @@ export async function getBucketCors() {
   }
 }
 
+export async function getObject(key: string): Promise<{ body: ReadableStream; contentType: string }> {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+  });
+
+  const response = await s3Client.send(command);
+
+  return {
+    body: response.Body as ReadableStream,
+    contentType: response.ContentType || 'image/webp',
+  };
+}
+
 export { s3Client, BUCKET_NAME };

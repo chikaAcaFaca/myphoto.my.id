@@ -146,7 +146,7 @@ export function useUploadFile() {
         throw new Error(err.error || 'Failed to get upload URL');
       }
 
-      const { uploadUrl, fileId, s3Key } = await urlRes.json();
+      const { uploadUrl, fileId, s3Key, thumbnailUploadUrl, thumbnailKey } = await urlRes.json();
 
       // 2. Upload directly to S3 using pre-signed URL
       const uploadResponse = await fetch(uploadUrl, {
@@ -159,6 +159,27 @@ export function useUploadFile() {
 
       if (!uploadResponse.ok) {
         throw new Error('Failed to upload file to storage');
+      }
+
+      // 2.5. For videos: extract thumbnail frame and upload it
+      let videoThumbKey: string | undefined;
+      if (file.type.startsWith('video/') && thumbnailUploadUrl && thumbnailKey) {
+        try {
+          const thumbBlob = await extractVideoThumbnail(file);
+          if (thumbBlob) {
+            const thumbRes = await fetch(thumbnailUploadUrl, {
+              method: 'PUT',
+              body: thumbBlob,
+              headers: { 'Content-Type': 'image/webp' },
+            });
+            if (thumbRes.ok) {
+              videoThumbKey = thumbnailKey;
+            }
+          }
+        } catch (e) {
+          // Non-fatal: video will just have no thumbnail
+          console.warn('Video thumbnail extraction failed:', e);
+        }
       }
 
       // 3. Confirm upload - creates Firestore doc and updates storage
@@ -174,6 +195,7 @@ export function useUploadFile() {
           name: file.name,
           size: file.size,
           mimeType: file.type,
+          ...(videoThumbKey ? { thumbnailKey: videoThumbKey } : {}),
         }),
       });
 
@@ -331,5 +353,86 @@ export function useGetDownloadUrl() {
     mutationFn: async (s3Key: string) => {
       return generateDownloadUrl(s3Key);
     },
+  });
+}
+
+/**
+ * Extract a thumbnail frame from a video file using canvas.
+ * Seeks to 1s (or 25% of duration for short videos) and renders to 400x400 WebP.
+ */
+function extractVideoThumbnail(file: File): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+
+    const objectUrl = URL.createObjectURL(file);
+    video.src = objectUrl;
+
+    const cleanup = () => URL.revokeObjectURL(objectUrl);
+
+    video.onloadedmetadata = () => {
+      // Seek to 1s or 25% of duration, whichever is smaller
+      const seekTime = Math.min(1, video.duration * 0.25);
+      video.currentTime = seekTime;
+    };
+
+    video.onseeked = () => {
+      try {
+        const maxSize = 400;
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+
+        if (!vw || !vh) {
+          cleanup();
+          resolve(null);
+          return;
+        }
+
+        // Scale to fit within maxSize x maxSize (cover crop)
+        const scale = Math.max(maxSize / vw, maxSize / vh);
+        const sw = Math.round(vw * scale);
+        const sh = Math.round(vh * scale);
+        const ox = Math.round((sw - maxSize) / 2);
+        const oy = Math.round((sh - maxSize) / 2);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          cleanup();
+          resolve(null);
+          return;
+        }
+
+        ctx.drawImage(video, -ox, -oy, sw, sh);
+
+        canvas.toBlob(
+          (blob) => {
+            cleanup();
+            resolve(blob);
+          },
+          'image/webp',
+          0.8
+        );
+      } catch {
+        cleanup();
+        resolve(null);
+      }
+    };
+
+    video.onerror = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    // Timeout: if extraction takes too long, skip
+    setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 10000);
   });
 }

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { fileId, s3Key, name, size, mimeType } = body;
+    const { fileId, s3Key, name, size, mimeType, thumbnailKey } = body;
 
     // Validate
     if (!fileId || !s3Key || !name || !size || !mimeType) {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create file document
-    const fileData = {
+    const fileData: Record<string, any> = {
       userId,
       type: getFileType(mimeType),
       name,
@@ -53,6 +53,11 @@ export async function POST(request: NextRequest) {
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
+
+    // If client sent a video thumbnail, store it
+    if (thumbnailKey && typeof thumbnailKey === 'string') {
+      fileData.thumbnailKey = thumbnailKey;
+    }
 
     await db.collection('files').doc(fileId).set(fileData);
 

@@ -6,7 +6,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 's3.eu-central-1.wasabisys.com',
+        hostname: 's3.eu-central-2.wasabisys.com',
         port: '',
         pathname: '/myphoto-prod/**',
       },

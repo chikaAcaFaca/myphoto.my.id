@@ -56,6 +56,8 @@ export interface AIProcessingResult {
   width: number;
   height: number;
   thumbnailKey?: string;
+  smallThumbKey?: string;
+  largeThumbKey?: string;
 
   // EXIF data
   takenAt?: Date;
@@ -93,7 +95,7 @@ export async function processImageAI(fileId: string, s3Key: string): Promise<AIP
       exifData,
       labels,
       faces,
-      thumbnail,
+      thumbnails,
       qualityScore,
       dominantColors,
       pHash,
@@ -101,7 +103,7 @@ export async function processImageAI(fileId: string, s3Key: string): Promise<AIP
       extractExifData(imageBuffer),
       detectObjects(imageBuffer),
       detectFacesFromBuffer(imageBuffer),
-      generateThumbnail(imageBuffer, s3Key),
+      generateThumbnails(imageBuffer, s3Key),
       calculateQualityScore(imageBuffer),
       extractDominantColors(imageBuffer),
       calculatePHash(imageBuffer),
@@ -115,7 +117,9 @@ export async function processImageAI(fileId: string, s3Key: string): Promise<AIP
       width,
       height,
       labels,
-      thumbnailKey: thumbnail.key,
+      thumbnailKey: thumbnails.medium,
+      smallThumbKey: thumbnails.small,
+      largeThumbKey: thumbnails.large,
       qualityScore,
       dominantColors,
       pHash,
@@ -155,7 +159,9 @@ export async function processImageAI(fileId: string, s3Key: string): Promise<AIP
     return {
       width,
       height,
-      thumbnailKey: thumbnail.key,
+      thumbnailKey: thumbnails.medium,
+      smallThumbKey: thumbnails.small,
+      largeThumbKey: thumbnails.large,
       takenAt: exifData.takenAt,
       location: exifData.location,
       camera: exifData.camera,
@@ -385,30 +391,40 @@ function detectSceneType(labels: string[]): string {
   return 'general';
 }
 
-async function generateThumbnail(
+async function generateThumbnails(
   imageBuffer: Buffer,
   originalKey: string
-): Promise<{ key: string; buffer: Buffer }> {
-  const { width, height } = THUMBNAIL_SIZES.medium;
-
-  const thumbnailBuffer = await sharp(imageBuffer)
-    .resize(width, height, {
-      fit: 'cover',
-      position: 'centre',
-    })
-    .webp({ quality: 80 })
-    .toBuffer();
-
+): Promise<{ small: string; medium: string; large: string }> {
   const keyParts = originalKey.split('/');
   const userId = keyParts[1];
   const fileId = keyParts[keyParts.length - 1].split('.')[0];
-  const thumbnailKey = `users/${userId}/thumbnails/${fileId}_thumb.webp`;
 
-  await uploadToS3(thumbnailBuffer, thumbnailKey, 'image/webp');
+  const sizes = [
+    { name: 'small' as const, ...THUMBNAIL_SIZES.small, suffix: '_sm', quality: 75 },
+    { name: 'medium' as const, ...THUMBNAIL_SIZES.medium, suffix: '_thumb', quality: 80 },
+    { name: 'large' as const, ...THUMBNAIL_SIZES.large, suffix: '_lg', quality: 82 },
+  ];
+
+  const results = await Promise.all(
+    sizes.map(async ({ name, width, height, suffix, quality }) => {
+      const buffer = await sharp(imageBuffer)
+        .resize(width, height, {
+          fit: 'cover',
+          position: 'centre',
+        })
+        .webp({ quality })
+        .toBuffer();
+
+      const key = `users/${userId}/thumbnails/${fileId}${suffix}.webp`;
+      await uploadToS3(buffer, key, 'image/webp');
+      return { name, key };
+    })
+  );
 
   return {
-    key: thumbnailKey,
-    buffer: thumbnailBuffer,
+    small: results.find((r) => r.name === 'small')!.key,
+    medium: results.find((r) => r.name === 'medium')!.key,
+    large: results.find((r) => r.name === 'large')!.key,
   };
 }
 

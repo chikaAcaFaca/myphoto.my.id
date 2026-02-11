@@ -366,7 +366,7 @@ export const PRESIGNED_URL_EXPIRY = 15 * 60; // 15 minutes in seconds
 export const THUMBNAIL_SIZES = {
   small: { width: 200, height: 200 },
   medium: { width: 400, height: 400 },
-  large: { width: 800, height: 800 },
+  large: { width: 1200, height: 1200 },
 } as const;
 
 // Supported file types

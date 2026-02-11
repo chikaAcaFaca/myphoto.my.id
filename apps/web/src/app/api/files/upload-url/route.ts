@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { generateUploadUrl, configureBucketCors } from '@/lib/s3';
-import { generateS3Key, generateFileId, getFileExtension, isSupportedMimeType, MAX_UPLOAD_SIZE } from '@myphoto/shared';
+import { generateS3Key, generateFileId, getFileExtension, getFileType, isSupportedMimeType, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { db } from '@/lib/firebase-admin';
 
 export const dynamic = 'force-dynamic';
@@ -82,12 +82,23 @@ export async function POST(request: NextRequest) {
     // Generate pre-signed upload URL
     const { url, expiresAt } = await generateUploadUrl(s3Key, mimeType, size);
 
-    return NextResponse.json({
+    const response: Record<string, any> = {
       uploadUrl: url,
       fileId,
       s3Key,
       expiresAt: expiresAt.toISOString(),
-    });
+    };
+
+    // For video files, also provide a presigned URL for client-side thumbnail upload
+    if (getFileType(mimeType) === 'video') {
+      const thumbnailKey = generateS3Key(userId, fileId, '', 'thumbnail');
+      // Estimate max thumbnail size: 400x400 WebP ≈ 100KB
+      const { url: thumbUrl } = await generateUploadUrl(thumbnailKey, 'image/webp', 200 * 1024);
+      response.thumbnailUploadUrl = thumbUrl;
+      response.thumbnailKey = thumbnailKey;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error generating upload URL:', error instanceof Error ? error.message : error);
     console.error('Stack:', error instanceof Error ? error.stack : 'N/A');
