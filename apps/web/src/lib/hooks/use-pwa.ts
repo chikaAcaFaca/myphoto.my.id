@@ -10,6 +10,7 @@ interface BeforeInstallPromptEvent extends Event {
 export function usePWA() {
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [swRegistration, setSWRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -22,6 +23,16 @@ export function usePWA() {
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true;
     setIsInstalled(isStandalone);
+
+    // Detect iOS (Safari doesn't support beforeinstallprompt)
+    const ua = navigator.userAgent;
+    const isiOSDevice = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    setIsIOS(isiOSDevice);
+
+    // On iOS, show install prompt if not already installed
+    if (isiOSDevice && !isStandalone) {
+      setIsInstallable(true);
+    }
 
     // Online/offline tracking
     setIsOnline(navigator.onLine);
@@ -121,6 +132,7 @@ export function usePWA() {
   return {
     isInstallable,
     isInstalled,
+    isIOS,
     isOnline,
     installApp,
     queueUpload,

@@ -13,8 +13,10 @@ import {
   LogOut,
   Settings,
   User,
+  Download,
 } from 'lucide-react';
 import { useAuthStore, useUIStore, useFilesStore } from '@/lib/stores';
+import { usePWA } from '@/lib/hooks/use-pwa';
 import { cn } from '@/lib/utils';
 
 export function Header() {
@@ -24,6 +26,7 @@ export function Header() {
   const { isDarkMode, toggleDarkMode, openUploadModal, toggleSidebar, isSidebarOpen } = useUIStore();
   const { user, signOut } = useAuthStore();
   const { selectedFiles, deselectAll } = useFilesStore();
+  const { isInstallable, isInstalled, isIOS, installApp } = usePWA();
   const router = useRouter();
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -143,6 +146,25 @@ export function Header() {
         >
           <Upload className="h-5 w-5" />
         </button>
+
+        {/* Install PWA button */}
+        {isInstallable && !isInstalled && (
+          <button
+            onClick={() => {
+              if (isIOS) {
+                // iOS: redirect to settings which has install instructions
+                router.push('/settings');
+              } else {
+                installApp();
+              }
+            }}
+            className="hidden items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95 dark:border-primary-800 dark:bg-primary-900/20 dark:text-primary-400 sm:flex"
+            title="Instaliraj aplikaciju"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Instaliraj
+          </button>
+        )}
 
         {/* Dark mode toggle */}
         <button
