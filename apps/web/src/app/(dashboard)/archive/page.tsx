@@ -2,13 +2,13 @@
 
 import { useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
+import { Archive } from 'lucide-react';
 import { useFiles } from '@/lib/hooks';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 
-export default function FavoritesPage() {
+export default function ArchivePage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useFiles({
-    isFavorite: true,
+    isArchived: true,
     isTrashed: false,
   });
 
@@ -45,39 +45,45 @@ export default function FavoritesPage() {
     >
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Omiljeno</h1>
+        <h1 className="text-2xl font-bold">Arhiva</h1>
         <p className="text-sm text-gray-500">
-          {files.length} {files.length === 1 ? 'fajl' : 'fajlova'}
+          {files.length} arhiviran{files.length === 1 ? '' : 'ih'} fajlov{files.length === 1 ? '' : 'a'}
         </p>
       </div>
 
-      {/* Content */}
-      {!isLoading && files.length === 0 ? (
+      {/* Grid */}
+      <PhotoGrid files={files} isLoading={isLoading} />
+
+      {/* Load more */}
+      {hasNextPage && (
+        <div ref={observerRef} className="flex justify-center py-8">
+          {isFetchingNextPage ? (
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+          ) : (
+            <button onClick={() => fetchNextPage()} className="btn-secondary">
+              Učitaj još
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && files.length === 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
           className="flex flex-col items-center justify-center py-20 text-center"
         >
-          <div className="mb-6 rounded-full bg-red-50 p-6 dark:bg-red-900/20">
-            <Heart className="h-12 w-12 text-red-400" />
+          <div className="mb-6 rounded-full bg-gray-100 p-6 dark:bg-gray-800">
+            <Archive className="h-12 w-12 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold">Nema omiljenih</h2>
+          <h2 className="text-xl font-semibold">Arhiva je prazna</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Označite omiljene slike i video zapise klikom na ikonu srca
+            Arhivirane slike i video zapisi se čuvaju ovde. Koristite arhivu da sklonite
+            fajlove iz glavnog prikaza bez brisanja.
           </p>
         </motion.div>
-      ) : (
-        <PhotoGrid files={files} isLoading={isLoading} />
-      )}
-
-      {/* Load more */}
-      {hasNextPage && (
-        <div ref={observerRef} className="flex justify-center py-8">
-          {isFetchingNextPage && (
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
-          )}
-        </div>
       )}
     </motion.div>
   );

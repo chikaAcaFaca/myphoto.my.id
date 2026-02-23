@@ -28,6 +28,31 @@ export function useShareFile() {
   });
 }
 
+export function useShareAlbum() {
+  return useMutation({
+    mutationFn: async (albumId: string) => {
+      const token = await getIdToken();
+      if (!token) throw new Error('Not authenticated');
+
+      const res = await fetch('/api/share', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ albumId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create share link');
+      }
+
+      return (await res.json()) as { shareUrl: string; token: string };
+    },
+  });
+}
+
 export function useRevokeShare() {
   return useMutation({
     mutationFn: async (shareToken: string) => {

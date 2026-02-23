@@ -89,8 +89,9 @@ export async function POST(request: NextRequest) {
       expiresAt: expiresAt.toISOString(),
     };
 
-    // For video files, also provide a presigned URL for client-side thumbnail upload
-    if (getFileType(mimeType) === 'video') {
+    // For image and video files, provide a presigned URL for client-side thumbnail upload
+    const fileType = getFileType(mimeType);
+    if (fileType === 'video' || fileType === 'image') {
       const thumbnailKey = generateS3Key(userId, fileId, '', 'thumbnail');
       // Estimate max thumbnail size: 400x400 WebP ≈ 100KB
       const { url: thumbUrl } = await generateUploadUrl(thumbnailKey, 'image/webp', 200 * 1024);

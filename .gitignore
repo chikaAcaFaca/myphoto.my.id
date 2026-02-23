@@ -13,6 +13,7 @@ build
 .env
 .env.local
 .env.*.local
+README.md
 
 # IDE
 .vscode
@@ -52,3 +53,5 @@ firestore-debug.log
 # Misc
 *.tsbuildinfo
 .cache
+
+.vercel

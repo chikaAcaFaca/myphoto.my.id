@@ -3,8 +3,10 @@ export interface UserSettings {
   syncMode: 'wifi_only' | 'wifi_and_mobile' | 'manual';
   uploadQuality: 'original' | 'high' | 'medium';
   autoBackup: boolean;
+  allowRoaming: boolean;
   faceRecognition: boolean;
   darkMode: boolean;
+  backupFolders: string[]; // Device album/folder titles to backup (empty = all folders)
 }
 
 export interface User {

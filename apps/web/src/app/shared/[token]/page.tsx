@@ -14,6 +14,7 @@ import {
   Shield,
   Server,
   Check,
+  Images,
 } from 'lucide-react';
 
 interface PageProps {
@@ -38,10 +39,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const title = `"${shared.fileName}" - Deljeno sa MyPhoto.my.id`;
+  const isAlbum = shared.type === 'album';
+  const title = isAlbum
+    ? `Album "${shared.albumName}" - Deljeno sa MyPhoto.my.id`
+    : `"${shared.fileName}" - Deljeno sa MyPhoto.my.id`;
   const description =
     'Besplatan cloud storage za vaše slike. 10GB besplatno, privatno i sigurno. Prijavite se za 30 sekundi.';
-  const ogImageUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://myphoto.my.id'}/api/thumbnail/${shared.fileId}`;
+  const coverFileId = isAlbum ? shared.coverFileId : shared.fileId;
+  const ogImageUrl = coverFileId
+    ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://myphoto.my.id'}/api/thumbnail/${coverFileId}`
+    : undefined;
 
   return {
     title,
@@ -49,14 +56,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title,
       description,
-      images: [
-        {
-          url: ogImageUrl,
-          width: shared.width || 1200,
-          height: shared.height || 630,
-          alt: shared.fileName,
-        },
-      ],
+      ...(ogImageUrl && {
+        images: [
+          {
+            url: ogImageUrl,
+            width: shared.width || 1200,
+            height: shared.height || 630,
+            alt: isAlbum ? shared.albumName : shared.fileName,
+          },
+        ],
+      }),
       type: 'article',
       siteName: 'MyPhoto.my.id',
     },
@@ -64,7 +73,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       card: 'summary_large_image',
       title,
       description,
-      images: [ogImageUrl],
+      ...(ogImageUrl && { images: [ogImageUrl] }),
     },
   };
 }
@@ -83,12 +92,13 @@ export default async function SharedPhotoPage({ params }: PageProps) {
     .update({ viewCount: FieldValue.increment(1) })
     .catch(() => {});
 
+  const isAlbum = shared.type === 'album';
   const isImage = shared.mimeType?.startsWith('image/');
-  const imageUrl = `/api/thumbnail/${shared.fileId}?size=large`;
+  const imageUrl = shared.fileId ? `/api/thumbnail/${shared.fileId}?size=large` : '';
 
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Section A: Shared Photo */}
+      {/* Section A: Shared Content */}
       <section className="relative flex min-h-[70vh] flex-col items-center justify-center px-4 py-8">
         <p className="mb-4 text-sm text-gray-400">
           Deljeno sa{' '}
@@ -97,7 +107,33 @@ export default async function SharedPhotoPage({ params }: PageProps) {
           </Link>
         </p>
 
-        {isImage ? (
+        {isAlbum ? (
+          <>
+            <div className="mb-4 flex items-center gap-3">
+              <Images className="h-6 w-6 text-primary-400" />
+              <h1 className="text-2xl font-bold text-white">{shared.albumName}</h1>
+            </div>
+            {shared.albumDescription && (
+              <p className="mb-6 max-w-2xl text-center text-gray-400">{shared.albumDescription}</p>
+            )}
+            <p className="mb-6 text-sm text-gray-500">
+              {shared.albumFileCount || shared.albumFileIds?.length || 0} fajlova u albumu
+            </p>
+            <div className="grid w-full max-w-5xl grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+              {(shared.albumFileIds || []).map((fileId: string) => (
+                <div key={fileId} className="relative aspect-square overflow-hidden rounded-lg bg-gray-800">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/thumbnail/${fileId}`}
+                    alt=""
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        ) : isImage ? (
           <div className="relative w-full max-w-5xl overflow-hidden rounded-lg shadow-2xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -113,7 +149,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
           </div>
         )}
 
-        <p className="mt-4 text-sm text-gray-500">{shared.fileName}</p>
+        {!isAlbum && <p className="mt-4 text-sm text-gray-500">{shared.fileName}</p>}
       </section>
 
       {/* Section B: Viral Landing Page */}

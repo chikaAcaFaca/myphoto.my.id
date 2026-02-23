@@ -18,29 +18,33 @@ import {
   ChevronRight,
   Search,
   Copy,
+  FileText,
+  Shield,
 } from 'lucide-react';
 import { useUIStore, useAuthStore } from '@/lib/stores';
 import { useStorage } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 
 const mainNav = [
-  { name: 'Photos', href: '/photos', icon: Image },
-  { name: 'Videos', href: '/videos', icon: Video },
-  { name: 'Albums', href: '/albums', icon: FolderOpen },
-  { name: 'Favorites', href: '/favorites', icon: Heart },
-  { name: 'Archive', href: '/archive', icon: Archive },
-  { name: 'Memories', href: '/memories', icon: Clock },
+  { name: 'Slike', href: '/photos', icon: Image },
+  { name: 'Video', href: '/videos', icon: Video },
+  { name: 'Albumi', href: '/albums', icon: FolderOpen },
+  { name: 'Omiljeno', href: '/favorites', icon: Heart },
+  { name: 'Arhiva', href: '/archive', icon: Archive },
+  { name: 'Uspomene', href: '/memories', icon: Clock },
 ];
 
 const secondaryNav = [
-  { name: 'Search', href: '/search', icon: Search },
-  { name: 'People', href: '/people', icon: Users },
-  { name: 'Duplicates', href: '/duplicates', icon: Copy },
+  { name: 'Pretraga', href: '/search', icon: Search },
+  { name: 'Osobe', href: '/people', icon: Users },
+  { name: 'Duplikati', href: '/duplicates', icon: Copy },
 ];
 
 const bottomNav = [
-  { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Help', href: '/help', icon: HelpCircle },
+  { name: 'Podešavanja', href: '/settings', icon: Settings },
+  { name: 'Pomoć', href: '/help', icon: HelpCircle },
+  { name: 'Privatnost', href: '/privacy', icon: Shield },
+  { name: 'Uslovi', href: '/terms', icon: FileText },
 ];
 
 export function Sidebar() {
@@ -120,7 +124,7 @@ export function Sidebar() {
         <div className="my-4 h-px bg-gray-200 dark:bg-gray-700" />
 
         <NavItem
-          item={{ name: 'Trash', href: '/trash', icon: Trash2 }}
+          item={{ name: 'Korpa', href: '/trash', icon: Trash2 }}
           isActive={pathname === '/trash'}
           isCollapsed={isSidebarCollapsed}
         />
@@ -130,7 +134,7 @@ export function Sidebar() {
       {!isSidebarCollapsed && storage && (
         <div className="border-t border-gray-200 p-4 dark:border-gray-700">
           <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-gray-600 dark:text-gray-400">Storage</span>
+            <span className="text-gray-600 dark:text-gray-400">Skladište</span>
             <span className="font-medium">{storage.percentage}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -147,13 +151,13 @@ export function Sidebar() {
             />
           </div>
           <p className="mt-2 text-xs text-gray-500">
-            {storage.usedFormatted} of {storage.limitFormatted} used
+            {storage.usedFormatted} od {storage.limitFormatted}
           </p>
           <Link
             href="/settings/storage"
             className="mt-2 block text-xs text-primary-500 hover:underline"
           >
-            Upgrade storage
+            Nadogradi skladište
           </Link>
         </div>
       )}

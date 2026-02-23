@@ -10,6 +10,7 @@ import { CreateAlbumModal } from '@/components/modals/create-album-modal';
 import { PhotoLightbox } from '@/components/gallery/photo-lightbox';
 import { Notifications } from '@/components/ui/notifications';
 import { UploadToast } from '@/components/upload/upload-toast';
+import { PWAPrompt } from '@/components/pwa/pwa-prompt';
 
 export default function DashboardLayout({
   children,
@@ -59,6 +60,9 @@ export default function DashboardLayout({
 
       {/* Notifications */}
       <Notifications />
+
+      {/* PWA install prompt & offline indicator */}
+      <PWAPrompt />
     </div>
   );
 }

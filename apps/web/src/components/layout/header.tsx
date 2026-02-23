@@ -90,7 +90,7 @@ export function Header() {
               <X className="h-5 w-5" />
             </button>
             <span className="text-sm font-medium">
-              {selectedFiles.size} selected
+              {selectedFiles.size} izabrano
             </span>
           </div>
         ) : (
@@ -104,7 +104,7 @@ export function Header() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
-              placeholder="Search photos..."
+              placeholder="Pretraži slike..."
               className={cn(
                 'w-64 rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-4 text-sm transition-all focus:w-96 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-gray-600 dark:bg-gray-700 dark:focus:bg-gray-600',
                 isSearchFocused && 'w-96'
@@ -148,7 +148,7 @@ export function Header() {
         <button
           onClick={toggleDarkMode}
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-          title={isDarkMode ? 'Light mode' : 'Dark mode'}
+          title={isDarkMode ? 'Svetli režim' : 'Tamni režim'}
         >
           {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
@@ -193,17 +193,17 @@ export function Header() {
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <Settings className="h-4 w-4" />
-                  Settings
+                  Podešavanja
                 </button>
                 <button
                   onClick={() => {
                     setShowUserMenu(false);
-                    router.push('/settings/account');
+                    router.push('/settings');
                   }}
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <User className="h-4 w-4" />
-                  Account
+                  Nalog
                 </button>
               </div>
               <div className="border-t border-gray-100 py-1 dark:border-gray-700">
@@ -212,7 +212,7 @@ export function Header() {
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
                   <LogOut className="h-4 w-4" />
-                  Sign out
+                  Odjavi se
                 </button>
               </div>
             </div>

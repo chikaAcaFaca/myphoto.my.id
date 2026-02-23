@@ -1,28 +1,26 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { motion } from 'framer-motion';
-import { Upload, Grid, List } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Video, Upload, Play, Grid, List } from 'lucide-react';
 import { useFiles, useUploadFile } from '@/lib/hooks';
 import { useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
-import { ALL_SUPPORTED_TYPES } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 
-export default function PhotosPage() {
+export default function VideosPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useFiles({
+    type: 'video',
     isTrashed: false,
     isArchived: false,
   });
-  const { viewMode, setViewMode, addNotification } = useUIStore();
-  const { mutate: uploadFile } = useUploadFile();
-  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const { viewMode, setViewMode } = useUIStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { mutate: uploadFile } = useUploadFile();
+  const { addNotification } = useUIStore();
 
   const files = data?.pages.flatMap((page) => page.files) ?? [];
 
-  // Direct file input handler for Upload button
   const handleFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selectedFiles = e.target.files;
@@ -32,57 +30,23 @@ export default function PhotosPage() {
           onSuccess: () => {
             addNotification({
               type: 'success',
-              title: 'Upload complete',
-              message: `${file.name} has been uploaded`,
+              title: 'Video uploadovan',
+              message: `${file.name} je uploadovan`,
             });
           },
           onError: (error) => {
             addNotification({
               type: 'error',
-              title: 'Upload failed',
+              title: 'Upload neuspešan',
               message: error.message,
             });
           },
         });
       }
-      // Reset input so the same files can be selected again
       e.target.value = '';
     },
     [uploadFile, addNotification]
   );
-
-  const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      for (const file of acceptedFiles) {
-        uploadFile(file, {
-          onSuccess: () => {
-            addNotification({
-              type: 'success',
-              title: 'Upload complete',
-              message: `${file.name} has been uploaded`,
-            });
-          },
-          onError: (error) => {
-            addNotification({
-              type: 'error',
-              title: 'Upload failed',
-              message: error.message,
-            });
-          },
-        });
-      }
-    },
-    [uploadFile, addNotification]
-  );
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: ALL_SUPPORTED_TYPES.reduce(
-      (acc, type) => ({ ...acc, [type]: [] }),
-      {} as Record<string, string[]>
-    ),
-    noClick: true,
-  });
 
   // Intersection observer for infinite scroll
   const observerCallback = useCallback(
@@ -94,7 +58,6 @@ export default function PhotosPage() {
     [fetchNextPage, hasNextPage, isFetchingNextPage]
   );
 
-  // Set up intersection observer
   const observerRef = useCallback(
     (node: HTMLDivElement | null) => {
       if (node) {
@@ -109,26 +72,18 @@ export default function PhotosPage() {
   );
 
   return (
-    <div
-      {...getRootProps()}
-      className={cn(
-        'min-h-full rounded-xl transition-colors',
-        isDragActive && 'bg-primary-50 ring-2 ring-primary-500 ring-inset dark:bg-primary-900/20'
-      )}
-    >
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className="min-h-full"
     >
-      <input {...getInputProps()} />
-
-      {/* Hidden file input for direct upload */}
+      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
         multiple
-        accept={ALL_SUPPORTED_TYPES.join(',')}
+        accept="video/*"
         className="hidden"
         onChange={handleFileInputChange}
       />
@@ -136,9 +91,9 @@ export default function PhotosPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Slike</h1>
+          <h1 className="text-2xl font-bold">Video zapisi</h1>
           <p className="text-sm text-gray-500">
-            {files.length} {files.length === 1 ? 'slika' : 'slika'}
+            {files.length} {files.length === 1 ? 'video' : 'video zapisa'}
           </p>
         </div>
 
@@ -178,18 +133,7 @@ export default function PhotosPage() {
         </div>
       </div>
 
-      {/* Drag overlay */}
-      {isDragActive && (
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-primary-500/10 backdrop-blur-sm">
-          <div className="rounded-2xl bg-white p-8 text-center shadow-2xl dark:bg-gray-800">
-            <Upload className="mx-auto mb-4 h-12 w-12 text-primary-500" />
-            <p className="text-lg font-medium">Prevucite fajlove za upload</p>
-            <p className="text-sm text-gray-500">Otpustite da započnete upload</p>
-          </div>
-        </div>
-      )}
-
-      {/* Photo grid */}
+      {/* Video grid */}
       <PhotoGrid files={files} isLoading={isLoading} />
 
       {/* Load more trigger */}
@@ -198,17 +142,14 @@ export default function PhotosPage() {
           {isFetchingNextPage ? (
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
           ) : (
-            <button
-              onClick={() => fetchNextPage()}
-              className="btn-secondary"
-            >
+            <button onClick={() => fetchNextPage()} className="btn-secondary">
               Učitaj još
             </button>
           )}
         </div>
       )}
 
-      {/* Empty state with upload hint */}
+      {/* Empty state */}
       {!isLoading && files.length === 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -217,19 +158,18 @@ export default function PhotosPage() {
           className="flex flex-col items-center justify-center py-20 text-center"
         >
           <div className="mb-6 rounded-full bg-primary-50 p-6 dark:bg-primary-900/20">
-            <Upload className="h-12 w-12 text-primary-500" />
+            <Video className="h-12 w-12 text-primary-500" />
           </div>
-          <h2 className="text-xl font-semibold">Nema slika</h2>
+          <h2 className="text-xl font-semibold">Nema video zapisa</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Prevucite slike ovde ili kliknite dugme Upload. Vaše uspomene vas čekaju!
+            Uploadujte video zapise da ih čuvate sigurno u oblaku. Podržani formati: MP4, MOV, WebM, AVI.
           </p>
           <button onClick={() => fileInputRef.current?.click()} className="btn-primary mt-6">
             <Upload className="mr-2 h-4 w-4" />
-            Upload slika
+            Upload Video
           </button>
         </motion.div>
       )}
     </motion.div>
-    </div>
   );
 }

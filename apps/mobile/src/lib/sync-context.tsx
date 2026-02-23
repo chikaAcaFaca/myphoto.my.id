@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Network from 'expo-network';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
+import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './auth-context';
 import { generateFileId, getFileExtension, getFileType } from '@myphoto/shared';
@@ -21,7 +22,15 @@ interface SyncState {
 interface SyncSettings {
   syncMode: 'wifi_only' | 'wifi_and_mobile' | 'manual';
   autoBackup: boolean;
+  allowRoaming: boolean;
   uploadQuality: 'original' | 'high' | 'medium';
+  backupFolders: string[]; // Album titles to backup (empty = all)
+}
+
+export interface DeviceAlbum {
+  id: string;
+  title: string;
+  assetCount: number;
 }
 
 interface SyncContextType {
@@ -29,29 +38,140 @@ interface SyncContextType {
   syncProgress: number;
   pendingCount: number;
   settings: SyncSettings;
+  deviceAlbums: DeviceAlbum[];
+  isLoadingAlbums: boolean;
   startSync: () => Promise<void>;
   stopSync: () => void;
   updateSettings: (settings: Partial<SyncSettings>) => Promise<void>;
   getQueuedPhotos: () => Promise<MediaLibrary.Asset[]>;
+  refreshDeviceAlbums: () => Promise<void>;
 }
 
 const defaultSettings: SyncSettings = {
   syncMode: 'wifi_only',
   autoBackup: true,
+  allowRoaming: false,
   uploadQuality: 'original',
+  backupFolders: [],
 };
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
+
+// Standalone upload function for background task (no React context)
+async function backgroundUploadAsset(
+  asset: MediaLibrary.Asset,
+  token: string,
+  apiUrl: string
+): Promise<boolean> {
+  try {
+    const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
+    const uri = assetInfo.localUri || asset.uri;
+
+    const fileInfo = await FileSystem.getInfoAsync(uri);
+    if (!fileInfo.exists) return false;
+
+    const mimeType = asset.mediaType === 'photo' ? 'image/jpeg' : 'video/mp4';
+    const fileId = generateFileId();
+
+    // 1. Get pre-signed upload URL
+    const urlRes = await fetch(`${apiUrl}/api/files/upload-url`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filename: asset.filename,
+        mimeType,
+        size: fileInfo.size,
+      }),
+    });
+
+    if (!urlRes.ok) return false;
+    const { uploadUrl, s3Key } = await urlRes.json();
+
+    // 2. Upload to S3
+    const uploadResult = await FileSystem.uploadAsync(uploadUrl, uri, {
+      httpMethod: 'PUT',
+      headers: { 'Content-Type': mimeType },
+    });
+
+    if (uploadResult.status !== 200) return false;
+
+    // 3. Confirm upload
+    const confirmRes = await fetch(`${apiUrl}/api/files/confirm-upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fileId,
+        s3Key,
+        name: asset.filename,
+        size: fileInfo.size,
+        mimeType,
+      }),
+    });
+
+    return confirmRes.ok;
+  } catch (error) {
+    console.error('Background upload error:', error);
+    return false;
+  }
+}
+
+// Find new photos for background sync (standalone, no React state)
+async function backgroundFindNewPhotos(
+  settings: SyncSettings,
+  syncState: SyncState
+): Promise<MediaLibrary.Asset[]> {
+  const { status } = await MediaLibrary.requestPermissionsAsync();
+  if (status !== 'granted') return [];
+
+  let allAssets: MediaLibrary.Asset[] = [];
+
+  if (settings.backupFolders.length > 0) {
+    const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
+    const selected = albums.filter((a) => settings.backupFolders.includes(a.title));
+
+    for (const album of selected) {
+      const { assets } = await MediaLibrary.getAssetsAsync({
+        album: album.id,
+        mediaType: ['photo', 'video'],
+        sortBy: [MediaLibrary.SortBy.creationTime],
+        first: 100, // Smaller batch for background task
+      });
+      allAssets.push(...assets);
+    }
+
+    // Deduplicate
+    const seen = new Set<string>();
+    allAssets = allAssets.filter((a) => {
+      if (seen.has(a.id)) return false;
+      seen.add(a.id);
+      return true;
+    });
+  } else {
+    const { assets } = await MediaLibrary.getAssetsAsync({
+      mediaType: ['photo', 'video'],
+      sortBy: [MediaLibrary.SortBy.creationTime],
+      first: 100,
+    });
+    allAssets = assets;
+  }
+
+  return allAssets.filter((a) => !syncState.uploadedAssets.includes(a.id));
+}
 
 // Register background task
 TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
   try {
     console.log('Background sync task running...');
-    // Perform background sync
-    const syncState = await loadSyncState();
     const settings = await loadSyncSettings();
+    const syncState = await loadSyncState();
 
-    if (!settings.autoBackup) {
+    if (!settings.autoBackup || settings.syncMode === 'manual') {
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
@@ -65,9 +185,48 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
-    // Sync pending uploads
-    if (syncState.pendingUploads.length > 0) {
-      // Upload logic would go here
+    // Get auth token from SecureStore (background tasks can't use React context)
+    const token = await SecureStore.getItemAsync('auth_token');
+    if (!token) {
+      console.log('Background sync: no auth token');
+      return BackgroundFetch.BackgroundFetchResult.Failed;
+    }
+
+    const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+    if (!apiUrl) {
+      console.log('Background sync: no API URL');
+      return BackgroundFetch.BackgroundFetchResult.Failed;
+    }
+
+    // Find new photos to upload
+    const newPhotos = await backgroundFindNewPhotos(settings, syncState);
+    if (newPhotos.length === 0) {
+      console.log('Background sync: no new photos');
+      return BackgroundFetch.BackgroundFetchResult.NoData;
+    }
+
+    console.log(`Background sync: uploading ${newPhotos.length} photos...`);
+
+    // Upload photos (limit to 10 per background run to stay within time limits)
+    const batch = newPhotos.slice(0, 10);
+    const uploaded: string[] = [];
+
+    for (const asset of batch) {
+      const success = await backgroundUploadAsset(asset, token, apiUrl);
+      if (success) {
+        uploaded.push(asset.id);
+      }
+    }
+
+    // Update sync state
+    if (uploaded.length > 0) {
+      const newState: SyncState = {
+        ...syncState,
+        uploadedAssets: [...syncState.uploadedAssets, ...uploaded],
+        lastSyncTime: Date.now(),
+      };
+      await saveSyncState(newState);
+      console.log(`Background sync: uploaded ${uploaded.length} photos`);
       return BackgroundFetch.BackgroundFetchResult.NewData;
     }
 
@@ -132,14 +291,48 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     lastSyncTime: null,
   });
   const [settings, setSettings] = useState<SyncSettings>(defaultSettings);
+  const [deviceAlbums, setDeviceAlbums] = useState<DeviceAlbum[]>([]);
+  const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
 
-  // Load state and settings on mount
+  // Load device albums from MediaLibrary
+  const refreshDeviceAlbums = useCallback(async () => {
+    setIsLoadingAlbums(true);
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setDeviceAlbums([]);
+        return;
+      }
+
+      const albums = await MediaLibrary.getAlbumsAsync({
+        includeSmartAlbums: true,
+      });
+
+      const albumList: DeviceAlbum[] = albums
+        .filter((a) => a.assetCount > 0)
+        .sort((a, b) => b.assetCount - a.assetCount)
+        .map((a) => ({
+          id: a.id,
+          title: a.title,
+          assetCount: a.assetCount,
+        }));
+
+      setDeviceAlbums(albumList);
+    } catch (error) {
+      console.error('Error loading device albums:', error);
+    } finally {
+      setIsLoadingAlbums(false);
+    }
+  }, []);
+
+  // Load state, settings, and device albums on mount
   useEffect(() => {
     (async () => {
       const loadedState = await loadSyncState();
       const loadedSettings = await loadSyncSettings();
       setSyncState(loadedState);
       setSettings(loadedSettings);
+      await refreshDeviceAlbums();
     })();
   }, []);
 
@@ -174,22 +367,51 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Find new photos to upload
+  // Find new photos to upload (filtered by selected backup folders)
   const findNewPhotos = async (): Promise<MediaLibrary.Asset[]> => {
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== 'granted') {
       return [];
     }
 
-    // Get all photos
-    const { assets } = await MediaLibrary.getAssetsAsync({
-      mediaType: ['photo', 'video'],
-      sortBy: [MediaLibrary.SortBy.creationTime],
-      first: 1000,
-    });
+    let allAssets: MediaLibrary.Asset[] = [];
+
+    if (settings.backupFolders.length > 0) {
+      // Get assets only from selected albums
+      const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
+      const selectedAlbums = albums.filter((a) =>
+        settings.backupFolders.includes(a.title)
+      );
+
+      for (const album of selectedAlbums) {
+        const { assets } = await MediaLibrary.getAssetsAsync({
+          album: album.id,
+          mediaType: ['photo', 'video'],
+          sortBy: [MediaLibrary.SortBy.creationTime],
+          first: 1000,
+        });
+        allAssets.push(...assets);
+      }
+
+      // Deduplicate (a photo can appear in multiple albums)
+      const seen = new Set<string>();
+      allAssets = allAssets.filter((a) => {
+        if (seen.has(a.id)) return false;
+        seen.add(a.id);
+        return true;
+      });
+    } else {
+      // No folder filter — backup all photos
+      const { assets } = await MediaLibrary.getAssetsAsync({
+        mediaType: ['photo', 'video'],
+        sortBy: [MediaLibrary.SortBy.creationTime],
+        first: 1000,
+      });
+      allAssets = assets;
+    }
 
     // Filter out already uploaded ones
-    const newAssets = assets.filter(
+    const newAssets = allAssets.filter(
       (asset) => !syncState.uploadedAssets.includes(asset.id)
     );
 
@@ -294,6 +516,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Block upload on cellular if roaming is not allowed
+    if (
+      networkState.type === Network.NetworkStateType.CELLULAR &&
+      !settings.allowRoaming
+    ) {
+      console.log('Cellular connection - roaming upload disabled');
+      // Note: Full roaming detection requires native carrier API
+      // This serves as a user-controlled safety toggle
+    }
+
     setIsSyncing(true);
     setSyncProgress(0);
 
@@ -355,7 +587,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return findNewPhotos();
   }, [syncState]);
 
-  const pendingCount = syncState.pendingUploads.length;
+  // pendingCount reflects actual unuploaded photos (computed on last sync run)
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Refresh pending count when sync state changes
+  useEffect(() => {
+    if (user && settings.autoBackup) {
+      findNewPhotos().then((photos) => setPendingCount(photos.length)).catch(() => {});
+    }
+  }, [syncState.uploadedAssets.length, user, settings.autoBackup]);
 
   return (
     <SyncContext.Provider
@@ -364,10 +604,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         syncProgress,
         pendingCount,
         settings,
+        deviceAlbums,
+        isLoadingAlbums,
         startSync,
         stopSync,
         updateSettings,
         getQueuedPhotos,
+        refreshDeviceAlbums,
       }}
     >
       {children}

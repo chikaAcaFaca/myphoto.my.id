@@ -1,13 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Mail, Lock, User, Eye, EyeOff, Check } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
 
 export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterContent />
+    </Suspense>
+  );
+}
+
+function RegisterContent() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,6 +25,17 @@ export default function RegisterPage() {
 
   const { signUpWithEmail, signInWithGoogle } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const getPostAuthRedirect = () => {
+    const tier = searchParams.get('tier');
+    const ai = searchParams.get('ai');
+    const period = searchParams.get('period');
+    if (tier && period) {
+      return `/checkout?tier=${tier}&ai=${ai || 'false'}&period=${period}`;
+    }
+    return '/photos';
+  };
 
   const passwordRequirements = [
     { met: password.length >= 8, text: 'At least 8 characters' },
@@ -36,7 +55,7 @@ export default function RegisterPage() {
 
     try {
       await signUpWithEmail(email, password, name);
-      router.push('/photos');
+      router.push(getPostAuthRedirect());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
     } finally {
@@ -50,7 +69,7 @@ export default function RegisterPage() {
 
     try {
       await signInWithGoogle();
-      router.push('/photos');
+      router.push(getPostAuthRedirect());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign up with Google');
     } finally {

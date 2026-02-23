@@ -314,7 +314,7 @@ export default function PricingPage() {
                 </ul>
 
                 <Link
-                  href={isFree ? '/register' : `/register?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
+                  href={isFree ? '/register' : `/checkout?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
                   className={cn(
                     'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
                     isPopular
@@ -381,7 +381,7 @@ export default function PricingPage() {
                     )}
                   </div>
                   <Link
-                    href={`/register?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
+                    href={`/checkout?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
                     className="mt-4 block rounded-lg bg-gray-100 py-2 text-center font-medium text-gray-900 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     Izaberi

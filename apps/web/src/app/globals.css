@@ -123,13 +123,13 @@ body {
   @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
 }
 
-/* Button styles */
+/* Button styles — premium feel with active press feedback */
 .btn {
-  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-ring disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 focus-ring disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97];
 }
 
 .btn-primary {
-  @apply btn bg-primary-500 text-white hover:bg-primary-600;
+  @apply btn bg-primary-500 text-white hover:bg-primary-600 shadow-sm hover:shadow-md;
 }
 
 .btn-secondary {
@@ -141,7 +141,7 @@ body {
 }
 
 .btn-danger {
-  @apply btn bg-red-500 text-white hover:bg-red-600;
+  @apply btn bg-red-500 text-white hover:bg-red-600 shadow-sm hover:shadow-md;
 }
 
 /* Input styles */
@@ -193,4 +193,41 @@ body {
 .dark .sticky-cta-bar {
   background: rgba(26, 26, 26, 0.95);
   border-top-color: #374151;
+}
+
+/* Premium glass morphism for modals and popovers */
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+.dark .glass {
+  background: rgba(31, 41, 55, 0.85);
+}
+
+/* Smooth skeleton loading pulse */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+.skeleton {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  @apply rounded-lg bg-gray-200 dark:bg-gray-700;
+}
+
+/* Interactive card press effect */
+.card-interactive {
+  @apply card transition-all duration-200 hover:shadow-md active:scale-[0.98];
+}
+
+/* Premium scrollbar — thinner, auto-hide */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.dark * {
+  scrollbar-color: #475569 transparent;
 }

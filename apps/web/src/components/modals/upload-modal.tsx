@@ -3,11 +3,12 @@
 import { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, File, Check, AlertCircle, Image } from 'lucide-react';
-import { useUIStore, useFilesStore, type UploadItem } from '@/lib/stores';
+import { X, Upload, File, Check, AlertCircle, Image, Wifi, Signal, Globe, ChevronDown, ChevronUp, Folder, Trash2 } from 'lucide-react';
+import { useUIStore, useFilesStore, useAuthStore, type UploadItem } from '@/lib/stores';
 import { useUploadFile } from '@/lib/hooks';
-import { useStorage } from '@/lib/hooks';
+import { useStorage, useNetworkStatus, useUploadPermission } from '@/lib/hooks';
 import { ALL_SUPPORTED_TYPES, formatBytes, MAX_UPLOAD_SIZE } from '@myphoto/shared';
+import { updateUserSettings } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 
 export function UploadModal() {
@@ -15,8 +16,19 @@ export function UploadModal() {
   const { uploadQueue, addToUploadQueue, updateUploadProgress, setUploadStatus, removeFromUploadQueue, clearCompletedUploads } = useFilesStore();
   const { mutateAsync: uploadFile } = useUploadFile();
   const { data: storage } = useStorage();
+  const { user, firebaseUser, refreshUser } = useAuthStore();
   const [isUploading, setIsUploading] = useState(false);
+  const [showNetworkSettings, setShowNetworkSettings] = useState(false);
   const uploadingRef = useRef(false);
+
+  const networkStatus = useNetworkStatus();
+  const uploadPermission = useUploadPermission(user?.settings);
+
+  const handleSettingChange = async (key: string, value: string | boolean | string[]) => {
+    if (!firebaseUser) return;
+    await updateUserSettings(firebaseUser.uid, { [key]: value } as any);
+    await refreshUser();
+  };
 
   const handleUploadAll = useCallback(async () => {
     const pendingItems = useFilesStore.getState().uploadQueue.filter((item) => item.status === 'pending');
@@ -91,6 +103,15 @@ export function UploadModal() {
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
+      if (!uploadPermission.allowed) {
+        addNotification({
+          type: 'error',
+          title: 'Upload blokiran',
+          message: uploadPermission.reason || 'Upload nije dozvoljen sa trenutnom mrežom',
+        });
+        return;
+      }
+
       const newItems: UploadItem[] = acceptedFiles.map((file) => ({
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         file,
@@ -101,7 +122,7 @@ export function UploadModal() {
       // Auto-start upload after adding to queue
       setTimeout(() => handleUploadAll(), 0);
     },
-    [addToUploadQueue, handleUploadAll]
+    [addToUploadQueue, handleUploadAll, uploadPermission, addNotification]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -111,6 +132,7 @@ export function UploadModal() {
       {} as Record<string, string[]>
     ),
     maxSize: MAX_UPLOAD_SIZE,
+    disabled: !uploadPermission.allowed,
   });
 
   const handleRemoveItem = (id: string) => {
@@ -120,6 +142,9 @@ export function UploadModal() {
   const pendingCount = uploadQueue.filter((item) => item.status === 'pending').length;
   const completedCount = uploadQueue.filter((item) => item.status === 'completed').length;
   const errorCount = uploadQueue.filter((item) => item.status === 'error').length;
+
+  const syncMode = user?.settings?.syncMode || 'wifi_only';
+  const allowRoaming = user?.settings?.allowRoaming ?? false;
 
   if (!isUploadModalOpen) return null;
 
@@ -155,19 +180,175 @@ export function UploadModal() {
 
           {/* Content */}
           <div className="p-6">
+            {/* Network status warning */}
+            {!uploadPermission.allowed && (
+              <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600 dark:text-yellow-400" />
+                  <div>
+                    <p className="font-medium text-yellow-800 dark:text-yellow-300">
+                      Upload blokiran
+                    </p>
+                    <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-400">
+                      {uploadPermission.reason}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Network status indicator */}
+            <div className="mb-4 flex items-center justify-between rounded-lg bg-gray-50 px-4 py-2 text-sm dark:bg-gray-700">
+              <div className="flex items-center gap-2">
+                {networkStatus.connectionType === 'wifi' ? (
+                  <Wifi className="h-4 w-4 text-green-500" />
+                ) : networkStatus.connectionType === 'cellular' ? (
+                  <Signal className="h-4 w-4 text-yellow-500" />
+                ) : (
+                  <Globe className="h-4 w-4 text-gray-400" />
+                )}
+                <span className="text-gray-600 dark:text-gray-300">
+                  {networkStatus.connectionType === 'wifi' && 'WiFi'}
+                  {networkStatus.connectionType === 'cellular' && 'Mobilni podaci'}
+                  {networkStatus.connectionType === 'ethernet' && 'Ethernet'}
+                  {networkStatus.connectionType === 'unknown' && 'Povezano'}
+                  {!networkStatus.isOnline && 'Offline'}
+                </span>
+                <span className="text-xs text-gray-400">
+                  ({syncMode === 'wifi_only' ? 'Samo WiFi' : syncMode === 'wifi_and_mobile' ? 'WiFi + Mobilni' : 'Ručno'})
+                </span>
+              </div>
+              <button
+                onClick={() => setShowNetworkSettings(!showNetworkSettings)}
+                className="flex items-center gap-1 text-xs text-primary-500 hover:text-primary-600"
+              >
+                Podešavanja
+                {showNetworkSettings ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+            </div>
+
+            {/* Inline network settings */}
+            {showNetworkSettings && (
+              <div className="mb-4 rounded-lg border border-gray-200 p-4 dark:border-gray-600">
+                <h4 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  Podešavanja mreže za upload
+                </h4>
+                <div className="space-y-3">
+                  {/* Sync mode */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wifi className="h-4 w-4 text-gray-500" />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Način sinhronizacije</span>
+                    </div>
+                    <select
+                      value={syncMode}
+                      onChange={(e) => handleSettingChange('syncMode', e.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="wifi_only">Samo WiFi</option>
+                      <option value="wifi_and_mobile">WiFi + Mobilni podaci</option>
+                      <option value="manual">Ručno</option>
+                    </select>
+                  </div>
+
+                  {/* Allow roaming */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4 text-gray-500" />
+                      <div>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Dozvoli roming</span>
+                        <p className="text-xs text-gray-500">Upload dok ste u romingu</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleSettingChange('allowRoaming', !allowRoaming)}
+                      className={cn(
+                        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                        allowRoaming ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                          allowRoaming ? 'translate-x-6' : 'translate-x-1'
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {syncMode === 'wifi_and_mobile' && !allowRoaming && (
+                    <p className="rounded-md bg-yellow-50 p-2 text-xs text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">
+                      Upload preko mobilnih podataka je dozvoljen, ali ne u romingu. Uključite roming ako želite upload i dok ste u inostranstvu.
+                    </p>
+                  )}
+
+                  {/* Backup folders */}
+                  <div className="border-t border-gray-200 pt-3 dark:border-gray-600">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Folder className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">Backup folderi (mobilna app)</span>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      {(user?.settings?.backupFolders || []).length === 0 ? (
+                        <p className="text-xs text-gray-500">
+                          Svi folderi na uređaju se backup-uju. Izaberite specifične foldere u mobilnoj aplikaciji.
+                        </p>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className="mb-2 text-xs text-gray-500">
+                            Samo ovi folderi se backup-uju sa mobilnog uređaja:
+                          </p>
+                          {(user?.settings?.backupFolders || []).map((folder) => (
+                            <div key={folder} className="flex items-center justify-between rounded-md bg-gray-100 px-3 py-1.5 text-sm dark:bg-gray-600">
+                              <div className="flex items-center gap-2">
+                                <Folder className="h-3.5 w-3.5 text-sky-500" />
+                                <span className="text-gray-700 dark:text-gray-300">{folder}</span>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  const updated = (user?.settings?.backupFolders || []).filter((f) => f !== folder);
+                                  await handleSettingChange('backupFolders', updated as any);
+                                }}
+                                className="rounded p-0.5 text-gray-400 hover:text-red-500"
+                                title="Ukloni folder"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => handleSettingChange('backupFolders', [] as any)}
+                            className="mt-1 text-xs text-sky-500 hover:text-sky-600"
+                          >
+                            Resetuj na sve foldere
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Dropzone */}
             <div
               {...getRootProps()}
               className={cn(
-                'cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-colors',
-                isDragActive
-                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                  : 'border-gray-300 hover:border-gray-400 dark:border-gray-600'
+                'rounded-xl border-2 border-dashed p-8 text-center transition-colors',
+                !uploadPermission.allowed
+                  ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-60 dark:border-gray-700 dark:bg-gray-800'
+                  : isDragActive
+                  ? 'cursor-pointer border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                  : 'cursor-pointer border-gray-300 hover:border-gray-400 dark:border-gray-600'
               )}
             >
               <input {...getInputProps()} />
               <Upload className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-              {isDragActive ? (
+              {!uploadPermission.allowed ? (
+                <p className="text-gray-500">Upload je trenutno blokiran mrežnim podešavanjima</p>
+              ) : isDragActive ? (
                 <p className="text-primary-600">Drop files here...</p>
               ) : (
                 <>

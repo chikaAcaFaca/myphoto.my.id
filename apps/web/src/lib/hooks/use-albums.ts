@@ -19,7 +19,6 @@ import {
 } from 'firebase/firestore';
 import type { Album } from '@myphoto/shared';
 import { useAuthStore } from '../stores';
-import { generateShareToken } from '@myphoto/shared';
 
 // Helper to convert Firestore document to Album
 function docToAlbum(doc: any): Album {
@@ -228,29 +227,6 @@ export function useRemoveFilesFromAlbum() {
   });
 }
 
-export function useShareAlbum() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (albumId: string) => {
-      const shareToken = generateShareToken();
-      const shareLink = `${process.env.NEXT_PUBLIC_APP_URL}/shared/${shareToken}`;
-
-      const docRef = doc(db, 'albums', albumId);
-      await updateDoc(docRef, {
-        isShared: true,
-        shareLink,
-        updatedAt: serverTimestamp(),
-      });
-
-      return shareLink;
-    },
-    onSuccess: (_, albumId) => {
-      queryClient.invalidateQueries({ queryKey: ['albums'] });
-      queryClient.invalidateQueries({ queryKey: ['album', albumId] });
-    },
-  });
-}
 
 export function useUnshareAlbum() {
   const queryClient = useQueryClient();

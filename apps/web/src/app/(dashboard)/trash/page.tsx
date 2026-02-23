@@ -60,13 +60,18 @@ export default function TrashPage() {
   };
 
   return (
-    <div>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="min-h-full"
+    >
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Trash</h1>
+          <h1 className="text-2xl font-bold">Korpa</h1>
           <p className="text-sm text-gray-500">
-            Items in trash will be permanently deleted after 30 days
+            Fajlovi u korpi se trajno brišu nakon 30 dana
           </p>
         </div>
         {files.length > 0 && (
@@ -75,39 +80,53 @@ export default function TrashPage() {
             className="btn-danger"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Empty Trash
+            Isprazni korpu
           </button>
         )}
       </div>
 
       {/* Selection actions */}
-      {selectedFiles.size > 0 && (
-        <div className="mb-4 flex items-center gap-4 rounded-lg bg-gray-100 p-4 dark:bg-gray-800">
-          <span className="text-sm font-medium">{selectedFiles.size} selected</span>
-          <div className="flex gap-2">
-            <button onClick={handleRestore} className="btn-secondary">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Restore
-            </button>
-            <button onClick={handlePermanentDelete} className="btn-danger">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Forever
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {selectedFiles.size > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="mb-4 overflow-hidden"
+          >
+            <div className="flex items-center gap-4 rounded-xl bg-gray-100 p-4 dark:bg-gray-800">
+              <span className="text-sm font-medium">{selectedFiles.size} izabrano</span>
+              <div className="flex gap-2">
+                <button onClick={handleRestore} className="btn-secondary">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Vrati
+                </button>
+                <button onClick={handlePermanentDelete} className="btn-danger">
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Obriši zauvek
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Content */}
       {!isLoading && files.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="flex flex-col items-center justify-center py-20 text-center"
+        >
           <div className="mb-6 rounded-full bg-gray-100 p-6 dark:bg-gray-800">
             <Trash2 className="h-12 w-12 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold">Trash is empty</h2>
+          <h2 className="text-xl font-semibold">Korpa je prazna</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Items you delete will appear here for 30 days before being permanently removed
+            Obrisani fajlovi ostaju ovde 30 dana pre trajnog brisanja
           </p>
-        </div>
+        </motion.div>
       ) : (
         <PhotoGrid files={files} isLoading={isLoading} />
       )}
@@ -120,39 +139,40 @@ export default function TrashPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/50"
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               onClick={() => setShowEmptyConfirm(false)}
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-800"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-gray-800"
             >
               <div className="mb-4 flex items-center gap-3">
                 <div className="rounded-full bg-red-100 p-2 dark:bg-red-900/30">
                   <AlertTriangle className="h-6 w-6 text-red-600" />
                 </div>
-                <h2 className="text-lg font-semibold">Empty Trash?</h2>
+                <h2 className="text-lg font-semibold">Isprazni korpu?</h2>
               </div>
               <p className="mb-6 text-gray-600 dark:text-gray-300">
-                This will permanently delete all {files.length} items in trash. This action cannot be undone.
+                Ovo će trajno obrisati svih {files.length} fajlova iz korpe. Ova akcija se ne može poništiti.
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setShowEmptyConfirm(false)}
                   className="btn-secondary"
                 >
-                  Cancel
+                  Otkaži
                 </button>
                 <button onClick={handleEmptyTrash} className="btn-danger">
-                  Empty Trash
+                  Isprazni korpu
                 </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }

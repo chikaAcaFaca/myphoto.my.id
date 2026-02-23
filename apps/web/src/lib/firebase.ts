@@ -108,8 +108,10 @@ async function createUserDocumentIfNeeded(user: User, displayName?: string) {
       syncMode: 'wifi_only',
       uploadQuality: 'original',
       autoBackup: true,
+      allowRoaming: false,
       faceRecognition: true,
       darkMode: false,
+      backupFolders: [],
     };
 
     const newUser: Omit<AppUser, 'id' | 'createdAt'> & { createdAt: ReturnType<typeof serverTimestamp> } = {

@@ -161,11 +161,13 @@ export function useUploadFile() {
         throw new Error('Failed to upload file to storage');
       }
 
-      // 2.5. For videos: extract thumbnail frame and upload it
-      let videoThumbKey: string | undefined;
-      if (file.type.startsWith('video/') && thumbnailUploadUrl && thumbnailKey) {
+      // 2.5. Extract thumbnail and upload it (for both images and videos)
+      let uploadedThumbKey: string | undefined;
+      if (thumbnailUploadUrl && thumbnailKey) {
         try {
-          const thumbBlob = await extractVideoThumbnail(file);
+          const thumbBlob = file.type.startsWith('video/')
+            ? await extractVideoThumbnail(file)
+            : await extractImageThumbnail(file);
           if (thumbBlob) {
             const thumbRes = await fetch(thumbnailUploadUrl, {
               method: 'PUT',
@@ -173,12 +175,12 @@ export function useUploadFile() {
               headers: { 'Content-Type': 'image/webp' },
             });
             if (thumbRes.ok) {
-              videoThumbKey = thumbnailKey;
+              uploadedThumbKey = thumbnailKey;
             }
           }
         } catch (e) {
-          // Non-fatal: video will just have no thumbnail
-          console.warn('Video thumbnail extraction failed:', e);
+          // Non-fatal: file will just have no thumbnail
+          console.warn('Thumbnail extraction failed:', e);
         }
       }
 
@@ -195,7 +197,7 @@ export function useUploadFile() {
           name: file.name,
           size: file.size,
           mimeType: file.type,
-          ...(videoThumbKey ? { thumbnailKey: videoThumbKey } : {}),
+          ...(uploadedThumbKey ? { thumbnailKey: uploadedThumbKey } : {}),
         }),
       });
 
@@ -353,6 +355,77 @@ export function useGetDownloadUrl() {
     mutationFn: async (s3Key: string) => {
       return generateDownloadUrl(s3Key);
     },
+  });
+}
+
+/**
+ * Extract a thumbnail from an image file using canvas.
+ * Resizes to fit within 400x400 (cover crop) and outputs as WebP.
+ */
+function extractImageThumbnail(file: File): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.src = objectUrl;
+
+    const cleanup = () => URL.revokeObjectURL(objectUrl);
+
+    img.onload = () => {
+      try {
+        const maxSize = 400;
+        const iw = img.naturalWidth;
+        const ih = img.naturalHeight;
+
+        if (!iw || !ih) {
+          cleanup();
+          resolve(null);
+          return;
+        }
+
+        // Scale to cover maxSize x maxSize, then crop center
+        const scale = Math.max(maxSize / iw, maxSize / ih);
+        const sw = Math.round(iw * scale);
+        const sh = Math.round(ih * scale);
+        const ox = Math.round((sw - maxSize) / 2);
+        const oy = Math.round((sh - maxSize) / 2);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          cleanup();
+          resolve(null);
+          return;
+        }
+
+        ctx.drawImage(img, -ox, -oy, sw, sh);
+
+        canvas.toBlob(
+          (blob) => {
+            cleanup();
+            resolve(blob);
+          },
+          'image/webp',
+          0.8
+        );
+      } catch {
+        cleanup();
+        resolve(null);
+      }
+    };
+
+    img.onerror = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    // Timeout: if extraction takes too long, skip
+    setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 10000);
   });
 }
 
