@@ -20,9 +20,10 @@ import {
   Copy,
   FileText,
   Shield,
+  Download,
 } from 'lucide-react';
 import { useUIStore, useAuthStore } from '@/lib/stores';
-import { useStorage } from '@/lib/hooks';
+import { useStorage, usePWA } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 
 const mainNav = [
@@ -52,6 +53,7 @@ export function Sidebar() {
   const { isSidebarOpen, isSidebarCollapsed, setSidebarCollapsed } = useUIStore();
   const { user } = useAuthStore();
   const { data: storage } = useStorage();
+  const { isInstallable, isInstalled, isIOS, installApp } = usePWA();
 
   if (!isSidebarOpen) return null;
 
@@ -159,6 +161,30 @@ export function Sidebar() {
           >
             Nadogradi skladište
           </Link>
+        </div>
+      )}
+
+      {/* PWA Install */}
+      {isInstallable && !isInstalled && (
+        <div className="border-t border-gray-200 p-4 dark:border-gray-700">
+          <button
+            onClick={() => {
+              if (isIOS) {
+                // iOS doesn't support beforeinstallprompt — redirect to settings with guide
+                window.location.href = '/settings';
+              } else {
+                installApp();
+              }
+            }}
+            className={cn(
+              'flex w-full items-center gap-3 rounded-lg bg-primary-50 px-3 py-2.5 text-sm font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-[0.97] dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30',
+              isSidebarCollapsed && 'justify-center'
+            )}
+            title="Instaliraj aplikaciju"
+          >
+            <Download className="h-5 w-5 flex-shrink-0" />
+            {!isSidebarCollapsed && <span>Instaliraj</span>}
+          </button>
         </div>
       )}
 
