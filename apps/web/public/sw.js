@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
 
 const CACHE_NAME = 'myphoto-v1';
+const DB_NAME = 'myphoto-uploads';
+const DB_VERSION = 2;
 const STATIC_ASSETS = [
   '/logo.png',
   '/logo-transparent.png',
@@ -102,8 +104,42 @@ self.addEventListener('periodicsync', (event) => {
   }
 });
 
+async function shouldProcessUploads() {
+  try {
+    const db = await openUploadDB();
+    const tx = db.transaction('settings', 'readonly');
+    const store = tx.objectStore('settings');
+    const settings = await getFromStore(store, 'sync');
+
+    if (!settings) return true; // default: allow
+
+    if (settings.syncMode === 'manual') return false;
+
+    const conn = navigator.connection;
+    if (!conn) return true; // can't detect network type, allow
+
+    const isCellular = conn.type === 'cellular';
+
+    if (settings.syncMode === 'wifi_only' && isCellular) return false;
+
+    if (settings.syncMode === 'wifi_and_mobile' && isCellular && !settings.allowRoaming) {
+      // On cellular — allowed, but if roaming check is enabled and user is roaming, skip
+      // navigator.connection doesn't expose roaming directly, so allowRoaming=false
+      // means "don't upload on cellular at all when roaming is disabled"
+      // We trust the user set this intentionally
+    }
+
+    return true;
+  } catch {
+    return true; // on error, allow
+  }
+}
+
 async function processUploadQueue() {
   try {
+    const allowed = await shouldProcessUploads();
+    if (!allowed) return;
+
     // Read pending uploads from IndexedDB
     const db = await openUploadDB();
     const tx = db.transaction('pending-uploads', 'readonly');
@@ -111,8 +147,11 @@ async function processUploadQueue() {
     const items = await getAllFromStore(store);
 
     for (const item of items) {
+      // Skip items that need a fresh token
+      if (item.needsTokenRefresh) continue;
+
       try {
-        // Step 1: Get upload URL
+        // Step 1: Get upload URL (API expects: filename, mimeType, size)
         const urlRes = await fetch('/api/files/upload-url', {
           method: 'POST',
           headers: {
@@ -120,11 +159,20 @@ async function processUploadQueue() {
             Authorization: `Bearer ${item.authToken}`,
           },
           body: JSON.stringify({
-            fileName: item.fileName,
+            filename: item.fileName,
             mimeType: item.mimeType,
-            fileSize: item.fileSize,
+            size: item.fileSize,
           }),
         });
+
+        if (urlRes.status === 401) {
+          // Token expired — mark for refresh, skip
+          const markTx = db.transaction('pending-uploads', 'readwrite');
+          const markStore = markTx.objectStore('pending-uploads');
+          item.needsTokenRefresh = true;
+          markStore.put(item);
+          continue;
+        }
 
         if (!urlRes.ok) continue;
         const urlData = await urlRes.json();
@@ -138,8 +186,8 @@ async function processUploadQueue() {
 
         if (!uploadRes.ok) continue;
 
-        // Step 3: Confirm upload
-        await fetch('/api/files/confirm-upload', {
+        // Step 3: Confirm upload (API expects: fileId, s3Key, name, size, mimeType)
+        const confirmRes = await fetch('/api/files/confirm-upload', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -148,8 +196,19 @@ async function processUploadQueue() {
           body: JSON.stringify({
             fileId: urlData.fileId,
             s3Key: urlData.s3Key,
+            name: item.fileName,
+            size: item.fileSize,
+            mimeType: item.mimeType,
           }),
         });
+
+        if (confirmRes.status === 401) {
+          const markTx = db.transaction('pending-uploads', 'readwrite');
+          markTx.objectStore('pending-uploads').put({ ...item, needsTokenRefresh: true });
+          continue;
+        }
+
+        if (!confirmRes.ok) continue;
 
         // Remove from queue
         const delTx = db.transaction('pending-uploads', 'readwrite');
@@ -175,11 +234,14 @@ async function processUploadQueue() {
 
 function openUploadDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('myphoto-uploads', 1);
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains('pending-uploads')) {
         db.createObjectStore('pending-uploads', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('settings')) {
+        db.createObjectStore('settings', { keyPath: 'key' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -190,6 +252,14 @@ function openUploadDB() {
 function getAllFromStore(store) {
   return new Promise((resolve, reject) => {
     const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function getFromStore(store, key) {
+  return new Promise((resolve, reject) => {
+    const req = store.get(key);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });

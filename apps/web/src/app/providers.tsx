@@ -52,6 +52,13 @@ export function Providers({ children }: { children: ReactNode }) {
       })
   );
 
+  // Register SW early so beforeinstallprompt fires on any page
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

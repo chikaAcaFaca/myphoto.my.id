@@ -2,7 +2,10 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, useUIStore } from '@/lib/stores';
+import { getIdToken } from '@/lib/firebase';
+import { syncSettingsToIDB, refreshStaleTokens, requestBackgroundSync } from '@/lib/upload-queue';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { UploadModal } from '@/components/modals/upload-modal';
@@ -20,12 +23,49 @@ export default function DashboardLayout({
   const { user, isLoading } = useAuthStore();
   const { isSidebarOpen, isSidebarCollapsed } = useUIStore();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
     }
   }, [user, isLoading, router]);
+
+  // Sync user settings to IndexedDB for SW access
+  useEffect(() => {
+    if (!user?.settings) return;
+    const { syncMode, allowRoaming, autoBackup } = user.settings;
+    syncSettingsToIDB({ syncMode, allowRoaming, autoBackup });
+  }, [user?.settings]);
+
+  // Listen for background-upload-complete events from SW
+  useEffect(() => {
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] });
+      queryClient.invalidateQueries({ queryKey: ['storage'] });
+    };
+    window.addEventListener('background-upload-complete', handler);
+    return () => window.removeEventListener('background-upload-complete', handler);
+  }, [queryClient]);
+
+  // On visibility change, refresh stale tokens and re-trigger sync
+  useEffect(() => {
+    const handler = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const token = await getIdToken();
+        if (!token) return;
+        const updated = await refreshStaleTokens(token);
+        if (updated) {
+          await requestBackgroundSync();
+        }
+      } catch {
+        // Non-fatal
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, []);
 
   if (isLoading || !user) {
     return (

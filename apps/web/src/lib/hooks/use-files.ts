@@ -18,6 +18,7 @@ import type { FileMetadata } from '@myphoto/shared';
 import { useAuthStore } from '../stores';
 import { generateDownloadUrl, deleteObject } from '../s3';
 import { getIdToken } from '../firebase';
+import { queueFileForUpload, requestBackgroundSync } from '../upload-queue';
 
 const PAGE_SIZE = 50;
 
@@ -121,94 +122,117 @@ export function useUploadFile() {
   const user = useAuthStore((state) => state.user);
 
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (file: File): Promise<FileMetadata | { queued: true }> => {
       if (!user) throw new Error('Not authenticated');
 
       const token = await getIdToken();
       if (!token) throw new Error('Not authenticated');
 
-      // 1. Get pre-signed upload URL from server
-      const urlRes = await fetch('/api/files/upload-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          mimeType: file.type,
-          size: file.size,
-        }),
-      });
-
-      if (!urlRes.ok) {
-        const err = await urlRes.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to get upload URL');
-      }
-
-      const { uploadUrl, fileId, s3Key, thumbnailUploadUrl, thumbnailKey } = await urlRes.json();
-
-      // 2. Upload directly to S3 using pre-signed URL
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': file.type,
-        },
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file to storage');
-      }
-
-      // 2.5. Extract thumbnail and upload it (for both images and videos)
-      let uploadedThumbKey: string | undefined;
-      if (thumbnailUploadUrl && thumbnailKey) {
-        try {
-          const thumbBlob = file.type.startsWith('video/')
-            ? await extractVideoThumbnail(file)
-            : await extractImageThumbnail(file);
-          if (thumbBlob) {
-            const thumbRes = await fetch(thumbnailUploadUrl, {
-              method: 'PUT',
-              body: thumbBlob,
-              headers: { 'Content-Type': 'image/webp' },
-            });
-            if (thumbRes.ok) {
-              uploadedThumbKey = thumbnailKey;
-            }
-          }
-        } catch (e) {
-          // Non-fatal: file will just have no thumbnail
-          console.warn('Thumbnail extraction failed:', e);
+      // If offline, queue for background upload
+      if (!navigator.onLine) {
+        const ok = await queueFileForUpload(file, token);
+        if (ok) {
+          await requestBackgroundSync();
+          return { queued: true };
         }
+        throw new Error('Offline and unable to queue file');
       }
 
-      // 3. Confirm upload - creates Firestore doc and updates storage
-      const confirmRes = await fetch('/api/files/confirm-upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          fileId,
-          s3Key,
-          name: file.name,
-          size: file.size,
-          mimeType: file.type,
-          ...(uploadedThumbKey ? { thumbnailKey: uploadedThumbKey } : {}),
-        }),
-      });
+      try {
+        // 1. Get pre-signed upload URL from server
+        const urlRes = await fetch('/api/files/upload-url', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            mimeType: file.type,
+            size: file.size,
+          }),
+        });
 
-      if (!confirmRes.ok) {
-        const err = await confirmRes.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to confirm upload');
+        if (!urlRes.ok) {
+          const err = await urlRes.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to get upload URL');
+        }
+
+        const { uploadUrl, fileId, s3Key, thumbnailUploadUrl, thumbnailKey } = await urlRes.json();
+
+        // 2. Upload directly to S3 using pre-signed URL
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': file.type,
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload file to storage');
+        }
+
+        // 2.5. Extract thumbnail and upload it (for both images and videos)
+        let uploadedThumbKey: string | undefined;
+        if (thumbnailUploadUrl && thumbnailKey) {
+          try {
+            const thumbBlob = file.type.startsWith('video/')
+              ? await extractVideoThumbnail(file)
+              : await extractImageThumbnail(file);
+            if (thumbBlob) {
+              const thumbRes = await fetch(thumbnailUploadUrl, {
+                method: 'PUT',
+                body: thumbBlob,
+                headers: { 'Content-Type': 'image/webp' },
+              });
+              if (thumbRes.ok) {
+                uploadedThumbKey = thumbnailKey;
+              }
+            }
+          } catch (e) {
+            // Non-fatal: file will just have no thumbnail
+            console.warn('Thumbnail extraction failed:', e);
+          }
+        }
+
+        // 3. Confirm upload - creates Firestore doc and updates storage
+        const confirmRes = await fetch('/api/files/confirm-upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            fileId,
+            s3Key,
+            name: file.name,
+            size: file.size,
+            mimeType: file.type,
+            ...(uploadedThumbKey ? { thumbnailKey: uploadedThumbKey } : {}),
+          }),
+        });
+
+        if (!confirmRes.ok) {
+          const err = await confirmRes.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to confirm upload');
+        }
+
+        return await confirmRes.json() as FileMetadata;
+      } catch (err) {
+        // Network error — queue for background upload
+        if (err instanceof TypeError && err.message.includes('fetch')) {
+          const ok = await queueFileForUpload(file, token);
+          if (ok) {
+            await requestBackgroundSync();
+            return { queued: true };
+          }
+        }
+        throw err;
       }
-
-      return await confirmRes.json() as FileMetadata;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if ('queued' in result) return; // Don't invalidate — file isn't uploaded yet
       queryClient.invalidateQueries({ queryKey: ['files'] });
       queryClient.invalidateQueries({ queryKey: ['storage'] });
     },

@@ -26,6 +26,7 @@ import {
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { useStorage, usePWA } from '@/lib/hooks';
 import { updateUserSettings } from '@/lib/firebase';
+import { syncSettingsToIDB } from '@/lib/upload-queue';
 import type { UserSettings } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -54,6 +55,14 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await updateUserSettings(user.id, { [key]: value });
+      // Mirror sync-relevant settings to IndexedDB for SW access
+      if (key === 'syncMode' || key === 'allowRoaming' || key === 'autoBackup') {
+        syncSettingsToIDB({
+          syncMode: newSettings.syncMode,
+          allowRoaming: newSettings.allowRoaming,
+          autoBackup: newSettings.autoBackup,
+        });
+      }
       addNotification({ type: 'success', title: 'Sačuvano', message: 'Podešavanje je ažurirano' });
     } catch {
       setSettings(settings); // revert

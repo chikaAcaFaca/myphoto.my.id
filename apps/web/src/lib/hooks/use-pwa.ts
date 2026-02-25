@@ -49,31 +49,27 @@ export function usePWA() {
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Register service worker
+    // SW is registered in Providers — just wait for it to be ready
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((reg) => {
-          setSWRegistration(reg);
+      navigator.serviceWorker.ready.then((reg) => {
+        setSWRegistration(reg);
 
-          // Request periodic background sync (if supported)
-          if ('periodicSync' in reg) {
-            (reg as any).periodicSync
-              .register('auto-sync', { minInterval: 12 * 60 * 60 * 1000 }) // 12 hours
-              .catch(() => {
-                // Periodic sync requires permission; silently fail
-              });
-          }
-        })
-        .catch((err) => {
-          console.warn('SW registration failed:', err);
-        });
+        // Request periodic background sync (if supported)
+        if ('periodicSync' in reg) {
+          (reg as any).periodicSync
+            .register('auto-sync', { minInterval: 12 * 60 * 60 * 1000 }) // 12 hours
+            .catch(() => {
+              // Periodic sync requires permission; silently fail
+            });
+        }
+      });
 
       // Listen for messages from service worker
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'UPLOAD_COMPLETE') {
-          // Could dispatch to a store or show a notification
-          console.log('[PWA] Background upload complete:', event.data.fileName);
+          window.dispatchEvent(
+            new CustomEvent('background-upload-complete', { detail: event.data })
+          );
         }
       });
     }
@@ -98,58 +94,12 @@ export function usePWA() {
     return false;
   }, [deferredPrompt]);
 
-  const queueUpload = useCallback(
-    async (file: File, authToken: string) => {
-      if (!('indexedDB' in window)) return false;
-
-      try {
-        const db = await openUploadDB();
-        const tx = db.transaction('pending-uploads', 'readwrite');
-        const store = tx.objectStore('pending-uploads');
-        store.add({
-          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          fileName: file.name,
-          mimeType: file.type,
-          fileSize: file.size,
-          fileBlob: file,
-          authToken,
-          queuedAt: Date.now(),
-        });
-
-        // Request a sync
-        if (swRegistration && 'sync' in swRegistration) {
-          await (swRegistration as any).sync.register('sync-uploads');
-        }
-
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [swRegistration]
-  );
-
   return {
     isInstallable,
     isInstalled,
     isIOS,
     isOnline,
     installApp,
-    queueUpload,
     swRegistration,
   };
-}
-
-function openUploadDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('myphoto-uploads', 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains('pending-uploads')) {
-        db.createObjectStore('pending-uploads', { keyPath: 'id' });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
 }
