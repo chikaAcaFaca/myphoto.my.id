@@ -21,6 +21,7 @@ import {
   FileText,
   Shield,
   Download,
+  Crown,
 } from 'lucide-react';
 import { useUIStore, useAuthStore } from '@/lib/stores';
 import { useStorage, usePWA } from '@/lib/hooks';
@@ -155,11 +156,44 @@ export function Sidebar() {
           <p className="mt-2 text-xs text-gray-500">
             {storage.usedFormatted} od {storage.limitFormatted}
           </p>
+          {user?.subscriptionIds?.length === 0 ? (
+            storage.percentage >= 70 ? (
+              <Link
+                href="/checkout?tier=1&ai=false&period=monthly"
+                className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
+              >
+                <Crown className="h-4 w-4 flex-shrink-0" />
+                <span>Ostalo vam je {storage.remainingFormatted} — nadogradite od $2.49/mes</span>
+              </Link>
+            ) : (
+              <Link
+                href="/checkout?tier=1&ai=false&period=monthly"
+                className="mt-2 flex items-center gap-1.5 text-xs text-primary-500 hover:underline"
+              >
+                <Crown className="h-3.5 w-3.5" />
+                Nadogradi — 15x više prostora od $2.49/mes
+              </Link>
+            )
+          ) : (
+            <Link
+              href="/settings/storage"
+              className="mt-2 block text-xs text-primary-500 hover:underline"
+            >
+              Nadogradi skladište
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Upgrade hint (collapsed sidebar) */}
+      {isSidebarCollapsed && storage && user?.subscriptionIds?.length === 0 && (
+        <div className="border-t border-gray-200 p-4 dark:border-gray-700">
           <Link
-            href="/settings/storage"
-            className="mt-2 block text-xs text-primary-500 hover:underline"
+            href="/checkout?tier=1&ai=false&period=monthly"
+            className="flex items-center justify-center rounded-lg p-2 text-amber-600 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+            title="Nadogradi — 15x više prostora od $2.49/mes"
           >
-            Nadogradi skladište
+            <Crown className="h-5 w-5" />
           </Link>
         </div>
       )}

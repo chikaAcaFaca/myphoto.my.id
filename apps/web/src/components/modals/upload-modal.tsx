@@ -3,7 +3,8 @@
 import { useCallback, useState, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, File, Check, AlertCircle, Image, Wifi, Signal, Globe, ChevronDown, ChevronUp, Folder, Trash2 } from 'lucide-react';
+import { X, Upload, File, Check, AlertCircle, Image, Wifi, Signal, Globe, ChevronDown, ChevronUp, Folder, Trash2, Crown } from 'lucide-react';
+import Link from 'next/link';
 import { useUIStore, useFilesStore, useAuthStore, type UploadItem } from '@/lib/stores';
 import { useUploadFile } from '@/lib/hooks';
 import { useStorage, useNetworkStatus, useUploadPermission } from '@/lib/hooks';
@@ -19,6 +20,7 @@ export function UploadModal() {
   const { user, firebaseUser, refreshUser } = useAuthStore();
   const [isUploading, setIsUploading] = useState(false);
   const [showNetworkSettings, setShowNetworkSettings] = useState(false);
+  const [showUpgradeBanner, setShowUpgradeBanner] = useState(false);
   const uploadingRef = useRef(false);
 
   const networkStatus = useNetworkStatus();
@@ -37,11 +39,16 @@ export function UploadModal() {
     // Check storage
     const totalSize = pendingItems.reduce((sum, item) => sum + item.file.size, 0);
     if (storage && storage.remaining < totalSize) {
-      addNotification({
-        type: 'error',
-        title: 'Not enough storage',
-        message: 'Please upgrade your plan or delete some files',
-      });
+      const isFreeUser = !user?.subscriptionIds?.length;
+      if (isFreeUser) {
+        setShowUpgradeBanner(true);
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Nedovoljno prostora',
+          message: 'Nadogradite plan ili obrišite neke fajlove',
+        });
+      }
       return;
     }
 
@@ -84,6 +91,19 @@ export function UploadModal() {
         title: 'Upload complete',
         message: `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`,
       });
+      // Post-upload upgrade nudge for free users (one-time)
+      const isFreeUser = !user?.subscriptionIds?.length;
+      if (isFreeUser && typeof window !== 'undefined' && !localStorage.getItem('myphoto_upgrade_nudge_shown')) {
+        localStorage.setItem('myphoto_upgrade_nudge_shown', '1');
+        setTimeout(() => {
+          addNotification({
+            type: 'info',
+            title: 'Vaše slike su bezbedne!',
+            message: 'Nadogradite za AI pretragu i 15x više prostora — od $2.49/mes',
+            duration: 8000,
+          });
+        }, 1500);
+      }
       // Auto-close modal on full success
       closeUploadModal();
     } else if (successCount > 0 && failCount > 0) {
@@ -99,7 +119,7 @@ export function UploadModal() {
         message: `${failCount} file${failCount > 1 ? 's' : ''} failed to upload`,
       });
     }
-  }, [storage, addNotification, uploadFile, setUploadStatus, updateUploadProgress, closeUploadModal]);
+  }, [storage, addNotification, uploadFile, setUploadStatus, updateUploadProgress, closeUploadModal, user]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -326,6 +346,38 @@ export function UploadModal() {
                           </button>
                         </div>
                       )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Storage full — upgrade banner for free users */}
+            {showUpgradeBanner && (
+              <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
+                <div className="flex items-start gap-3">
+                  <Crown className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-emerald-800 dark:text-emerald-300">
+                      Vaš besplatni plan (10 GB) je popunjen
+                    </p>
+                    <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">
+                      Nadogradite na Starter (150 GB) za samo $2.49/mes — 15x više prostora!
+                    </p>
+                    <div className="mt-3 flex items-center gap-3">
+                      <Link
+                        href="/checkout?tier=1&ai=false&period=monthly"
+                        className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                      >
+                        <Crown className="h-4 w-4" />
+                        Nadogradi
+                      </Link>
+                      <button
+                        onClick={() => setShowUpgradeBanner(false)}
+                        className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+                      >
+                        Zatvori
+                      </button>
                     </div>
                   </div>
                 </div>

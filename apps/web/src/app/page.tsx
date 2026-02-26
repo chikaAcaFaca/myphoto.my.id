@@ -390,38 +390,41 @@ export default function HomePage() {
                 </tr>
               </thead>
               <tbody>
-                {COMPARISON_ROWS.map((row) => (
-                  <tr key={row.feature} className="border-b border-gray-100 dark:border-gray-800">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                {COMPARISON_ROWS.map((row) => {
+                  const isPricePerGb = row.feature === 'Cena po GB';
+                  return (
+                  <tr key={row.feature} className={cn('border-b border-gray-100 dark:border-gray-800', isPricePerGb && 'font-semibold')}>
+                    <td className={cn('px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300', isPricePerGb && 'font-bold')}>
                       {row.feature}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className={cn('px-4 py-3 text-center', isPricePerGb && 'rounded-md bg-green-50 dark:bg-green-900/20')}>
                       {row.myphoto === true ? (
                         <Check className="mx-auto h-5 w-5 text-green-500" />
                       ) : (
-                        <span className="text-sm font-medium text-green-600 dark:text-green-400">{row.myphoto}</span>
+                        <span className={cn('text-sm font-medium', isPricePerGb ? 'text-green-700 dark:text-green-300' : 'text-green-600 dark:text-green-400')}>{row.myphoto}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className={cn('px-4 py-3 text-center', isPricePerGb && 'rounded-md bg-red-50 dark:bg-red-900/20')}>
                       {row.google === true ? (
                         <Check className="mx-auto h-5 w-5 text-gray-400" />
                       ) : row.google === false ? (
                         <X className="mx-auto h-5 w-5 text-red-400" />
                       ) : (
-                        <span className="text-sm text-gray-500">{row.google}</span>
+                        <span className={cn('text-sm', isPricePerGb ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-500')}>{row.google}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className={cn('px-4 py-3 text-center', isPricePerGb && 'rounded-md bg-red-50 dark:bg-red-900/20')}>
                       {row.icloud === true ? (
                         <Check className="mx-auto h-5 w-5 text-gray-400" />
                       ) : row.icloud === false ? (
                         <X className="mx-auto h-5 w-5 text-red-400" />
                       ) : (
-                        <span className="text-sm text-gray-500">{row.icloud}</span>
+                        <span className={cn('text-sm', isPricePerGb ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-500')}>{row.icloud}</span>
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -934,7 +937,8 @@ const COMPARISON_ROWS: { feature: string; myphoto: boolean | string; google: boo
   { feature: 'EU serveri', myphoto: true, google: false, icloud: false },
   { feature: 'GDPR usklađenost', myphoto: true, google: 'Delimično', icloud: 'Delimično' },
   { feature: 'Bez AI treninga na vašim slikama', myphoto: true, google: false, icloud: true },
-  { feature: 'Cena za 250GB', myphoto: '$3.49/mes', google: '$2.99/mes', icloud: '$2.99/mes' },
+  { feature: 'Početni plan', myphoto: '150 GB — $2.49', google: '100 GB — $2.10', icloud: '50 GB — $0.99' },
+  { feature: 'Cena po GB', myphoto: '$0.017/GB', google: '$0.021/GB', icloud: '$0.020/GB' },
   { feature: 'Family sharing', myphoto: true, google: true, icloud: true },
 ];
 
