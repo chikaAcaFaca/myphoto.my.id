@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
-import { useAuthStore, useUIStore } from '@/lib/stores';
+import { useAuthStore, useUIStore, useFilesStore } from '@/lib/stores';
+import { useIsMobile } from '@/lib/hooks';
 import { getIdToken } from '@/lib/firebase';
 import { syncSettingsToIDB, refreshStaleTokens, requestBackgroundSync } from '@/lib/upload-queue';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -21,7 +22,9 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, isLoading } = useAuthStore();
-  const { isSidebarOpen, isSidebarCollapsed } = useUIStore();
+  const { isSidebarOpen, isSidebarCollapsed, setSidebarOpen } = useUIStore();
+  const { clearLocalThumbnails } = useFilesStore();
+  const isMobile = useIsMobile();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -30,6 +33,18 @@ export default function DashboardLayout({
       router.push('/login');
     }
   }, [user, isLoading, router]);
+
+  // Auto-open sidebar on desktop, keep closed on mobile
+  useEffect(() => {
+    if (!isMobile) {
+      setSidebarOpen(true);
+    }
+  }, [isMobile, setSidebarOpen]);
+
+  // Cleanup local thumbnails on unmount
+  useEffect(() => {
+    return () => clearLocalThumbnails();
+  }, [clearLocalThumbnails]);
 
   // Sync user settings to IndexedDB for SW access
   useEffect(() => {
@@ -83,7 +98,7 @@ export default function DashboardLayout({
       {/* Main content */}
       <div
         className={`flex flex-1 flex-col overflow-hidden transition-all duration-300 ${
-          isSidebarOpen ? (isSidebarCollapsed ? 'ml-20' : 'ml-64') : 'ml-0'
+          isMobile ? 'ml-0' : isSidebarOpen ? (isSidebarCollapsed ? 'ml-20' : 'ml-64') : 'ml-0'
         }`}
       >
         <Header />

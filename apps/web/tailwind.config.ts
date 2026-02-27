@@ -41,6 +41,7 @@ const config: Config = {
         'scale-in': 'scaleIn 0.2s ease-out',
         float: 'float 3s ease-in-out infinite',
         'pulse-slow': 'pulseSlow 3s ease-in-out infinite',
+        shimmer: 'shimmer 1.5s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -62,6 +63,10 @@ const config: Config = {
         pulseSlow: {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.7' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '200% 0' },
+          '100%': { backgroundPosition: '-200% 0' },
         },
       },
     },

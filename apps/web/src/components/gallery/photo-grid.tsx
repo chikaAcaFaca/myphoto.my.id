@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Play, Heart, MoreVertical, Download, Trash2, Share2 } from 'lucide-react';
@@ -90,10 +90,32 @@ interface PhotoCardProps {
 function PhotoCard({ file, isSelected, onSelect, onOpen }: PhotoCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const { mutate: getDownloadUrl } = useGetDownloadUrl();
   const { mutate: updateFile } = useUpdateFile();
   const { mutate: deleteFile } = useDeleteFile();
   const { addNotification } = useUIStore();
+  const localThumbnails = useFilesStore((s) => s.localThumbnails);
+  const removeLocalThumbnail = useFilesStore((s) => s.removeLocalThumbnail);
+  const serverImgRef = useRef<HTMLImageElement | null>(null);
+
+  const localThumbUrl = localThumbnails.get(file.id);
+  const thumbnailUrl = `/api/thumbnail/${file.id}?size=small`;
+
+  // When we have a local thumbnail, preload the server thumbnail in the background.
+  // Once loaded, swap to the server version and revoke the blob URL.
+  useEffect(() => {
+    if (!localThumbUrl) return;
+    const img = new window.Image();
+    img.src = thumbnailUrl;
+    img.onload = () => {
+      removeLocalThumbnail(file.id);
+    };
+    serverImgRef.current = img;
+    return () => {
+      if (serverImgRef.current) serverImgRef.current.onload = null;
+    };
+  }, [localThumbUrl, thumbnailUrl, file.id, removeLocalThumbnail]);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -155,8 +177,6 @@ function PhotoCard({ file, isSelected, onSelect, onOpen }: PhotoCardProps) {
     setShowMenu(false);
   };
 
-  const thumbnailUrl = `/api/thumbnail/${file.id}?size=small`;
-
   return (
     <motion.div
       layout
@@ -175,14 +195,32 @@ function PhotoCard({ file, isSelected, onSelect, onOpen }: PhotoCardProps) {
       }}
       onClick={handleClick}
     >
-      {/* Thumbnail */}
-      <Image
-        src={thumbnailUrl}
-        alt={file.name}
-        fill
-        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
-        className="object-cover transition-transform group-hover:scale-105"
-      />
+      {/* Shimmer skeleton (visible until image loads) */}
+      {!imageLoaded && !localThumbUrl && (
+        <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] dark:from-gray-700 dark:via-gray-600 dark:to-gray-700" />
+      )}
+
+      {/* Thumbnail: local blob URL or server URL */}
+      {localThumbUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={localThumbUrl}
+          alt={file.name}
+          className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
+        />
+      ) : (
+        <Image
+          src={thumbnailUrl}
+          alt={file.name}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
+          className={cn(
+            'object-cover transition-all group-hover:scale-105',
+            imageLoaded ? 'opacity-100 duration-300' : 'opacity-0'
+          )}
+          onLoad={() => setImageLoaded(true)}
+        />
+      )}
 
       {/* Video indicator */}
       {file.type === 'video' && (

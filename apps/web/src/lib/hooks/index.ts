@@ -4,3 +4,4 @@ export * from './use-storage';
 export * from './use-share';
 export * from './use-network';
 export * from './use-pwa';
+export * from './use-mobile';

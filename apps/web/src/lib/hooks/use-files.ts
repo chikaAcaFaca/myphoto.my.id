@@ -15,7 +15,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import type { FileMetadata } from '@myphoto/shared';
-import { useAuthStore } from '../stores';
+import { useAuthStore, useFilesStore } from '../stores';
 import { generateDownloadUrl, deleteObject } from '../s3';
 import { getIdToken } from '../firebase';
 import { queueFileForUpload, requestBackgroundSync } from '../upload-queue';
@@ -175,12 +175,14 @@ export function useUploadFile() {
 
         // 2.5. Extract thumbnail and upload it (for both images and videos)
         let uploadedThumbKey: string | undefined;
+        let localThumbBlob: Blob | null = null;
         if (thumbnailUploadUrl && thumbnailKey) {
           try {
             const thumbBlob = file.type.startsWith('video/')
               ? await extractVideoThumbnail(file)
               : await extractImageThumbnail(file);
             if (thumbBlob) {
+              localThumbBlob = thumbBlob;
               const thumbRes = await fetch(thumbnailUploadUrl, {
                 method: 'PUT',
                 body: thumbBlob,
@@ -218,7 +220,15 @@ export function useUploadFile() {
           throw new Error(err.error || 'Failed to confirm upload');
         }
 
-        return await confirmRes.json() as FileMetadata;
+        const result = await confirmRes.json() as FileMetadata;
+
+        // Save local thumbnail blob URL for instant display
+        if (localThumbBlob) {
+          const blobUrl = URL.createObjectURL(localThumbBlob);
+          useFilesStore.getState().setLocalThumbnail(result.id, blobUrl);
+        }
+
+        return result;
       } catch (err) {
         // Network error — queue for background upload
         if (err instanceof TypeError && err.message.includes('fetch')) {
@@ -233,8 +243,27 @@ export function useUploadFile() {
     },
     onSuccess: (result) => {
       if ('queued' in result) return; // Don't invalidate — file isn't uploaded yet
-      queryClient.invalidateQueries({ queryKey: ['files'] });
+
+      // Optimistically insert the new file into the cache (prepend to first page)
+      queryClient.setQueriesData({ queryKey: ['files'] }, (oldData: any) => {
+        if (!oldData?.pages) return oldData;
+        const newFile = {
+          ...result,
+          createdAt: new Date(result.createdAt),
+          updatedAt: new Date(result.updatedAt),
+        };
+        const newPages = [...oldData.pages];
+        newPages[0] = { ...newPages[0], files: [newFile, ...newPages[0].files] };
+        return { ...oldData, pages: newPages };
+      });
+
+      // Storage is lightweight — invalidate immediately
       queryClient.invalidateQueries({ queryKey: ['storage'] });
+
+      // Delayed full refresh to pick up AI processing results
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['files'] });
+      }, 30000);
     },
   });
 }

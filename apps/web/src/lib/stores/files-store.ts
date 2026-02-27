@@ -16,6 +16,9 @@ interface FilesState {
   uploadQueue: UploadItem[];
   isUploading: boolean;
 
+  // Local thumbnails (blob URLs for just-uploaded files)
+  localThumbnails: Map<string, string>;
+
   // Actions
   setFiles: (files: FileMetadata[]) => void;
   appendFiles: (files: FileMetadata[]) => void;
@@ -51,6 +54,11 @@ interface FilesState {
   removeFromUploadQueue: (id: string) => void;
   clearCompletedUploads: () => void;
   setIsUploading: (isUploading: boolean) => void;
+
+  // Local thumbnails
+  setLocalThumbnail: (fileId: string, blobUrl: string) => void;
+  removeLocalThumbnail: (fileId: string) => void;
+  clearLocalThumbnails: () => void;
 }
 
 export interface UploadItem {
@@ -75,6 +83,7 @@ export const useFilesStore = create<FilesState>()((set, get) => ({
 
   uploadQueue: [],
   isUploading: false,
+  localThumbnails: new Map(),
 
   // Files management
   setFiles: (files) => set({ files }),
@@ -167,4 +176,25 @@ export const useFilesStore = create<FilesState>()((set, get) => ({
       ),
     })),
   setIsUploading: (isUploading) => set({ isUploading }),
+
+  // Local thumbnails
+  setLocalThumbnail: (fileId, blobUrl) =>
+    set((state) => {
+      const next = new Map(state.localThumbnails);
+      next.set(fileId, blobUrl);
+      return { localThumbnails: next };
+    }),
+  removeLocalThumbnail: (fileId) =>
+    set((state) => {
+      const next = new Map(state.localThumbnails);
+      const url = next.get(fileId);
+      if (url) URL.revokeObjectURL(url);
+      next.delete(fileId);
+      return { localThumbnails: next };
+    }),
+  clearLocalThumbnails: () =>
+    set((state) => {
+      state.localThumbnails.forEach((url) => URL.revokeObjectURL(url));
+      return { localThumbnails: new Map() };
+    }),
 }));

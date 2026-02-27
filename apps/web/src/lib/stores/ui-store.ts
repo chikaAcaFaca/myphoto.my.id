@@ -81,7 +81,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       // Initial state
-      isSidebarOpen: true,
+      isSidebarOpen: false,
       isSidebarCollapsed: false,
       viewMode: 'grid' as ViewMode,
       isUploadModalOpen: false,
