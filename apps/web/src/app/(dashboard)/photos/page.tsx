@@ -142,7 +142,7 @@ export default function PhotosPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 lg:flex">
           <button
             onClick={() => fileInputRef.current?.click()}
             className="btn-primary"

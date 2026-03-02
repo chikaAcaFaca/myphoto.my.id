@@ -15,6 +15,7 @@ import { PhotoLightbox } from '@/components/gallery/photo-lightbox';
 import { Notifications } from '@/components/ui/notifications';
 import { UploadToast } from '@/components/upload/upload-toast';
 import { PWAPrompt } from '@/components/pwa/pwa-prompt';
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 
 export default function DashboardLayout({
   children,
@@ -102,7 +103,7 @@ export default function DashboardLayout({
         }`}
       >
         <Header />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        <main className="flex-1 overflow-auto p-2 pb-20 lg:p-6 lg:pb-6">{children}</main>
       </div>
 
       {/* Modals */}
@@ -118,6 +119,9 @@ export default function DashboardLayout({
 
       {/* PWA install prompt & offline indicator */}
       <PWAPrompt />
+
+      {/* Mobile bottom navigation */}
+      <MobileBottomNav />
     </div>
   );
 }

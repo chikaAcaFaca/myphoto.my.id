@@ -70,18 +70,6 @@ export function Sidebar() {
   const isCollapsed = isMobile ? false : isSidebarCollapsed;
   const showExpanded = !isCollapsed;
 
-  // Mobile floating toggle button
-  if (!isSidebarOpen && isMobile) {
-    return (
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="fixed left-0 top-1/2 z-40 -translate-y-1/2 rounded-r-lg bg-white p-2 shadow-lg dark:bg-gray-800 lg:hidden"
-      >
-        <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-      </button>
-    );
-  }
-
   if (!isSidebarOpen) return null;
 
   return (

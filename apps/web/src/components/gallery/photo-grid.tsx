@@ -7,7 +7,7 @@ import { Check, Play, Heart, MoreVertical, Download, Trash2, Share2 } from 'luci
 import type { FileMetadata } from '@myphoto/shared';
 import { formatDate, formatBytes } from '@myphoto/shared';
 import { useFilesStore, useUIStore } from '@/lib/stores';
-import { useGetDownloadUrl, useUpdateFile, useDeleteFile } from '@/lib/hooks';
+import { useGetDownloadUrl, useUpdateFile, useDeleteFile, useIsMobile } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 
 interface PhotoGridProps {
@@ -18,16 +18,22 @@ interface PhotoGridProps {
 export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
   const { selectedFiles, toggleFileSelection, selectFile } = useFilesStore();
   const { openLightbox } = useUIStore();
+  const isMobile = useIsMobile();
 
   const groupedFiles = groupByDate(files);
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+      <div className="columns-3 gap-2 lg:!columns-auto lg:grid lg:grid-cols-5 xl:grid-cols-6 lg:gap-2">
         {Array.from({ length: 24 }).map((_, i) => (
           <div
             key={i}
-            className="aspect-square animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700"
+            className={cn(
+              'animate-pulse bg-gray-200 dark:bg-gray-700',
+              isMobile
+                ? 'mb-2 break-inside-avoid rounded-xl aspect-[3/4]'
+                : 'aspect-square rounded-lg'
+            )}
           />
         ))}
       </div>
@@ -61,7 +67,7 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
           <h3 className="mb-3 text-sm font-medium text-gray-500 dark:text-gray-400">
             {formatDateHeader(date)}
           </h3>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="columns-3 gap-2 lg:!columns-auto lg:grid lg:grid-cols-5 xl:grid-cols-6 lg:gap-2">
             <AnimatePresence mode="popLayout">
               {dateFiles.map((file) => (
                 <PhotoCard
@@ -70,6 +76,7 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
                   isSelected={selectedFiles.has(file.id)}
                   onSelect={() => toggleFileSelection(file.id)}
                   onOpen={() => openLightbox(file.id)}
+                  isMobile={isMobile}
                 />
               ))}
             </AnimatePresence>
@@ -85,9 +92,10 @@ interface PhotoCardProps {
   isSelected: boolean;
   onSelect: () => void;
   onOpen: () => void;
+  isMobile?: boolean;
 }
 
-function PhotoCard({ file, isSelected, onSelect, onOpen }: PhotoCardProps) {
+function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -185,7 +193,10 @@ function PhotoCard({ file, isSelected, onSelect, onOpen }: PhotoCardProps) {
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        'group relative aspect-square cursor-pointer overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800',
+        'group relative cursor-pointer overflow-hidden bg-gray-100 dark:bg-gray-800',
+        isMobile
+          ? 'mb-2 break-inside-avoid rounded-xl aspect-[3/4]'
+          : 'aspect-square rounded-lg',
         isSelected && 'ring-2 ring-primary-500'
       )}
       onMouseEnter={() => setIsHovered(true)}

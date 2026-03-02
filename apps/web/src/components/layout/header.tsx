@@ -78,7 +78,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 lg:hidden"
+          className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -124,10 +124,10 @@ export function Header() {
 
       {/* Right side */}
       <div className="flex items-center gap-2">
-        {/* Mobile search button */}
+        {/* Mobile search button — hidden, bottom nav handles search */}
         <button
           onClick={openSearch}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden"
+          className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <Search className="h-5 w-5" />
         </button>
@@ -142,7 +142,7 @@ export function Header() {
         </button>
         <button
           onClick={openUploadModal}
-          className="rounded-lg bg-primary-500 p-2 text-white hover:bg-primary-600 sm:hidden"
+          className="hidden rounded-lg bg-primary-500 p-2 text-white hover:bg-primary-600"
         >
           <Upload className="h-5 w-5" />
         </button>
