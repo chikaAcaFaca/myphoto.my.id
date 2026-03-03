@@ -4,8 +4,9 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, Lock, User, Eye, EyeOff, Check } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Check, Gift } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
+import { getIdToken } from '@/lib/firebase';
 
 export default function RegisterPage() {
   return (
@@ -26,6 +27,7 @@ function RegisterContent() {
   const { signUpWithEmail, signInWithGoogle } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const referralCode = searchParams.get('ref');
 
   const getPostAuthRedirect = () => {
     const tier = searchParams.get('tier');
@@ -35,6 +37,24 @@ function RegisterContent() {
       return `/checkout?tier=${tier}&ai=${ai || 'false'}&period=${period}`;
     }
     return '/photos';
+  };
+
+  const claimReferral = async () => {
+    if (!referralCode) return;
+    try {
+      const token = await getIdToken();
+      if (!token) return;
+      await fetch('/api/referral/claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ referralCode }),
+      });
+    } catch {
+      // Referral claim is best-effort, don't block registration
+    }
   };
 
   const passwordRequirements = [
@@ -55,6 +75,7 @@ function RegisterContent() {
 
     try {
       await signUpWithEmail(email, password, name);
+      await claimReferral();
       router.push(getPostAuthRedirect());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
@@ -69,6 +90,7 @@ function RegisterContent() {
 
     try {
       await signInWithGoogle();
+      await claimReferral();
       router.push(getPostAuthRedirect());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign up with Google');
@@ -93,9 +115,18 @@ function RegisterContent() {
           </Link>
           <h1 className="mt-6 text-2xl font-bold">Create your account</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Start with 10GB free storage
+            Počnite sa 5GB besplatnog prostora
           </p>
         </div>
+
+        {referralCode && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl bg-green-50 p-4 dark:bg-green-900/20">
+            <Gift className="h-5 w-5 flex-shrink-0 text-green-600 dark:text-green-400" />
+            <p className="text-sm text-green-700 dark:text-green-300">
+              Pozvani ste! Vi i vaš prijatelj dobijate <strong>+1GB</strong> besplatnog prostora.
+            </p>
+          </div>
+        )}
 
         <div className="rounded-xl bg-white p-8 shadow-sm dark:bg-gray-800">
           {error && (

@@ -298,6 +298,11 @@ async function handlePaymentFailed(event: PaddleWebhookEvent) {
 }
 
 async function recalculateStorageLimit(userId: string) {
+  // Get user data for referral bonus
+  const userDoc = await db.collection('users').doc(userId).get();
+  const userData = userDoc.data();
+  const referralBonus = userData?.referralBonusBytes || 0;
+
   // Get all active subscriptions for user
   const subsSnapshot = await db
     .collection('subscriptions')
@@ -312,13 +317,13 @@ async function recalculateStorageLimit(userId: string) {
     totalSubscriptionStorage += data.storageAmount || 0;
   }
 
-  // Add free tier storage
-  const totalStorage = FREE_STORAGE_LIMIT + totalSubscriptionStorage;
+  // Add free tier storage + referral bonus
+  const totalStorage = FREE_STORAGE_LIMIT + referralBonus + totalSubscriptionStorage;
 
   // Update user document
   await db.collection('users').doc(userId).update({
     storageLimit: totalStorage,
   });
 
-  console.log(`Updated storage limit for user ${userId}: ${totalStorage} bytes`);
+  console.log(`Updated storage limit for user ${userId}: ${totalStorage} bytes (referral bonus: ${referralBonus})`);
 }

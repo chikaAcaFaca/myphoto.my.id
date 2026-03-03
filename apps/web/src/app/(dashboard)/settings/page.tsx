@@ -22,22 +22,27 @@ import {
   Trash2,
   LogOut,
   Camera,
+  Gift,
+  Copy,
+  Users,
+  Share2,
 } from 'lucide-react';
 import { useAuthStore, useUIStore } from '@/lib/stores';
-import { useStorage, usePWA } from '@/lib/hooks';
+import { useStorage, usePWA, useReferralStats } from '@/lib/hooks';
 import { updateUserSettings } from '@/lib/firebase';
 import { syncSettingsToIDB } from '@/lib/upload-queue';
 import type { UserSettings } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
-type SettingsSection = 'account' | 'storage' | 'sync' | 'appearance' | 'privacy';
+type SettingsSection = 'account' | 'storage' | 'referral' | 'sync' | 'appearance' | 'privacy';
 
 export default function SettingsPage() {
   const { user, firebaseUser, signOut } = useAuthStore();
   const { isDarkMode, toggleDarkMode, addNotification } = useUIStore();
   const { data: storage } = useStorage();
   const { isInstalled, isInstallable, installApp } = usePWA();
+  const { data: referralStats } = useReferralStats();
   const [activeSection, setActiveSection] = useState<SettingsSection>('account');
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [saving, setSaving] = useState(false);
@@ -72,9 +77,18 @@ export default function SettingsPage() {
     }
   };
 
+  const [copied, setCopied] = useState<'code' | 'link' | null>(null);
+
+  const copyToClipboard = (text: string, type: 'code' | 'link') => {
+    navigator.clipboard.writeText(text);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
   const sections: { id: SettingsSection; label: string; icon: any }[] = [
     { id: 'account', label: 'Nalog', icon: User },
     { id: 'storage', label: 'Skladište', icon: HardDrive },
+    { id: 'referral', label: 'Pozovi prijatelje', icon: Gift },
     { id: 'sync', label: 'Sinhronizacija', icon: Cloud },
     { id: 'appearance', label: 'Izgled', icon: Palette },
     { id: 'privacy', label: 'Privatnost', icon: Shield },
@@ -271,6 +285,164 @@ export default function SettingsPage() {
                       }
                     />
                   </div>
+                </SettingsCard>
+              )}
+
+              {activeSection === 'referral' && (
+                <SettingsCard title="Pozovi prijatelje">
+                  <div className="mb-6 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 p-5 dark:from-green-900/20 dark:to-emerald-900/20">
+                    <div className="flex items-start gap-3">
+                      <Gift className="mt-0.5 h-6 w-6 text-green-600 dark:text-green-400" />
+                      <div>
+                        <p className="font-semibold text-green-800 dark:text-green-300">
+                          Pozovite prijatelje i oboje dobijate +1GB prostora!
+                        </p>
+                        <p className="mt-1 text-sm text-green-700 dark:text-green-400">
+                          Možete dobiti do 15GB besplatno (5GB baza + 10GB od referrala).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {referralStats && (
+                    <>
+                      {/* Progress */}
+                      <div className="mb-6 rounded-xl bg-gray-50 p-5 dark:bg-gray-800/50">
+                        <div className="mb-2 flex items-center justify-between text-sm">
+                          <span className="font-medium">
+                            {referralStats.referralCount}/{referralStats.maxReferrals} prijatelja
+                          </span>
+                          <span className="font-bold text-green-600">
+                            +{referralStats.bonusFormatted} bonus
+                          </span>
+                        </div>
+                        <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${(referralStats.referralCount / referralStats.maxReferrals) * 100}%`,
+                            }}
+                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                            className="h-full rounded-full bg-green-500"
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500">
+                          {referralStats.bonusFormatted} od {referralStats.maxBonusFormatted} bonusa
+                        </p>
+                      </div>
+
+                      {/* Referral code & link */}
+                      <div className="space-y-3">
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">
+                            Tvoj referral kod
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <code className="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 text-lg font-bold tracking-widest dark:bg-gray-700">
+                              {referralStats.referralCode}
+                            </code>
+                            <button
+                              onClick={() => copyToClipboard(referralStats.referralCode, 'code')}
+                              className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                            >
+                              {copied === 'code' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                              {copied === 'code' ? 'Kopirano!' : 'Kopiraj'}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">
+                            Tvoj referral link
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              readOnly
+                              value={referralStats.referralLink}
+                              className="flex-1 rounded-lg bg-gray-100 px-3 py-2.5 text-sm dark:bg-gray-700"
+                            />
+                            <button
+                              onClick={() => copyToClipboard(referralStats.referralLink, 'link')}
+                              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-600"
+                            >
+                              {copied === 'link' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                              {copied === 'link' ? 'Kopirano!' : 'Kopiraj link'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Share buttons */}
+                      <div className="mt-6">
+                        <p className="mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">Podeli putem</p>
+                        <div className="flex flex-wrap gap-2">
+                          <a
+                            href={`https://wa.me/?text=${encodeURIComponent(`Pridruži se MyPhoto i dobij +1GB besplatnog prostora! ${referralStats.referralLink}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
+                          >
+                            <Share2 className="h-4 w-4" />
+                            WhatsApp
+                          </a>
+                          <a
+                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Čuvam slike na MyPhoto - privatno i sigurno! Registruj se i oboje dobijamo +1GB: ${referralStats.referralLink}`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
+                          >
+                            <Share2 className="h-4 w-4" />
+                            X / Twitter
+                          </a>
+                          <a
+                            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralStats.referralLink)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                          >
+                            <Share2 className="h-4 w-4" />
+                            Facebook
+                          </a>
+                          <a
+                            href={`mailto:?subject=${encodeURIComponent('Pridruži se MyPhoto!')}&body=${encodeURIComponent(`Pozivam te na MyPhoto - privatno čuvanje slika u oblaku. Registruj se i oboje dobijamo +1GB besplatnog prostora!\n\n${referralStats.referralLink}`)}`}
+                            className="flex items-center gap-2 rounded-lg bg-gray-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600"
+                          >
+                            <Share2 className="h-4 w-4" />
+                            Email
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Referral list */}
+                      {referralStats.referrals.length > 0 && (
+                        <div className="mt-6">
+                          <p className="mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">
+                            Tvoji referrali ({referralStats.referralCount})
+                          </p>
+                          <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="bg-gray-50 dark:bg-gray-800">
+                                  <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Email</th>
+                                  <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Datum</th>
+                                  <th className="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-400">Bonus</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {referralStats.referrals.map((ref, i) => (
+                                  <tr key={i} className="border-t border-gray-200 dark:border-gray-700">
+                                    <td className="px-4 py-2">{ref.email}</td>
+                                    <td className="px-4 py-2 text-gray-500">{ref.date}</td>
+                                    <td className="px-4 py-2 text-right font-medium text-green-600">+1 GB</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </SettingsCard>
               )}
 

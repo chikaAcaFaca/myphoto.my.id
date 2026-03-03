@@ -24,10 +24,12 @@ import {
   Download,
   Crown,
   X,
+  Gift,
 } from 'lucide-react';
 import { useUIStore, useAuthStore } from '@/lib/stores';
-import { useStorage, usePWA, useIsMobile } from '@/lib/hooks';
+import { useStorage, usePWA, useIsMobile, useReferralStats } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
+import { FREE_STORAGE_LIMIT, BYTES_PER_GB } from '@myphoto/shared';
 
 const mainNav = [
   { name: 'Slike', href: '/photos', icon: Image },
@@ -57,6 +59,7 @@ export function Sidebar() {
   const { user } = useAuthStore();
   const { data: storage } = useStorage();
   const { isInstallable, isInstalled, isIOS, installApp } = usePWA();
+  const { data: referralStats } = useReferralStats();
   const isMobile = useIsMobile();
 
   // Auto-close sidebar on navigation (mobile only)
@@ -187,7 +190,21 @@ export function Sidebar() {
             </div>
             <p className="mt-2 text-xs text-gray-500">
               {storage.usedFormatted} od {storage.limitFormatted}
+              {referralStats && referralStats.bonusBytes > 0 && (
+                <span className="ml-1 text-green-600">
+                  ({Math.round(FREE_STORAGE_LIMIT / BYTES_PER_GB)} GB + {referralStats.bonusFormatted} bonus)
+                </span>
+              )}
             </p>
+            {referralStats && referralStats.referralCount < referralStats.maxReferrals && user?.subscriptionIds?.length === 0 && (
+              <Link
+                href="/settings"
+                className="mt-1 flex items-center gap-1 text-xs text-green-600 hover:text-green-700 hover:underline"
+              >
+                <Gift className="h-3 w-3" />
+                Pozovi prijatelje za +1GB
+              </Link>
+            )}
             {user?.subscriptionIds?.length === 0 ? (
               storage.percentage >= 70 ? (
                 <Link

@@ -324,6 +324,11 @@ export default function PricingPage() {
                 >
                   {isFree ? 'Započni besplatno' : 'Izaberi plan'}
                 </Link>
+                {isFree && (
+                  <p className="mt-3 text-center text-xs text-green-600 dark:text-green-400">
+                    Pozovite prijatelje za do 15 GB besplatno!
+                  </p>
+                )}
               </div>
             );
           })}
@@ -568,7 +573,7 @@ export default function PricingPage() {
               href="/register"
               className="rounded-lg bg-white px-8 py-3 font-semibold text-primary-600 transition-colors hover:bg-primary-50"
             >
-              Započni besplatno - 10GB
+              Započni besplatno - 5GB
             </Link>
             <Link
               href="/contact"

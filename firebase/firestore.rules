@@ -122,6 +122,15 @@ service cloud.firestore {
                        isOwner(resource.data.userId);
     }
 
+    // Referrals collection
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        resource.data.referrerUserId == request.auth.uid ||
+        resource.data.refereeUserId == request.auth.uid
+      );
+      allow write: if false; // Only server can write
+    }
+
     // Shared links collection (for public album sharing)
     match /shared/{shareToken} {
       allow read: if true; // Public access for shared links

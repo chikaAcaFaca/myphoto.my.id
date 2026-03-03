@@ -49,6 +49,12 @@ export function useAlbums() {
       return snapshot.docs.map(docToAlbum);
     },
     enabled: !!user,
+    retry: 2,
+    meta: {
+      onError: (error: Error) => {
+        console.error('[useAlbums] Failed to fetch albums:', error);
+      },
+    },
   });
 }
 

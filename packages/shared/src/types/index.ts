@@ -21,6 +21,19 @@ export interface User {
   subscriptionIds: string[];
   familyId?: string;
   role: 'user' | 'family_admin' | 'business_admin';
+  referralCode: string;
+  referredBy?: string;
+  referralCount: number;
+  referralBonusBytes: number;
+}
+
+export interface Referral {
+  id: string;
+  referrerUserId: string;
+  refereeUserId: string;
+  refereeEmail: string;
+  bonusBytes: number;
+  createdAt: Date;
 }
 
 // File Types

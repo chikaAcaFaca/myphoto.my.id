@@ -1,14 +1,42 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { FolderPlus, Plus } from 'lucide-react';
+import { FolderPlus, Plus, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAlbums } from '@/lib/hooks';
 import { useUIStore } from '@/lib/stores';
 import Link from 'next/link';
 
 export default function AlbumsPage() {
-  const { data: albums, isLoading } = useAlbums();
+  const { data: albums, isLoading, error, refetch } = useAlbums();
   const { openCreateAlbumModal } = useUIStore();
+
+  if (error) {
+    console.error('[AlbumsPage] Error loading albums:', error);
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex flex-col items-center justify-center py-20 text-center"
+      >
+        <div className="mb-6 rounded-full bg-red-100 p-6 dark:bg-red-900/20">
+          <AlertCircle className="h-12 w-12 text-red-500" />
+        </div>
+        <h2 className="text-xl font-semibold">Greška pri učitavanju albuma</h2>
+        <p className="mt-2 max-w-md text-gray-500">
+          {error instanceof Error && error.message.includes('index')
+            ? 'Firestore indeks nije konfigurisan. Kontaktirajte administratora.'
+            : 'Došlo je do greške. Pokušajte ponovo.'}
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="btn-primary mt-6"
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Pokušaj ponovo
+        </button>
+      </motion.div>
+    );
+  }
 
   if (isLoading) {
     return (

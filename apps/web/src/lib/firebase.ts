@@ -31,6 +31,7 @@ import {
   DocumentSnapshot,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { nanoid } from 'nanoid';
 import type { User as AppUser, UserSettings } from '@myphoto/shared';
 import { FREE_STORAGE_LIMIT } from '@myphoto/shared';
 
@@ -123,6 +124,9 @@ async function createUserDocumentIfNeeded(user: User, displayName?: string) {
       storageLimit: FREE_STORAGE_LIMIT,
       subscriptionIds: [],
       role: 'user',
+      referralCode: nanoid(8).toUpperCase(),
+      referralCount: 0,
+      referralBonusBytes: 0,
       createdAt: serverTimestamp(),
     };
 

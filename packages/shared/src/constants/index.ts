@@ -4,8 +4,14 @@ import type { StorageTier } from '../types';
 export const BYTES_PER_GB = 1024 * 1024 * 1024;
 export const BYTES_PER_TB = BYTES_PER_GB * 1024;
 
-// Free tier: 10GB
-export const FREE_STORAGE_LIMIT = 10 * BYTES_PER_GB;
+// Free tier: 5GB
+export const FREE_STORAGE_LIMIT = 5 * BYTES_PER_GB;
+
+// Referral constants
+export const REFERRAL_BONUS = 1 * BYTES_PER_GB;        // +1GB per referral
+export const MAX_REFERRAL_BONUS = 10 * BYTES_PER_GB;    // max 10GB bonus (total 15GB free)
+export const MAX_REFERRALS = 10;                         // max 10 friends
+export const MAX_FAMILY_MEMBERS_REFERRAL = 6;            // for future family/team plan
 
 // Billing Periods Configuration
 // monthly: base price, quarterly: 2.5% discount, semiAnnual: 5% discount, yearly: 2 months free (~16.67% discount)
@@ -24,8 +30,8 @@ export const STORAGE_TIERS: StorageTier[] = [
   {
     tier: 0,
     name: 'Free',
-    storageBytes: 10 * BYTES_PER_GB,
-    storageDisplay: '10 GB',
+    storageBytes: 5 * BYTES_PER_GB,
+    storageDisplay: '5 GB',
     priceMonthly: 0,
     priceQuarterly: 0,
     priceSemiAnnual: 0,
