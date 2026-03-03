@@ -5,6 +5,7 @@ import { Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useFiles, useRestoreFile, usePermanentlyDeleteFile } from '@/lib/hooks';
 import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
+import { SelectionBar } from '@/components/gallery/selection-bar';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function TrashPage() {
@@ -85,32 +86,6 @@ export default function TrashPage() {
         )}
       </div>
 
-      {/* Selection actions */}
-      <AnimatePresence>
-        {selectedFiles.size > 0 && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="mb-4 overflow-hidden"
-          >
-            <div className="flex items-center gap-4 rounded-xl bg-gray-100 p-4 dark:bg-gray-800">
-              <span className="text-sm font-medium">{selectedFiles.size} izabrano</span>
-              <div className="flex gap-2">
-                <button onClick={handleRestore} className="btn-secondary">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Vrati
-                </button>
-                <button onClick={handlePermanentDelete} className="btn-danger">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Obriši zauvek
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Content */}
       {!isLoading && files.length === 0 ? (
         <motion.div
@@ -173,6 +148,22 @@ export default function TrashPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <SelectionBar
+        actions={[
+          {
+            label: 'Vrati',
+            icon: <RefreshCw className="h-4 w-4" />,
+            onClick: handleRestore,
+          },
+          {
+            label: 'Obrisi zauvek',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: handlePermanentDelete,
+            variant: 'danger',
+          },
+        ]}
+      />
     </motion.div>
   );
 }

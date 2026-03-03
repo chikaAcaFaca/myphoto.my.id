@@ -3,9 +3,11 @@
 import { useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Video, Upload, Play, Grid, List } from 'lucide-react';
-import { useFiles, useUploadFile } from '@/lib/hooks';
-import { useUIStore } from '@/lib/stores';
+import { useFiles, useUploadFile, useBulkDeleteFiles } from '@/lib/hooks';
+import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
+import { SelectionBar } from '@/components/gallery/selection-bar';
+import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function VideosPage() {
@@ -15,9 +17,25 @@ export default function VideosPage() {
     isArchived: false,
   });
   const { viewMode, setViewMode } = useUIStore();
+  const { selectedFiles, deselectAll } = useFilesStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutate: uploadFile } = useUploadFile();
+  const { mutate: bulkDelete } = useBulkDeleteFiles();
   const { addNotification } = useUIStore();
+
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedFiles);
+    bulkDelete(ids, {
+      onSuccess: () => {
+        addNotification({
+          type: 'success',
+          title: 'Premesteno u korpu',
+          message: `${ids.length} fajlova premesteno u korpu`,
+        });
+        deselectAll();
+      },
+    });
+  };
 
   const files = data?.pages.flatMap((page) => page.files) ?? [];
 
@@ -170,6 +188,16 @@ export default function VideosPage() {
           </button>
         </motion.div>
       )}
+      <SelectionBar
+        actions={[
+          {
+            label: 'Obrisi',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: handleBulkDelete,
+            variant: 'danger',
+          },
+        ]}
+      />
     </motion.div>
   );
 }

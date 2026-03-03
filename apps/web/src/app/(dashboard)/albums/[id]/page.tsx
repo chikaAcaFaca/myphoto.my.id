@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Share2, Trash2, Plus, Copy, Check, Link2, MoreHorizontal, Pencil } from 'lucide-react';
-import { useAlbum, useFiles, useDeleteAlbum, useUpdateAlbum } from '@/lib/hooks';
+import { useAlbum, useFiles, useDeleteAlbum, useUpdateAlbum, useBulkDeleteFiles } from '@/lib/hooks';
 import { useShareAlbum } from '@/lib/hooks/use-share';
-import { useUIStore } from '@/lib/stores';
+import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
+import { SelectionBar } from '@/components/gallery/selection-bar';
 import type { FileMetadata } from '@myphoto/shared';
 
 export default function AlbumDetailPage() {
@@ -18,6 +19,22 @@ export default function AlbumDetailPage() {
   const { mutateAsync: updateAlbum } = useUpdateAlbum();
   const { mutateAsync: shareAlbum, isPending: isSharing } = useShareAlbum();
   const { addNotification } = useUIStore();
+  const { selectedFiles, deselectAll } = useFilesStore();
+  const { mutate: bulkDelete } = useBulkDeleteFiles();
+
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedFiles);
+    bulkDelete(ids, {
+      onSuccess: () => {
+        addNotification({
+          type: 'success',
+          title: 'Premesteno u korpu',
+          message: `${ids.length} fajlova premesteno u korpu`,
+        });
+        deselectAll();
+      },
+    });
+  };
 
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -267,6 +284,17 @@ export default function AlbumDetailPage() {
       ) : (
         <PhotoGrid files={files} isLoading={isLoadingFiles} />
       )}
+
+      <SelectionBar
+        actions={[
+          {
+            label: 'Obrisi',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: handleBulkDelete,
+            variant: 'danger',
+          },
+        ]}
+      />
     </div>
   );
 }

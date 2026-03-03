@@ -15,12 +15,204 @@ interface PhotoGridProps {
   isLoading?: boolean;
 }
 
+const DRAG_THRESHOLD = 5;
+const LONG_PRESS_MS = 500;
+
+function rectsIntersect(
+  a: { left: number; top: number; right: number; bottom: number },
+  b: { left: number; top: number; right: number; bottom: number }
+) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
 export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
-  const { selectedFiles, toggleFileSelection, selectFile } = useFilesStore();
+  const { selectedFiles, toggleFileSelection, selectFile, deselectFile, isSelectionMode, setSelectionMode } = useFilesStore();
   const { openLightbox } = useUIStore();
   const isMobile = useIsMobile();
 
+  // Drag-to-select state (desktop)
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
+  const dragFilesRef = useRef<Set<string>>(new Set());
+
+  // Long-press state (mobile)
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchMoveSelectRef = useRef<Set<string>>(new Set());
+
   const groupedFiles = groupByDate(files);
+
+  // Desktop: compute selection rect and find intersecting cards
+  const selectionRect = isDragging && dragStart && dragCurrent
+    ? {
+        left: Math.min(dragStart.x, dragCurrent.x),
+        top: Math.min(dragStart.y, dragCurrent.y),
+        width: Math.abs(dragCurrent.x - dragStart.x),
+        height: Math.abs(dragCurrent.y - dragStart.y),
+      }
+    : null;
+
+  const updateDragSelection = useCallback(
+    (currentX: number, currentY: number, startX: number, startY: number) => {
+      if (!gridRef.current) return;
+      const rect = {
+        left: Math.min(startX, currentX),
+        top: Math.min(startY, currentY),
+        right: Math.max(startX, currentX),
+        bottom: Math.max(startY, currentY),
+      };
+
+      const cards = gridRef.current.querySelectorAll<HTMLElement>('[data-file-id]');
+      const newSelected = new Set<string>();
+
+      cards.forEach((card) => {
+        const cardRect = card.getBoundingClientRect();
+        const cardBounds = {
+          left: cardRect.left,
+          top: cardRect.top,
+          right: cardRect.right,
+          bottom: cardRect.bottom,
+        };
+        if (rectsIntersect(rect, cardBounds)) {
+          const fileId = card.dataset.fileId!;
+          newSelected.add(fileId);
+        }
+      });
+
+      // Add newly covered files, remove uncovered ones
+      const prev = dragFilesRef.current;
+      newSelected.forEach((id) => {
+        if (!prev.has(id)) selectFile(id);
+      });
+      prev.forEach((id) => {
+        if (!newSelected.has(id)) deselectFile(id);
+      });
+      dragFilesRef.current = newSelected;
+    },
+    [selectFile, deselectFile]
+  );
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      // Only left button, not on interactive elements
+      if (e.button !== 0 || isMobile) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.closest('[data-no-drag]')) return;
+
+      setDragStart({ x: e.clientX, y: e.clientY });
+      dragFilesRef.current = new Set();
+    },
+    [isMobile]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!dragStart || isMobile) return;
+
+      const dx = Math.abs(e.clientX - dragStart.x);
+      const dy = Math.abs(e.clientY - dragStart.y);
+
+      if (!isDragging && (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD)) {
+        setIsDragging(true);
+        setSelectionMode(true);
+      }
+
+      if (isDragging || dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+        setDragCurrent({ x: e.clientX, y: e.clientY });
+        updateDragSelection(e.clientX, e.clientY, dragStart.x, dragStart.y);
+      }
+    },
+    [dragStart, isDragging, isMobile, setSelectionMode, updateDragSelection]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setDragStart(null);
+    setDragCurrent(null);
+    dragFilesRef.current = new Set();
+  }, []);
+
+  // Clean up on unmount or if mouse leaves the window
+  useEffect(() => {
+    const handleGlobalUp = () => {
+      if (isDragging || dragStart) {
+        setIsDragging(false);
+        setDragStart(null);
+        setDragCurrent(null);
+        dragFilesRef.current = new Set();
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalUp);
+    return () => window.removeEventListener('mouseup', handleGlobalUp);
+  }, [isDragging, dragStart]);
+
+  // Mobile: long-press handler
+  const handleTouchStart = useCallback(
+    (fileId: string, e: React.TouchEvent) => {
+      if (!isMobile) return;
+      longPressTimerRef.current = setTimeout(() => {
+        navigator.vibrate?.(50);
+        setSelectionMode(true);
+        selectFile(fileId);
+        touchMoveSelectRef.current = new Set([fileId]);
+      }, LONG_PRESS_MS);
+    },
+    [isMobile, setSelectionMode, selectFile]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isMobile || !isSelectionMode) return;
+      // Cancel long-press timer if still pending
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+
+      const touch = e.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+      if (!el) return;
+      const card = el.closest<HTMLElement>('[data-file-id]');
+      if (!card) return;
+      const fileId = card.dataset.fileId!;
+      if (!touchMoveSelectRef.current.has(fileId)) {
+        touchMoveSelectRef.current.add(fileId);
+        selectFile(fileId);
+      }
+    },
+    [isMobile, isSelectionMode, selectFile]
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    touchMoveSelectRef.current = new Set();
+  }, []);
+
+  // Card click handler: selection mode vs normal
+  const handleCardClick = useCallback(
+    (file: FileMetadata, e: React.MouseEvent) => {
+      // If we just finished a drag, don't open lightbox
+      if (isDragging) return;
+
+      if (isSelectionMode) {
+        toggleFileSelection(file.id);
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey || e.shiftKey) {
+        e.preventDefault();
+        toggleFileSelection(file.id);
+        return;
+      }
+
+      openLightbox(file.id);
+    },
+    [isDragging, isSelectionMode, toggleFileSelection, openLightbox]
+  );
 
   if (isLoading) {
     return (
@@ -61,7 +253,15 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
   }
 
   return (
-    <div className="space-y-8">
+    <div
+      ref={gridRef}
+      className="relative space-y-8 select-none"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {Object.entries(groupedFiles).map(([date, dateFiles]) => (
         <div key={date}>
           <h3 className="mb-3 text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -74,8 +274,11 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
                   key={file.id}
                   file={file}
                   isSelected={selectedFiles.has(file.id)}
+                  isSelectionMode={isSelectionMode}
                   onSelect={() => toggleFileSelection(file.id)}
-                  onOpen={() => openLightbox(file.id)}
+                  onClick={(e) => handleCardClick(file, e)}
+                  onTouchStart={(e) => handleTouchStart(file.id, e)}
+                  onTouchEnd={handleTouchEnd}
                   isMobile={isMobile}
                 />
               ))}
@@ -83,6 +286,19 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
           </div>
         </div>
       ))}
+
+      {/* Selection rectangle (desktop drag) */}
+      {selectionRect && (
+        <div
+          className="pointer-events-none fixed z-40 rounded border border-primary-500 bg-primary-500/20"
+          style={{
+            left: selectionRect.left,
+            top: selectionRect.top,
+            width: selectionRect.width,
+            height: selectionRect.height,
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -90,12 +306,15 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
 interface PhotoCardProps {
   file: FileMetadata;
   isSelected: boolean;
+  isSelectionMode: boolean;
   onSelect: () => void;
-  onOpen: () => void;
+  onClick: (e: React.MouseEvent) => void;
+  onTouchStart: (e: React.TouchEvent) => void;
+  onTouchEnd: () => void;
   isMobile?: boolean;
 }
 
-function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardProps) {
+function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTouchStart, onTouchEnd, isMobile }: PhotoCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -124,18 +343,6 @@ function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardPr
       if (serverImgRef.current) serverImgRef.current.onload = null;
     };
   }, [localThumbUrl, thumbnailUrl, file.id, removeLocalThumbnail]);
-
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.ctrlKey || e.metaKey || e.shiftKey) {
-        e.preventDefault();
-        onSelect();
-      } else {
-        onOpen();
-      }
-    },
-    [onSelect, onOpen]
-  );
 
   const handleDownload = async () => {
     getDownloadUrl(file.s3Key, {
@@ -192,6 +399,7 @@ function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardPr
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.2 }}
+      data-file-id={file.id}
       className={cn(
         'group relative cursor-pointer overflow-hidden bg-gray-100 dark:bg-gray-800',
         isMobile
@@ -204,7 +412,9 @@ function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardPr
         setIsHovered(false);
         setShowMenu(false);
       }}
-      onClick={handleClick}
+      onClick={onClick}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
     >
       {/* Shimmer skeleton (visible until image loads) */}
       {!imageLoaded && !localThumbUrl && (
@@ -245,12 +455,13 @@ function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardPr
       <div
         className={cn(
           'absolute left-2 top-2 z-10 transition-opacity',
-          isSelected || isHovered ? 'opacity-100' : 'opacity-0'
+          isSelected || isHovered || isSelectionMode ? 'opacity-100' : 'opacity-0'
         )}
         onClick={(e) => {
           e.stopPropagation();
           onSelect();
         }}
+        data-no-drag
       >
         <div
           className={cn(
@@ -272,7 +483,7 @@ function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardPr
       )}
 
       {/* Hover overlay with actions */}
-      {isHovered && !isSelected && (
+      {isHovered && !isSelected && !isSelectionMode && (
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent">
           <div className="absolute bottom-2 right-2 flex gap-1">
             <button
@@ -281,6 +492,7 @@ function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardPr
                 handleToggleFavorite();
               }}
               className="rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60"
+              data-no-drag
             >
               <Heart
                 className={cn('h-4 w-4', file.isFavorite && 'fill-current')}
@@ -293,6 +505,7 @@ function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardPr
                   setShowMenu(!showMenu);
                 }}
                 className="rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60"
+                data-no-drag
               >
                 <MoreVertical className="h-4 w-4" />
               </button>
@@ -301,6 +514,7 @@ function PhotoCard({ file, isSelected, onSelect, onOpen, isMobile }: PhotoCardPr
                 <div
                   className="absolute bottom-full right-0 mb-1 w-40 rounded-lg bg-white py-1 shadow-lg dark:bg-gray-800"
                   onClick={(e) => e.stopPropagation()}
+                  data-no-drag
                 >
                   <button
                     onClick={handleDownload}

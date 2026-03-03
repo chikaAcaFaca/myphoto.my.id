@@ -28,6 +28,8 @@ interface FilesState {
   removeFiles: (fileIds: string[]) => void;
 
   // Selection
+  isSelectionMode: boolean;
+  setSelectionMode: (mode: boolean) => void;
   selectFile: (fileId: string) => void;
   deselectFile: (fileId: string) => void;
   toggleFileSelection: (fileId: string) => void;
@@ -111,6 +113,8 @@ export const useFilesStore = create<FilesState>()((set, get) => ({
     })),
 
   // Selection
+  isSelectionMode: false,
+  setSelectionMode: (mode) => set({ isSelectionMode: mode }),
   selectFile: (fileId) =>
     set((state) => ({
       selectedFiles: new Set([...state.selectedFiles, fileId]),
@@ -133,7 +137,7 @@ export const useFilesStore = create<FilesState>()((set, get) => ({
     set((state) => ({
       selectedFiles: new Set(state.files.map((f) => f.id)),
     })),
-  deselectAll: () => set({ selectedFiles: new Set() }),
+  deselectAll: () => set({ selectedFiles: new Set(), isSelectionMode: false }),
 
   // View
   setViewMode: (viewMode) => set({ viewMode }),

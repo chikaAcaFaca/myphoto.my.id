@@ -2,17 +2,36 @@
 
 import { useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
-import { useFiles } from '@/lib/hooks';
+import { Heart, Trash2 } from 'lucide-react';
+import { useFiles, useBulkDeleteFiles } from '@/lib/hooks';
+import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
+import { SelectionBar } from '@/components/gallery/selection-bar';
 
 export default function FavoritesPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useFiles({
     isFavorite: true,
     isTrashed: false,
   });
+  const { selectedFiles, deselectAll } = useFilesStore();
+  const { addNotification } = useUIStore();
+  const { mutate: bulkDelete } = useBulkDeleteFiles();
 
   const files = data?.pages.flatMap((page) => page.files) ?? [];
+
+  const handleBulkDelete = () => {
+    const ids = Array.from(selectedFiles);
+    bulkDelete(ids, {
+      onSuccess: () => {
+        addNotification({
+          type: 'success',
+          title: 'Premesteno u korpu',
+          message: `${ids.length} fajlova premesteno u korpu`,
+        });
+        deselectAll();
+      },
+    });
+  };
 
   const observerCallback = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -79,6 +98,16 @@ export default function FavoritesPage() {
           )}
         </div>
       )}
+      <SelectionBar
+        actions={[
+          {
+            label: 'Obrisi',
+            icon: <Trash2 className="h-4 w-4" />,
+            onClick: handleBulkDelete,
+            variant: 'danger',
+          },
+        ]}
+      />
     </motion.div>
   );
 }
