@@ -25,6 +25,7 @@ export interface User {
   referredBy?: string;
   referralCount: number;
   referralBonusBytes: number;
+  backupBonusClaimed?: boolean;
 }
 
 export interface Referral {

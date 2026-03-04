@@ -1,7 +1,16 @@
 import type { MetadataRoute } from 'next';
+import { getAllSlugs } from './(marketing)/blog/posts';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://myphoto.my.id';
+
+  const blogSlugs = getAllSlugs();
+  const blogEntries: MetadataRoute.Sitemap = blogSlugs.map((slug) => ({
+    url: `${baseUrl}/blog/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }));
 
   return [
     {
@@ -16,6 +25,43 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.9,
     },
+    {
+      url: `${baseUrl}/features/photo-backup`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/features/private-storage`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/features/photo-sharing`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/compare/google-photos`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/compare/icloud`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    ...blogEntries,
     {
       url: `${baseUrl}/register`,
       lastModified: new Date(),

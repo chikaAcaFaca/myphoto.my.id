@@ -6,3 +6,4 @@ export * from './use-network';
 export * from './use-pwa';
 export * from './use-mobile';
 export * from './use-referral';
+export * from './use-bonus';

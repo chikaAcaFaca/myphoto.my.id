@@ -7,6 +7,9 @@ export const BYTES_PER_TB = BYTES_PER_GB * 1024;
 // Free tier: 5GB
 export const FREE_STORAGE_LIMIT = 5 * BYTES_PER_GB;
 
+// Backup bonus: +1GB for installing app + enabling auto-backup
+export const BACKUP_BONUS = 1 * BYTES_PER_GB;
+
 // Referral constants
 export const REFERRAL_BONUS = 1 * BYTES_PER_GB;        // +1GB per referral
 export const MAX_REFERRAL_BONUS = 10 * BYTES_PER_GB;    // max 10GB bonus (total 15GB free)

@@ -20,7 +20,6 @@ import {
   Info,
   ZoomIn,
   ZoomOut,
-  Play,
   Loader2,
   Maximize,
 } from 'lucide-react';
@@ -159,23 +158,27 @@ export function PhotoLightbox() {
   );
 
   // Preload adjacent ±2 images (small for far, medium+large for neighbors)
+  // For video neighbors, send HEAD to warm up the stream connection
   useEffect(() => {
     if (currentIndex < 0) return;
     for (let offset = -2; offset <= 2; offset++) {
       if (offset === 0) continue;
       const idx = currentIndex + offset;
       if (idx < 0 || idx >= allFiles.length) continue;
-      const id = allFiles[idx].id;
-      if (Math.abs(offset) === 1) {
+      const neighbor = allFiles[idx];
+      if (neighbor.type === 'video') {
+        // Warm up stream endpoint for adjacent videos
+        fetch(`/api/stream/${neighbor.id}`, { method: 'HEAD' }).catch(() => {});
+      } else if (Math.abs(offset) === 1) {
         // Immediate neighbors: preload medium + large
         const med = new window.Image();
-        med.src = `/api/thumbnail/${id}?size=medium`;
+        med.src = `/api/thumbnail/${neighbor.id}?size=medium`;
         const full = new window.Image();
-        full.src = `/api/thumbnail/${id}?size=large`;
+        full.src = `/api/thumbnail/${neighbor.id}?size=large`;
       } else {
         // Farther images: preload small only
         const sm = new window.Image();
-        sm.src = `/api/thumbnail/${id}?size=small`;
+        sm.src = `/api/thumbnail/${neighbor.id}?size=small`;
       }
     }
   }, [currentIndex, allFiles]);
@@ -565,41 +568,12 @@ function ZoomableImage({ file, onZoomChange }: { file: FileMetadata; onZoomChang
 function VideoPlayer({ file }: { file: FileMetadata }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Reset error on file change
   useEffect(() => {
-    let cancelled = false;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    setVideoSrc(null);
     setVideoError(null);
-
-    fetch(`/api/stream/${file.id}`, { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: { url: string }) => {
-        if (!cancelled) setVideoSrc(data.url);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setVideoError(
-            err.name === 'AbortError'
-              ? 'Video učitavanje isteklo. Pokušajte ponovo.'
-              : 'Greška pri učitavanju videa.'
-          );
-        }
-      })
-      .finally(() => clearTimeout(timeout));
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
   }, [file.id]);
 
   // Fullscreen change listener
@@ -617,10 +591,9 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
 
   // Auto-fullscreen on landscape orientation (mobile only)
   useEffect(() => {
-    if (!videoSrc) return;
     const screen = window.screen;
     const orientation = screen?.orientation;
-    if (!orientation) return; // Desktop — graceful degradation
+    if (!orientation) return;
 
     const handleOrientationChange = () => {
       const type = orientation.type;
@@ -635,7 +608,7 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
     return () => {
       orientation.removeEventListener('change', handleOrientationChange);
     };
-  }, [videoSrc]);
+  }, []);
 
   const enterFullscreen = useCallback(() => {
     const container = containerRef.current;
@@ -647,13 +620,11 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const anyVideo = video as any;
 
-    // Try container fullscreen first (standard API)
     if (container?.requestFullscreen) {
       container.requestFullscreen().catch(() => {});
     } else if (anyContainer?.webkitRequestFullscreen) {
       anyContainer.webkitRequestFullscreen();
     } else if (anyVideo?.webkitEnterFullscreen) {
-      // iOS Safari fallback — only video element supports fullscreen
       anyVideo.webkitEnterFullscreen();
     }
   }, []);
@@ -677,6 +648,7 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
   }, [isFullscreen, enterFullscreen, exitFullscreen]);
 
   const thumbnailUrl = `/api/thumbnail/${file.id}?size=medium`;
+  const streamUrl = `/api/stream/${file.id}`;
 
   if (videoError) {
     return (
@@ -695,40 +667,11 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
               onClick={(e) => {
                 e.stopPropagation();
                 setVideoError(null);
-                setVideoSrc(null);
-                // re-trigger fetch by forcing a remount via key isn't possible here,
-                // so we manually re-fetch
-                fetch(`/api/stream/${file.id}`)
-                  .then((res) => {
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    return res.json();
-                  })
-                  .then((data: { url: string }) => setVideoSrc(data.url))
-                  .catch(() => setVideoError('Greška pri učitavanju videa.'));
               }}
               className="rounded-lg bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30"
             >
               Pokušaj ponovo
             </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!videoSrc) {
-    return (
-      <div className="flex items-center justify-center">
-        <div className="relative">
-          <Image
-            src={thumbnailUrl}
-            alt={file.name}
-            width={file.width || 1920}
-            height={file.height || 1080}
-            className="max-h-screen max-w-full object-contain opacity-50"
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" />
           </div>
         </div>
       </div>
@@ -742,12 +685,14 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
       onClick={(e) => e.stopPropagation()}
     >
       <video
+        key={file.id}
         ref={videoRef}
-        src={videoSrc}
+        src={streamUrl}
         poster={thumbnailUrl}
         controls
         autoPlay
         playsInline
+        preload="metadata"
         className="max-h-screen max-w-full object-contain"
         onError={() => setVideoError('Video format nije podržan ili je fajl oštećen.')}
       >

@@ -8,6 +8,8 @@ import { useFiles, useUploadFile, useBulkDeleteFiles } from '@/lib/hooks';
 import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
+import { StorageBonusCard } from '@/components/onboarding/storage-bonus-card';
+import { StorageLimitBanner } from '@/components/onboarding/storage-limit-banner';
 import { ALL_SUPPORTED_TYPES } from '@myphoto/shared';
 import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -150,6 +152,10 @@ export default function PhotosPage() {
         className="hidden"
         onChange={handleFileInputChange}
       />
+
+      {/* Storage limit banner + bonus card */}
+      <StorageLimitBanner />
+      <StorageBonusCard />
 
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">

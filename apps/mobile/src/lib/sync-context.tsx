@@ -5,13 +5,45 @@ import * as Network from 'expo-network';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import * as SecureStore from 'expo-secure-store';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { useAuth } from './auth-context';
 import { generateFileId, getFileExtension, getFileType } from '@myphoto/shared';
 
 const BACKGROUND_SYNC_TASK = 'MYPHOTO_BACKGROUND_SYNC';
 const SYNC_STATE_KEY = '@myphoto/sync_state';
 const LAST_SYNC_KEY = '@myphoto/last_sync';
+const BACKUP_BONUS_CLAIMED_KEY = '@myphoto/backup_bonus_claimed';
+
+async function tryClaimBackupBonus(token: string, apiUrl: string): Promise<void> {
+  try {
+    const claimed = await AsyncStorage.getItem(BACKUP_BONUS_CLAIMED_KEY);
+    if (claimed === 'true') return;
+
+    const res = await fetch(`${apiUrl}/api/bonus/backup`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ platform: Platform.OS === 'ios' ? 'ios' : 'android' }),
+    });
+
+    if (res.ok) {
+      await AsyncStorage.setItem(BACKUP_BONUS_CLAIMED_KEY, 'true');
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'MyPhoto',
+          body: 'Dobili ste +1GB besplatnog prostora!',
+        },
+        trigger: null,
+      });
+    }
+  } catch (error) {
+    console.error('Backup bonus claim error:', error);
+  }
+}
 
 interface SyncState {
   pendingUploads: string[]; // Asset IDs
@@ -220,6 +252,9 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
 
     // Update sync state
     if (uploaded.length > 0) {
+      // Try to claim backup bonus after first successful upload
+      await tryClaimBackupBonus(token, apiUrl);
+
       const newState: SyncState = {
         ...syncState,
         uploadedAssets: [...syncState.uploadedAssets, ...uploaded],
@@ -562,6 +597,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       };
       setSyncState(newState);
       await saveSyncState(newState);
+
+      // Try to claim backup bonus after first successful upload
+      if (newUploaded.length > 0) {
+        const token = await getToken();
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+        if (token && apiUrl) {
+          await tryClaimBackupBonus(token, apiUrl);
+        }
+      }
 
       console.log(`Sync complete. Uploaded ${newUploaded.length} photos.`);
     } catch (error) {
