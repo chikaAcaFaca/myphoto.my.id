@@ -663,7 +663,7 @@ export default function TermsPage() {
         <div className="mt-16 rounded-2xl bg-gradient-to-r from-primary-500 to-primary-600 p-8 text-center text-white">
           <h2 className="text-2xl font-bold">Spremni da počnete?</h2>
           <p className="mx-auto mt-2 max-w-xl text-primary-100">
-            10GB besplatno. Bez kreditne kartice. Bez obaveza.
+            Do 15GB besplatno. Bez kreditne kartice. Bez obaveza.
           </p>
           <Link
             href="/register"

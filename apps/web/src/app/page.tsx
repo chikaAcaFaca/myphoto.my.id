@@ -293,7 +293,7 @@ export default function HomePage() {
             href="/register"
             className="rounded-xl bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-600 hover:shadow-xl hover:shadow-primary-500/40"
           >
-            Započni besplatno — 10GB
+            Započni besplatno — do 15GB
           </Link>
           <Link
             href="#pricing"
@@ -831,7 +831,7 @@ export default function HomePage() {
               Započnite za 30 sekundi
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-lg text-primary-100">
-              10GB besplatno. Bez kreditne kartice. Bez obaveza.
+              Do 15GB besplatno. Bez kreditne kartice. Bez obaveza.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
@@ -923,7 +923,7 @@ export default function HomePage() {
           href="/register"
           className="block w-full rounded-lg bg-primary-500 py-3 text-center font-semibold text-white"
         >
-          Započni besplatno — 10GB
+          Započni besplatno — do 15GB
         </Link>
       </div>
     </div>

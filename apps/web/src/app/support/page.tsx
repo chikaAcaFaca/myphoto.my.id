@@ -23,7 +23,7 @@ const FAQ_CATEGORIES = [
     questions: [
       {
         q: 'Kako da kreiram nalog?',
-        a: 'Kliknite na "Započni besplatno" na početnoj stranici. Možete se registrovati putem Google naloga ili email adrese. Registracija traje oko 30 sekundi i dobijate 10GB besplatnog prostora.',
+        a: 'Kliknite na "Započni besplatno" na početnoj stranici. Možete se registrovati putem Google naloga ili email adrese. Registracija traje oko 30 sekundi i dobijate 1GB prostora, sa mogućnošću do 15GB kroz bonuse.',
       },
       {
         q: 'Kako da promenim lozinku?',
@@ -45,7 +45,7 @@ const FAQ_CATEGORIES = [
     questions: [
       {
         q: 'Koji su dostupni planovi?',
-        a: 'Nudimo besplatan plan (10GB) i plaćene planove od 150GB do 10TB. Svaki plan je dostupan u Standard i AI Powered verziji. Pogledajte stranicu sa cenama za detalje.',
+        a: 'Nudimo besplatan plan (1GB, do 15GB sa bonusima) i plaćene planove od 150GB do 10TB. Svaki plan je dostupan u Standard i AI Powered verziji. Pogledajte stranicu sa cenama za detalje.',
       },
       {
         q: 'Mogu li da otkažem pretplatu?',

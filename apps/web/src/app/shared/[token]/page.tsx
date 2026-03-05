@@ -44,10 +44,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? `Album "${shared.albumName}" - Deljeno sa MyPhoto.my.id`
     : `"${shared.fileName}" - Deljeno sa MyPhoto.my.id`;
   const description =
-    'Besplatan cloud storage za vaše slike. 10GB besplatno, privatno i sigurno. Prijavite se za 30 sekundi.';
+    'Besplatan cloud storage za vaše slike. Do 15GB besplatno, privatno i sigurno. Prijavite se za 30 sekundi.';
   const coverFileId = isAlbum ? shared.coverFileId : shared.fileId;
   const ogImageUrl = coverFileId
-    ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://myphoto.my.id'}/api/thumbnail/${coverFileId}`
+    ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://myphoto.my.id'}/api/thumbnail/${coverFileId}?share=${token}`
     : undefined;
 
   return {
@@ -94,7 +94,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
 
   const isAlbum = shared.type === 'album';
   const isImage = shared.mimeType?.startsWith('image/');
-  const imageUrl = shared.fileId ? `/api/thumbnail/${shared.fileId}?size=large` : '';
+  const imageUrl = shared.fileId ? `/api/thumbnail/${shared.fileId}?size=large&share=${token}` : '';
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -124,7 +124,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
                 <div key={fileId} className="relative aspect-square overflow-hidden rounded-lg bg-gray-800">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={`/api/thumbnail/${fileId}`}
+                    src={`/api/thumbnail/${fileId}?share=${token}`}
                     alt=""
                     className="h-full w-full object-cover"
                     loading="lazy"
@@ -210,7 +210,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             href="/register"
             className="inline-block rounded-xl bg-primary-500 px-10 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-primary-600 hover:shadow-xl"
           >
-            Započni besplatno - 10GB
+            Započni besplatno - do 15GB
           </Link>
           <p className="mt-3 text-sm text-gray-500">
             Bez kreditne kartice. Bez obaveza. Otkažite bilo kada.
@@ -242,7 +242,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             <PricingCard
               name="Free"
               price="$0"
-              storage="10 GB"
+              storage="1 GB"
               features={['Web & mobile pristup', 'Deljenje slika']}
             />
             <PricingCard
@@ -319,7 +319,7 @@ function NotFoundPage() {
           href="/register"
           className="rounded-lg bg-primary-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-primary-600"
         >
-          Kreiraj nalog - 10GB besplatno
+          Kreiraj nalog - do 15GB besplatno
         </Link>
         <Link
           href="/"

@@ -90,7 +90,29 @@ export async function resetPassword(email: string) {
 }
 
 export function onAuthChange(callback: (user: User | null) => void) {
-  return onAuthStateChanged(auth, callback);
+  return onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      // Set session cookie for media access control
+      try {
+        const idToken = await user.getIdToken();
+        await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken }),
+        });
+      } catch {
+        // Session cookie is best-effort; don't block auth flow
+      }
+    } else {
+      // Clear session cookie on sign out
+      try {
+        await fetch('/api/auth/session', { method: 'DELETE' });
+      } catch {
+        // Best-effort cleanup
+      }
+    }
+    callback(user);
+  });
 }
 
 export async function getIdToken(): Promise<string | null> {

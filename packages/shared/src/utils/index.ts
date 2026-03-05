@@ -210,13 +210,23 @@ export function slugify(text: string): string {
 }
 
 /**
- * Generate share link token
+ * Generate share link token using crypto-secure randomness (~190 bits entropy)
  */
 export function generateShareToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = new Uint8Array(32);
+  if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.getRandomValues) {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    // Node.js fallback
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const nodeCrypto = require('crypto');
+    const buf = nodeCrypto.randomBytes(32);
+    bytes.set(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength));
+  }
   let result = '';
   for (let i = 0; i < 32; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(bytes[i] % chars.length);
   }
   return result;
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { checkIpRateLimit } from '@/lib/auth-utils';
 import { getObject } from '@/lib/s3';
+import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
 
 type ThumbnailSize = 'small' | 'medium' | 'large';
 
@@ -11,12 +12,69 @@ const SIZE_KEYS: Record<ThumbnailSize, string> = {
   large: 'largeThumbKey',
 };
 
+/**
+ * Verify access to a file via session cookie or share token.
+ * Returns { authorized: true } or { authorized: false, response }.
+ */
+async function verifyAccess(
+  request: NextRequest,
+  fileId: string,
+  fileData: Record<string, unknown>
+): Promise<{ authorized: true } | { authorized: false; response: NextResponse }> {
+  // Path 1: Session cookie (logged-in user viewing their own files)
+  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (sessionCookie) {
+    const userId = verifySessionToken(sessionCookie);
+    if (userId && fileData.userId === userId) {
+      return { authorized: true };
+    }
+  }
+
+  // Path 2: Share token (public shared links)
+  const url = new URL(request.url);
+  const shareToken = url.searchParams.get('share');
+  if (shareToken) {
+    const sharedDoc = await db.collection('shared').doc(shareToken).get();
+    if (sharedDoc.exists) {
+      const sharedData = sharedDoc.data()!;
+      if (sharedData.isActive) {
+        if (sharedData.type === 'album') {
+          // Album share: fileId must be in albumFileIds
+          const albumFileIds: string[] = sharedData.albumFileIds || [];
+          if (albumFileIds.includes(fileId)) {
+            return { authorized: true };
+          }
+          return {
+            authorized: false,
+            response: NextResponse.json({ error: 'File not in shared album' }, { status: 403 }),
+          };
+        } else {
+          // Single file share: fileId must match
+          if (sharedData.fileId === fileId) {
+            return { authorized: true };
+          }
+          return {
+            authorized: false,
+            response: NextResponse.json({ error: 'File not matching share' }, { status: 403 }),
+          };
+        }
+      }
+    }
+  }
+
+  // Neither valid session nor valid share token
+  return {
+    authorized: false,
+    response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+  };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { fileId: string } }
 ) {
   try {
-    // Check IP-based rate limit for public thumbnail endpoint
+    // Check IP-based rate limit
     const rateLimitResult = await checkIpRateLimit(request, 'download');
     if (!rateLimitResult.success) {
       return rateLimitResult.response;
@@ -38,6 +96,12 @@ export async function GET(
 
     const fileData = fileDoc.data()!;
 
+    // Access control check
+    const access = await verifyAccess(request, fileId, fileData);
+    if (!access.authorized) {
+      return access.response;
+    }
+
     // Pick the best available key for the requested size
     // Fallback chain: requested size → medium (thumbnailKey) → skip (don't serve original video!)
     const key =
@@ -57,8 +121,7 @@ export async function GET(
     return new Response(body, {
       headers: {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000, immutable',
-        'CDN-Cache-Control': 'public, max-age=31536000, immutable',
+        'Cache-Control': 'private, max-age=3600',
       },
     });
   } catch (error) {

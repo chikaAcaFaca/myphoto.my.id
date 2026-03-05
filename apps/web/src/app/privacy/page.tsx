@@ -743,7 +743,7 @@ export default function PrivacyPage() {
         <div className="mt-16 rounded-2xl bg-gradient-to-r from-primary-500 to-primary-600 p-8 text-center text-white">
           <h2 className="text-2xl font-bold">Vaša privatnost je naš prioritet</h2>
           <p className="mx-auto mt-2 max-w-xl text-primary-100">
-            Započnite besplatno sa 10GB — bez kreditne kartice, bez kompromisa.
+            Započnite besplatno sa do 15GB — bez kreditne kartice, bez kompromisa.
           </p>
           <Link
             href="/register"
