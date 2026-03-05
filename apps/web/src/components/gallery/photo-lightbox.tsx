@@ -571,9 +571,17 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Reset error on file change
+  // Reset error and force autoplay on file change
   useEffect(() => {
     setVideoError(null);
+    // Explicitly trigger play after the video element mounts with new src
+    const timer = setTimeout(() => {
+      const video = videoRef.current;
+      if (video) {
+        video.play().catch(() => {});
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [file.id]);
 
   // Fullscreen change listener

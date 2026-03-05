@@ -10,13 +10,12 @@ import {
   doc,
   getDoc,
   updateDoc,
-  deleteDoc,
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
 import type { FileMetadata } from '@myphoto/shared';
 import { useAuthStore, useFilesStore } from '../stores';
-import { generateDownloadUrl, deleteObject } from '../s3';
+import { generateDownloadUrl } from '../s3';
 import { getIdToken } from '../firebase';
 import { queueFileForUpload, requestBackgroundSync } from '../upload-queue';
 
@@ -320,38 +319,29 @@ export function useDeleteFile() {
 
 export function usePermanentlyDeleteFile() {
   const queryClient = useQueryClient();
-  const user = useAuthStore((state) => state.user);
 
   return useMutation({
     mutationFn: async (fileId: string) => {
-      if (!user) throw new Error('Not authenticated');
+      const token = await getIdToken();
+      if (!token) throw new Error('Not authenticated');
 
-      const docRef = doc(db, 'files', fileId);
-      const docSnap = await getDoc(docRef);
+      const res = await fetch('/api/files/delete', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fileIds: [fileId] }),
+      });
 
-      if (!docSnap.exists()) {
-        throw new Error('File not found');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete file');
       }
 
-      const fileData = docSnap.data();
-
-      // Delete from S3
-      await deleteObject(fileData.s3Key);
-      if (fileData.thumbnailKey) {
-        await deleteObject(fileData.thumbnailKey);
-      }
-
-      // Delete Firestore document
-      await deleteDoc(docRef);
-
-      // Update user storage
-      const userRef = doc(db, 'users', user.id);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const currentUsed = userSnap.data().storageUsed || 0;
-        await updateDoc(userRef, {
-          storageUsed: Math.max(0, currentUsed - fileData.size),
-        });
+      const result = await res.json();
+      if (!result.success) {
+        throw new Error('Failed to delete file');
       }
     },
     onSuccess: () => {

@@ -325,9 +325,26 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
   const localThumbnails = useFilesStore((s) => s.localThumbnails);
   const removeLocalThumbnail = useFilesStore((s) => s.removeLocalThumbnail);
   const serverImgRef = useRef<HTMLImageElement | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
   const localThumbUrl = localThumbnails.get(file.id);
   const thumbnailUrl = `/api/thumbnail/${file.id}?size=small`;
+  const isVideo = file.type === 'video';
+
+  // Auto-play video preview on hover (desktop)
+  useEffect(() => {
+    if (!isVideo || isMobile) return;
+    const video = videoPreviewRef.current;
+    if (!video) return;
+
+    if (isHovered && !isSelectionMode) {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+      video.currentTime = 0;
+    }
+  }, [isHovered, isVideo, isMobile, isSelectionMode]);
 
   // When we have a local thumbnail, preload the server thumbnail in the background.
   // Once loaded, swap to the server version and revoke the blob URL.
@@ -443,9 +460,28 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
         />
       )}
 
+      {/* Video hover preview (muted auto-play on desktop) */}
+      {isVideo && !isMobile && (
+        <video
+          ref={videoPreviewRef}
+          src={isHovered && !isSelectionMode ? `/api/stream/${file.id}` : undefined}
+          muted
+          playsInline
+          loop
+          preload="none"
+          className={cn(
+            'absolute inset-0 h-full w-full object-cover transition-opacity',
+            isHovered && !isSelectionMode ? 'opacity-100' : 'opacity-0'
+          )}
+        />
+      )}
+
       {/* Video indicator */}
-      {file.type === 'video' && (
-        <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
+      {isVideo && (
+        <div className={cn(
+          'absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white transition-opacity',
+          isHovered && !isMobile ? 'opacity-0' : 'opacity-100'
+        )}>
           <Play className="h-3 w-3" />
           {file.duration && formatDuration(file.duration)}
         </div>
