@@ -115,7 +115,7 @@ function RegisterContent() {
           </Link>
           <h1 className="mt-6 text-2xl font-bold">Create your account</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Počnite sa 5GB besplatnog prostora
+            Počnite besplatno — do 15GB prostora
           </p>
         </div>
 

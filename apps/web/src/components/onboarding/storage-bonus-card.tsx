@@ -43,7 +43,7 @@ export function StorageBonusCard() {
   const referralBonus = referralCount * REFERRAL_BONUS;
 
   const totalEarned = FREE_STORAGE_LIMIT + (backupClaimed ? BACKUP_BONUS : 0) + referralBonus;
-  const maxPossible = FREE_STORAGE_LIMIT + MAX_REFERRALS * REFERRAL_BONUS; // 15GB
+  const maxPossible = FREE_STORAGE_LIMIT + BACKUP_BONUS + MAX_REFERRALS * REFERRAL_BONUS; // 1+4+10 = 15GB
   const percentage = Math.min(100, Math.round((totalEarned / maxPossible) * 100));
 
   const formatGB = (bytes: number) => `${Math.round(bytes / BYTES_PER_GB)} GB`;
@@ -75,7 +75,7 @@ export function StorageBonusCard() {
         {/* Step 1: Free storage */}
         <BonusStep
           completed
-          label="Besplatan prostor"
+          label="Registracija"
           bonus={formatGB(FREE_STORAGE_LIMIT)}
         />
 

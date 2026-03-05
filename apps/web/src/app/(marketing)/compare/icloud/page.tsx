@@ -381,7 +381,7 @@ export default function CompareICloudPage() {
         <h2 className="mb-4 text-3xl font-bold">Prebacite se danas</h2>
         <p className="mx-auto mb-6 max-w-md text-primary-100">
           Oslobodite vaše slike iz Apple ekosistema. Cross-platform pristup,
-          EU serveri, 5GB besplatno.
+          EU serveri, do 15GB besplatno.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-4">
           <Link

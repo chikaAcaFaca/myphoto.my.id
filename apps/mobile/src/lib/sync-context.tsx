@@ -35,7 +35,7 @@ async function tryClaimBackupBonus(token: string, apiUrl: string): Promise<void>
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'MyPhoto',
-          body: 'Dobili ste +1GB besplatnog prostora!',
+          body: 'Dobili ste +4GB besplatnog prostora!',
         },
         trigger: null,
       });

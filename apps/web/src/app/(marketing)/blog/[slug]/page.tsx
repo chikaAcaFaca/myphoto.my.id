@@ -273,7 +273,7 @@ export default function BlogPostPage({ params }: Props) {
             Isprobajte MyPhoto besplatno
           </h3>
           <p className="mb-4 text-gray-600 dark:text-gray-400">
-            5GB besplatnog prostora, bez kreditne kartice.
+            Do 15GB besplatnog prostora, bez kreditne kartice.
           </p>
           <Link
             href="/register"

@@ -352,7 +352,7 @@ export default function PrivateStoragePage() {
           Zaštitite vaše uspomene danas
         </h2>
         <p className="mx-auto mb-6 max-w-md text-green-100">
-          Privatni cloud storage sa GDPR zaštitom. 5GB besplatno.
+          Privatni cloud storage sa GDPR zaštitom. Do 15GB besplatno.
         </p>
         <Link
           href="/register"

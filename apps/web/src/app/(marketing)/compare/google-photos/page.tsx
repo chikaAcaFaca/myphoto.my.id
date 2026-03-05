@@ -134,7 +134,7 @@ const COMPARISON_ROWS = [
   },
   {
     feature: 'Besplatan plan',
-    myphoto: '5 GB',
+    myphoto: 'Do 15 GB',
     google: '15 GB (deljen sa Gmail-om)',
     winner: 'google',
   },
@@ -338,7 +338,7 @@ export default function CompareGooglePhotosPage() {
         <h2 className="mb-4 text-3xl font-bold">Prebacite se danas</h2>
         <p className="mx-auto mb-6 max-w-md text-primary-100">
           Pridružite se korisnicima koji su prešli sa Google Photos-a na
-          privatniju alternativu. 5GB besplatno, bez obaveza.
+          privatniju alternativu. Do 15GB besplatno, bez obaveza.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-4">
           <Link

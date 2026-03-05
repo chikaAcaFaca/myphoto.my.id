@@ -157,7 +157,7 @@ const FAQS = [
   },
   {
     q: 'Koliko prostora dobijem besplatno?',
-    a: 'Besplatni plan uključuje 5GB storage-a. Pozivanjem prijatelja možete dobiti do 15GB besplatno.',
+    a: 'Besplatni plan počinje sa 1GB, a instalacijom aplikacije i uključivanjem backup-a dobijate ukupno 5GB. Pozivanjem prijatelja možete dobiti do 15GB besplatno.',
   },
 ];
 
@@ -317,7 +317,7 @@ export default function PhotoBackupPage() {
           Sačuvajte vaše uspomene danas
         </h2>
         <p className="mx-auto mb-6 max-w-md text-gray-600 dark:text-gray-300">
-          5GB besplatno. Bez kreditne kartice. Bez obaveza.
+          Do 15GB besplatno. Bez kreditne kartice. Bez obaveza.
         </p>
         <Link
           href="/register"

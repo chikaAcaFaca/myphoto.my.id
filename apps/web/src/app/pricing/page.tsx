@@ -573,7 +573,7 @@ export default function PricingPage() {
               href="/register"
               className="rounded-lg bg-white px-8 py-3 font-semibold text-primary-600 transition-colors hover:bg-primary-50"
             >
-              Započni besplatno - 5GB
+              Započni besplatno
             </Link>
             <Link
               href="/contact"

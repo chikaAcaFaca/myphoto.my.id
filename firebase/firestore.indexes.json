@@ -86,6 +86,14 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "photoCount", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "referrerUserId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

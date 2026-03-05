@@ -61,6 +61,13 @@ const INDEXES = [
       { fieldPath: 'createdAt', order: 'DESCENDING' },
     ],
   },
+  {
+    collectionGroup: 'referrals',
+    fields: [
+      { fieldPath: 'referrerUserId', order: 'ASCENDING' },
+      { fieldPath: 'createdAt', order: 'DESCENDING' },
+    ],
+  },
 ];
 
 export async function POST(request: NextRequest) {

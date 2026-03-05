@@ -298,7 +298,7 @@ export default function SettingsPage() {
                           Pozovite prijatelje i oboje dobijate +1GB prostora!
                         </p>
                         <p className="mt-1 text-sm text-green-700 dark:text-green-400">
-                          Možete dobiti do 15GB besplatno (5GB baza + 10GB od referrala).
+                          Možete dobiti do 15GB besplatno (1GB registracija + 4GB app bonus + 10GB od referrala).
                         </p>
                       </div>
                     </div>

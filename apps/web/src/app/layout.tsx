@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     template: '%s | MyPhoto.my.id',
   },
   description:
-    'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. 5GB free.',
+    'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. Up to 15GB free.',
   keywords: [
     'google photos alternative',
     'photo backup app',
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: 'MyPhoto.my.id',
     title: 'MyPhoto.my.id — Private Cloud Photo Storage & Backup',
     description:
-      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. 5GB free.',
+      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. Up to 15GB free.',
     images: [
       {
         url: 'https://myphoto.my.id/og-image.png',
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'MyPhoto.my.id — Private Cloud Photo Storage & Backup',
     description:
-      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. 5GB free.',
+      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. Up to 15GB free.',
     images: ['https://myphoto.my.id/og-image.png'],
   },
   alternates: {
@@ -76,7 +76,7 @@ const jsonLd = {
           '@type': 'Offer',
           price: '0',
           priceCurrency: 'USD',
-          description: '5GB free storage with auto backup',
+          description: 'Up to 15GB free storage with auto backup',
         },
         {
           '@type': 'Offer',
