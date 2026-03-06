@@ -174,11 +174,30 @@ export async function DELETE(request: NextRequest) {
     const { userId } = authResult;
 
     const body = await request.json();
-    const { token } = body;
+    const { token, albumId } = body;
 
+    // Revoke by albumId (used when deleting an album)
+    if (albumId) {
+      const shareDocs = await db
+        .collection('shared')
+        .where('albumId', '==', albumId)
+        .where('userId', '==', userId)
+        .where('isActive', '==', true)
+        .get();
+
+      const batch = db.batch();
+      shareDocs.docs.forEach((doc) => {
+        batch.update(doc.ref, { isActive: false });
+      });
+      await batch.commit();
+
+      return NextResponse.json({ success: true, revoked: shareDocs.size });
+    }
+
+    // Revoke by token
     if (!token) {
       return NextResponse.json(
-        { error: 'Missing token' },
+        { error: 'Missing token or albumId' },
         { status: 400 }
       );
     }

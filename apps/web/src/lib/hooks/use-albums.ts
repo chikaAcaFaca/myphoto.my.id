@@ -147,12 +147,17 @@ export function useUpdateAlbum() {
 
 export function useDeleteAlbum() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
 
   return useMutation({
     mutationFn: async (albumId: string) => {
+      if (!user) throw new Error('Not authenticated');
+
       // First, remove album from all files that contain it
+      // userId filter is required by Firestore security rules
       const filesQuery = query(
         collection(db, 'files'),
+        where('userId', '==', user.id),
         where('albumIds', 'array-contains', albumId)
       );
       const filesSnapshot = await getDocs(filesQuery);
@@ -164,6 +169,25 @@ export function useDeleteAlbum() {
         })
       );
       await Promise.all(updatePromises);
+
+      // Revoke any active share links for this album
+      try {
+        const { getIdToken } = await import('../firebase');
+        const token = await getIdToken();
+        if (token) {
+          // Find and deactivate share link via API (shared collection is server-write only)
+          await fetch('/api/share', {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ albumId }),
+          });
+        }
+      } catch {
+        // Best effort - don't block album deletion if share revocation fails
+      }
 
       // Then delete the album
       const docRef = doc(db, 'albums', albumId);

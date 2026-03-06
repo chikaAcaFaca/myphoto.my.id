@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   Cloud,
   Check,
@@ -24,8 +25,20 @@ import { cn } from '@/lib/utils';
 const BILLING_OPTIONS: BillingPeriod[] = ['monthly', 'quarterly', 'semiAnnual', 'yearly'];
 
 export default function PricingPage() {
+  return (
+    <Suspense>
+      <PricingContent />
+    </Suspense>
+  );
+}
+
+function PricingContent() {
   const [billingCycle, setBillingCycle] = useState<BillingPeriod>('monthly');
   const [planType, setPlanType] = useState<'standard' | 'ai'>('ai');
+  const searchParams = useSearchParams();
+  const refCode = searchParams.get('ref');
+  const refParam = refCode ? `&ref=${refCode}` : '';
+  const registerUrl = refCode ? `/register?ref=${refCode}` : '/register';
 
   const periodConfig = BILLING_PERIODS[billingCycle];
 
@@ -314,7 +327,7 @@ export default function PricingPage() {
                 </ul>
 
                 <Link
-                  href={isFree ? '/register' : `/checkout?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
+                  href={isFree ? registerUrl : `/checkout?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}${refParam}`}
                   className={cn(
                     'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
                     isPopular
@@ -570,7 +583,7 @@ export default function PricingPage() {
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-4">
             <Link
-              href="/register"
+              href={registerUrl}
               className="rounded-lg bg-white px-8 py-3 font-semibold text-primary-600 transition-colors hover:bg-primary-50"
             >
               Započni besplatno

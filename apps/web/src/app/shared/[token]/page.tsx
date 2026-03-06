@@ -16,6 +16,8 @@ import {
   Check,
   Images,
 } from 'lucide-react';
+import { SharedGallery } from '@/components/shared/shared-gallery';
+import { SharedImage } from '@/components/shared/shared-image';
 
 interface PageProps {
   params: Promise<{ token: string }>;
@@ -27,6 +29,16 @@ async function getSharedLink(token: string) {
   const data = doc.data()!;
   if (!data.isActive) return null;
   return data;
+}
+
+async function getUserReferralCode(userId: string): Promise<string | null> {
+  try {
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) return null;
+    return userDoc.data()?.referralCode || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -92,9 +104,13 @@ export default async function SharedPhotoPage({ params }: PageProps) {
     .update({ viewCount: FieldValue.increment(1) })
     .catch(() => {});
 
+  // Get sharer's referral code for CTA links
+  const referralCode = await getUserReferralCode(shared.userId);
+  const registerUrl = referralCode ? `/register?ref=${referralCode}` : '/register';
+
   const isAlbum = shared.type === 'album';
   const isImage = shared.mimeType?.startsWith('image/');
-  const imageUrl = shared.fileId ? `/api/thumbnail/${shared.fileId}?size=large&share=${token}` : '';
+  const isVideo = shared.mimeType?.startsWith('video/');
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -119,30 +135,18 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             <p className="mb-6 text-sm text-gray-500">
               {shared.albumFileCount || shared.albumFileIds?.length || 0} fajlova u albumu
             </p>
-            <div className="grid w-full max-w-5xl grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-              {(shared.albumFileIds || []).map((fileId: string) => (
-                <div key={fileId} className="relative aspect-square overflow-hidden rounded-lg bg-gray-800">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/thumbnail/${fileId}?share=${token}`}
-                    alt=""
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-              ))}
-            </div>
-          </>
-        ) : isImage ? (
-          <div className="relative w-full max-w-5xl overflow-hidden rounded-lg shadow-2xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt={shared.fileName}
-              className="h-auto w-full object-contain"
-              style={{ maxHeight: '75vh' }}
+            <SharedGallery
+              fileIds={shared.albumFileIds || []}
+              shareToken={token}
             />
-          </div>
+          </>
+        ) : isImage || isVideo ? (
+          <SharedImage
+            fileId={shared.fileId}
+            fileName={shared.fileName}
+            shareToken={token}
+            isVideo={isVideo}
+          />
         ) : (
           <div className="flex h-48 w-full max-w-md items-center justify-center rounded-lg bg-gray-800">
             <p className="text-gray-400">{shared.fileName}</p>
@@ -207,7 +211,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
         {/* CTA */}
         <div className="mx-auto max-w-2xl px-4 pb-16 text-center">
           <Link
-            href="/register"
+            href={registerUrl}
             className="inline-block rounded-xl bg-primary-500 px-10 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-primary-600 hover:shadow-xl"
           >
             Započni besplatno - do 15GB
@@ -261,7 +265,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             />
           </div>
           <div className="mt-6 text-center">
-            <Link href="/pricing" className="text-sm text-primary-400 hover:underline">
+            <Link href={referralCode ? `/pricing?ref=${referralCode}` : '/pricing'} className="text-sm text-primary-400 hover:underline">
               Pogledaj sve planove &rarr;
             </Link>
           </div>
