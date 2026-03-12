@@ -22,6 +22,7 @@ import {
   ZoomOut,
   Loader2,
   Maximize,
+  Eraser,
 } from 'lucide-react';
 import type { FileMetadata } from '@myphoto/shared';
 import { formatDate, formatBytes } from '@myphoto/shared';
@@ -858,6 +859,15 @@ function LightboxToolbar({
           });
         }}
       />
+      {file.type !== 'video' && (
+        <ToolbarButton
+          icon={<Eraser className="h-5 w-5" />}
+          label="Ukloni pozadinu"
+          onClick={() => {
+            window.open(`/tools/remove-bg?fileId=${file.id}`, '_blank');
+          }}
+        />
+      )}
       <ToolbarButton
         icon={<Trash2 className="h-5 w-5" />}
         label="Delete"

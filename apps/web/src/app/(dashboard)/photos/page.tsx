@@ -1,17 +1,19 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion } from 'framer-motion';
-import { Upload, Grid, List } from 'lucide-react';
+import { Upload, Grid, List, Trash2, Share2, FolderPlus } from 'lucide-react';
 import { useFiles, useUploadFile, useBulkDeleteFiles } from '@/lib/hooks';
+import { useShareFile } from '@/lib/hooks/use-share';
+import { useAlbums, useAddFilesToAlbum } from '@/lib/hooks/use-albums';
 import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
 import { StorageBonusCard } from '@/components/onboarding/storage-bonus-card';
 import { StorageLimitBanner } from '@/components/onboarding/storage-limit-banner';
+import { AddToAlbumModal } from '@/components/modals/add-to-album-modal';
 import { ALL_SUPPORTED_TYPES } from '@myphoto/shared';
-import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function PhotosPage() {
@@ -23,8 +25,43 @@ export default function PhotosPage() {
   const { selectedFiles, deselectAll } = useFilesStore();
   const { mutate: uploadFile } = useUploadFile();
   const { mutate: bulkDelete } = useBulkDeleteFiles();
+  const { mutate: shareFile, isPending: isSharing } = useShareFile();
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showAlbumModal, setShowAlbumModal] = useState(false);
+
+  const handleBulkShare = async () => {
+    const ids = Array.from(selectedFiles);
+    if (ids.length === 1) {
+      // Single file - share directly
+      shareFile(ids[0], {
+        onSuccess: async (data) => {
+          const fullUrl = `${window.location.origin}${data.shareUrl}`;
+          if (navigator.share) {
+            try {
+              await navigator.share({ title: 'MyPhoto', url: fullUrl });
+              return;
+            } catch {}
+          }
+          try {
+            await navigator.clipboard.writeText(fullUrl);
+            addNotification({ type: 'success', title: 'Link kopiran!' });
+          } catch {
+            addNotification({ type: 'error', title: 'Kopiranje nije uspelo' });
+          }
+        },
+        onError: () => {
+          addNotification({ type: 'error', title: 'Greška pri deljenju' });
+        },
+      });
+    } else {
+      addNotification({
+        type: 'info',
+        title: 'Saveti',
+        message: 'Za deljenje više fajlova, dodajte ih u album pa podelite album.',
+      });
+    }
+  };
 
   const handleBulkDelete = () => {
     const ids = Array.from(selectedFiles);
@@ -256,12 +293,33 @@ export default function PhotosPage() {
       <SelectionBar
         actions={[
           {
-            label: 'Obrisi',
+            label: 'Podeli',
+            icon: <Share2 className="h-4 w-4" />,
+            onClick: handleBulkShare,
+            disabled: isSharing,
+            variant: 'primary',
+          },
+          {
+            label: 'Album',
+            icon: <FolderPlus className="h-4 w-4" />,
+            onClick: () => setShowAlbumModal(true),
+          },
+          {
+            label: 'Obriši',
             icon: <Trash2 className="h-4 w-4" />,
             onClick: handleBulkDelete,
             variant: 'danger',
           },
         ]}
+      />
+      <AddToAlbumModal
+        open={showAlbumModal}
+        onClose={() => setShowAlbumModal(false)}
+        fileIds={Array.from(selectedFiles)}
+        onSuccess={() => {
+          deselectAll();
+          setShowAlbumModal(false);
+        }}
       />
     </motion.div>
     </div>

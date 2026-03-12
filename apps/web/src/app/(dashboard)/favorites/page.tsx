@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Trash2 } from 'lucide-react';
+import { Heart, Trash2, Share2, FolderPlus, Eraser } from 'lucide-react';
 import { useFiles, useBulkDeleteFiles } from '@/lib/hooks';
+import { useShareFile } from '@/lib/hooks/use-share';
 import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
+import { AddToAlbumModal } from '@/components/modals/add-to-album-modal';
 
 export default function FavoritesPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useFiles({
@@ -16,6 +18,8 @@ export default function FavoritesPage() {
   const { selectedFiles, deselectAll } = useFilesStore();
   const { addNotification } = useUIStore();
   const { mutate: bulkDelete } = useBulkDeleteFiles();
+  const { mutate: shareFile, isPending: isSharing } = useShareFile();
+  const [showAlbumModal, setShowAlbumModal] = useState(false);
 
   const files = data?.pages.flatMap((page) => page.files) ?? [];
 
@@ -101,12 +105,42 @@ export default function FavoritesPage() {
       <SelectionBar
         actions={[
           {
-            label: 'Obrisi',
+            label: 'Podeli',
+            icon: <Share2 className="h-4 w-4" />,
+            onClick: () => {
+              const ids = Array.from(selectedFiles);
+              if (ids.length === 1) {
+                shareFile(ids[0], {
+                  onSuccess: async (data) => {
+                    const fullUrl = `${window.location.origin}${data.shareUrl}`;
+                    try { await navigator.clipboard.writeText(fullUrl); addNotification({ type: 'success', title: 'Link kopiran!' }); } catch { addNotification({ type: 'error', title: 'Kopiranje nije uspelo' }); }
+                  },
+                });
+              } else {
+                addNotification({ type: 'info', title: 'Za deljenje više fajlova, dodajte ih u album.' });
+              }
+            },
+            disabled: isSharing,
+            variant: 'primary',
+          },
+          {
+            label: 'Album',
+            icon: <FolderPlus className="h-4 w-4" />,
+            onClick: () => setShowAlbumModal(true),
+          },
+          {
+            label: 'Obriši',
             icon: <Trash2 className="h-4 w-4" />,
             onClick: handleBulkDelete,
             variant: 'danger',
           },
         ]}
+      />
+      <AddToAlbumModal
+        open={showAlbumModal}
+        onClose={() => setShowAlbumModal(false)}
+        fileIds={Array.from(selectedFiles)}
+        onSuccess={() => { deselectAll(); setShowAlbumModal(false); }}
       />
     </motion.div>
   );
