@@ -318,6 +318,8 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const { mutate: getDownloadUrl } = useGetDownloadUrl();
   const { mutate: updateFile } = useUpdateFile();
   const { mutate: deleteFile } = useDeleteFile();
@@ -328,8 +330,18 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
   const localThumbUrl = localThumbnails.get(file.id);
-  const thumbnailUrl = `/api/thumbnail/${file.id}?size=small`;
+  const thumbnailUrl = `/api/thumbnail/${file.id}?size=small${retryCount > 0 ? `&r=${retryCount}` : ''}`;
   const isVideo = file.type === 'video';
+
+  // Retry loading thumbnail after a delay (server may still be generating it)
+  useEffect(() => {
+    if (!imageError || retryCount >= 3) return;
+    const timer = setTimeout(() => {
+      setImageError(false);
+      setRetryCount((c) => c + 1);
+    }, 5000 * (retryCount + 1)); // 5s, 10s, 15s
+    return () => clearTimeout(timer);
+  }, [imageError, retryCount]);
 
   // Auto-play video preview on hover (desktop)
   useEffect(() => {
@@ -434,8 +446,20 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
       onTouchEnd={onTouchEnd}
     >
       {/* Shimmer skeleton (visible until image loads) */}
-      {!imageLoaded && !localThumbUrl && (
+      {!imageLoaded && !localThumbUrl && !imageError && (
         <div className="absolute inset-0 animate-shimmer bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] dark:from-gray-700 dark:via-gray-600 dark:to-gray-700" />
+      )}
+
+      {/* Error fallback placeholder */}
+      {imageError && !localThumbUrl && retryCount >= 3 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800">
+          {isVideo ? (
+            <Play className="h-8 w-8 text-gray-400" />
+          ) : (
+            <div className="h-8 w-8 rounded bg-gray-300 dark:bg-gray-600" />
+          )}
+          <span className="mt-1 text-[10px] text-gray-400 truncate max-w-[90%]">{file.name}</span>
+        </div>
       )}
 
       {/* Thumbnail: local blob URL or server URL */}
@@ -446,19 +470,19 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
           alt={file.name}
           className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
         />
-      ) : (
-        <Image
+      ) : !imageError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
           src={thumbnailUrl}
           alt={file.name}
-          fill
-          sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
           className={cn(
-            'object-cover transition-all group-hover:scale-105',
+            'absolute inset-0 h-full w-full object-cover transition-all group-hover:scale-105',
             imageLoaded ? 'opacity-100 duration-300' : 'opacity-0'
           )}
-          onLoad={() => setImageLoaded(true)}
+          onLoad={() => { setImageLoaded(true); setImageError(false); }}
+          onError={() => setImageError(true)}
         />
-      )}
+      ) : null}
 
       {/* Video hover preview (muted auto-play on desktop) */}
       {isVideo && !isMobile && (

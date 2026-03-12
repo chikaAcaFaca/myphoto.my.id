@@ -90,24 +90,38 @@ export async function processImageAI(fileId: string, s3Key: string): Promise<AIP
     const width = metadata.width || 0;
     const height = metadata.height || 0;
 
-    // Process in parallel for better performance
+    // Generate thumbnails FIRST (most critical) — must succeed before anything else
+    const thumbnails = await generateThumbnails(imageBuffer, s3Key);
+
+    // Save thumbnail keys immediately so they're available even if AI steps fail
+    await db.collection('files').doc(fileId).update({
+      thumbnailKey: thumbnails.medium,
+      smallThumbKey: thumbnails.small,
+      largeThumbKey: thumbnails.large,
+    });
+
+    // Process AI features in parallel — failures here won't lose thumbnails
     const [
       exifData,
       labels,
       faces,
-      thumbnails,
       qualityScore,
       dominantColors,
       pHash,
-    ] = await Promise.all([
+    ] = await Promise.allSettled([
       extractExifData(imageBuffer),
       detectObjects(imageBuffer),
       detectFacesFromBuffer(imageBuffer),
-      generateThumbnails(imageBuffer, s3Key),
       calculateQualityScore(imageBuffer),
       extractDominantColors(imageBuffer),
       calculatePHash(imageBuffer),
-    ]);
+    ]).then(results => results.map((r, i) => {
+      if (r.status === 'fulfilled') return r.value;
+      console.error(`AI step ${i} failed:`, r.reason);
+      // Return safe defaults
+      const defaults = [{}, [], [], 50, [], ''] as const;
+      return defaults[i];
+    })) as [ExifData, string[], FaceDetection[], number, string[], string];
 
     // Detect scene type based on labels
     const sceneType = detectSceneType(labels);

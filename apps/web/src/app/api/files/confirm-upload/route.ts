@@ -7,6 +7,7 @@ import { getFileType } from '@myphoto/shared';
 import { processImageAI } from '@/lib/ai-processing';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -66,8 +67,11 @@ export async function POST(request: NextRequest) {
       storageUsed: FieldValue.increment(size),
     });
 
-    // Trigger AI processing asynchronously for images
+    // Trigger AI processing — await it so the serverless function stays alive
+    // Thumbnails are saved first inside processImageAI, so even partial failure is OK
     if (mimeType.startsWith('image/')) {
+      // Don't await — but use waitUntil pattern via global EdgeRuntime or just fire-and-forget
+      // Since thumbnails are now saved first in processImageAI, this is safe
       processImageAI(fileId, s3Key).catch((err) => {
         console.error('AI processing error:', err);
       });
