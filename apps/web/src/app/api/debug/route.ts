@@ -126,6 +126,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ users });
     }
 
+    if (action === 'normalizeAllStorage') {
+      const { FREE_STORAGE_LIMIT, BACKUP_BONUS } = await import('@myphoto/shared');
+      const snapshot = await db.collection('users').get();
+      const results: Array<{ id: string; email?: string; oldLimit: number; newLimit: number }> = [];
+
+      for (const userDoc of snapshot.docs) {
+        const data = userDoc.data();
+        const oldLimit = data.storageLimit || 0;
+
+        // Calculate correct storage: 1GB base + 4GB if backup claimed + referral bonus + subscriptions
+        const backupBonus = data.backupBonusClaimed ? BACKUP_BONUS : 0;
+        const referralBonus = data.referralBonusBytes || 0;
+
+        // Get active subscriptions for this user
+        let subscriptionStorage = 0;
+        const subsSnapshot = await db
+          .collection('subscriptions')
+          .where('userId', '==', userDoc.id)
+          .where('status', '==', 'active')
+          .get();
+        for (const subDoc of subsSnapshot.docs) {
+          subscriptionStorage += subDoc.data().storageAmount || 0;
+        }
+
+        const newLimit = FREE_STORAGE_LIMIT + backupBonus + referralBonus + subscriptionStorage;
+
+        if (oldLimit !== newLimit) {
+          await db.collection('users').doc(userDoc.id).update({ storageLimit: newLimit });
+          results.push({
+            id: userDoc.id,
+            email: data.email,
+            oldLimit,
+            newLimit,
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        totalUsers: snapshot.size,
+        updated: results.length,
+        changes: results,
+      });
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

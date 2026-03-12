@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Loader2, Upload, Eraser, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, Upload, Eraser, Undo2, MousePointer2 } from 'lucide-react';
 import { useUIStore } from '@/lib/stores';
+import { cn } from '@/lib/utils';
 
 export default function RemoveBgPage() {
   return (
@@ -20,112 +21,157 @@ function RemoveBgContent() {
   const fileId = searchParams.get('fileId');
 
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [tolerance, setTolerance] = useState(32);
+  const [mode, setMode] = useState<'remove' | 'keep'>('remove');
+  const [history, setHistory] = useState<ImageData[]>([]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const displayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const imageDataRef = useRef<ImageData | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load image from fileId
   useEffect(() => {
     if (fileId) {
-      setOriginalUrl(`/api/thumbnail/${fileId}?size=large`);
+      loadImageFromUrl(`/api/thumbnail/${fileId}?size=large`);
     }
   }, [fileId]);
 
-  const processImage = useCallback(async (imageSource: string | File) => {
-    setIsProcessing(true);
-    setError(null);
-    setResultUrl(null);
+  const loadImageFromUrl = useCallback((url: string) => {
+    setIsLoading(true);
+    setHistory([]);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      imageRef.current = img;
+      setOriginalUrl(url);
+      initCanvas(img);
+      setIsLoading(false);
+    };
+    img.onerror = () => {
+      addNotification({ type: 'error', title: 'Slika se ne može učitati' });
+      setIsLoading(false);
+    };
+    img.src = url;
+  }, [addNotification]);
 
-    try {
-      // Load image
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
+  const initCanvas = (img: HTMLImageElement) => {
+    const canvas = canvasRef.current;
+    const displayCanvas = displayCanvasRef.current;
+    if (!canvas || !displayCanvas) return;
 
-      const loadImage = (): Promise<HTMLImageElement> =>
-        new Promise((resolve, reject) => {
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error('Slika se ne može učitati'));
-          if (typeof imageSource === 'string') {
-            img.src = imageSource;
-          } else {
-            img.src = URL.createObjectURL(imageSource);
-          }
-        });
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    displayCanvas.width = img.naturalWidth;
+    displayCanvas.height = img.naturalHeight;
 
-      const loadedImg = await loadImage();
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    imageDataRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-      const canvas = canvasRef.current;
-      if (!canvas) throw new Error('Canvas not available');
+    renderDisplay();
+  };
 
-      canvas.width = loadedImg.naturalWidth;
-      canvas.height = loadedImg.naturalHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas context not available');
+  const renderDisplay = () => {
+    const canvas = canvasRef.current;
+    const displayCanvas = displayCanvasRef.current;
+    if (!canvas || !displayCanvas) return;
 
-      // Draw original image
-      ctx.drawImage(loadedImg, 0, 0);
+    const ctx = displayCanvas.getContext('2d')!;
+    const w = displayCanvas.width;
+    const h = displayCanvas.height;
 
-      // Get image data
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
+    // Draw checkerboard
+    const size = 10;
+    for (let y = 0; y < h; y += size) {
+      for (let x = 0; x < w; x += size) {
+        ctx.fillStyle = ((x / size + y / size) % 2 === 0) ? '#f0f0f0' : '#ffffff';
+        ctx.fillRect(x, y, size, size);
+      }
+    }
 
-      // Simple background removal using edge detection + flood fill
-      // Detect the dominant background color from corners
-      const cornerSamples = [
-        getPixel(data, canvas.width, 0, 0),
-        getPixel(data, canvas.width, canvas.width - 1, 0),
-        getPixel(data, canvas.width, 0, canvas.height - 1),
-        getPixel(data, canvas.width, canvas.width - 1, canvas.height - 1),
-      ];
+    // Draw current image data on top
+    const srcCtx = canvas.getContext('2d')!;
+    const data = srcCtx.getImageData(0, 0, w, h);
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = w;
+    tempCanvas.height = h;
+    const tempCtx = tempCanvas.getContext('2d')!;
+    tempCtx.putImageData(data, 0, 0);
+    ctx.drawImage(tempCanvas, 0, 0);
+  };
 
-      const bgColor = averageColor(cornerSamples);
-      const tolerance = 40;
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-      // Mark background pixels as transparent
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+    const rect = e.currentTarget.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = Math.floor((e.clientX - rect.left) * scaleX);
+    const y = Math.floor((e.clientY - rect.top) * scaleY);
 
-        const diff = Math.sqrt(
-          (r - bgColor.r) ** 2 +
-          (g - bgColor.g) ** 2 +
-          (b - bgColor.b) ** 2
-        );
+    const ctx = canvas.getContext('2d')!;
+    const currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-        if (diff < tolerance) {
-          data[i + 3] = 0; // Set alpha to 0 (transparent)
+    // Save current state for undo
+    setHistory(prev => [...prev, new ImageData(new Uint8ClampedArray(currentData.data), canvas.width, canvas.height)]);
+
+    if (mode === 'remove') {
+      floodFillTransparent(currentData.data, canvas.width, canvas.height, x, y, tolerance);
+    } else {
+      // "keep" mode: flood fill from click point to mark what to keep, then remove everything else
+      const keepMask = new Uint8Array(canvas.width * canvas.height);
+      floodFillMask(currentData.data, canvas.width, canvas.height, x, y, tolerance, keepMask);
+      // Make everything NOT in the mask transparent
+      for (let i = 0; i < keepMask.length; i++) {
+        if (!keepMask[i]) {
+          currentData.data[i * 4 + 3] = 0;
         }
       }
-
-      // Apply edge smoothing
-      smoothEdges(data, canvas.width, canvas.height);
-
-      ctx.putImageData(imageData, 0, 0);
-
-      // Convert to blob URL
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          setResultUrl(url);
-        }
-        setIsProcessing(false);
-      }, 'image/png');
-    } catch (err: any) {
-      setError(err.message || 'Greška pri obradi slike');
-      setIsProcessing(false);
     }
-  }, []);
 
-  // Auto-process when image loads from fileId
-  useEffect(() => {
-    if (originalUrl && fileId) {
-      processImage(originalUrl);
-    }
-  }, [originalUrl, fileId, processImage]);
+    ctx.putImageData(currentData, 0, 0);
+    renderDisplay();
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const prev = history[history.length - 1];
+    setHistory(h => h.slice(0, -1));
+
+    const ctx = canvas.getContext('2d')!;
+    ctx.putImageData(prev, 0, 0);
+    renderDisplay();
+  };
+
+  const handleReset = () => {
+    const img = imageRef.current;
+    if (!img) return;
+    setHistory([]);
+    initCanvas(img);
+  };
+
+  const handleDownload = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'bez-pozadine.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -134,23 +180,13 @@ function RemoveBgContent() {
       addNotification({ type: 'error', title: 'Samo slike su podržane' });
       return;
     }
-    setUploadedFile(file);
-    setOriginalUrl(URL.createObjectURL(file));
-    processImage(file);
-  };
-
-  const handleDownload = () => {
-    if (!resultUrl) return;
-    const link = document.createElement('a');
-    link.href = resultUrl;
-    link.download = 'bez-pozadine.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const url = URL.createObjectURL(file);
+    loadImageFromUrl(url);
+    e.target.value = '';
   };
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-5xl">
       <button
         onClick={() => router.back()}
         className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
@@ -165,12 +201,12 @@ function RemoveBgContent() {
           Ukloni pozadinu
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Uklonite pozadinu sa slike jednim klikom
+          Kliknite na deo slike koji želite da {mode === 'remove' ? 'uklonite' : 'zadržite'}
         </p>
       </div>
 
-      {/* Upload area (if no fileId) */}
-      {!originalUrl && (
+      {/* Upload area */}
+      {!originalUrl && !isLoading && (
         <div
           onClick={() => fileInputRef.current?.click()}
           className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-12 hover:border-primary-400 dark:border-gray-600"
@@ -188,72 +224,88 @@ function RemoveBgContent() {
         </div>
       )}
 
-      {/* Processing state */}
-      {isProcessing && (
+      {/* Loading */}
+      {isLoading && (
         <div className="flex flex-col items-center justify-center py-16">
           <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary-500" />
-          <p className="text-lg font-medium">Uklanjam pozadinu...</p>
-          <p className="mt-1 text-sm text-gray-500">Ovo može potrajati nekoliko sekundi</p>
+          <p className="text-lg font-medium">Učitavam sliku...</p>
         </div>
       )}
 
-      {/* Error state */}
-      {error && (
-        <div className="rounded-lg bg-red-50 p-4 text-center dark:bg-red-900/20">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-          <button
-            onClick={() => originalUrl && processImage(originalUrl)}
-            className="btn-secondary mt-3"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Pokušaj ponovo
-          </button>
-        </div>
-      )}
-
-      {/* Result comparison */}
-      {resultUrl && !isProcessing && (
+      {/* Editor */}
+      {originalUrl && !isLoading && (
         <div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Original */}
-            <div>
-              <p className="mb-2 text-sm font-medium text-gray-500">Original</p>
-              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={originalUrl!} alt="Original" className="w-full" />
-              </div>
-            </div>
-            {/* Result */}
-            <div>
-              <p className="mb-2 text-sm font-medium text-gray-500">Bez pozadine</p>
-              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
-                style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'10\' height=\'10\' fill=\'%23f0f0f0\'/%3E%3Crect x=\'10\' y=\'10\' width=\'10\' height=\'10\' fill=\'%23f0f0f0\'/%3E%3Crect x=\'10\' width=\'10\' height=\'10\' fill=\'%23fff\'/%3E%3Crect y=\'10\' width=\'10\' height=\'10\' fill=\'%23fff\'/%3E%3C/svg%3E")' }}
+          {/* Toolbar */}
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-600">
+              <button
+                onClick={() => setMode('remove')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  mode === 'remove'
+                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    : 'text-gray-500 hover:text-gray-700'
+                )}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={resultUrl} alt="Bez pozadine" className="w-full" />
-              </div>
+                <MousePointer2 className="h-3.5 w-3.5" />
+                Ukloni
+              </button>
+              <button
+                onClick={() => setMode('keep')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                  mode === 'keep'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'text-gray-500 hover:text-gray-700'
+                )}
+              >
+                <MousePointer2 className="h-3.5 w-3.5" />
+                Zadrži
+              </button>
             </div>
-          </div>
 
-          {/* Actions */}
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button onClick={handleDownload} className="btn-primary">
-              <Download className="mr-2 h-4 w-4" />
+            {/* Tolerance slider */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Tolerancija:</label>
+              <input
+                type="range"
+                min="5"
+                max="100"
+                value={tolerance}
+                onChange={(e) => setTolerance(Number(e.target.value))}
+                className="w-24"
+              />
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{tolerance}</span>
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Actions */}
+            <button
+              onClick={handleUndo}
+              disabled={history.length === 0}
+              className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              <Undo2 className="h-4 w-4" />
+              Nazad
+            </button>
+            <button
+              onClick={handleReset}
+              className="rounded-md px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            >
+              Resetuj
+            </button>
+            <button onClick={handleDownload} className="btn-primary text-sm">
+              <Download className="mr-1.5 h-4 w-4" />
               Preuzmi PNG
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="btn-secondary"
+              className="btn-secondary text-sm"
             >
-              <Upload className="mr-2 h-4 w-4" />
+              <Upload className="mr-1.5 h-4 w-4" />
               Nova slika
-            </button>
-            <button
-              onClick={() => originalUrl && processImage(originalUrl)}
-              className="btn-secondary"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Ponovi
             </button>
             <input
               ref={fileInputRef}
@@ -263,67 +315,122 @@ function RemoveBgContent() {
               onChange={handleFileUpload}
             />
           </div>
+
+          {/* Canvas area */}
+          <div className="overflow-auto rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
+            <div className="flex items-center justify-center p-4">
+              <canvas
+                ref={displayCanvasRef}
+                onClick={handleCanvasClick}
+                className={cn(
+                  'max-h-[70vh] max-w-full cursor-crosshair rounded-lg shadow-lg',
+                  mode === 'remove' ? 'ring-2 ring-red-200' : 'ring-2 ring-green-200'
+                )}
+                style={{ imageRendering: 'auto' }}
+              />
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+            <strong>Uputstvo:</strong>{' '}
+            {mode === 'remove'
+              ? 'Kliknite na pozadinu ili deo slike koji želite da uklonite. Svaki klik uklanja povezanu oblast slične boje. Povećajte toleranciju za veće oblasti.'
+              : 'Kliknite na objekat koji želite da zadržite. Sve ostalo će biti uklonjeno. Koristite veću toleranciju za složenije objekte.'}
+          </div>
         </div>
       )}
 
-      {/* Hidden canvas for processing */}
+      {/* Hidden processing canvas */}
       <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 }
 
-// Helper: get pixel color at position
-function getPixel(data: Uint8ClampedArray, width: number, x: number, y: number) {
-  const i = (y * width + x) * 4;
-  return { r: data[i], g: data[i + 1], b: data[i + 2] };
-}
+// Flood fill: make connected similar-color pixels transparent
+function floodFillTransparent(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  startX: number,
+  startY: number,
+  tolerance: number
+) {
+  const idx = (startY * width + startX) * 4;
+  // If already transparent, skip
+  if (data[idx + 3] === 0) return;
 
-// Helper: average color from samples
-function averageColor(samples: { r: number; g: number; b: number }[]) {
-  const sum = samples.reduce(
-    (acc, s) => ({ r: acc.r + s.r, g: acc.g + s.g, b: acc.b + s.b }),
-    { r: 0, g: 0, b: 0 }
-  );
-  const n = samples.length;
-  return { r: sum.r / n, g: sum.g / n, b: sum.b / n };
-}
+  const targetR = data[idx];
+  const targetG = data[idx + 1];
+  const targetB = data[idx + 2];
 
-// Helper: smooth transparency edges
-function smoothEdges(data: Uint8ClampedArray, width: number, height: number) {
-  const alpha = new Uint8ClampedArray(width * height);
-  for (let i = 0; i < width * height; i++) {
-    alpha[i] = data[i * 4 + 3];
+  const visited = new Uint8Array(width * height);
+  const stack: [number, number][] = [[startX, startY]];
+  const tolSq = tolerance * tolerance * 3; // tolerance squared scaled for RGB
+
+  while (stack.length > 0) {
+    const [x, y] = stack.pop()!;
+    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+
+    const pi = y * width + x;
+    if (visited[pi]) continue;
+    visited[pi] = 1;
+
+    const i = pi * 4;
+    if (data[i + 3] === 0) continue; // already transparent
+
+    const dr = data[i] - targetR;
+    const dg = data[i + 1] - targetG;
+    const db = data[i + 2] - targetB;
+    const distSq = dr * dr + dg * dg + db * db;
+
+    if (distSq <= tolSq) {
+      data[i + 3] = 0; // make transparent
+      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
   }
+}
 
-  // 3x3 blur on alpha channel
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = y * width + x;
-      const current = alpha[idx];
-      // Only smooth edge pixels (not fully transparent or fully opaque)
-      if (current > 0 && current < 255) continue;
+// Flood fill mask: mark connected similar-color pixels
+function floodFillMask(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  startX: number,
+  startY: number,
+  tolerance: number,
+  mask: Uint8Array
+) {
+  const idx = (startY * width + startX) * 4;
+  if (data[idx + 3] === 0) return;
 
-      // Check if this is an edge pixel
-      let hasTransparent = false;
-      let hasOpaque = false;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const ni = (y + dy) * width + (x + dx);
-          if (alpha[ni] === 0) hasTransparent = true;
-          if (alpha[ni] === 255) hasOpaque = true;
-        }
-      }
+  const targetR = data[idx];
+  const targetG = data[idx + 1];
+  const targetB = data[idx + 2];
 
-      if (hasTransparent && hasOpaque) {
-        // This is an edge - apply slight transparency for smoother edges
-        let sum = 0;
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            sum += alpha[(y + dy) * width + (x + dx)];
-          }
-        }
-        data[idx * 4 + 3] = Math.round(sum / 9);
-      }
+  const stack: [number, number][] = [[startX, startY]];
+  const tolSq = tolerance * tolerance * 3;
+
+  while (stack.length > 0) {
+    const [x, y] = stack.pop()!;
+    if (x < 0 || x >= width || y < 0 || y >= height) continue;
+
+    const pi = y * width + x;
+    if (mask[pi]) continue;
+    mask[pi] = 1;
+
+    const i = pi * 4;
+    if (data[i + 3] === 0) continue;
+
+    const dr = data[i] - targetR;
+    const dg = data[i + 1] - targetG;
+    const db = data[i + 2] - targetB;
+    const distSq = dr * dr + dg * dg + db * db;
+
+    if (distSq <= tolSq) {
+      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    } else {
+      mask[pi] = 0; // not similar, unmark
     }
   }
 }
