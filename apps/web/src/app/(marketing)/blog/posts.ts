@@ -105,7 +105,7 @@ Kada instalirate aplikaciju i uključite automatski backup, dobijate **+4GB besp
 Ne. MyPhoto koristi Android Background Fetch koji je optimizovan za minimalnu potrošnju baterije.
 
 **Šta ako nemam dovoljno prostora?**
-Besplatan plan počinje sa 1GB, a sa aplikacijom i backup-om dobijate 5GB. Pozovite prijatelje za do 15GB besplatno, ili nadogradite na Starter plan (150GB za $2.49/mes).
+Besplatan plan počinje sa 1GB, a sa aplikacijom i backup-om dobijate 5GB. Pozovite prijatelje za do 15GB besplatno, ili nadogradite na Starter plan (150GB za €2.49/mes).
 
 **Da li mogu backup-ovati samo određene foldere?**
 Da! U podešavanjima možete izabrati tačno koje foldere želite da backup-ujete.
@@ -150,8 +150,8 @@ Google Photos je najpopularniji servis za čuvanje slika, ali da li je i najbolj
 | Plan | Google One | MyPhoto |
 |---|---|---|
 | Besplatan | 15GB (deljeno) | 1GB + do 14GB bonus |
-| 100-150GB | $1.99/mes | $2.49/mes (150GB) |
-| 200-250GB | $2.99/mes | $3.49/mes (250GB) |
+| 100-150GB | €1.99/mes | €2.49/mes (150GB) |
+| 200-250GB | €2.99/mes | €3.49/mes (250GB) |
 
 Google One deli storage sa Gmail i Drive. MyPhoto je posvećen samo fotografijama.
 

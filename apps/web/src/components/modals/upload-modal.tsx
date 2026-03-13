@@ -99,7 +99,7 @@ export function UploadModal() {
           addNotification({
             type: 'info',
             title: 'Vaše slike su bezbedne!',
-            message: 'Nadogradite za AI pretragu i 15x više prostora — od $2.49/mes',
+            message: 'Nadogradite za AI pretragu i 15x više prostora — od €2.49/mes',
             duration: 8000,
           });
         }, 1500);
@@ -362,7 +362,7 @@ export function UploadModal() {
                       Vaš besplatni prostor je popunjen
                     </p>
                     <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">
-                      Nadogradite na Starter (150 GB) za samo $2.49/mes — 15x više prostora!
+                      Nadogradite na Starter (150 GB) za samo €2.49/mes — 15x više prostora!
                     </p>
                     <div className="mt-3 flex items-center gap-3">
                       <Link

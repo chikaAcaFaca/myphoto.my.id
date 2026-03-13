@@ -52,7 +52,7 @@ const jsonLd = {
       offers: {
         '@type': 'Offer',
         price: '0',
-        priceCurrency: 'USD',
+        priceCurrency: 'EUR',
       },
       url: 'https://myphoto.my.id',
     },
@@ -126,7 +126,7 @@ const FAMILY_FEATURES = [
   'Svako ima privatni prostor za slike',
   'Deljeni porodični album',
   'Jednostavno upravljanje članovima',
-  '$2/mesečno po dodatnom članu',
+  '€2/mesečno po dodatnom članu',
   'Zajednički storage pool',
 ];
 

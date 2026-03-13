@@ -45,7 +45,7 @@ const FAQS = [
   },
   {
     q: 'Is MyPhoto cheaper than Google Photos?',
-    a: 'MyPhoto offers competitive per-GB pricing at $0.017/GB compared to Google One at $0.021/GB. Our 150GB plan starts at $2.49/month, while Google offers 100GB for $2.10/month - making MyPhoto a better value per gigabyte.',
+    a: 'MyPhoto offers competitive per-GB pricing at €0.017/GB compared to Google One at €0.021/GB. Our 150GB plan starts at €2.49/month, while Google offers 100GB for €2.10/month - making MyPhoto a better value per gigabyte.',
   },
   {
     q: 'Does Google Photos use my photos for AI training?',
@@ -128,8 +128,8 @@ const COMPARISON_ROWS = [
   },
   {
     feature: 'Cena po GB',
-    myphoto: '$0.017/GB',
-    google: '$0.021/GB',
+    myphoto: '€0.017/GB',
+    google: '€0.021/GB',
     winner: 'myphoto',
   },
   {
@@ -187,7 +187,7 @@ const REASONS = [
     icon: Zap,
     title: 'Bolja cena po GB',
     description:
-      'MyPhoto nudi $0.017 po GB u odnosu na Google-ovih $0.021 po GB. Više prostora za manje novca.',
+      'MyPhoto nudi €0.017 po GB u odnosu na Google-ovih €0.021 po GB. Više prostora za manje novca.',
   },
 ];
 

@@ -343,67 +343,69 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
     return () => clearTimeout(timer);
   }, [imageError, retryCount]);
 
+  // Video has loaded at least one frame
+  const [videoReady, setVideoReady] = useState(false);
+
   // Auto-play video preview: on hover (desktop) OR periodic auto-play
   const [autoPlaying, setAutoPlaying] = useState(false);
+
+  // On hover (desktop): play continuously
   useEffect(() => {
-    if (!isVideo) return;
+    if (!isVideo || isMobile) return;
     const video = videoPreviewRef.current;
     if (!video) return;
 
-    // On hover (desktop): play immediately
-    if (isHovered && !isSelectionMode && !isMobile) {
+    if (isHovered && !isSelectionMode) {
       video.currentTime = 0;
       video.play().catch(() => {});
       setAutoPlaying(true);
-      return;
-    }
-
-    // When not hovered, pause
-    if (!isHovered && autoPlaying && !isMobile) {
+    } else if (!isHovered && autoPlaying) {
       video.pause();
-      video.currentTime = 0;
       setAutoPlaying(false);
     }
   }, [isHovered, isVideo, isMobile, isSelectionMode, autoPlaying]);
 
-  // Periodic auto-play: every 8s play a 3s preview (both mobile and desktop)
+  // Periodic auto-play: play 3s, pause 3s on frozen frame, repeat
   useEffect(() => {
     if (!isVideo || isSelectionMode) return;
     const video = videoPreviewRef.current;
     if (!video) return;
 
-    // Random initial delay so not all videos play at once (2-12s)
-    const initialDelay = 2000 + Math.random() * 10000;
+    // Random initial delay so not all videos play at once (2-8s)
+    const initialDelay = 2000 + Math.random() * 6000;
     let playTimer: ReturnType<typeof setTimeout>;
-    let stopTimer: ReturnType<typeof setTimeout>;
-    let intervalId: ReturnType<typeof setInterval>;
+    let pauseTimer: ReturnType<typeof setTimeout>;
+    let cycleTimer: ReturnType<typeof setInterval>;
+    let stopped = false;
 
-    const playPreview = () => {
-      if (isHovered) return; // Don't interfere with hover play
+    const cycle = () => {
+      if (stopped || isHovered) return;
+      // Play for 3 seconds
       video.currentTime = 0;
       video.muted = true;
       video.play().catch(() => {});
       setAutoPlaying(true);
-      stopTimer = setTimeout(() => {
+
+      pauseTimer = setTimeout(() => {
+        if (stopped) return;
+        // Pause on current frame (freeze frame visible for 3s)
         video.pause();
-        video.currentTime = 0;
         setAutoPlaying(false);
       }, 3000);
     };
 
     playTimer = setTimeout(() => {
-      playPreview();
-      intervalId = setInterval(playPreview, 10000); // Every 10s after first play
+      cycle();
+      // Total cycle: 3s play + 3s pause = 6s
+      cycleTimer = setInterval(cycle, 6000);
     }, initialDelay);
 
     return () => {
+      stopped = true;
       clearTimeout(playTimer);
-      clearTimeout(stopTimer);
-      clearInterval(intervalId);
-      if (video) {
-        video.pause();
-        video.currentTime = 0;
-      }
+      clearTimeout(pauseTimer);
+      clearInterval(cycleTimer);
+      if (video) video.pause();
     };
   }, [isVideo, isSelectionMode, isHovered]);
 
@@ -533,19 +535,19 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
         />
       )}
 
-      {/* Video preview: plays ON TOP of the static thumbnail */}
+      {/* Video element: always visible once loaded, shows frozen frame when paused */}
       {isVideo && (
         <video
           ref={videoPreviewRef}
           src={`/api/stream/${file.id}`}
           muted
           playsInline
-          loop
-          preload="none"
+          preload="metadata"
           className={cn(
-            'absolute inset-0 h-full w-full object-cover transition-opacity duration-500',
-            autoPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            'absolute inset-0 h-full w-full object-cover transition-opacity duration-300',
+            videoReady ? 'opacity-100' : 'opacity-0'
           )}
+          onLoadedData={() => setVideoReady(true)}
         />
       )}
 

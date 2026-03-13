@@ -224,7 +224,7 @@ function PricingContent() {
               </div>
             </div>
             <p className="mt-3 text-center text-sm text-purple-100">
-              AI funkcije dostupne od $2.99/mesečno - ne samo za premium korisnike
+              AI funkcije dostupne od €2.99/mesečno - ne samo za premium korisnike
             </p>
           </div>
         )}
@@ -267,16 +267,16 @@ function PricingContent() {
                   ) : showSavings ? (
                     <div>
                       <p className={cn('text-base line-through', isPopular ? 'text-primary-200' : 'text-gray-400')}>
-                        ${monthlyBase.toFixed(2)}/mes
+                        €{monthlyBase.toFixed(2)}/mes
                       </p>
                       <p className="text-3xl font-bold text-green-500">
-                        ${monthlyEquiv.toFixed(2)}
+                        €{monthlyEquiv.toFixed(2)}
                         <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
                           /mes
                         </span>
                       </p>
                       <p className={cn('text-sm', isPopular ? 'text-primary-100' : 'text-gray-500')}>
-                        ${periodTotal.toFixed(2)}/{periodConfig.labelShort}
+                        €{periodTotal.toFixed(2)}/{periodConfig.labelShort}
                         {savings > 0 && (
                           <span className="ml-1.5 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
                             -{savings}%
@@ -286,7 +286,7 @@ function PricingContent() {
                     </div>
                   ) : (
                     <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
-                      ${monthlyEquiv.toFixed(2)}
+                      €{monthlyEquiv.toFixed(2)}
                       <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
                         /mes
                       </span>
@@ -378,13 +378,13 @@ function PricingContent() {
                     {showSavings ? (
                       <div className="mt-1">
                         <p className="text-sm text-gray-400 line-through">
-                          ${monthlyBase.toFixed(2)}/mes
+                          €{monthlyBase.toFixed(2)}/mes
                         </p>
                         <p className="text-xl font-bold text-green-500">
-                          ${monthlyEquiv.toFixed(2)}/mes
+                          €{monthlyEquiv.toFixed(2)}/mes
                         </p>
                         <p className="text-sm text-gray-500">
-                          ${periodTotal.toFixed(2)}/{periodConfig.labelShort}
+                          €{periodTotal.toFixed(2)}/{periodConfig.labelShort}
                           {savings > 0 && (
                             <span className="ml-1.5 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
                               -{savings}%
@@ -394,7 +394,7 @@ function PricingContent() {
                       </div>
                     ) : (
                       <p className="mt-1 text-xl font-bold text-primary-600">
-                        ${monthlyEquiv.toFixed(2)}/mes
+                        €{monthlyEquiv.toFixed(2)}/mes
                       </p>
                     )}
                   </div>
@@ -454,7 +454,7 @@ function PricingContent() {
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                  AI funkcije od $2.99/mesečno
+                  AI funkcije od €2.99/mesečno
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
@@ -562,7 +562,7 @@ function PricingContent() {
             />
             <FaqItem
               question="Da li podržavate porodične planove?"
-              answer="Da! Dodajte do 5 članova porodice za $2/mesečno po članu. Svi dele storage pool dok slike ostaju privatne."
+              answer="Da! Dodajte do 5 članova porodice za €2/mesečno po članu. Svi dele storage pool dok slike ostaju privatne."
             />
             <FaqItem
               question="Gde se čuvaju moji podaci?"

@@ -245,13 +245,13 @@ export default async function SharedPhotoPage({ params }: PageProps) {
           <div className="grid gap-4 md:grid-cols-3">
             <PricingCard
               name="Free"
-              price="$0"
+              price="€0"
               storage="1 GB"
               features={['Web & mobile pristup', 'Deljenje slika']}
             />
             <PricingCard
               name="Plus + AI"
-              price="$4.49"
+              price="€4.49"
               storage="250 GB"
               features={['Smart search', 'Face recognition', 'Family sharing']}
               highlighted
@@ -259,7 +259,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             />
             <PricingCard
               name="Pro+ + AI"
-              price="$17.99"
+              price="€17.99"
               storage="1.25 TB"
               features={['Unlimited AI', 'Premium support', 'API pristup']}
             />

@@ -129,7 +129,7 @@ const categories = [
     faqs: [
       {
         question: 'Koje planove nudite?',
-        answer: 'Nudimo besplatan plan (1GB, do 15GB sa bonusima), Plus plan sa AI (250GB od $4.49/mes), i Pro+ plan (1.25TB od $17.99/mes). Detalji na stranici sa cenama.',
+        answer: 'Nudimo besplatan plan (1GB, do 15GB sa bonusima), Plus plan sa AI (250GB od €4.49/mes), i Pro+ plan (1.25TB od €17.99/mes). Detalji na stranici sa cenama.',
       },
       {
         question: 'Da li mogu da otkažem pretplatu?',

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { checkIpRateLimit } from '@/lib/auth-utils';
-import { getObject } from '@/lib/s3';
+import { getObject, objectExists } from '@/lib/s3';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
 
 type ThumbnailSize = 'small' | 'medium' | 'large';
@@ -14,7 +14,6 @@ const SIZE_KEYS: Record<ThumbnailSize, string> = {
 
 /**
  * Verify access to a file via session cookie or share token.
- * Returns { authorized: true } or { authorized: false, response }.
  */
 async function verifyAccess(
   request: NextRequest,
@@ -39,34 +38,35 @@ async function verifyAccess(
       const sharedData = sharedDoc.data()!;
       if (sharedData.isActive) {
         if (sharedData.type === 'album') {
-          // Album share: fileId must be in albumFileIds
           const albumFileIds: string[] = sharedData.albumFileIds || [];
           if (albumFileIds.includes(fileId)) {
             return { authorized: true };
           }
-          return {
-            authorized: false,
-            response: NextResponse.json({ error: 'File not in shared album' }, { status: 403 }),
-          };
+          return { authorized: false, response: NextResponse.json({ error: 'File not in shared album' }, { status: 403 }) };
         } else {
-          // Single file share: fileId must match
           if (sharedData.fileId === fileId) {
             return { authorized: true };
           }
-          return {
-            authorized: false,
-            response: NextResponse.json({ error: 'File not matching share' }, { status: 403 }),
-          };
+          return { authorized: false, response: NextResponse.json({ error: 'File not matching share' }, { status: 403 }) };
         }
       }
     }
   }
 
-  // Neither valid session nor valid share token
-  return {
-    authorized: false,
-    response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
-  };
+  return { authorized: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+}
+
+/**
+ * Safely try to get an S3 object. Returns null if not found.
+ */
+async function safeGetObject(key: string): Promise<{ body: ReadableStream; contentType: string } | null> {
+  try {
+    return await getObject(key);
+  } catch (error: any) {
+    // S3 NoSuchKey, 404, or any other error
+    console.warn(`S3 object not found: ${key}`, error?.name || error?.message);
+    return null;
+  }
 }
 
 export async function GET(
@@ -74,61 +74,73 @@ export async function GET(
   { params }: { params: { fileId: string } }
 ) {
   try {
-    // Check IP-based rate limit
     const rateLimitResult = await checkIpRateLimit(request, 'download');
     if (!rateLimitResult.success) {
       return rateLimitResult.response;
     }
 
     const { fileId } = params;
-
-    // Parse size param (default: medium)
     const url = new URL(request.url);
     const sizeParam = url.searchParams.get('size') as ThumbnailSize | null;
     const size: ThumbnailSize = sizeParam && SIZE_KEYS[sizeParam] ? sizeParam : 'medium';
 
-    // Get file document
     const fileDoc = await db.collection('files').doc(fileId).get();
-
     if (!fileDoc.exists) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
     const fileData = fileDoc.data()!;
 
-    // Access control check
     const access = await verifyAccess(request, fileId, fileData);
     if (!access.authorized) {
       return access.response;
     }
 
-    // Pick the best available key for the requested size
-    // Fallback chain: requested size → medium (thumbnailKey) → skip (don't serve original video!)
-    const key =
-      fileData[SIZE_KEYS[size]] ||
-      fileData.thumbnailKey ||
-      (size !== 'large' ? fileData.thumbnailKey : null);
+    // Build ordered list of S3 keys to try
+    const keysToTry: string[] = [];
 
-    if (!key) {
-      // No thumbnail available at all — return a 404 instead of serving the original file
-      // (avoids serving full-size videos as "thumbnails")
-      return NextResponse.json({ error: 'Thumbnail not available' }, { status: 404 });
+    // 1. Requested size
+    const requestedKey = fileData[SIZE_KEYS[size]] as string | undefined;
+    if (requestedKey) keysToTry.push(requestedKey);
+
+    // 2. Medium thumbnail (most commonly available)
+    if (fileData.thumbnailKey && !keysToTry.includes(fileData.thumbnailKey as string)) {
+      keysToTry.push(fileData.thumbnailKey as string);
     }
 
-    // Proxy the object from S3
-    const { body, contentType } = await getObject(key);
+    // 3. Small thumbnail
+    if (fileData.smallThumbKey && !keysToTry.includes(fileData.smallThumbKey as string)) {
+      keysToTry.push(fileData.smallThumbKey as string);
+    }
 
-    return new Response(body, {
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'private, max-age=3600',
-      },
-    });
+    // 4. Large thumbnail
+    if (fileData.largeThumbKey && !keysToTry.includes(fileData.largeThumbKey as string)) {
+      keysToTry.push(fileData.largeThumbKey as string);
+    }
+
+    // 5. For images only: fall back to original file (will be served as-is)
+    const isImage = (fileData.type === 'image' || (fileData.mimeType as string)?.startsWith('image/'));
+    if (isImage && fileData.s3Key) {
+      keysToTry.push(fileData.s3Key as string);
+    }
+
+    // Try each key in order until one works
+    for (const key of keysToTry) {
+      const result = await safeGetObject(key);
+      if (result) {
+        return new Response(result.body, {
+          headers: {
+            'Content-Type': result.contentType,
+            'Cache-Control': 'private, max-age=3600',
+          },
+        });
+      }
+    }
+
+    // Nothing found at all
+    return NextResponse.json({ error: 'Thumbnail not available' }, { status: 404 });
   } catch (error) {
     console.error('Error getting thumbnail:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

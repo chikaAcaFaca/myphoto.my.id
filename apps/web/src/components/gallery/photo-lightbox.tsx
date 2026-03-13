@@ -7,7 +7,6 @@ import {
   useRef,
   useMemo,
 } from 'react';
-import Image from 'next/image';
 import { motion, AnimatePresence, type PanInfo } from 'framer-motion';
 import {
   X,
@@ -528,30 +527,26 @@ function ZoomableImage({ file, onZoomChange }: { file: FileMetadata; onZoomChang
         }}
       >
         {/* Thumbnail shown immediately */}
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={thumbnailUrl}
           alt={file.name}
-          width={file.width || 1920}
-          height={file.height || 1080}
           className={cn(
             'max-h-screen max-w-full object-contain',
             isFullResLoaded ? 'hidden' : 'block'
           )}
-          priority
           draggable={false}
         />
         {/* Full-res loaded in background, swapped when ready */}
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={fullResUrl}
           alt={file.name}
-          width={file.width || 1920}
-          height={file.height || 1080}
           className={cn(
             'max-h-screen max-w-full object-contain',
             isFullResLoaded ? 'block' : 'hidden'
           )}
           onLoad={() => setIsFullResLoaded(true)}
-          priority
           draggable={false}
         />
       </div>
@@ -663,11 +658,10 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
     return (
       <div className="flex items-center justify-center">
         <div className="relative">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={thumbnailUrl}
             alt={file.name}
-            width={file.width || 1920}
-            height={file.height || 1080}
             className="max-h-screen max-w-full object-contain opacity-30"
           />
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
@@ -1062,11 +1056,10 @@ function InfoContent({ file }: { file: FileMetadata }) {
     <div className="space-y-5">
       {/* Thumbnail preview */}
       <div className="overflow-hidden rounded-lg">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={`/api/thumbnail/${file.id}?size=small`}
           alt={file.name}
-          width={320}
-          height={200}
           className="w-full object-cover"
         />
       </div>

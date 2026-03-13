@@ -1,5 +1,9 @@
 import type { StorageTier } from '../types';
 
+// Currency
+export const CURRENCY_SYMBOL = '€';
+export const CURRENCY_CODE = 'EUR';
+
 // Storage Constants
 export const BYTES_PER_GB = 1024 * 1024 * 1024;
 export const BYTES_PER_TB = BYTES_PER_GB * 1024;
@@ -62,6 +66,36 @@ export const STORAGE_TIERS: StorageTier[] = [
     ],
   },
   {
+    tier: 0.5,
+    name: 'MyDisk',
+    storageBytes: 50 * BYTES_PER_GB,
+    storageDisplay: '50 GB',
+    priceMonthly: 0.99,
+    priceQuarterly: 2.90,
+    priceSemiAnnual: 5.64,
+    priceYearly: 9.90,
+    paddleProductId: 'pri_mydisk_monthly',
+    paddleQuarterlyId: 'pri_mydisk_quarterly',
+    paddleSemiAnnualId: 'pri_mydisk_semiannual',
+    paddleYearlyId: 'pri_mydisk_yearly',
+    priceMonthlyAI: 0,
+    priceQuarterlyAI: 0,
+    priceSemiAnnualAI: 0,
+    priceYearlyAI: 0,
+    paddleProductIdAI: '',
+    paddleQuarterlyIdAI: '',
+    paddleSemiAnnualIdAI: '',
+    paddleYearlyIdAI: '',
+    features: [
+      'MyDisk — cloud folder storage',
+      '50 GB cloud prostora',
+      'Desktop sync aplikacija',
+      'Folder organizacija',
+      'Upload svih tipova fajlova',
+    ],
+    aiFeatures: [],
+  },
+  {
     tier: 1,
     name: 'Starter',
     storageBytes: 150 * BYTES_PER_GB,
@@ -83,11 +117,13 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleSemiAnnualIdAI: 'pri_starter_ai_semiannual',
     paddleYearlyIdAI: 'pri_starter_ai_yearly',
     features: [
+      'MyDisk uključen',
       'Web & mobile access',
       'Automatic backups',
       'Album sharing',
       'Original quality storage',
       'Priority upload',
+      'Desktop sync',
     ],
     aiFeatures: [
       'Smart search',
@@ -117,11 +153,13 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleSemiAnnualIdAI: 'pri_plus_ai_semiannual',
     paddleYearlyIdAI: 'pri_plus_ai_yearly',
     features: [
+      'MyDisk uključen',
       'Web & mobile access',
       'Automatic backups',
       'Album sharing',
       'Original quality storage',
       'Priority upload',
+      'Desktop sync',
     ],
     aiFeatures: [
       'Smart search',
@@ -152,12 +190,14 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleSemiAnnualIdAI: 'pri_standard_ai_semiannual',
     paddleYearlyIdAI: 'pri_standard_ai_yearly',
     features: [
+      'MyDisk uključen',
       'Web & mobile access',
       'Automatic backups',
       'Album sharing',
       'Original quality storage',
       'Priority upload',
       'Family sharing (up to 5)',
+      'Desktop sync',
     ],
     aiFeatures: [
       'Smart search',
@@ -188,6 +228,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleSemiAnnualIdAI: 'pri_pro_ai_semiannual',
     paddleYearlyIdAI: 'pri_pro_ai_yearly',
     features: [
+      'MyDisk uključen',
       'Web & mobile access',
       'Automatic backups',
       'Album sharing',
@@ -195,6 +236,7 @@ export const STORAGE_TIERS: StorageTier[] = [
       'Priority upload',
       'Family sharing (up to 5)',
       'Premium support',
+      'Desktop sync',
     ],
     aiFeatures: [
       'Smart search',
@@ -226,6 +268,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleSemiAnnualIdAI: 'pri_proplus_ai_semiannual',
     paddleYearlyIdAI: 'pri_proplus_ai_yearly',
     features: [
+      'MyDisk uključen',
       'Web & mobile access',
       'Automatic backups',
       'Album sharing',
@@ -233,6 +276,7 @@ export const STORAGE_TIERS: StorageTier[] = [
       'Priority upload',
       'Family sharing (up to 5)',
       'Premium support',
+      'Desktop sync',
     ],
     aiFeatures: [
       'Unlimited AI features',
@@ -265,6 +309,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleSemiAnnualIdAI: 'pri_premium_ai_semiannual',
     paddleYearlyIdAI: 'pri_premium_ai_yearly',
     features: [
+      'MyDisk uključen',
       'Web & mobile access',
       'Automatic backups',
       'Album sharing',
@@ -272,6 +317,7 @@ export const STORAGE_TIERS: StorageTier[] = [
       'Priority upload',
       'Family sharing (up to 5)',
       'Premium support',
+      'Desktop sync',
       'API access',
     ],
     aiFeatures: [
@@ -306,11 +352,13 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleSemiAnnualIdAI: 'pri_business_ai_semiannual',
     paddleYearlyIdAI: 'pri_business_ai_yearly',
     features: [
+      'MyDisk uključen',
       'Everything in Premium',
       'Team management',
       'Advanced sharing controls',
       'Audit logs',
       'SSO integration',
+      'Desktop sync',
     ],
     aiFeatures: [
       'Unlimited AI features',
@@ -341,11 +389,13 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleSemiAnnualIdAI: 'pri_enterprise_ai_semiannual',
     paddleYearlyIdAI: 'pri_enterprise_ai_yearly',
     features: [
+      'MyDisk uključen',
       'Everything in Business',
       'Dedicated support',
       'Custom integrations',
       'SLA guarantee',
       'On-premise option',
+      'Desktop sync',
     ],
     aiFeatures: [
       'Unlimited AI features',

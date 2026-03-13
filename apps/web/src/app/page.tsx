@@ -937,8 +937,8 @@ const COMPARISON_ROWS: { feature: string; myphoto: boolean | string; google: boo
   { feature: 'EU serveri', myphoto: true, google: false, icloud: false },
   { feature: 'GDPR usklađenost', myphoto: true, google: 'Delimično', icloud: 'Delimično' },
   { feature: 'Bez AI treninga na vašim slikama', myphoto: true, google: false, icloud: true },
-  { feature: 'Početni plan', myphoto: '150 GB — $2.49', google: '100 GB — $2.10', icloud: '50 GB — $0.99' },
-  { feature: 'Cena po GB', myphoto: '$0.017/GB', google: '$0.021/GB', icloud: '$0.020/GB' },
+  { feature: 'Početni plan', myphoto: '150 GB — €2.49', google: '100 GB — €2.10', icloud: '50 GB — €0.99' },
+  { feature: 'Cena po GB', myphoto: '€0.017/GB', google: '€0.021/GB', icloud: '€0.020/GB' },
   { feature: 'Family sharing', myphoto: true, google: true, icloud: true },
 ];
 

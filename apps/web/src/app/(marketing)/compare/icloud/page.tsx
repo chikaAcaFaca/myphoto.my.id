@@ -45,7 +45,7 @@ const FAQS = [
   },
   {
     q: 'Is MyPhoto cheaper than iCloud?',
-    a: 'MyPhoto offers $0.017/GB compared to iCloud at $0.020/GB. Plus, MyPhoto provides more flexible storage tiers from 150GB to 10TB, while iCloud jumps from 50GB to 200GB with fewer options.',
+    a: 'MyPhoto offers €0.017/GB compared to iCloud at €0.020/GB. Plus, MyPhoto provides more flexible storage tiers from 150GB to 10TB, while iCloud jumps from 50GB to 200GB with fewer options.',
   },
   {
     q: 'Can I transfer my photos from iCloud to MyPhoto?',
@@ -110,14 +110,14 @@ const COMPARISON_ROWS = [
   },
   {
     feature: 'Cena po GB',
-    myphoto: '$0.017/GB',
-    icloud: '$0.020/GB',
+    myphoto: '€0.017/GB',
+    icloud: '€0.020/GB',
     winner: 'myphoto',
   },
   {
     feature: 'Početni plan',
-    myphoto: '150 GB — $2.49/mes',
-    icloud: '50 GB — $0.99/mes',
+    myphoto: '150 GB — €2.49/mes',
+    icloud: '50 GB — €0.99/mes',
     winner: 'tie',
   },
   {
@@ -187,7 +187,7 @@ const ADVANTAGES = [
     icon: Zap,
     title: 'Bolja cena po GB',
     description:
-      'MyPhoto nudi $0.017 po GB, u poređenju sa iCloud-ovih $0.020 po GB. Više prostora za vaš novac.',
+      'MyPhoto nudi €0.017 po GB, u poređenju sa iCloud-ovih €0.020 po GB. Više prostora za vaš novac.',
   },
 ];
 

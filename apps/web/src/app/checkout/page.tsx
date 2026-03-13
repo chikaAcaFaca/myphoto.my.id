@@ -189,12 +189,12 @@ function CheckoutContent() {
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-300">Ukupno za period</span>
-                <span className="text-2xl font-bold text-primary-600">${priceTotal.toFixed(2)}</span>
+                <span className="text-2xl font-bold text-primary-600">€{priceTotal.toFixed(2)}</span>
               </div>
               {period !== 'monthly' && (
                 <div className="mt-1 flex items-center justify-between">
                   <span className="text-sm text-gray-500">Mesečno ekvivalent</span>
-                  <span className="text-sm text-gray-500">${priceMonthly.toFixed(2)}/mes</span>
+                  <span className="text-sm text-gray-500">€{priceMonthly.toFixed(2)}/mes</span>
                 </div>
               )}
             </div>
@@ -268,7 +268,7 @@ function CheckoutContent() {
                     ) : (
                       <>
                         <CreditCard className="h-5 w-5" />
-                        Nastavi na plaćanje — ${priceTotal.toFixed(2)}
+                        Nastavi na plaćanje — €{priceTotal.toFixed(2)}
                       </>
                     )}
                   </button>

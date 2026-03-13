@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Search,
   Copy,
+  HardDrive,
   FileText,
   Shield,
   Download,
@@ -38,6 +39,7 @@ const mainNav = [
   { name: 'Omiljeno', href: '/favorites', icon: Heart },
   { name: 'Arhiva', href: '/archive', icon: Archive },
   { name: 'Uspomene', href: '/memories', icon: Clock },
+  { name: 'MyDisk', href: '/mydisk', icon: HardDrive },
 ];
 
 const secondaryNav = [
@@ -212,7 +214,7 @@ export function Sidebar() {
                   className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
                 >
                   <Crown className="h-4 w-4 flex-shrink-0" />
-                  <span>Ostalo vam je {storage.remainingFormatted} — nadogradite od $2.49/mes</span>
+                  <span>Ostalo vam je {storage.remainingFormatted} — nadogradite od €2.49/mes</span>
                 </Link>
               ) : (
                 <Link
@@ -220,7 +222,7 @@ export function Sidebar() {
                   className="mt-2 flex items-center gap-1.5 text-xs text-primary-500 hover:underline"
                 >
                   <Crown className="h-3.5 w-3.5" />
-                  Nadogradi — 15x više prostora od $2.49/mes
+                  Nadogradi — 15x više prostora od €2.49/mes
                 </Link>
               )
             ) : (
@@ -240,7 +242,7 @@ export function Sidebar() {
             <Link
               href="/checkout?tier=1&ai=false&period=monthly"
               className="flex items-center justify-center rounded-lg p-2 text-amber-600 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
-              title="Nadogradi — 15x više prostora od $2.49/mes"
+              title="Nadogradi — 15x više prostora od €2.49/mes"
             >
               <Crown className="h-5 w-5" />
             </Link>
