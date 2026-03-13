@@ -511,7 +511,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
         </div>
       )}
 
-      {/* Thumbnail: local blob URL or server URL */}
+      {/* Thumbnail: ALWAYS visible as base layer (local blob or server URL) */}
       {localThumbUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -519,7 +519,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
           alt={file.name}
           className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
         />
-      ) : !imageError ? (
+      ) : (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={thumbnailUrl}
@@ -531,9 +531,9 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
           onLoad={() => { setImageLoaded(true); setImageError(false); }}
           onError={() => setImageError(true)}
         />
-      ) : null}
+      )}
 
-      {/* Video preview (auto-play periodically + on hover) */}
+      {/* Video preview: plays ON TOP of the static thumbnail */}
       {isVideo && (
         <video
           ref={videoPreviewRef}
@@ -544,7 +544,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
           preload="none"
           className={cn(
             'absolute inset-0 h-full w-full object-cover transition-opacity duration-500',
-            autoPlaying ? 'opacity-100' : 'opacity-0'
+            autoPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'
           )}
         />
       )}
