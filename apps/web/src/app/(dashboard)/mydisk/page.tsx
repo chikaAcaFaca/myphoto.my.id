@@ -1,0 +1,1358 @@
+'use client';
+
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  HardDrive,
+  Folder,
+  FolderPlus,
+  Upload,
+  Download,
+  Trash2,
+  ChevronRight,
+  File,
+  FileText,
+  FileImage,
+  FileVideo,
+  FileAudio,
+  FileArchive,
+  MoreVertical,
+  ArrowLeft,
+  Pencil,
+  X,
+  Check,
+  Loader2,
+  FolderInput,
+  CheckSquare,
+  Square,
+} from 'lucide-react';
+import { useAuthStore, useUIStore } from '@/lib/stores';
+import { getIdToken } from '@/lib/firebase';
+import { cn } from '@/lib/utils';
+
+interface DiskFolder {
+  id: string;
+  name: string;
+  parentId: string;
+  path: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DiskFile {
+  id: string;
+  name: string;
+  s3Key: string;
+  mimeType: string;
+  size: number;
+  folderId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const getFileIcon = (mimeType: string) => {
+  if (mimeType.startsWith('image/')) return FileImage;
+  if (mimeType.startsWith('video/')) return FileVideo;
+  if (mimeType.startsWith('audio/')) return FileAudio;
+  if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('tar') || mimeType.includes('gz'))
+    return FileArchive;
+  if (mimeType.includes('pdf') || mimeType.includes('doc') || mimeType.includes('text'))
+    return FileText;
+  return File;
+};
+
+const formatSize = (bytes: number) => {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('sr-Latn', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+export default function MyDiskPage() {
+  const { user } = useAuthStore();
+  const { addNotification } = useUIStore();
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [currentFolderId, setCurrentFolderId] = useState('root');
+  const [breadcrumbs, setBreadcrumbs] = useState<{ id: string; name: string }[]>([]);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; type: 'folder' | 'file' | 'background'; item: any } | null>(null);
+  const [clipboard, setClipboard] = useState<{ action: 'copy' | 'cut'; files: DiskFile[]; folders: DiskFolder[] } | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewFile, setPreviewFile] = useState<DiskFile | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [moving, setMoving] = useState(false);
+
+  // Fetch current folder contents
+  const { data, isLoading } = useQuery({
+    queryKey: ['mydisk', currentFolderId, user?.id],
+    queryFn: async () => {
+      const token = await getIdToken();
+      const res = await fetch(`/api/folders?parentId=${currentFolderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch');
+      return res.json() as Promise<{ folders: DiskFolder[]; files: DiskFile[] }>;
+    },
+    enabled: !!user,
+  });
+
+  const folders = data?.folders || [];
+  const files = data?.files || [];
+
+  const selectionCount = selectedFiles.size + selectedFolders.size;
+  const hasSelection = selectionCount > 0;
+
+  const clearSelection = useCallback(() => {
+    setSelectedFiles(new Set());
+    setSelectedFolders(new Set());
+  }, []);
+
+  const toggleFileSelection = useCallback((fileId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId);
+      else next.add(fileId);
+      return next;
+    });
+  }, []);
+
+  const toggleFolderSelection = useCallback((folderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedFolders((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedFiles(new Set(files.map((f) => f.id)));
+    setSelectedFolders(new Set(folders.map((f) => f.id)));
+  }, [files, folders]);
+
+  // Navigate into a folder
+  const navigateToFolder = useCallback((folder: DiskFolder) => {
+    setBreadcrumbs((prev) => [...prev, { id: folder.id, name: folder.name }]);
+    setCurrentFolderId(folder.id);
+    clearSelection();
+  }, [clearSelection]);
+
+  // Navigate back to a breadcrumb
+  const navigateToBreadcrumb = useCallback((index: number) => {
+    if (index === -1) {
+      setBreadcrumbs([]);
+      setCurrentFolderId('root');
+    } else {
+      setBreadcrumbs((prev) => prev.slice(0, index + 1));
+      setCurrentFolderId(breadcrumbs[index].id);
+    }
+    clearSelection();
+  }, [breadcrumbs, clearSelection]);
+
+  // Create folder mutation
+  const createFolderMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const token = await getIdToken();
+      const res = await fetch('/api/folders', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, parentId: currentFolderId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      setShowNewFolder(false);
+      setNewFolderName('');
+    },
+    onError: (err: Error) => {
+      addNotification({ type: 'error', title: 'Greška', message: err.message });
+    },
+  });
+
+  // Delete folder mutation
+  const deleteFolderMutation = useMutation({
+    mutationFn: async (folderId: string) => {
+      const token = await getIdToken();
+      const res = await fetch(`/api/folders?folderId=${folderId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      addNotification({ type: 'success', title: 'Folder obrisan' });
+    },
+  });
+
+  // Rename folder mutation
+  const renameFolderMutation = useMutation({
+    mutationFn: async ({ folderId, name }: { folderId: string; name: string }) => {
+      const token = await getIdToken();
+      const res = await fetch('/api/folders', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId, name }),
+      });
+      if (!res.ok) throw new Error('Failed');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      setRenamingId(null);
+    },
+  });
+
+  // Delete file mutation
+  const deleteFileMutation = useMutation({
+    mutationFn: async (fileId: string) => {
+      const token = await getIdToken();
+      const res = await fetch(`/api/disk-files?fileId=${fileId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      addNotification({ type: 'success', title: 'Fajl obrisan' });
+    },
+  });
+
+  // Move selected items
+  const handleMoveItems = async (targetFolderId: string) => {
+    setMoving(true);
+    try {
+      const token = await getIdToken();
+      const res = await fetch('/api/disk-files', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'move',
+          fileIds: Array.from(selectedFiles),
+          folderIds: Array.from(selectedFolders),
+          targetFolderId,
+        }),
+      });
+      if (!res.ok) throw new Error('Move failed');
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      addNotification({ type: 'success', title: `${selectionCount} stavki premešteno` });
+      clearSelection();
+      setShowMoveModal(false);
+    } catch {
+      addNotification({ type: 'error', title: 'Greška pri premeštanju' });
+    } finally {
+      setMoving(false);
+    }
+  };
+
+  // Delete selected items
+  const handleDeleteSelected = async () => {
+    try {
+      const token = await getIdToken();
+      for (const fileId of selectedFiles) {
+        await fetch(`/api/disk-files?fileId=${fileId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+      for (const folderId of selectedFolders) {
+        await fetch(`/api/folders?folderId=${folderId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      addNotification({ type: 'success', title: `${selectionCount} stavki obrisano` });
+      clearSelection();
+    } catch {
+      addNotification({ type: 'error', title: 'Greška pri brisanju' });
+    }
+  };
+
+  // Copy/cut selected items to clipboard
+  const handleCopy = (action: 'copy' | 'cut') => {
+    const clipFiles = files.filter((f) => selectedFiles.has(f.id));
+    const clipFolders = folders.filter((f) => selectedFolders.has(f.id));
+    setClipboard({ action, files: clipFiles, folders: clipFolders });
+    addNotification({ type: 'success', title: `${selectionCount} stavki ${action === 'copy' ? 'kopirano' : 'isečeno'}` });
+    if (action === 'cut') clearSelection();
+  };
+
+  // Paste from clipboard
+  const handlePaste = async () => {
+    if (!clipboard) return;
+    try {
+      const token = await getIdToken();
+      if (clipboard.action === 'cut') {
+        // Move items
+        await fetch('/api/disk-files', {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'move',
+            fileIds: clipboard.files.map((f) => f.id),
+            folderIds: clipboard.folders.map((f) => f.id),
+            targetFolderId: currentFolderId,
+          }),
+        });
+        setClipboard(null);
+      } else {
+        // Copy: for now just move (true copy would need S3 copy, show info)
+        addNotification({ type: 'info', title: 'Kopiranje fajlova nije još podržano, koristite Cut + Paste' });
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      addNotification({ type: 'success', title: 'Stavke premeštene' });
+    } catch {
+      addNotification({ type: 'error', title: 'Greška pri lepljenju' });
+    }
+  };
+
+  // Open file directly (download and open in new tab for supported types)
+  const handleOpenFileDirect = async (file: DiskFile) => {
+    try {
+      const token = await getIdToken();
+      const res = await fetch(`/api/disk-files/download?fileId=${file.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      // Open in new tab so the OS/browser handles it
+      window.open(url, '_blank');
+    } catch {
+      addNotification({ type: 'error', title: 'Ne mogu da otvorim fajl' });
+    }
+  };
+
+  // File upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles || selectedFiles.length === 0) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    const total = selectedFiles.length;
+    let completed = 0;
+
+    try {
+      const token = await getIdToken();
+
+      for (const file of Array.from(selectedFiles)) {
+        // 1. Get presigned URL
+        const urlRes = await fetch('/api/disk-files', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            size: file.size,
+            folderId: currentFolderId,
+          }),
+        });
+
+        if (!urlRes.ok) {
+          const err = await urlRes.json();
+          throw new Error(err.error || 'Failed to get upload URL');
+        }
+
+        const { uploadUrl, fileId, s3Key } = await urlRes.json();
+
+        // 2. Upload to S3
+        await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        });
+
+        // 3. Confirm upload
+        await fetch('/api/disk-files', {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileId,
+            s3Key,
+            filename: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            size: file.size,
+            folderId: currentFolderId,
+          }),
+        });
+
+        completed++;
+        setUploadProgress(Math.round((completed / total) * 100));
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      addNotification({
+        type: 'success',
+        title: 'Upload završen',
+        message: `${total} fajl(ova) uspešno uploadovano`,
+      });
+    } catch (err: any) {
+      addNotification({
+        type: 'error',
+        title: 'Upload greška',
+        message: err.message || 'Upload nije uspeo',
+      });
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+      e.target.value = '';
+    }
+  };
+
+  // Open/preview file
+  const handleOpenFile = async (file: DiskFile) => {
+    const mime = file.mimeType;
+    // Types that can be previewed in browser
+    const previewable = mime.startsWith('image/') || mime.startsWith('video/') ||
+      mime.startsWith('audio/') || mime === 'application/pdf' || mime.startsWith('text/');
+
+    // For Office docs, use Google Docs Viewer or Microsoft Office Online
+    const isOfficeDoc = mime.includes('word') || mime.includes('document') ||
+      mime.includes('spreadsheet') || mime.includes('excel') ||
+      mime.includes('presentation') || mime.includes('powerpoint');
+
+    setPreviewFile(file);
+    setPreviewLoading(true);
+
+    try {
+      const token = await getIdToken();
+      const res = await fetch(`/api/disk-files/download?fileId=${file.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to load file');
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setPreviewUrl(url);
+    } catch {
+      addNotification({ type: 'error', title: 'Ne mogu da otvorim fajl' });
+      setPreviewFile(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewFile(null);
+    setPreviewUrl(null);
+  };
+
+  // Download file
+  const handleDownload = async (file: DiskFile) => {
+    try {
+      const token = await getIdToken();
+      const res = await fetch(`/api/disk-files/download?fileId=${file.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      addNotification({ type: 'error', title: 'Download greška' });
+    }
+  };
+
+  // Close context menu on click outside
+  const handlePageClick = () => setContextMenu(null);
+
+  return (
+    <div
+      className="space-y-4"
+      onClick={handlePageClick}
+      onContextMenu={(e) => {
+        // Only show background context menu if right-clicking on the page background
+        const target = e.target as HTMLElement;
+        if (target.closest('[data-item-row]')) return; // Don't override item context menus
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, type: 'background', item: null });
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
+            <HardDrive className="h-6 w-6 text-primary-500" />
+            MyDisk
+          </h1>
+          <p className="text-sm text-gray-500">Vaši fajlovi organizovani po folderima</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowNewFolder(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+          >
+            <FolderPlus className="h-4 w-4" />
+            Novi folder
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Upload
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+        </div>
+      </div>
+
+      {/* Upload progress */}
+      {uploading && (
+        <div className="rounded-lg border border-primary-200 bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
+          <div className="mb-1 flex justify-between text-sm">
+            <span>Uploading...</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div className="h-1.5 overflow-hidden rounded-full bg-primary-200 dark:bg-primary-800">
+            <div
+              className="h-full rounded-full bg-primary-500 transition-all"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Breadcrumbs */}
+      <div className="flex items-center gap-1 text-sm">
+        <button
+          onClick={() => navigateToBreadcrumb(-1)}
+          className={cn(
+            'flex items-center gap-1 rounded px-2 py-1 font-medium',
+            currentFolderId === 'root'
+              ? 'text-primary-600 dark:text-primary-400'
+              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+          )}
+        >
+          <HardDrive className="h-3.5 w-3.5" />
+          C:
+        </button>
+        {breadcrumbs.map((bc, i) => (
+          <div key={bc.id} className="flex items-center gap-1">
+            <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+            <button
+              onClick={() => navigateToBreadcrumb(i)}
+              className={cn(
+                'rounded px-2 py-1 font-medium',
+                i === breadcrumbs.length - 1
+                  ? 'text-primary-600 dark:text-primary-400'
+                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+              )}
+            >
+              {bc.name}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* New folder input */}
+      <AnimatePresence>
+        {showNewFolder && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 p-3 dark:border-primary-700 dark:bg-primary-900/20">
+              <Folder className="h-5 w-5 text-primary-500" />
+              <input
+                autoFocus
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newFolderName.trim()) {
+                    createFolderMutation.mutate(newFolderName.trim());
+                  }
+                  if (e.key === 'Escape') {
+                    setShowNewFolder(false);
+                    setNewFolderName('');
+                  }
+                }}
+                placeholder="Naziv foldera..."
+                className="flex-1 bg-transparent text-sm outline-none"
+              />
+              <button
+                onClick={() => {
+                  if (newFolderName.trim()) createFolderMutation.mutate(newFolderName.trim());
+                }}
+                disabled={!newFolderName.trim()}
+                className="rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-30"
+              >
+                <Check className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Loading skeleton */}
+      {isLoading && (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-gray-200 dark:bg-gray-700" />
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && folders.length === 0 && files.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="mb-6 rounded-full bg-gray-100 p-6 dark:bg-gray-800">
+            <HardDrive className="h-12 w-12 text-gray-400" />
+          </div>
+          <h2 className="text-xl font-semibold">Prazan folder</h2>
+          <p className="mt-2 max-w-md text-gray-500">
+            {currentFolderId === 'root'
+              ? 'Kreirajte foldere i uploadujte fajlove za početak'
+              : 'Ovaj folder je prazan. Uploadujte fajlove ili kreirajte podfoldere.'}
+          </p>
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={() => setShowNewFolder(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              <FolderPlus className="h-4 w-4" />
+              Novi folder
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
+            >
+              <Upload className="h-4 w-4" />
+              Upload fajlove
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* File list */}
+      {!isLoading && (folders.length > 0 || files.length > 0) && (
+        <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+          {/* Table header */}
+          <div className="grid grid-cols-[32px_1fr_120px_160px_40px] gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800/50">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (hasSelection) clearSelection();
+                else selectAll();
+              }}
+              className="flex items-center justify-center"
+            >
+              {hasSelection ? (
+                <CheckSquare className="h-4 w-4 text-primary-500" />
+              ) : (
+                <Square className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+            <span>Naziv</span>
+            <span>Veličina</span>
+            <span>Izmenjeno</span>
+            <span />
+          </div>
+
+          {/* Back button (if not root) */}
+          {currentFolderId !== 'root' && (
+            <button
+              onClick={() => navigateToBreadcrumb(breadcrumbs.length - 2)}
+              className="grid w-full grid-cols-[32px_1fr_120px_160px_40px] gap-2 border-b border-gray-100 px-4 py-2.5 text-left text-sm hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+            >
+              <span />
+              <span className="flex items-center gap-3 font-medium text-gray-600 dark:text-gray-400">
+                <ArrowLeft className="h-4 w-4" />
+                ..
+              </span>
+              <span />
+              <span />
+              <span />
+            </button>
+          )}
+
+          {/* Folders */}
+          {folders.map((folder) => {
+            const isFolderSelected = selectedFolders.has(folder.id);
+            return (
+              <div
+                key={folder.id}
+                onDoubleClick={() => navigateToFolder(folder)}
+                onClick={() => {
+                  if (hasSelection) {
+                    setSelectedFolders((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(folder.id)) next.delete(folder.id);
+                      else next.add(folder.id);
+                      return next;
+                    });
+                  } else {
+                    navigateToFolder(folder);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', item: folder });
+                }}
+                data-item-row
+                className={cn(
+                  'grid cursor-pointer grid-cols-[32px_1fr_120px_160px_40px] gap-2 border-b border-gray-100 px-4 py-2.5 text-sm hover:bg-blue-50 dark:border-gray-800 dark:hover:bg-blue-900/10',
+                  isFolderSelected && 'bg-primary-50 dark:bg-primary-900/20'
+                )}
+              >
+                <button
+                  onClick={(e) => toggleFolderSelection(folder.id, e)}
+                  className="flex items-center justify-center"
+                >
+                  {isFolderSelected ? (
+                    <CheckSquare className="h-4 w-4 text-primary-500" />
+                  ) : (
+                    <Square className="h-4 w-4 text-gray-300 group-hover:text-gray-400" />
+                  )}
+                </button>
+                <span className="flex items-center gap-3 font-medium">
+                  {renamingId === folder.id ? (
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Folder className="h-5 w-5 text-yellow-500" />
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && renameValue.trim()) {
+                            renameFolderMutation.mutate({ folderId: folder.id, name: renameValue.trim() });
+                          }
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                        className="rounded border border-primary-300 px-2 py-0.5 text-sm outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <Folder className="h-5 w-5 text-yellow-500" />
+                      {folder.name}
+                    </>
+                  )}
+                </span>
+                <span className="text-gray-400">—</span>
+                <span className="text-gray-500">{formatDate(folder.createdAt)}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', item: folder });
+                  }}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Files */}
+          {files.map((file) => {
+            const Icon = getFileIcon(file.mimeType);
+            const isFileSelected = selectedFiles.has(file.id);
+            return (
+              <div
+                key={file.id}
+                onClick={() => {
+                  if (hasSelection) {
+                    setSelectedFiles((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(file.id)) next.delete(file.id);
+                      else next.add(file.id);
+                      return next;
+                    });
+                  } else {
+                    handleOpenFile(file);
+                  }
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, type: 'file', item: file });
+                }}
+                data-item-row
+                className={cn(
+                  'grid cursor-pointer grid-cols-[32px_1fr_120px_160px_40px] gap-2 border-b border-gray-100 px-4 py-2.5 text-sm hover:bg-blue-50 dark:border-gray-800 dark:hover:bg-blue-900/10',
+                  isFileSelected && 'bg-primary-50 dark:bg-primary-900/20'
+                )}
+              >
+                <button
+                  onClick={(e) => toggleFileSelection(file.id, e)}
+                  className="flex items-center justify-center"
+                >
+                  {isFileSelected ? (
+                    <CheckSquare className="h-4 w-4 text-primary-500" />
+                  ) : (
+                    <Square className="h-4 w-4 text-gray-300" />
+                  )}
+                </button>
+                <span className="flex items-center gap-3 truncate">
+                  <Icon className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                  <span className="truncate">{file.name}</span>
+                </span>
+                <span className="text-gray-500">{formatSize(file.size)}</span>
+                <span className="text-gray-500">{formatDate(file.createdAt)}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setContextMenu({ x: e.clientX, y: e.clientY, type: 'file', item: file });
+                  }}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Context menu */}
+      <AnimatePresence>
+        {contextMenu && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed z-50 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {contextMenu.type === 'background' ? (
+              <>
+                <button
+                  onClick={() => { setShowNewFolder(true); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <FolderPlus className="h-4 w-4" /> Novi folder
+                </button>
+                <button
+                  onClick={() => { fileInputRef.current?.click(); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Upload className="h-4 w-4" /> Upload fajlove
+                </button>
+                {clipboard && (
+                  <>
+                    <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
+                    <button
+                      onClick={() => { handlePaste(); setContextMenu(null); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <FolderInput className="h-4 w-4" /> Nalepi ({clipboard.files.length + clipboard.folders.length})
+                    </button>
+                  </>
+                )}
+              </>
+            ) : contextMenu.type === 'folder' ? (
+              <>
+                <button
+                  onClick={() => { navigateToFolder(contextMenu.item); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Folder className="h-4 w-4" /> Otvori
+                </button>
+                <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
+                <button
+                  onClick={() => {
+                    setSelectedFolders(new Set([contextMenu.item.id]));
+                    setSelectedFiles(new Set());
+                    setClipboard({ action: 'cut', files: [], folders: [contextMenu.item] });
+                    addNotification({ type: 'success', title: 'Folder isečen' });
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <X className="h-4 w-4" /> Iseci
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFolders(new Set([contextMenu.item.id]));
+                    setShowMoveModal(true);
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <FolderInput className="h-4 w-4" /> Premesti u...
+                </button>
+                <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
+                <button
+                  onClick={() => {
+                    setRenamingId(contextMenu.item.id);
+                    setRenameValue(contextMenu.item.name);
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Pencil className="h-4 w-4" /> Preimenuj
+                </button>
+                <button
+                  onClick={() => { deleteFolderMutation.mutate(contextMenu.item.id); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="h-4 w-4" /> Obriši
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => { handleOpenFile(contextMenu.item); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <File className="h-4 w-4" /> Otvori pregled
+                </button>
+                <button
+                  onClick={() => { handleOpenFileDirect(contextMenu.item); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Download className="h-4 w-4" /> Otvori fajl
+                </button>
+                <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
+                <button
+                  onClick={() => {
+                    setSelectedFiles(new Set([contextMenu.item.id]));
+                    setSelectedFolders(new Set());
+                    setClipboard({ action: 'cut', files: [contextMenu.item], folders: [] });
+                    addNotification({ type: 'success', title: 'Fajl isečen' });
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <X className="h-4 w-4" /> Iseci
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedFiles(new Set([contextMenu.item.id]));
+                    setShowMoveModal(true);
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <FolderInput className="h-4 w-4" /> Premesti u...
+                </button>
+                <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
+                <button
+                  onClick={() => { handleDownload(contextMenu.item); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Download className="h-4 w-4" /> Preuzmi
+                </button>
+                <button
+                  onClick={() => { deleteFileMutation.mutate(contextMenu.item.id); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="h-4 w-4" /> Obriši
+                </button>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Selection Bar */}
+      <AnimatePresence>
+        {hasSelection && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+          >
+            <span className="mr-2 text-sm font-medium">{selectionCount} izabrano</span>
+            <button
+              onClick={() => setShowMoveModal(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-600"
+            >
+              <FolderInput className="h-4 w-4" /> Premesti
+            </button>
+            <button
+              onClick={() => handleCopy('cut')}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              Iseci
+            </button>
+            <button
+              onClick={handleDeleteSelected}
+              className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+            >
+              <Trash2 className="h-4 w-4" /> Obriši
+            </button>
+            <button
+              onClick={clearSelection}
+              className="ml-1 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Move to Folder Modal */}
+      <AnimatePresence>
+        {showMoveModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onClick={() => setShowMoveModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+                <h3 className="text-lg font-semibold">Premesti u folder</h3>
+                <p className="text-sm text-gray-500">{selectionCount} stavki</p>
+              </div>
+              <FolderPicker
+                currentFolderId={currentFolderId}
+                selectedFolders={selectedFolders}
+                onSelect={(targetId) => handleMoveItems(targetId)}
+                moving={moving}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Summary bar */}
+      {!isLoading && (folders.length > 0 || files.length > 0) && (
+        <div className="text-xs text-gray-500">
+          {folders.length > 0 && `${folders.length} folder(a)`}
+          {folders.length > 0 && files.length > 0 && ' · '}
+          {files.length > 0 && `${files.length} fajl(ova)`}
+          {files.length > 0 && ` · ${formatSize(files.reduce((sum, f) => sum + f.size, 0))}`}
+        </div>
+      )}
+
+      {/* File Preview Modal */}
+      <AnimatePresence>
+        {previewFile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            onClick={closePreview}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+                <div className="flex items-center gap-2 truncate">
+                  {(() => { const Icon = getFileIcon(previewFile.mimeType); return <Icon className="h-5 w-5 text-gray-400" />; })()}
+                  <span className="truncate font-medium">{previewFile.name}</span>
+                  <span className="text-xs text-gray-400">{formatSize(previewFile.size)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDownload(previewFile)}
+                    className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    title="Preuzmi"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={closePreview}
+                    className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-auto">
+                {previewLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
+                  </div>
+                ) : previewUrl ? (
+                  <FilePreviewContent file={previewFile} url={previewUrl} />
+                ) : null}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
+  const mime = file.mimeType;
+
+  // Images
+  if (mime.startsWith('image/')) {
+    return (
+      <div className="flex items-center justify-center bg-gray-100 p-4 dark:bg-gray-900">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={file.name} className="max-h-[75vh] max-w-full object-contain" />
+      </div>
+    );
+  }
+
+  // Videos
+  if (mime.startsWith('video/')) {
+    return (
+      <div className="flex items-center justify-center bg-black p-4">
+        <video src={url} controls autoPlay className="max-h-[75vh] max-w-full" />
+      </div>
+    );
+  }
+
+  // Audio
+  if (mime.startsWith('audio/')) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20">
+        <FileAudio className="h-16 w-16 text-gray-400" />
+        <p className="text-lg font-medium">{file.name}</p>
+        <audio src={url} controls autoPlay className="w-80" />
+      </div>
+    );
+  }
+
+  // PDF
+  if (mime === 'application/pdf') {
+    return (
+      <iframe src={url} className="h-[80vh] w-full" title={file.name} />
+    );
+  }
+
+  // Text files
+  if (mime.startsWith('text/') || mime === 'application/json') {
+    return <TextFilePreview url={url} />;
+  }
+
+  // Office documents — use Google Docs Viewer
+  const isOffice = mime.includes('word') || mime.includes('document') ||
+    mime.includes('spreadsheet') || mime.includes('excel') ||
+    mime.includes('presentation') || mime.includes('powerpoint');
+
+  if (isOffice) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-16">
+        <FileText className="h-16 w-16 text-gray-400" />
+        <p className="text-lg font-medium">{file.name}</p>
+        <p className="text-sm text-gray-500">
+          Office dokumenti se mogu preuzeti i otvoriti lokalno
+        </p>
+        <a
+          href={url}
+          download={file.name}
+          className="rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
+        >
+          <Download className="mr-2 inline h-4 w-4" />
+          Preuzmi i otvori
+        </a>
+      </div>
+    );
+  }
+
+  // Unknown file type
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 py-16">
+      <File className="h-16 w-16 text-gray-400" />
+      <p className="text-lg font-medium">{file.name}</p>
+      <p className="text-sm text-gray-500">Pregled ovog tipa fajla nije podržan</p>
+      <a
+        href={url}
+        download={file.name}
+        className="rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
+      >
+        <Download className="mr-2 inline h-4 w-4" />
+        Preuzmi
+      </a>
+    </div>
+  );
+}
+
+function FolderPicker({
+  currentFolderId,
+  selectedFolders,
+  onSelect,
+  moving,
+}: {
+  currentFolderId: string;
+  selectedFolders: Set<string>;
+  onSelect: (targetId: string) => void;
+  moving: boolean;
+}) {
+  const { user } = useAuthStore();
+  const [browseFolderId, setBrowseFolderId] = useState('root');
+  const [browsePath, setBrowsePath] = useState<{ id: string; name: string }[]>([]);
+
+  const { data } = useQuery({
+    queryKey: ['mydisk-picker', browseFolderId, user?.id],
+    queryFn: async () => {
+      const token = await getIdToken();
+      const res = await fetch(`/api/folders?parentId=${browseFolderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed');
+      return res.json() as Promise<{ folders: DiskFolder[]; files: DiskFile[] }>;
+    },
+    enabled: !!user,
+  });
+
+  const pickerFolders = (data?.folders || []).filter((f) => !selectedFolders.has(f.id));
+
+  return (
+    <div>
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1 border-b border-gray-200 px-5 py-2 text-sm dark:border-gray-700">
+        <button
+          onClick={() => { setBrowseFolderId('root'); setBrowsePath([]); }}
+          className={cn('rounded px-2 py-0.5 font-medium', browseFolderId === 'root' ? 'text-primary-600' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700')}
+        >
+          C:
+        </button>
+        {browsePath.map((bp, i) => (
+          <div key={bp.id} className="flex items-center gap-1">
+            <ChevronRight className="h-3 w-3 text-gray-400" />
+            <button
+              onClick={() => {
+                setBrowsePath((prev) => prev.slice(0, i + 1));
+                setBrowseFolderId(bp.id);
+              }}
+              className={cn('rounded px-2 py-0.5 font-medium', i === browsePath.length - 1 ? 'text-primary-600' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700')}
+            >
+              {bp.name}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Folder list */}
+      <div className="max-h-64 overflow-y-auto p-2">
+        {browseFolderId !== 'root' && (
+          <button
+            onClick={() => {
+              if (browsePath.length <= 1) {
+                setBrowseFolderId('root');
+                setBrowsePath([]);
+              } else {
+                const newPath = browsePath.slice(0, -1);
+                setBrowsePath(newPath);
+                setBrowseFolderId(newPath[newPath.length - 1].id);
+              }
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <ArrowLeft className="h-4 w-4" /> ..
+          </button>
+        )}
+        {pickerFolders.length === 0 && browseFolderId === 'root' && (
+          <p className="px-3 py-4 text-center text-sm text-gray-400">Nema foldera</p>
+        )}
+        {pickerFolders.map((folder) => (
+          <button
+            key={folder.id}
+            onClick={() => {
+              setBrowsePath((prev) => [...prev, { id: folder.id, name: folder.name }]);
+              setBrowseFolderId(folder.id);
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <Folder className="h-4 w-4 text-yellow-500" />
+            {folder.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-between border-t border-gray-200 px-5 py-3 dark:border-gray-700">
+        <span className="text-xs text-gray-400">
+          Odredište: {browseFolderId === 'root' ? 'C:' : browsePath[browsePath.length - 1]?.name}
+        </span>
+        <button
+          onClick={() => onSelect(browseFolderId)}
+          disabled={moving || browseFolderId === currentFolderId}
+          className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+        >
+          {moving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Premesti ovde'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function TextFilePreview({ url }: { url: string }) {
+  const [text, setText] = useState('');
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch(url)
+      .then((r) => r.text())
+      .then((t) => { setText(t); setLoaded(true); })
+      .catch(() => { setText('Greška pri učitavanju fajla'); setLoaded(true); });
+  }, [url]);
+
+  if (!loaded) return <div className="p-8 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div>;
+
+  return (
+    <pre className="max-h-[75vh] overflow-auto whitespace-pre-wrap p-6 font-mono text-sm text-gray-800 dark:text-gray-200">
+      {text}
+    </pre>
+  );
+}
