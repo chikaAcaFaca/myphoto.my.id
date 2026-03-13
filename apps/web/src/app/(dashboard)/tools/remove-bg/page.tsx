@@ -2,9 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download, Loader2, Upload, Eraser, Undo2, MousePointer2 } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, Upload, Eraser, Undo2 } from 'lucide-react';
 import { useUIStore } from '@/lib/stores';
-import { cn } from '@/lib/utils';
+
+// CDN URL for @imgly/background-removal (loads ONNX model in browser)
+const BG_REMOVAL_CDN = 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.mjs';
 
 export default function RemoveBgPage() {
   return (
@@ -21,156 +23,106 @@ function RemoveBgContent() {
   const fileId = searchParams.get('fileId');
 
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [tolerance, setTolerance] = useState(32);
-  const [mode, setMode] = useState<'remove' | 'keep'>('remove');
-  const [history, setHistory] = useState<ImageData[]>([]);
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const displayCanvasRef = useRef<HTMLCanvasElement>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
-  const imageDataRef = useRef<ImageData | null>(null);
+  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [progressText, setProgressText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const removeBackgroundRef = useRef<any>(null);
 
   // Load image from fileId
   useEffect(() => {
     if (fileId) {
-      loadImageFromUrl(`/api/thumbnail/${fileId}?size=large`);
+      const url = `/api/thumbnail/${fileId}?size=large`;
+      setOriginalUrl(url);
+      processWithAI(url);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileId]);
 
-  const loadImageFromUrl = useCallback((url: string) => {
-    setIsLoading(true);
-    setHistory([]);
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      imageRef.current = img;
-      setOriginalUrl(url);
-      initCanvas(img);
-      setIsLoading(false);
-    };
-    img.onerror = () => {
-      addNotification({ type: 'error', title: 'Slika se ne može učitati' });
-      setIsLoading(false);
-    };
-    img.src = url;
-  }, [addNotification]);
+  const loadLibrary = useCallback(async () => {
+    if (removeBackgroundRef.current) return removeBackgroundRef.current;
 
-  const initCanvas = (img: HTMLImageElement) => {
-    const canvas = canvasRef.current;
-    const displayCanvas = displayCanvasRef.current;
-    if (!canvas || !displayCanvas) return;
+    setProgressText('Učitavam AI biblioteku...');
+    setProgress(5);
 
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    displayCanvas.width = img.naturalWidth;
-    displayCanvas.height = img.naturalHeight;
-
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(img, 0, 0);
-    imageDataRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    renderDisplay();
-  };
-
-  const renderDisplay = () => {
-    const canvas = canvasRef.current;
-    const displayCanvas = displayCanvasRef.current;
-    if (!canvas || !displayCanvas) return;
-
-    const ctx = displayCanvas.getContext('2d')!;
-    const w = displayCanvas.width;
-    const h = displayCanvas.height;
-
-    // Draw checkerboard
-    const size = 10;
-    for (let y = 0; y < h; y += size) {
-      for (let x = 0; x < w; x += size) {
-        ctx.fillStyle = ((x / size + y / size) % 2 === 0) ? '#f0f0f0' : '#ffffff';
-        ctx.fillRect(x, y, size, size);
+    try {
+      const module = await import(/* webpackIgnore: true */ BG_REMOVAL_CDN);
+      removeBackgroundRef.current = module.removeBackground || module.default?.removeBackground;
+      if (!removeBackgroundRef.current) {
+        throw new Error('removeBackground function not found in module');
       }
+      return removeBackgroundRef.current;
+    } catch (err) {
+      console.error('Failed to load background removal library:', err);
+      throw new Error('Ne mogu učitati AI biblioteku. Proverite internet konekciju.');
     }
+  }, []);
 
-    // Draw current image data on top
-    const srcCtx = canvas.getContext('2d')!;
-    const data = srcCtx.getImageData(0, 0, w, h);
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = w;
-    tempCanvas.height = h;
-    const tempCtx = tempCanvas.getContext('2d')!;
-    tempCtx.putImageData(data, 0, 0);
-    ctx.drawImage(tempCanvas, 0, 0);
-  };
+  const processWithAI = useCallback(async (imageSource: string | File) => {
+    setIsProcessing(true);
+    setProgress(0);
+    setProgressText('Priprema...');
+    setResultUrl(null);
 
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    try {
+      const removeBackground = await loadLibrary();
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const x = Math.floor((e.clientX - rect.left) * scaleX);
-    const y = Math.floor((e.clientY - rect.top) * scaleY);
+      setProgressText('Učitavam sliku...');
+      setProgress(10);
 
-    const ctx = canvas.getContext('2d')!;
-    const currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-    // Save current state for undo
-    setHistory(prev => [...prev, new ImageData(new Uint8ClampedArray(currentData.data), canvas.width, canvas.height)]);
-
-    if (mode === 'remove') {
-      floodFillTransparent(currentData.data, canvas.width, canvas.height, x, y, tolerance);
-    } else {
-      // "keep" mode: flood fill from click point to mark what to keep, then remove everything else
-      const keepMask = new Uint8Array(canvas.width * canvas.height);
-      floodFillMask(currentData.data, canvas.width, canvas.height, x, y, tolerance, keepMask);
-      // Make everything NOT in the mask transparent
-      for (let i = 0; i < keepMask.length; i++) {
-        if (!keepMask[i]) {
-          currentData.data[i * 4 + 3] = 0;
-        }
+      // Convert URL to blob if needed
+      let input: Blob | File;
+      if (typeof imageSource === 'string') {
+        const response = await fetch(imageSource);
+        input = await response.blob();
+      } else {
+        input = imageSource;
       }
+
+      setProgressText('AI analizira sliku...');
+      setProgress(20);
+
+      // Run AI background removal
+      const resultBlob: Blob = await removeBackground(input, {
+        progress: (key: string, current: number, total: number) => {
+          const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+          if (key.includes('fetch') || key.includes('download')) {
+            setProgressText('Preuzimam AI model...');
+            setProgress(10 + Math.round(pct * 0.3));
+          } else if (key.includes('compute') || key.includes('inference')) {
+            setProgressText('AI prepoznaje objekte i uklanja pozadinu...');
+            setProgress(40 + Math.round(pct * 0.55));
+          }
+        },
+      });
+
+      setProgress(98);
+      setProgressText('Završavam...');
+
+      const url = URL.createObjectURL(resultBlob);
+      setResultUrl(url);
+      setProgress(100);
+    } catch (err: any) {
+      console.error('Background removal error:', err);
+      addNotification({
+        type: 'error',
+        title: 'Greška',
+        message: err.message || 'AI obrada nije uspela',
+      });
+    } finally {
+      setIsProcessing(false);
     }
-
-    ctx.putImageData(currentData, 0, 0);
-    renderDisplay();
-  };
-
-  const handleUndo = () => {
-    if (history.length === 0) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const prev = history[history.length - 1];
-    setHistory(h => h.slice(0, -1));
-
-    const ctx = canvas.getContext('2d')!;
-    ctx.putImageData(prev, 0, 0);
-    renderDisplay();
-  };
-
-  const handleReset = () => {
-    const img = imageRef.current;
-    if (!img) return;
-    setHistory([]);
-    initCanvas(img);
-  };
+  }, [addNotification, loadLibrary]);
 
   const handleDownload = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'bez-pozadine.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 'image/png');
+    if (!resultUrl) return;
+    const link = document.createElement('a');
+    link.href = resultUrl;
+    link.download = 'bez-pozadine.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,7 +133,8 @@ function RemoveBgContent() {
       return;
     }
     const url = URL.createObjectURL(file);
-    loadImageFromUrl(url);
+    setOriginalUrl(url);
+    processWithAI(file);
     e.target.value = '';
   };
 
@@ -201,12 +154,12 @@ function RemoveBgContent() {
           Ukloni pozadinu
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Kliknite na deo slike koji želite da {mode === 'remove' ? 'uklonite' : 'zadržite'}
+          AI automatski prepoznaje osobe i objekte i uklanja pozadinu
         </p>
       </div>
 
       {/* Upload area */}
-      {!originalUrl && !isLoading && (
+      {!originalUrl && !isProcessing && (
         <div
           onClick={() => fileInputRef.current?.click()}
           className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-12 hover:border-primary-400 dark:border-gray-600"
@@ -224,88 +177,76 @@ function RemoveBgContent() {
         </div>
       )}
 
-      {/* Loading */}
-      {isLoading && (
+      {/* Processing state */}
+      {isProcessing && (
         <div className="flex flex-col items-center justify-center py-16">
           <Loader2 className="mb-4 h-12 w-12 animate-spin text-primary-500" />
-          <p className="text-lg font-medium">Učitavam sliku...</p>
+          <p className="text-lg font-medium">{progressText}</p>
+          <div className="mt-4 w-64">
+            <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+              <div
+                className="h-full rounded-full bg-primary-500 transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="mt-1 text-center text-xs text-gray-500">{progress}%</p>
+          </div>
+          {progress < 40 && (
+            <p className="mt-4 max-w-md text-center text-xs text-gray-400">
+              Prvo učitavanje AI modela može potrajati 30-60 sekundi.
+              Naredna korišćenja će biti brža jer se model kešira u pregledaču.
+            </p>
+          )}
         </div>
       )}
 
-      {/* Editor */}
-      {originalUrl && !isLoading && (
+      {/* Result comparison */}
+      {resultUrl && !isProcessing && (
         <div>
-          {/* Toolbar */}
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-            {/* Mode toggle */}
-            <div className="flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-600">
-              <button
-                onClick={() => setMode('remove')}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                  mode === 'remove'
-                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    : 'text-gray-500 hover:text-gray-700'
-                )}
-              >
-                <MousePointer2 className="h-3.5 w-3.5" />
-                Ukloni
-              </button>
-              <button
-                onClick={() => setMode('keep')}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                  mode === 'keep'
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'text-gray-500 hover:text-gray-700'
-                )}
-              >
-                <MousePointer2 className="h-3.5 w-3.5" />
-                Zadrži
-              </button>
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Original */}
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-500">Original</p>
+              <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={originalUrl!} alt="Original" className="w-full" />
+              </div>
             </div>
-
-            {/* Tolerance slider */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Tolerancija:</label>
-              <input
-                type="range"
-                min="5"
-                max="100"
-                value={tolerance}
-                onChange={(e) => setTolerance(Number(e.target.value))}
-                className="w-24"
-              />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{tolerance}</span>
+            {/* Result */}
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-500">Bez pozadine</p>
+              <div
+                className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
+                style={{
+                  backgroundImage:
+                    'url("data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'10\' height=\'10\' fill=\'%23f0f0f0\'/%3E%3Crect x=\'10\' y=\'10\' width=\'10\' height=\'10\' fill=\'%23f0f0f0\'/%3E%3Crect x=\'10\' width=\'10\' height=\'10\' fill=\'%23fff\'/%3E%3Crect y=\'10\' width=\'10\' height=\'10\' fill=\'%23fff\'/%3E%3C/svg%3E")',
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={resultUrl} alt="Bez pozadine" className="w-full" />
+              </div>
             </div>
+          </div>
 
-            <div className="flex-1" />
-
-            {/* Actions */}
-            <button
-              onClick={handleUndo}
-              disabled={history.length === 0}
-              className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-40 dark:text-gray-400 dark:hover:bg-gray-700"
-            >
-              <Undo2 className="h-4 w-4" />
-              Nazad
-            </button>
-            <button
-              onClick={handleReset}
-              className="rounded-md px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
-            >
-              Resetuj
-            </button>
-            <button onClick={handleDownload} className="btn-primary text-sm">
-              <Download className="mr-1.5 h-4 w-4" />
+          {/* Actions */}
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={handleDownload} className="btn-primary">
+              <Download className="mr-2 h-4 w-4" />
               Preuzmi PNG
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="btn-secondary text-sm"
+              className="btn-secondary"
             >
-              <Upload className="mr-1.5 h-4 w-4" />
+              <Upload className="mr-2 h-4 w-4" />
               Nova slika
+            </button>
+            <button
+              onClick={() => originalUrl && processWithAI(originalUrl)}
+              className="btn-secondary"
+            >
+              <Undo2 className="mr-2 h-4 w-4" />
+              Ponovi
             </button>
             <input
               ref={fileInputRef}
@@ -315,122 +256,8 @@ function RemoveBgContent() {
               onChange={handleFileUpload}
             />
           </div>
-
-          {/* Canvas area */}
-          <div className="overflow-auto rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
-            <div className="flex items-center justify-center p-4">
-              <canvas
-                ref={displayCanvasRef}
-                onClick={handleCanvasClick}
-                className={cn(
-                  'max-h-[70vh] max-w-full cursor-crosshair rounded-lg shadow-lg',
-                  mode === 'remove' ? 'ring-2 ring-red-200' : 'ring-2 ring-green-200'
-                )}
-                style={{ imageRendering: 'auto' }}
-              />
-            </div>
-          </div>
-
-          {/* Instructions */}
-          <div className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
-            <strong>Uputstvo:</strong>{' '}
-            {mode === 'remove'
-              ? 'Kliknite na pozadinu ili deo slike koji želite da uklonite. Svaki klik uklanja povezanu oblast slične boje. Povećajte toleranciju za veće oblasti.'
-              : 'Kliknite na objekat koji želite da zadržite. Sve ostalo će biti uklonjeno. Koristite veću toleranciju za složenije objekte.'}
-          </div>
         </div>
       )}
-
-      {/* Hidden processing canvas */}
-      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
-}
-
-// Flood fill: make connected similar-color pixels transparent
-function floodFillTransparent(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number,
-  startX: number,
-  startY: number,
-  tolerance: number
-) {
-  const idx = (startY * width + startX) * 4;
-  // If already transparent, skip
-  if (data[idx + 3] === 0) return;
-
-  const targetR = data[idx];
-  const targetG = data[idx + 1];
-  const targetB = data[idx + 2];
-
-  const visited = new Uint8Array(width * height);
-  const stack: [number, number][] = [[startX, startY]];
-  const tolSq = tolerance * tolerance * 3; // tolerance squared scaled for RGB
-
-  while (stack.length > 0) {
-    const [x, y] = stack.pop()!;
-    if (x < 0 || x >= width || y < 0 || y >= height) continue;
-
-    const pi = y * width + x;
-    if (visited[pi]) continue;
-    visited[pi] = 1;
-
-    const i = pi * 4;
-    if (data[i + 3] === 0) continue; // already transparent
-
-    const dr = data[i] - targetR;
-    const dg = data[i + 1] - targetG;
-    const db = data[i + 2] - targetB;
-    const distSq = dr * dr + dg * dg + db * db;
-
-    if (distSq <= tolSq) {
-      data[i + 3] = 0; // make transparent
-      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-    }
-  }
-}
-
-// Flood fill mask: mark connected similar-color pixels
-function floodFillMask(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number,
-  startX: number,
-  startY: number,
-  tolerance: number,
-  mask: Uint8Array
-) {
-  const idx = (startY * width + startX) * 4;
-  if (data[idx + 3] === 0) return;
-
-  const targetR = data[idx];
-  const targetG = data[idx + 1];
-  const targetB = data[idx + 2];
-
-  const stack: [number, number][] = [[startX, startY]];
-  const tolSq = tolerance * tolerance * 3;
-
-  while (stack.length > 0) {
-    const [x, y] = stack.pop()!;
-    if (x < 0 || x >= width || y < 0 || y >= height) continue;
-
-    const pi = y * width + x;
-    if (mask[pi]) continue;
-    mask[pi] = 1;
-
-    const i = pi * 4;
-    if (data[i + 3] === 0) continue;
-
-    const dr = data[i] - targetR;
-    const dg = data[i + 1] - targetG;
-    const db = data[i + 2] - targetB;
-    const distSq = dr * dr + dg * dg + db * db;
-
-    if (distSq <= tolSq) {
-      stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
-    } else {
-      mask[pi] = 0; // not similar, unmark
-    }
-  }
 }

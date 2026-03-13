@@ -14,47 +14,67 @@ export async function GET(request: NextRequest) {
     }
     const { userId } = authResult;
 
-    // Get all files with pHash for this user
+    // Get all image files for this user (not just those with pHash)
     const snapshot = await db
       .collection('files')
       .where('userId', '==', userId)
       .where('isTrashed', '==', false)
       .where('type', '==', 'image')
-      .select('pHash', 'name', 'size', 'thumbnailKey', 'createdAt')
+      .select('pHash', 'name', 'size', 'thumbnailKey', 'createdAt', 'mimeType', 's3Key')
       .get();
 
-    const filesWithHash = snapshot.docs
-      .map((doc) => ({
-        fileId: doc.id,
-        hash: doc.data().pHash,
-        name: doc.data().name,
-        size: doc.data().size,
-        thumbnailKey: doc.data().thumbnailKey,
-        createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-      }))
-      .filter((f) => f.hash); // Only include files with computed hash
+    const allFiles = snapshot.docs.map((doc) => ({
+      fileId: doc.id,
+      hash: doc.data().pHash || '',
+      name: doc.data().name,
+      size: doc.data().size,
+      mimeType: doc.data().mimeType,
+      thumbnailKey: doc.data().thumbnailKey,
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+    }));
 
-    if (filesWithHash.length < 2) {
+    if (allFiles.length < 2) {
       return NextResponse.json({ duplicates: [] });
     }
 
-    // Find duplicate groups
-    const duplicateGroups = findDuplicates(filesWithHash);
+    // Strategy 1: pHash-based similarity (for files that have hashes)
+    const filesWithHash = allFiles.filter((f) => f.hash);
+    const pHashGroups = filesWithHash.length >= 2
+      ? findDuplicates(filesWithHash)
+      : [];
 
-    // Enrich with file details
-    const enrichedGroups = duplicateGroups.map((group) => ({
-      files: group.files.map((f) => {
-        const file = filesWithHash.find((fh) => fh.fileId === f.fileId);
-        return {
-          id: f.fileId,
-          name: file?.name,
-          size: file?.size,
-          thumbnailKey: file?.thumbnailKey,
-          createdAt: file?.createdAt,
-        };
-      }),
-      similarity: group.similarity,
-    }));
+    // Strategy 2: Exact match by file size + name (catches identical re-uploads)
+    const sizeGroups = findExactDuplicates(allFiles);
+
+    // Merge both strategies, deduplicate
+    const allGroupFileIds = new Set<string>();
+    const enrichedGroups: Array<{ files: Array<{ id: string; name: string; size: number; thumbnailKey: string; createdAt: Date }>; similarity: number }> = [];
+
+    // Add pHash groups first
+    for (const group of pHashGroups) {
+      const files = group.files
+        .map((f) => allFiles.find((af) => af.fileId === f.fileId))
+        .filter((f): f is NonNullable<typeof f> => !!f);
+      if (files.length > 1) {
+        for (const f of files) allGroupFileIds.add(f.fileId);
+        enrichedGroups.push({
+          files: files.map((f) => ({ id: f.fileId, name: f.name, size: f.size, thumbnailKey: f.thumbnailKey, createdAt: f.createdAt })),
+          similarity: group.similarity,
+        });
+      }
+    }
+
+    // Add size-based groups (only files not already in a pHash group)
+    for (const group of sizeGroups) {
+      const newFiles = group.filter((f) => !allGroupFileIds.has(f.fileId));
+      if (newFiles.length > 1) {
+        for (const f of newFiles) allGroupFileIds.add(f.fileId);
+        enrichedGroups.push({
+          files: newFiles.map((f) => ({ id: f.fileId, name: f.name, size: f.size, thumbnailKey: f.thumbnailKey, createdAt: f.createdAt })),
+          similarity: 100,
+        });
+      }
+    }
 
     return NextResponse.json({ duplicates: enrichedGroups });
   } catch (error) {
@@ -64,6 +84,23 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Find exact duplicates by file size (same size = likely identical)
+function findExactDuplicates(
+  files: Array<{ fileId: string; size: number; name: string; [key: string]: any }>
+): Array<Array<typeof files[number]>> {
+  const sizeMap = new Map<number, typeof files>();
+  for (const file of files) {
+    const key = file.size;
+    if (!sizeMap.has(key)) {
+      sizeMap.set(key, []);
+    }
+    sizeMap.get(key)!.push(file);
+  }
+
+  // Return groups with more than 1 file of the same size
+  return Array.from(sizeMap.values()).filter((group) => group.length > 1);
 }
 
 // Dismiss a duplicate (mark as not duplicate)

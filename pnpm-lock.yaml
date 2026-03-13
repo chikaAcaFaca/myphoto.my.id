@@ -9322,7 +9322,7 @@ snapshots:
       '@babel/template': 7.28.6
       '@react-native/babel-plugin-codegen': 0.73.4(@babel/preset-env@7.28.6(@babel/core@7.28.6))
       babel-plugin-transform-flow-enums: 0.0.2(@babel/core@7.28.6)
-      react-refresh: 0.14.0
+      react-refresh: 0.14.2
     transitivePeerDependencies:
       - '@babel/preset-env'
       - supports-color

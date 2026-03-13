@@ -179,7 +179,7 @@ export default function DuplicatesPage() {
                       {group.files.length} similar photos
                     </div>
                     <div className="text-sm text-gray-500">
-                      {Math.round(group.similarity * 100)}% similar
+                      {Math.round(group.similarity)}% similar
                     </div>
                   </div>
                 </div>

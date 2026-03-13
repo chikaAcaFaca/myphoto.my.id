@@ -343,20 +343,69 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
     return () => clearTimeout(timer);
   }, [imageError, retryCount]);
 
-  // Auto-play video preview on hover (desktop)
+  // Auto-play video preview: on hover (desktop) OR periodic auto-play
+  const [autoPlaying, setAutoPlaying] = useState(false);
   useEffect(() => {
-    if (!isVideo || isMobile) return;
+    if (!isVideo) return;
     const video = videoPreviewRef.current;
     if (!video) return;
 
-    if (isHovered && !isSelectionMode) {
+    // On hover (desktop): play immediately
+    if (isHovered && !isSelectionMode && !isMobile) {
       video.currentTime = 0;
       video.play().catch(() => {});
-    } else {
+      setAutoPlaying(true);
+      return;
+    }
+
+    // When not hovered, pause
+    if (!isHovered && autoPlaying && !isMobile) {
       video.pause();
       video.currentTime = 0;
+      setAutoPlaying(false);
     }
-  }, [isHovered, isVideo, isMobile, isSelectionMode]);
+  }, [isHovered, isVideo, isMobile, isSelectionMode, autoPlaying]);
+
+  // Periodic auto-play: every 8s play a 3s preview (both mobile and desktop)
+  useEffect(() => {
+    if (!isVideo || isSelectionMode) return;
+    const video = videoPreviewRef.current;
+    if (!video) return;
+
+    // Random initial delay so not all videos play at once (2-12s)
+    const initialDelay = 2000 + Math.random() * 10000;
+    let playTimer: ReturnType<typeof setTimeout>;
+    let stopTimer: ReturnType<typeof setTimeout>;
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const playPreview = () => {
+      if (isHovered) return; // Don't interfere with hover play
+      video.currentTime = 0;
+      video.muted = true;
+      video.play().catch(() => {});
+      setAutoPlaying(true);
+      stopTimer = setTimeout(() => {
+        video.pause();
+        video.currentTime = 0;
+        setAutoPlaying(false);
+      }, 3000);
+    };
+
+    playTimer = setTimeout(() => {
+      playPreview();
+      intervalId = setInterval(playPreview, 10000); // Every 10s after first play
+    }, initialDelay);
+
+    return () => {
+      clearTimeout(playTimer);
+      clearTimeout(stopTimer);
+      clearInterval(intervalId);
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
+      }
+    };
+  }, [isVideo, isSelectionMode, isHovered]);
 
   // When we have a local thumbnail, preload the server thumbnail in the background.
   // Once loaded, swap to the server version and revoke the blob URL.
@@ -484,18 +533,18 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
         />
       ) : null}
 
-      {/* Video hover preview (muted auto-play on desktop) */}
-      {isVideo && !isMobile && (
+      {/* Video preview (auto-play periodically + on hover) */}
+      {isVideo && (
         <video
           ref={videoPreviewRef}
-          src={isHovered && !isSelectionMode ? `/api/stream/${file.id}` : undefined}
+          src={`/api/stream/${file.id}`}
           muted
           playsInline
           loop
           preload="none"
           className={cn(
-            'absolute inset-0 h-full w-full object-cover transition-opacity',
-            isHovered && !isSelectionMode ? 'opacity-100' : 'opacity-0'
+            'absolute inset-0 h-full w-full object-cover transition-opacity duration-500',
+            autoPlaying ? 'opacity-100' : 'opacity-0'
           )}
         />
       )}
