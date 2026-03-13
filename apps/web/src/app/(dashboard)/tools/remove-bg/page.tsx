@@ -5,9 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Loader2, Upload, Eraser, Undo2 } from 'lucide-react';
 import { useUIStore } from '@/lib/stores';
 
-// CDN URL for @imgly/background-removal (loads ONNX model in browser)
-const BG_REMOVAL_CDN = 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/index.mjs';
-
 export default function RemoveBgPage() {
   return (
     <Suspense>
@@ -47,7 +44,9 @@ function RemoveBgContent() {
     setProgress(5);
 
     try {
-      const module = await import(/* webpackIgnore: true */ BG_REMOVAL_CDN);
+      // Use esm.sh which auto-resolves bare specifier dependencies (onnxruntime-web)
+      // @ts-ignore - CDN dynamic import
+      const module = await import(/* webpackIgnore: true */ 'https://esm.sh/@imgly/background-removal@1.5.5');
       removeBackgroundRef.current = module.removeBackground || module.default?.removeBackground;
       if (!removeBackgroundRef.current) {
         throw new Error('removeBackground function not found in module');
