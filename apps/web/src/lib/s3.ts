@@ -4,6 +4,7 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CopyObjectCommand,
   PutBucketCorsCommand,
   GetBucketCorsCommand,
 } from '@aws-sdk/client-s3';
@@ -60,6 +61,15 @@ export async function deleteObject(key: string): Promise<void> {
     Key: key,
   });
 
+  await s3Client.send(command);
+}
+
+export async function copyObject(sourceKey: string, destinationKey: string): Promise<void> {
+  const command = new CopyObjectCommand({
+    Bucket: BUCKET_NAME,
+    CopySource: `${BUCKET_NAME}/${sourceKey}`,
+    Key: destinationKey,
+  });
   await s3Client.send(command);
 }
 

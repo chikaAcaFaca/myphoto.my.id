@@ -26,6 +26,9 @@ import {
   FolderInput,
   CheckSquare,
   Square,
+  Copy,
+  Scissors,
+  ClipboardPaste,
 } from 'lucide-react';
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
@@ -275,7 +278,9 @@ export default function MyDiskPage() {
   };
 
   // Delete selected items
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = useCallback(async () => {
+    const count = selectedFiles.size + selectedFolders.size;
+    if (count === 0) return;
     try {
       const token = await getIdToken();
       for (const fileId of selectedFiles) {
@@ -291,29 +296,29 @@ export default function MyDiskPage() {
         });
       }
       queryClient.invalidateQueries({ queryKey: ['mydisk'] });
-      addNotification({ type: 'success', title: `${selectionCount} stavki obrisano` });
+      addNotification({ type: 'success', title: `${count} stavki obrisano` });
       clearSelection();
     } catch {
       addNotification({ type: 'error', title: 'Greška pri brisanju' });
     }
-  };
+  }, [selectedFiles, selectedFolders, queryClient, addNotification, clearSelection]);
 
   // Copy/cut selected items to clipboard
-  const handleCopy = (action: 'copy' | 'cut') => {
+  const handleCopy = useCallback((action: 'copy' | 'cut') => {
+    const count = selectedFiles.size + selectedFolders.size;
+    if (count === 0) return;
     const clipFiles = files.filter((f) => selectedFiles.has(f.id));
     const clipFolders = folders.filter((f) => selectedFolders.has(f.id));
     setClipboard({ action, files: clipFiles, folders: clipFolders });
-    addNotification({ type: 'success', title: `${selectionCount} stavki ${action === 'copy' ? 'kopirano' : 'isečeno'}` });
-    if (action === 'cut') clearSelection();
-  };
+    addNotification({ type: 'success', title: `${count} stavki ${action === 'copy' ? 'kopirano' : 'isečeno'}` });
+  }, [selectedFiles, selectedFolders, files, folders, addNotification]);
 
   // Paste from clipboard
-  const handlePaste = async () => {
+  const handlePaste = useCallback(async () => {
     if (!clipboard) return;
     try {
       const token = await getIdToken();
       if (clipboard.action === 'cut') {
-        // Move items
         await fetch('/api/disk-files', {
           method: 'PATCH',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -324,18 +329,68 @@ export default function MyDiskPage() {
             targetFolderId: currentFolderId,
           }),
         });
-        setClipboard(null);
       } else {
-        // Copy: for now just move (true copy would need S3 copy, show info)
-        addNotification({ type: 'info', title: 'Kopiranje fajlova nije još podržano, koristite Cut + Paste' });
-        return;
+        // Copy files (S3 copy + new Firestore records)
+        if (clipboard.files.length > 0) {
+          await fetch('/api/disk-files', {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'copy',
+              fileIds: clipboard.files.map((f) => f.id),
+              targetFolderId: currentFolderId,
+            }),
+          });
+        }
+        // Copy folders: move them for now (deep folder copy is complex)
+        if (clipboard.folders.length > 0) {
+          addNotification({ type: 'info', title: 'Kopiranje foldera nije podržano — koristite Iseci + Nalepi' });
+        }
       }
+      setClipboard(null);
+      clearSelection();
       queryClient.invalidateQueries({ queryKey: ['mydisk'] });
-      addNotification({ type: 'success', title: 'Stavke premeštene' });
+      addNotification({ type: 'success', title: clipboard.action === 'cut' ? 'Stavke premeštene' : 'Fajlovi kopirani' });
     } catch {
       addNotification({ type: 'error', title: 'Greška pri lepljenju' });
     }
-  };
+  }, [clipboard, currentFolderId, clearSelection, queryClient, addNotification]);
+
+  // Keyboard shortcuts: Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't intercept if typing in an input
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        selectAll();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && hasSelection) {
+        e.preventDefault();
+        handleCopy('copy');
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'x' && hasSelection) {
+        e.preventDefault();
+        handleCopy('cut');
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v' && clipboard) {
+        e.preventDefault();
+        handlePaste();
+      }
+      if (e.key === 'Delete' && hasSelection) {
+        e.preventDefault();
+        handleDeleteSelected();
+      }
+      if (e.key === 'Escape') {
+        clearSelection();
+        setContextMenu(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [hasSelection, clipboard, selectAll, handleCopy, handlePaste, handleDeleteSelected, clearSelection]);
 
   // Open file directly (download and open in new tab for supported types)
   const handleOpenFileDirect = async (file: DiskFile) => {
@@ -914,11 +969,12 @@ export default function MyDiskPage() {
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <X className="h-4 w-4" /> Iseci
+                  <Scissors className="h-4 w-4" /> Iseci
                 </button>
                 <button
                   onClick={() => {
                     setSelectedFolders(new Set([contextMenu.item.id]));
+                    setSelectedFiles(new Set());
                     setShowMoveModal(true);
                     setContextMenu(null);
                   }}
@@ -961,19 +1017,28 @@ export default function MyDiskPage() {
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                 <button
                   onClick={() => {
-                    setSelectedFiles(new Set([contextMenu.item.id]));
-                    setSelectedFolders(new Set());
+                    setClipboard({ action: 'copy', files: [contextMenu.item], folders: [] });
+                    addNotification({ type: 'success', title: 'Fajl kopiran' });
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Copy className="h-4 w-4" /> Kopiraj
+                </button>
+                <button
+                  onClick={() => {
                     setClipboard({ action: 'cut', files: [contextMenu.item], folders: [] });
                     addNotification({ type: 'success', title: 'Fajl isečen' });
                     setContextMenu(null);
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <X className="h-4 w-4" /> Iseci
+                  <Scissors className="h-4 w-4" /> Iseci
                 </button>
                 <button
                   onClick={() => {
                     setSelectedFiles(new Set([contextMenu.item.id]));
+                    setSelectedFolders(new Set());
                     setShowMoveModal(true);
                     setContextMenu(null);
                   }}
@@ -1017,10 +1082,16 @@ export default function MyDiskPage() {
               <FolderInput className="h-4 w-4" /> Premesti
             </button>
             <button
+              onClick={() => handleCopy('copy')}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              <Copy className="h-4 w-4" /> Kopiraj
+            </button>
+            <button
               onClick={() => handleCopy('cut')}
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
             >
-              Iseci
+              <Scissors className="h-4 w-4" /> Iseci
             </button>
             <button
               onClick={handleDeleteSelected}
@@ -1028,6 +1099,14 @@ export default function MyDiskPage() {
             >
               <Trash2 className="h-4 w-4" /> Obriši
             </button>
+            {clipboard && (
+              <button
+                onClick={handlePaste}
+                className="flex items-center gap-1.5 rounded-lg border border-green-300 px-3 py-1.5 text-sm font-medium text-green-600 hover:bg-green-50 dark:border-green-800 dark:hover:bg-green-900/20"
+              >
+                <ClipboardPaste className="h-4 w-4" /> Nalepi
+              </button>
+            )}
             <button
               onClick={clearSelection}
               className="ml-1 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { generateUploadUrl } from '@/lib/s3';
+import { generateUploadUrl, copyObject } from '@/lib/s3';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 
 export const dynamic = 'force-dynamic';
@@ -114,6 +114,64 @@ export async function PATCH(request: NextRequest) {
       }
 
       await batch.commit();
+      return NextResponse.json({ success: true });
+    }
+
+    // Copy files to another folder
+    if (body.action === 'copy') {
+      const { fileIds, targetFolderId } = body;
+      if (!targetFolderId) {
+        return NextResponse.json({ error: 'Target folder required' }, { status: 400 });
+      }
+
+      // Verify target folder belongs to user (if not root)
+      if (targetFolderId !== 'root') {
+        const targetDoc = await db.collection('folders').doc(targetFolderId).get();
+        if (!targetDoc.exists || targetDoc.data()?.userId !== userId) {
+          return NextResponse.json({ error: 'Target folder not found' }, { status: 404 });
+        }
+      }
+
+      const now = new Date();
+      let totalCopiedSize = 0;
+
+      if (fileIds?.length) {
+        for (const fId of fileIds) {
+          const fileDoc = await db.collection('diskFiles').doc(fId).get();
+          if (!fileDoc.exists || fileDoc.data()?.userId !== userId) continue;
+          const fileData = fileDoc.data()!;
+
+          // Copy S3 object
+          const newFileId = generateFileId();
+          const ext = getFileExtension(fileData.name, fileData.mimeType);
+          const newS3Key = `disk/${userId}/${newFileId}${ext ? '.' + ext : ''}`;
+          await copyObject(fileData.s3Key, newS3Key);
+
+          // Create new Firestore record
+          await db.collection('diskFiles').doc(newFileId).set({
+            userId,
+            name: fileData.name,
+            s3Key: newS3Key,
+            mimeType: fileData.mimeType,
+            size: fileData.size || 0,
+            folderId: targetFolderId,
+            isTrashed: false,
+            createdAt: now,
+            updatedAt: now,
+          });
+          totalCopiedSize += fileData.size || 0;
+        }
+      }
+
+      // Update storage used
+      if (totalCopiedSize > 0) {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const currentUsed = userDoc.data()?.storageUsed || 0;
+        await db.collection('users').doc(userId).update({
+          storageUsed: currentUsed + totalCopiedSize,
+        });
+      }
+
       return NextResponse.json({ success: true });
     }
 
