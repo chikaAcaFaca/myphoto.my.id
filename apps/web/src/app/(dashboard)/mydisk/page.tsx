@@ -88,6 +88,8 @@ export default function MyDiskPage() {
   const { addNotification } = useUIStore();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const [currentFolderId, setCurrentFolderId] = useState('root');
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string; name: string }[]>([]);
@@ -404,61 +406,98 @@ export default function MyDiskPage() {
     }
   };
 
-  // File upload
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files;
-    if (!selectedFiles || selectedFiles.length === 0) return;
+  // Upload a single file to a target folder
+  const uploadSingleFile = async (file: File, targetFolderId: string, token: string) => {
+    // 1. Get presigned URL
+    const urlRes = await fetch('/api/disk-files', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+        folderId: targetFolderId,
+      }),
+    });
+    if (!urlRes.ok) {
+      const err = await urlRes.json();
+      throw new Error(err.error || 'Failed to get upload URL');
+    }
+    const { uploadUrl, fileId, s3Key } = await urlRes.json();
 
+    // 2. Upload to S3
+    await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    });
+
+    // 3. Confirm upload
+    await fetch('/api/disk-files', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileId, s3Key, filename: file.name, mimeType: file.type || 'application/octet-stream', size: file.size, folderId: targetFolderId }),
+    });
+  };
+
+  // Create a folder and return its ID
+  const createFolderForUpload = async (name: string, parentId: string, token: string): Promise<string> => {
+    const res = await fetch('/api/folders', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, parentId }),
+    });
+    if (!res.ok) {
+      // Folder might already exist, try to find it
+      const listRes = await fetch(`/api/folders?parentId=${parentId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (listRes.ok) {
+        const data = await listRes.json();
+        const existing = data.folders?.find((f: DiskFolder) => f.name === name);
+        if (existing) return existing.id;
+      }
+      throw new Error(`Failed to create folder: ${name}`);
+    }
+    const data = await res.json();
+    return data.id;
+  };
+
+  // Upload files with folder structure
+  const uploadFilesWithStructure = async (filesWithPaths: { file: File; relativePath: string }[]) => {
     setUploading(true);
     setUploadProgress(0);
-
-    const total = selectedFiles.length;
+    const total = filesWithPaths.length;
     let completed = 0;
 
     try {
-      const token = await getIdToken();
+      const token = await getIdToken() as string;
+      if (!token) throw new Error('Not authenticated');
+      // Cache created folder IDs: "path/to/folder" -> folderId
+      const folderCache = new Map<string, string>();
+      folderCache.set('', currentFolderId);
 
-      for (const file of Array.from(selectedFiles)) {
-        // 1. Get presigned URL
-        const urlRes = await fetch('/api/disk-files', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            size: file.size,
-            folderId: currentFolderId,
-          }),
-        });
+      for (const { file, relativePath } of filesWithPaths) {
+        // Parse folder path: "folder1/subfolder/file.txt" -> ["folder1", "subfolder"]
+        const parts = relativePath.split('/');
+        parts.pop(); // remove filename
 
-        if (!urlRes.ok) {
-          const err = await urlRes.json();
-          throw new Error(err.error || 'Failed to get upload URL');
+        // Create folder hierarchy
+        let parentId = currentFolderId;
+        let pathSoFar = '';
+        for (const folderName of parts) {
+          pathSoFar = pathSoFar ? `${pathSoFar}/${folderName}` : folderName;
+          if (folderCache.has(pathSoFar)) {
+            parentId = folderCache.get(pathSoFar)!;
+          } else {
+            const newFolderId = await createFolderForUpload(folderName, parentId, token);
+            folderCache.set(pathSoFar, newFolderId);
+            parentId = newFolderId;
+          }
         }
 
-        const { uploadUrl, fileId, s3Key } = await urlRes.json();
-
-        // 2. Upload to S3
-        await fetch(uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        });
-
-        // 3. Confirm upload
-        await fetch('/api/disk-files', {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileId,
-            s3Key,
-            filename: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            size: file.size,
-            folderId: currentFolderId,
-          }),
-        });
-
+        // Upload file into the correct folder
+        await uploadSingleFile(file, parentId, token);
         completed++;
         setUploadProgress(Math.round((completed / total) * 100));
       }
@@ -470,15 +509,78 @@ export default function MyDiskPage() {
         message: `${total} fajl(ova) uspešno uploadovano`,
       });
     } catch (err: any) {
-      addNotification({
-        type: 'error',
-        title: 'Upload greška',
-        message: err.message || 'Upload nije uspeo',
-      });
+      addNotification({ type: 'error', title: 'Upload greška', message: err.message || 'Upload nije uspeo' });
     } finally {
       setUploading(false);
       setUploadProgress(0);
-      e.target.value = '';
+    }
+  };
+
+  // File upload (regular files)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputFiles = e.target.files;
+    if (!inputFiles || inputFiles.length === 0) return;
+
+    const filesWithPaths: { file: File; relativePath: string }[] = [];
+    for (const file of Array.from(inputFiles)) {
+      // webkitRelativePath is set when using webkitdirectory
+      const relativePath = (file as any).webkitRelativePath || file.name;
+      filesWithPaths.push({ file, relativePath });
+    }
+
+    await uploadFilesWithStructure(filesWithPaths);
+    e.target.value = '';
+  };
+
+  // Drag and drop handler for folders
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+
+    const items = e.dataTransfer.items;
+    if (!items) return;
+
+    const filesWithPaths: { file: File; relativePath: string }[] = [];
+
+    // Recursively read directory entries
+    const readEntry = async (entry: FileSystemEntry, path: string): Promise<void> => {
+      if (entry.isFile) {
+        const file = await new Promise<File>((resolve, reject) => {
+          (entry as FileSystemFileEntry).file(resolve, reject);
+        });
+        filesWithPaths.push({ file, relativePath: path ? `${path}/${file.name}` : file.name });
+      } else if (entry.isDirectory) {
+        const dirReader = (entry as FileSystemDirectoryEntry).createReader();
+        const entries = await new Promise<FileSystemEntry[]>((resolve, reject) => {
+          const allEntries: FileSystemEntry[] = [];
+          const readBatch = () => {
+            dirReader.readEntries((batch) => {
+              if (batch.length === 0) {
+                resolve(allEntries);
+              } else {
+                allEntries.push(...batch);
+                readBatch();
+              }
+            }, reject);
+          };
+          readBatch();
+        });
+        const subPath = path ? `${path}/${entry.name}` : entry.name;
+        for (const subEntry of entries) {
+          await readEntry(subEntry, subPath);
+        }
+      }
+    };
+
+    for (let i = 0; i < items.length; i++) {
+      const entry = items[i].webkitGetAsEntry?.();
+      if (entry) {
+        await readEntry(entry, '');
+      }
+    }
+
+    if (filesWithPaths.length > 0) {
+      await uploadFilesWithStructure(filesWithPaths);
     }
   };
 
@@ -548,15 +650,17 @@ export default function MyDiskPage() {
 
   return (
     <div
-      className="space-y-4"
+      className={cn('space-y-4 relative', dragOver && 'after:absolute after:inset-0 after:z-30 after:rounded-2xl after:border-4 after:border-dashed after:border-primary-400 after:bg-primary-50/50 after:dark:bg-primary-900/20')}
       onClick={handlePageClick}
       onContextMenu={(e) => {
-        // Only show background context menu if right-clicking on the page background
         const target = e.target as HTMLElement;
-        if (target.closest('[data-item-row]')) return; // Don't override item context menus
+        if (target.closest('[data-item-row]')) return;
         e.preventDefault();
         setContextMenu({ x: e.clientX, y: e.clientY, type: 'background', item: null });
       }}
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false); }}
+      onDrop={handleDrop}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -576,17 +680,36 @@ export default function MyDiskPage() {
             Novi folder
           </button>
           <button
+            onClick={() => folderInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderPlus className="h-4 w-4" />}
+            Upload folder
+          </button>
+          <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Upload
+            Upload fajlove
           </button>
           <input
             ref={fileInputRef}
             type="file"
             multiple
+            className="hidden"
+            onChange={handleFileUpload}
+          />
+          {/* @ts-ignore — webkitdirectory is non-standard but widely supported */}
+          <input
+            ref={folderInputRef}
+            type="file"
+            multiple
+            // @ts-ignore
+            webkitdirectory=""
+            directory=""
             className="hidden"
             onChange={handleFileUpload}
           />
@@ -706,8 +829,8 @@ export default function MyDiskPage() {
           <h2 className="text-xl font-semibold">Prazan folder</h2>
           <p className="mt-2 max-w-md text-gray-500">
             {currentFolderId === 'root'
-              ? 'Kreirajte foldere i uploadujte fajlove za početak'
-              : 'Ovaj folder je prazan. Uploadujte fajlove ili kreirajte podfoldere.'}
+              ? 'Kreirajte foldere, uploadujte fajlove ili prevucite foldere sa računara'
+              : 'Prevucite foldere i fajlove ovde ili koristite dugmad iznad.'}
           </p>
           <div className="mt-6 flex gap-3">
             <button
@@ -926,6 +1049,12 @@ export default function MyDiskPage() {
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <FolderPlus className="h-4 w-4" /> Novi folder
+                </button>
+                <button
+                  onClick={() => { folderInputRef.current?.click(); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <FolderPlus className="h-4 w-4" /> Upload folder
                 </button>
                 <button
                   onClick={() => { fileInputRef.current?.click(); setContextMenu(null); }}
