@@ -330,22 +330,17 @@ export default function MyDiskPage() {
           }),
         });
       } else {
-        // Copy files (S3 copy + new Firestore records)
-        if (clipboard.files.length > 0) {
-          await fetch('/api/disk-files', {
-            method: 'PATCH',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'copy',
-              fileIds: clipboard.files.map((f) => f.id),
-              targetFolderId: currentFolderId,
-            }),
-          });
-        }
-        // Copy folders: move them for now (deep folder copy is complex)
-        if (clipboard.folders.length > 0) {
-          addNotification({ type: 'info', title: 'Kopiranje foldera nije podržano — koristite Iseci + Nalepi' });
-        }
+        // Deep copy files and folders (S3 copy + new Firestore records)
+        await fetch('/api/disk-files', {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'copy',
+            fileIds: clipboard.files.map((f) => f.id),
+            folderIds: clipboard.folders.map((f) => f.id),
+            targetFolderId: currentFolderId,
+          }),
+        });
       }
       setClipboard(null);
       clearSelection();

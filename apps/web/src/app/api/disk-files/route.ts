@@ -117,9 +117,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Copy files to another folder
+    // Copy files and folders (deep copy) to another folder
     if (body.action === 'copy') {
-      const { fileIds, targetFolderId } = body;
+      const { fileIds, folderIds, targetFolderId } = body;
       if (!targetFolderId) {
         return NextResponse.json({ error: 'Target folder required' }, { status: 400 });
       }
@@ -135,19 +135,77 @@ export async function PATCH(request: NextRequest) {
       const now = new Date();
       let totalCopiedSize = 0;
 
+      // Helper: copy all files in a folder to a new parent
+      async function copyFilesInFolder(sourceFolderId: string, destFolderId: string) {
+        const filesSnap = await db.collection('diskFiles')
+          .where('userId', '==', userId)
+          .where('folderId', '==', sourceFolderId)
+          .get();
+
+        for (const doc of filesSnap.docs) {
+          const fileData = doc.data();
+          if (fileData.isTrashed) continue;
+          const newFileId = generateFileId();
+          const ext = getFileExtension(fileData.name, fileData.mimeType);
+          const newS3Key = `disk/${userId}/${newFileId}${ext ? '.' + ext : ''}`;
+          await copyObject(fileData.s3Key, newS3Key);
+          await db.collection('diskFiles').doc(newFileId).set({
+            userId,
+            name: fileData.name,
+            s3Key: newS3Key,
+            mimeType: fileData.mimeType,
+            size: fileData.size || 0,
+            folderId: destFolderId,
+            isTrashed: false,
+            createdAt: now,
+            updatedAt: now,
+          });
+          totalCopiedSize += fileData.size || 0;
+        }
+      }
+
+      // Helper: recursively copy a folder and all its contents
+      async function deepCopyFolder(sourceFolderId: string, destParentId: string) {
+        const folderDoc = await db.collection('folders').doc(sourceFolderId).get();
+        if (!folderDoc.exists || folderDoc.data()?.userId !== userId) return;
+        const folderData = folderDoc.data()!;
+
+        // Create new folder in destination
+        const newFolderRef = await db.collection('folders').add({
+          userId,
+          name: folderData.name,
+          parentId: destParentId,
+          path: '/',
+          isTrashed: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // Copy all files in this folder
+        await copyFilesInFolder(sourceFolderId, newFolderRef.id);
+
+        // Recursively copy subfolders
+        const subFoldersSnap = await db.collection('folders')
+          .where('userId', '==', userId)
+          .where('parentId', '==', sourceFolderId)
+          .get();
+
+        for (const subDoc of subFoldersSnap.docs) {
+          if (subDoc.data().isTrashed) continue;
+          await deepCopyFolder(subDoc.id, newFolderRef.id);
+        }
+      }
+
+      // Copy individual files
       if (fileIds?.length) {
         for (const fId of fileIds) {
           const fileDoc = await db.collection('diskFiles').doc(fId).get();
           if (!fileDoc.exists || fileDoc.data()?.userId !== userId) continue;
           const fileData = fileDoc.data()!;
-
-          // Copy S3 object
           const newFileId = generateFileId();
           const ext = getFileExtension(fileData.name, fileData.mimeType);
           const newS3Key = `disk/${userId}/${newFileId}${ext ? '.' + ext : ''}`;
           await copyObject(fileData.s3Key, newS3Key);
-
-          // Create new Firestore record
           await db.collection('diskFiles').doc(newFileId).set({
             userId,
             name: fileData.name,
@@ -160,6 +218,13 @@ export async function PATCH(request: NextRequest) {
             updatedAt: now,
           });
           totalCopiedSize += fileData.size || 0;
+        }
+      }
+
+      // Deep copy folders (with all subfolders and files)
+      if (folderIds?.length) {
+        for (const fId of folderIds) {
+          await deepCopyFolder(fId, targetFolderId);
         }
       }
 
