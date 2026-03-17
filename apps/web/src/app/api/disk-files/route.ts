@@ -6,6 +6,30 @@ import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shar
 
 export const dynamic = 'force-dynamic';
 
+// Auto-rename duplicate filenames like Windows: file.txt -> file (1).txt -> file (2).txt
+async function getUniqueFilename(userId: string, folderId: string, filename: string): Promise<string> {
+  const existing = await db.collection('diskFiles')
+    .where('userId', '==', userId)
+    .where('folderId', '==', folderId)
+    .where('isTrashed', '==', false)
+    .get();
+
+  const names = new Set(existing.docs.map((d) => d.data().name));
+  if (!names.has(filename)) return filename;
+
+  const dotIndex = filename.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
+  const ext = dotIndex > 0 ? filename.slice(dotIndex) : '';
+
+  let counter = 1;
+  let candidate = `${baseName} (${counter})${ext}`;
+  while (names.has(candidate)) {
+    counter++;
+    candidate = `${baseName} (${counter})${ext}`;
+  }
+  return candidate;
+}
+
 // POST /api/disk-files — get presigned upload URL for a disk file
 export async function POST(request: NextRequest) {
   try {
@@ -261,10 +285,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Auto-rename if a file with the same name exists in this folder
+    const finalName = await getUniqueFilename(userId, folderId, filename);
+
     const now = new Date();
     await db.collection('diskFiles').doc(fileId).set({
       userId,
-      name: filename,
+      name: finalName,
       s3Key,
       mimeType: mimeType || 'application/octet-stream',
       size: size || 0,

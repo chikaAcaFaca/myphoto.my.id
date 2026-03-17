@@ -9,6 +9,31 @@ import { processImageAI } from '@/lib/ai-processing';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+// Auto-rename duplicate filenames: photo.jpg -> photo (1).jpg -> photo (2).jpg
+async function getUniquePhotoName(userId: string, filename: string): Promise<string> {
+  const existing = await db.collection('files')
+    .where('userId', '==', userId)
+    .where('isTrashed', '==', false)
+    .where('name', '>=', filename.split('.')[0])
+    .where('name', '<=', filename.split('.')[0] + '\uf8ff')
+    .get();
+
+  const names = new Set(existing.docs.map((d) => d.data().name));
+  if (!names.has(filename)) return filename;
+
+  const dotIndex = filename.lastIndexOf('.');
+  const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename;
+  const ext = dotIndex > 0 ? filename.slice(dotIndex) : '';
+
+  let counter = 1;
+  let candidate = `${baseName} (${counter})${ext}`;
+  while (names.has(candidate)) {
+    counter++;
+    candidate = `${baseName} (${counter})${ext}`;
+  }
+  return candidate;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Verify auth and check rate limit
@@ -39,11 +64,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-rename if duplicate name exists
+    const uniqueName = await getUniquePhotoName(userId, name);
+
     // Create file document
     const fileData: Record<string, any> = {
       userId,
       type: getFileType(mimeType),
-      name,
+      name: uniqueName,
       size,
       mimeType,
       s3Key,
