@@ -236,6 +236,23 @@ export default function MyDiskPage() {
     },
   });
 
+  // Rename file mutation
+  const renameFileMutation = useMutation({
+    mutationFn: async ({ fileId, name }: { fileId: string; name: string }) => {
+      const token = await getIdToken();
+      const res = await fetch('/api/disk-files', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rename', fileId, name }),
+      });
+      if (!res.ok) throw new Error('Failed');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      setRenamingId(null);
+    },
+  });
+
   // Delete file mutation
   const deleteFileMutation = useMutation({
     mutationFn: async (fileId: string) => {
@@ -1012,7 +1029,30 @@ export default function MyDiskPage() {
                 </button>
                 <span className="flex items-center gap-3 truncate">
                   <Icon className="h-5 w-5 flex-shrink-0 text-gray-400" />
-                  <span className="truncate">{file.name}</span>
+                  {renamingId === file.id ? (
+                    <input
+                      autoFocus
+                      className="rounded border px-1 py-0.5 text-sm dark:bg-gray-800 dark:border-gray-600"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && renameValue.trim()) {
+                          renameFileMutation.mutate({ fileId: file.id, name: renameValue.trim() });
+                        }
+                        if (e.key === 'Escape') setRenamingId(null);
+                      }}
+                      onBlur={() => {
+                        if (renameValue.trim() && renameValue.trim() !== file.name) {
+                          renameFileMutation.mutate({ fileId: file.id, name: renameValue.trim() });
+                        } else {
+                          setRenamingId(null);
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="truncate">{file.name}</span>
+                  )}
                 </span>
                 <span className="text-gray-500">{formatSize(file.size)}</span>
                 <span className="text-gray-500">{formatDate(file.createdAt)}</span>
@@ -1169,6 +1209,16 @@ export default function MyDiskPage() {
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <FolderInput className="h-4 w-4" /> Premesti u...
+                </button>
+                <button
+                  onClick={() => {
+                    setRenamingId(contextMenu.item.id);
+                    setRenameValue(contextMenu.item.name);
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Pencil className="h-4 w-4" /> Preimenuj
                 </button>
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                 <button

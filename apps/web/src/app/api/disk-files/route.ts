@@ -117,6 +117,20 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // Rename a file
+    if (body.action === 'rename') {
+      const { fileId, name } = body;
+      if (!fileId || !name?.trim()) {
+        return NextResponse.json({ error: 'fileId and name required' }, { status: 400 });
+      }
+      const fileDoc = await db.collection('diskFiles').doc(fileId).get();
+      if (!fileDoc.exists || fileDoc.data()?.userId !== userId) {
+        return NextResponse.json({ error: 'File not found' }, { status: 404 });
+      }
+      await fileDoc.ref.update({ name: name.trim(), updatedAt: new Date() });
+      return NextResponse.json({ success: true });
+    }
+
     // Copy files and folders (deep copy) to another folder
     if (body.action === 'copy') {
       const { fileIds, folderIds, targetFolderId } = body;
