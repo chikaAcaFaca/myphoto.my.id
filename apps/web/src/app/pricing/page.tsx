@@ -16,11 +16,15 @@ import {
   Brain,
   Search,
   Users,
-  Zap
+  Zap,
+  Coffee,
+  TrendingUp
 } from 'lucide-react';
 import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
 import type { BillingPeriod } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/lib/stores';
+import { usePlanRecommendation } from '@/lib/hooks';
 
 const BILLING_OPTIONS: BillingPeriod[] = ['monthly', 'quarterly', 'semiAnnual', 'yearly'];
 
@@ -33,8 +37,10 @@ export default function PricingPage() {
 }
 
 function PricingContent() {
-  const [billingCycle, setBillingCycle] = useState<BillingPeriod>('monthly');
+  const [billingCycle, setBillingCycle] = useState<BillingPeriod>('yearly');
   const [planType, setPlanType] = useState<'standard' | 'ai'>('ai');
+  const user = useAuthStore((state) => state.user);
+  const recommendation = usePlanRecommendation();
   const searchParams = useSearchParams();
   const refCode = searchParams.get('ref');
   const refParam = refCode ? `&ref=${refCode}` : '';
@@ -229,6 +235,22 @@ function PricingContent() {
           </div>
         )}
 
+        {/* Smart recommendation banner */}
+        {user && recommendation && (
+          <div className="mb-8 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+            <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:text-left">
+              <TrendingUp className="h-5 w-5 shrink-0 text-blue-500" />
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                Na osnovu vašeg korišćenja (~{recommendation.monthlyUploadFormatted}/mesečno), preporučujemo{' '}
+                <strong>{recommendation.recommendedTier.name}</strong> plan.
+                {recommendation.daysUntilFull > 0 && recommendation.daysUntilFull < 365 && (
+                  <> Trenutni prostor će vam se napuniti za ~{recommendation.daysUntilFull} dana.</>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Pricing cards - First 5 tiers */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {STORAGE_TIERS.slice(0, 5).map((tier) => {
@@ -236,6 +258,7 @@ function PricingContent() {
             const monthlyEquiv = getMonthlyEquivalent(tier);
             const periodTotal = getPeriodTotal(tier);
             const isPopular = tier.isPopular;
+            const isRecommended = recommendation?.recommendedTier.tier === tier.tier;
             const savings = getSavingsPercent(tier);
             const isFree = tier.tier === 0;
             const showSavings = billingCycle !== 'monthly' && !isFree;
@@ -250,9 +273,14 @@ function PricingContent() {
                     : 'bg-white shadow-lg dark:bg-gray-800'
                 )}
               >
+                {isRecommended && !isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-blue-500 px-3 py-1 text-xs font-bold text-white">
+                    PREPORUČENO ZA VAS
+                  </div>
+                )}
                 {isPopular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-yellow-900">
-                    NAJPOPULARNIJI
+                    {isRecommended ? 'NAJPOPULARNIJI · PREPORUČENO' : 'NAJPOPULARNIJI'}
                   </div>
                 )}
 
@@ -295,11 +323,21 @@ function PricingContent() {
                 </div>
 
                 <p className={cn(
-                  'mb-4 mt-2 text-2xl font-medium',
+                  'mb-2 mt-2 text-2xl font-medium',
                   isPopular ? 'text-primary-100' : 'text-gray-600 dark:text-gray-300'
                 )}>
                   {tier.storageDisplay}
                 </p>
+
+                {!isFree && monthlyEquiv <= 3.50 && (
+                  <p className={cn(
+                    'mb-3 flex items-center gap-1.5 text-xs font-medium',
+                    isPopular ? 'text-yellow-300' : 'text-amber-600 dark:text-amber-400'
+                  )}>
+                    <Coffee className="h-3.5 w-3.5" />
+                    Manje od cene jedne kafe mesečno
+                  </p>
+                )}
 
                 <ul className="mb-6 space-y-2">
                   {tier.features.slice(0, 4).map((feature, i) => (

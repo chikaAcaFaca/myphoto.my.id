@@ -24,6 +24,7 @@ export function useStorage() {
       const userData = userSnap.data();
       const used = userData.storageUsed || 0;
       const limit = userData.storageLimit || 0;
+      const ratio = limit > 0 ? used / limit : 0;
 
       return {
         used,
@@ -33,11 +34,13 @@ export function useStorage() {
         percentage: formatStoragePercentage(used, limit),
         remaining: Math.max(0, limit - used),
         remainingFormatted: formatBytes(Math.max(0, limit - used)),
-        isNearLimit: used / limit > 0.9,
+        isNearLimit: ratio > 0.9,
+        isAt80: ratio >= 0.8 && ratio < 0.95,
+        isAt95: ratio >= 0.95 && ratio < 1.0,
         isAtLimit: used >= limit,
       };
     },
     enabled: !!user,
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: 60000,
   });
 }

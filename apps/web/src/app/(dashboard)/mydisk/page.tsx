@@ -33,6 +33,7 @@ import {
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
+import { StorageLimitBanner } from '@/components/onboarding/storage-limit-banner';
 
 interface DiskFolder {
   id: string;
@@ -732,6 +733,8 @@ export default function MyDiskPage() {
           />
         </div>
       </div>
+
+      <StorageLimitBanner />
 
       {/* Upload progress */}
       {uploading && (

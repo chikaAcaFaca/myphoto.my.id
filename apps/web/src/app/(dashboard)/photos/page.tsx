@@ -12,6 +12,7 @@ import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
 import { StorageBonusCard } from '@/components/onboarding/storage-bonus-card';
 import { StorageLimitBanner } from '@/components/onboarding/storage-limit-banner';
+import { SavingsBadge } from '@/components/dashboard/savings-badge';
 import { AddToAlbumModal } from '@/components/modals/add-to-album-modal';
 import { ALL_SUPPORTED_TYPES } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
@@ -190,8 +191,9 @@ export default function PhotosPage() {
         onChange={handleFileInputChange}
       />
 
-      {/* Storage limit banner + bonus card */}
+      {/* Storage limit banner + bonus card + savings */}
       <StorageLimitBanner />
+      <SavingsBadge />
       <StorageBonusCard />
 
       {/* Header */}
