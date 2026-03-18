@@ -30,6 +30,10 @@ function RegisterContent() {
   const referralCode = searchParams.get('ref');
 
   const getPostAuthRedirect = () => {
+    const redirect = searchParams.get('redirect');
+    if (redirect && redirect.startsWith('/')) {
+      return redirect;
+    }
     const tier = searchParams.get('tier');
     const ai = searchParams.get('ai');
     const period = searchParams.get('period');

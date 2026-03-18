@@ -29,6 +29,10 @@ import {
   Copy,
   Scissors,
   ClipboardPaste,
+  Share2,
+  Link2,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
@@ -109,6 +113,10 @@ export default function MyDiskPage() {
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set());
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [shareModal, setShareModal] = useState<{ type: 'file' | 'folder'; item: any } | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareData, setShareData] = useState<{ token: string; shareUrl: string; permission: string } | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   // Fetch current folder contents
   const { data, isLoading } = useQuery({
@@ -123,6 +131,22 @@ export default function MyDiskPage() {
     },
     enabled: !!user,
   });
+
+  // Fetch shares accessible to this user ("Deljeno sa mnom")
+  const { data: sharedWithMeData } = useQuery({
+    queryKey: ['mydisk-shared-with-me', user?.id],
+    queryFn: async () => {
+      const token = await getIdToken();
+      const res = await fetch('/api/disk-share/my-shares', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed');
+      return res.json() as Promise<{ shares: { shareToken: string; type: string; itemName: string; permission: string; ownerName: string; ownerUserId: string; folderId: string | null; diskFileId: string | null }[] }>;
+    },
+    enabled: !!user,
+  });
+
+  const sharedWithMe = sharedWithMeData?.shares || [];
 
   const folders = data?.folders || [];
   const files = data?.files || [];
@@ -370,6 +394,125 @@ export default function MyDiskPage() {
       addNotification({ type: 'error', title: 'Greška pri lepljenju' });
     }
   }, [clipboard, currentFolderId, clearSelection, queryClient, addNotification]);
+
+  // Open share modal for a file or folder
+  const handleShare = useCallback(async (type: 'file' | 'folder', item: any) => {
+    setShareModal({ type, item });
+    setShareLoading(true);
+    setShareData(null);
+    setShareCopied(false);
+
+    try {
+      const token = await getIdToken();
+      const params = new URLSearchParams();
+      if (type === 'file') params.set('diskFileId', item.id);
+      else params.set('folderId', item.id);
+
+      const res = await fetch(`/api/disk-share?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      if (data.shared) {
+        setShareData({
+          token: data.token,
+          shareUrl: data.shareUrl,
+          permission: data.permission,
+        });
+      }
+    } catch {
+      // No existing share - that's fine
+    } finally {
+      setShareLoading(false);
+    }
+  }, []);
+
+  // Create or update share link
+  const handleCreateShare = useCallback(async (permission: 'read' | 'readwrite') => {
+    if (!shareModal) return;
+    setShareLoading(true);
+    try {
+      const token = await getIdToken();
+      const body: any = { permission };
+      if (shareModal.type === 'file') body.diskFileId = shareModal.item.id;
+      else body.folderId = shareModal.item.id;
+
+      const res = await fetch('/api/disk-share', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      setShareData({
+        token: data.token,
+        shareUrl: data.shareUrl,
+        permission: data.permission,
+      });
+      setShareCopied(false);
+    } catch {
+      addNotification({ type: 'error', title: 'Greška pri deljenju' });
+    } finally {
+      setShareLoading(false);
+    }
+  }, [shareModal, addNotification]);
+
+  // Update share permission
+  const handleUpdateSharePermission = useCallback(async (permission: 'read' | 'readwrite') => {
+    if (!shareData) return;
+    try {
+      const token = await getIdToken();
+      const res = await fetch('/api/disk-share', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: shareData.token, permission }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setShareData((prev) => prev ? { ...prev, permission } : null);
+      addNotification({ type: 'success', title: `Dozvola ažurirana: ${permission === 'read' ? 'Čitanje' : 'Čitanje i pisanje'}` });
+    } catch {
+      addNotification({ type: 'error', title: 'Greška pri ažuriranju' });
+    }
+  }, [shareData, addNotification]);
+
+  // Revoke share
+  const handleRevokeShare = useCallback(async () => {
+    if (!shareData) return;
+    try {
+      const token = await getIdToken();
+      const res = await fetch('/api/disk-share', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: shareData.token }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setShareData(null);
+      addNotification({ type: 'success', title: 'Deljenje ukinuto' });
+    } catch {
+      addNotification({ type: 'error', title: 'Greška' });
+    }
+  }, [shareData, addNotification]);
+
+  // Copy share link to clipboard
+  const handleCopyShareLink = useCallback(async () => {
+    if (!shareData) return;
+    const fullUrl = `${window.location.origin}${shareData.shareUrl}`;
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // Fallback
+      const input = document.createElement('input');
+      input.value = fullUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    }
+  }, [shareData]);
 
   // Keyboard shortcuts: Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete
   useEffect(() => {
@@ -1149,6 +1292,15 @@ export default function MyDiskPage() {
                 >
                   <FolderInput className="h-4 w-4" /> Premesti u...
                 </button>
+                <button
+                  onClick={() => {
+                    handleShare('folder', contextMenu.item);
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                >
+                  <Share2 className="h-4 w-4" /> Podeli
+                </button>
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                 <button
                   onClick={() => {
@@ -1212,6 +1364,15 @@ export default function MyDiskPage() {
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <FolderInput className="h-4 w-4" /> Premesti u...
+                </button>
+                <button
+                  onClick={() => {
+                    handleShare('file', contextMenu.item);
+                    setContextMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                >
+                  <Share2 className="h-4 w-4" /> Podeli
                 </button>
                 <button
                   onClick={() => {
@@ -1326,6 +1487,169 @@ export default function MyDiskPage() {
         )}
       </AnimatePresence>
 
+      {/* Share Modal */}
+      <AnimatePresence>
+        {shareModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onClick={() => setShareModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-blue-500" />
+                  <h3 className="text-lg font-semibold">Podeli</h3>
+                </div>
+                <button
+                  onClick={() => setShareModal(null)}
+                  className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-5">
+                {/* Item info */}
+                <div className="mb-4 flex items-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-700/50">
+                  {shareModal.type === 'folder' ? (
+                    <Folder className="h-8 w-8 text-yellow-500" />
+                  ) : (
+                    (() => { const Icon = getFileIcon(shareModal.item.mimeType || ''); return <Icon className="h-8 w-8 text-gray-400" />; })()
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{shareModal.item.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {shareModal.type === 'folder' ? 'Folder' : formatSize(shareModal.item.size)}
+                    </p>
+                  </div>
+                </div>
+
+                {shareLoading && !shareData ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary-500" />
+                  </div>
+                ) : shareData ? (
+                  <>
+                    {/* Share link */}
+                    <div className="mb-4">
+                      <label className="mb-1.5 block text-xs font-medium text-gray-500">Link za deljenje</label>
+                      <div className="flex gap-2">
+                        <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700">
+                          <Link2 className="h-4 w-4 flex-shrink-0 text-gray-400" />
+                          <span className="truncate text-sm">{window.location.origin}{shareData.shareUrl}</span>
+                        </div>
+                        <button
+                          onClick={handleCopyShareLink}
+                          className={cn(
+                            'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors',
+                            shareCopied ? 'bg-green-500' : 'bg-primary-500 hover:bg-primary-600'
+                          )}
+                        >
+                          {shareCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          {shareCopied ? 'Kopirano!' : 'Kopiraj'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Permission selector */}
+                    <div className="mb-4">
+                      <label className="mb-1.5 block text-xs font-medium text-gray-500">Dozvola</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateSharePermission('read')}
+                          className={cn(
+                            'flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
+                            shareData.permission === 'read'
+                              ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+                              : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700'
+                          )}
+                        >
+                          <Globe className="h-4 w-4" />
+                          Samo čitanje
+                        </button>
+                        <button
+                          onClick={() => handleUpdateSharePermission('readwrite')}
+                          className={cn(
+                            'flex flex-1 items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors',
+                            shareData.permission === 'readwrite'
+                              ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                              : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700'
+                          )}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Čitanje i pisanje
+                        </button>
+                      </div>
+                      <p className="mt-1.5 text-xs text-gray-400">
+                        {shareData.permission === 'read'
+                          ? 'Korisnici mogu da pregledaju i preuzmu sadržaj.'
+                          : 'Korisnici mogu da pregledaju, preuzmu i uploaduju fajlove.'}
+                      </p>
+                    </div>
+
+                    {/* Open in new tab */}
+                    <a
+                      href={shareData.shareUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mb-4 flex items-center gap-2 text-sm text-primary-500 hover:text-primary-600"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Otvori deljeni link
+                    </a>
+
+                    {/* Revoke share */}
+                    <button
+                      onClick={handleRevokeShare}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Ukini deljenje
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* No share exists yet — create one */}
+                    <p className="mb-4 text-sm text-gray-500">
+                      Kreirajte link za deljenje koji bilo ko sa linkom može da koristi.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleCreateShare('read')}
+                        disabled={shareLoading}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                      >
+                        <Globe className="h-4 w-4" />
+                        Samo čitanje
+                      </button>
+                      <button
+                        onClick={() => handleCreateShare('readwrite')}
+                        disabled={shareLoading}
+                        className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-500 px-3 py-2.5 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Čitanje i pisanje
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Summary bar */}
       {!isLoading && (folders.length > 0 || files.length > 0) && (
         <div className="text-xs text-gray-500">
@@ -1333,6 +1657,46 @@ export default function MyDiskPage() {
           {folders.length > 0 && files.length > 0 && ' · '}
           {files.length > 0 && `${files.length} fajl(ova)`}
           {files.length > 0 && ` · ${formatSize(files.reduce((sum, f) => sum + f.size, 0))}`}
+        </div>
+      )}
+
+      {/* Shared with me section — only show on root folder */}
+      {currentFolderId === 'root' && sharedWithMe.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            <Share2 className="h-4 w-4" />
+            Deljeno sa mnom
+          </h2>
+          <div className="overflow-hidden rounded-xl border border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-900/10">
+            {sharedWithMe.map((share, i) => (
+              <a
+                key={share.shareToken}
+                href={`/shared/disk/${share.shareToken}`}
+                className={cn(
+                  'grid grid-cols-[1fr_120px_100px] gap-2 px-4 py-2.5 text-sm hover:bg-blue-100/50 dark:hover:bg-blue-900/20',
+                  i < sharedWithMe.length - 1 && 'border-b border-blue-200 dark:border-blue-800'
+                )}
+              >
+                <span className="flex items-center gap-3 font-medium">
+                  {share.type === 'folder' ? (
+                    <Folder className="h-5 w-5 text-yellow-500" />
+                  ) : (
+                    <File className="h-5 w-5 text-gray-400" />
+                  )}
+                  <span className="truncate">{share.itemName}</span>
+                  <span className="flex-shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
+                    od {share.ownerName}
+                  </span>
+                </span>
+                <span className="text-xs text-gray-500">
+                  {share.permission === 'readwrite' ? 'Citanje i pisanje' : 'Samo citanje'}
+                </span>
+                <span className="flex items-center justify-end">
+                  <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
+                </span>
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

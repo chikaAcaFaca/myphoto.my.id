@@ -94,6 +94,32 @@
         { "fieldPath": "referrerUserId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "diskShares",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "folderId", "order": "ASCENDING" },
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "diskShares",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "diskFileId", "order": "ASCENDING" },
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "diskShareAccess",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "viewerUserId", "order": "ASCENDING" },
+        { "fieldPath": "accessedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

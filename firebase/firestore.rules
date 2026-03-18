@@ -136,5 +136,32 @@ service cloud.firestore {
       allow read: if true; // Public access for shared links
       allow write: if false; // Only server can manage
     }
+
+    // Disk shares collection (for MyDisk file/folder sharing)
+    match /diskShares/{shareToken} {
+      allow read: if true; // Public access for shared links
+      allow write: if false; // Only server can manage
+    }
+
+    // Disk share access records (tracks who accessed which shares)
+    match /diskShareAccess/{accessId} {
+      allow read: if isAuthenticated() && (
+        resource.data.viewerUserId == request.auth.uid ||
+        resource.data.ownerUserId == request.auth.uid
+      );
+      allow write: if false; // Only server can manage
+    }
+
+    // Disk files collection
+    match /diskFiles/{fileId} {
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow write: if false; // Only server can manage
+    }
+
+    // Folders collection
+    match /folders/{folderId} {
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow write: if false; // Only server can manage
+    }
   }
 }

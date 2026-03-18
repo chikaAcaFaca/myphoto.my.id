@@ -1,13 +1,21 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -16,6 +24,15 @@ export default function LoginPage() {
 
   const { signInWithEmail, signInWithGoogle } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const getPostAuthRedirect = () => {
+    const redirect = searchParams.get('redirect');
+    if (redirect && redirect.startsWith('/')) {
+      return redirect;
+    }
+    return '/photos';
+  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +41,7 @@ export default function LoginPage() {
 
     try {
       await signInWithEmail(email, password);
-      router.push('/photos');
+      router.push(getPostAuthRedirect());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
@@ -38,7 +55,7 @@ export default function LoginPage() {
 
     try {
       await signInWithGoogle();
-      router.push('/photos');
+      router.push(getPostAuthRedirect());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
     } finally {
