@@ -164,15 +164,13 @@ export default function SharedDiskPage() {
         headers: { Authorization: `Bearer ${idToken}` },
       });
       if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const { downloadUrl } = await res.json();
       const a = document.createElement('a');
-      a.href = url;
+      a.href = downloadUrl;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch {
       alert('Greska pri preuzimanju fajla');
     } finally {
@@ -199,9 +197,8 @@ export default function SharedDiskPage() {
         headers: { Authorization: `Bearer ${idToken}` },
       });
       if (!res.ok) throw new Error('Failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
+      const { downloadUrl } = await res.json();
+      setPreviewUrl(downloadUrl);
     } catch {
       alert('Ne mogu da otvorim fajl');
       setPreviewFile(null);
@@ -211,7 +208,6 @@ export default function SharedDiskPage() {
   };
 
   const closePreview = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewFile(null);
     setPreviewUrl(null);
   };

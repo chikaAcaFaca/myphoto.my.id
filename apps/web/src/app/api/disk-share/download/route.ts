@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/lib/firebase-admin';
-import { getObject } from '@/lib/s3';
+import { generateDownloadUrl } from '@/lib/s3';
 
 export const dynamic = 'force-dynamic';
 
-// Helper: extract userId from Bearer token
 async function requireAuth(request: NextRequest): Promise<string | null> {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) return null;
@@ -17,10 +16,9 @@ async function requireAuth(request: NextRequest): Promise<string | null> {
   }
 }
 
-// GET /api/disk-share/download?token=X&fileId=Y — download a shared disk file (requires auth)
+// GET /api/disk-share/download?token=X&fileId=Y — get presigned download URL for shared file
 export async function GET(request: NextRequest) {
   try {
-    // Require authentication
     const viewerUserId = await requireAuth(request);
     if (!viewerUserId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -34,7 +32,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing token or fileId' }, { status: 400 });
     }
 
-    // Verify share token
     const shareDoc = await db.collection('diskShares').doc(token).get();
     if (!shareDoc.exists) {
       return NextResponse.json({ error: 'Share not found' }, { status: 404 });
@@ -47,7 +44,6 @@ export async function GET(request: NextRequest) {
 
     const ownerId = shareData.userId;
 
-    // Get the file
     const fileDoc = await db.collection('diskFiles').doc(fileId).get();
     if (!fileDoc.exists || fileDoc.data()?.userId !== ownerId || fileDoc.data()?.isTrashed) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
@@ -68,22 +64,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const result = await getObject(fileData.s3Key);
+    // Return presigned URL — client downloads directly from S3
+    const downloadUrl = await generateDownloadUrl(fileData.s3Key);
 
-    return new Response(result.body, {
-      headers: {
-        'Content-Type': fileData.mimeType || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(fileData.name)}"`,
-        'Cache-Control': 'private, max-age=3600',
-      },
-    });
+    return NextResponse.json({ downloadUrl, fileName: fileData.name, mimeType: fileData.mimeType });
   } catch (error) {
     console.error('Disk share download error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-// Verify that a file belongs to a folder or any of its descendant folders
 async function verifyFileInFolder(fileId: string, sharedFolderId: string, ownerId: string): Promise<boolean> {
   const fileDoc = await db.collection('diskFiles').doc(fileId).get();
   if (!fileDoc.exists || fileDoc.data()?.userId !== ownerId) return false;

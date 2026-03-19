@@ -550,7 +550,7 @@ export default function MyDiskPage() {
     return () => window.removeEventListener('keydown', handler);
   }, [hasSelection, clipboard, selectAll, handleCopy, handlePaste, handleDeleteSelected, clearSelection]);
 
-  // Open file directly (download and open in new tab for supported types)
+  // Open file directly (get presigned URL and open in new tab)
   const handleOpenFileDirect = async (file: DiskFile) => {
     try {
       const token = await getIdToken();
@@ -558,10 +558,8 @@ export default function MyDiskPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      // Open in new tab so the OS/browser handles it
-      window.open(url, '_blank');
+      const { downloadUrl } = await res.json();
+      window.open(downloadUrl, '_blank');
     } catch {
       addNotification({ type: 'error', title: 'Ne mogu da otvorim fajl' });
     }
@@ -767,9 +765,8 @@ export default function MyDiskPage() {
       });
       if (!res.ok) throw new Error('Failed to load file');
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl(url);
+      const { downloadUrl } = await res.json();
+      setPreviewUrl(downloadUrl);
     } catch {
       addNotification({ type: 'error', title: 'Ne mogu da otvorim fajl' });
       setPreviewFile(null);
@@ -779,12 +776,11 @@ export default function MyDiskPage() {
   };
 
   const closePreview = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewFile(null);
     setPreviewUrl(null);
   };
 
-  // Download file
+  // Download file via presigned URL (direct from S3, zero Vercel bandwidth)
   const handleDownload = async (file: DiskFile) => {
     try {
       const token = await getIdToken();
@@ -792,15 +788,13 @@ export default function MyDiskPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const { downloadUrl, fileName } = await res.json();
       const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
+      a.href = downloadUrl;
+      a.download = fileName || file.name;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     } catch {
       addNotification({ type: 'error', title: 'Download greška' });
     }

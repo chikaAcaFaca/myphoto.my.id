@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { getObject } from '@/lib/s3';
+import { generateDownloadUrl } from '@/lib/s3';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,15 +24,11 @@ export async function GET(request: NextRequest) {
     }
 
     const fileData = fileDoc.data()!;
-    const result = await getObject(fileData.s3Key);
 
-    return new Response(result.body, {
-      headers: {
-        'Content-Type': fileData.mimeType || 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(fileData.name)}"`,
-        'Cache-Control': 'private, max-age=3600',
-      },
-    });
+    // Return presigned URL — client downloads directly from S3
+    const downloadUrl = await generateDownloadUrl(fileData.s3Key);
+
+    return NextResponse.json({ downloadUrl, fileName: fileData.name, mimeType: fileData.mimeType });
   } catch (error) {
     console.error('Disk file download error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

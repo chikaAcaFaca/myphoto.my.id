@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { checkIpRateLimit } from '@/lib/auth-utils';
-import { getObject, objectExists } from '@/lib/s3';
+import { generateDownloadUrl, objectExists } from '@/lib/s3';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
 
 type ThumbnailSize = 'small' | 'medium' | 'large';
@@ -56,19 +56,6 @@ async function verifyAccess(
   return { authorized: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
 }
 
-/**
- * Safely try to get an S3 object. Returns null if not found.
- */
-async function safeGetObject(key: string): Promise<{ body: ReadableStream; contentType: string } | null> {
-  try {
-    return await getObject(key);
-  } catch (error: any) {
-    // S3 NoSuchKey, 404, or any other error
-    console.warn(`S3 object not found: ${key}`, error?.name || error?.message);
-    return null;
-  }
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { fileId: string } }
@@ -118,22 +105,19 @@ export async function GET(
       keysToTry.push(fileData.largeThumbKey as string);
     }
 
-    // 5. For images only: fall back to original file (will be served as-is)
+    // 5. For images only: fall back to original file
     const isImage = (fileData.type === 'image' || (fileData.mimeType as string)?.startsWith('image/'));
     if (isImage && fileData.s3Key) {
       keysToTry.push(fileData.s3Key as string);
     }
 
-    // Try each key in order until one works
+    // Try each key in order — redirect to presigned URL instead of proxying
     for (const key of keysToTry) {
-      const result = await safeGetObject(key);
-      if (result) {
-        return new Response(result.body, {
-          headers: {
-            'Content-Type': result.contentType,
-            'Cache-Control': 'private, max-age=3600',
-          },
-        });
+      const exists = await objectExists(key);
+      if (exists) {
+        const presignedUrl = await generateDownloadUrl(key);
+        // 302 redirect — browser fetches directly from S3, zero Vercel bandwidth
+        return NextResponse.redirect(presignedUrl, 302);
       }
     }
 
