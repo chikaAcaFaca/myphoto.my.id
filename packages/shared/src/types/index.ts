@@ -7,6 +7,8 @@ export interface UserSettings {
   faceRecognition: boolean;
   darkMode: boolean;
   backupFolders: string[]; // Device album/folder titles to backup (empty = all folders)
+  // Storage allocation — how much of total storage is dedicated to MyDisk vs MyPhoto
+  myDiskAllocatedBytes?: number; // If set, rest goes to MyPhoto. If not set, auto-managed.
 }
 
 export interface User {
@@ -26,6 +28,10 @@ export interface User {
   referralCount: number;
   referralBonusBytes: number;
   backupBonusClaimed?: boolean;
+  desktopBonusClaimed?: boolean;
+  // Track referral qualification (must upload 100MB to qualify referrer for bonus)
+  totalUploadedBytes?: number;
+  referralQualified?: boolean;
 }
 
 export interface Referral {
@@ -34,6 +40,7 @@ export interface Referral {
   refereeUserId: string;
   refereeEmail: string;
   bonusBytes: number;
+  qualified: boolean; // true only after referee uploads 100MB
   createdAt: Date;
 }
 
@@ -213,8 +220,8 @@ export interface AIProcessingResult {
   qualityScore: number;
 }
 
-// Billing Period Types
-export type BillingPeriod = 'monthly' | 'quarterly' | 'semiAnnual' | 'yearly';
+// Billing Period Types — only monthly and yearly
+export type BillingPeriod = 'monthly' | 'yearly';
 
 // Storage Tier Types
 export interface StorageTier {
@@ -224,26 +231,22 @@ export interface StorageTier {
   storageDisplay: string;
   // Standard pricing (without AI)
   priceMonthly: number;
-  priceQuarterly: number;
-  priceSemiAnnual: number;
   priceYearly: number;
-  paddleProductId: string;
-  paddleQuarterlyId: string;
-  paddleSemiAnnualId: string;
+  paddleMonthlyId: string;
   paddleYearlyId: string;
   // AI pricing
   priceMonthlyAI: number;
-  priceQuarterlyAI: number;
-  priceSemiAnnualAI: number;
   priceYearlyAI: number;
-  paddleProductIdAI: string;
-  paddleQuarterlyIdAI: string;
-  paddleSemiAnnualIdAI: string;
+  paddleMonthlyIdAI: string;
   paddleYearlyIdAI: string;
   // Features
   features: string[];
   aiFeatures?: string[];
   isPopular?: boolean;
+  // Tier capabilities
+  myPhotoEnabled: boolean;  // Photo/video backup
+  myDiskEnabled: boolean;   // Document/file storage
+  canToggle: boolean;       // Can user toggle MyPhoto/MyDisk on/off and allocate space
 }
 
 // Memory/Suggestion Types

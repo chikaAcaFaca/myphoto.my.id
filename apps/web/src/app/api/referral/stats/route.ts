@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin, db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { MAX_REFERRALS, MAX_REFERRAL_BONUS, BYTES_PER_GB } from '@myphoto/shared';
+import { MAX_REFERRALS, MAX_REFERRAL_BONUS, REFERRAL_BONUS, BYTES_PER_GB, BYTES_PER_MB } from '@myphoto/shared';
 
 export const dynamic = 'force-dynamic';
 
-function formatGB(bytes: number): string {
+function formatStorage(bytes: number): string {
+  if (bytes < BYTES_PER_GB) {
+    const mb = bytes / BYTES_PER_MB;
+    return mb % 1 === 0 ? `${mb} MB` : `${mb.toFixed(0)} MB`;
+  }
   const gb = bytes / BYTES_PER_GB;
   return gb % 1 === 0 ? `${gb} GB` : `${gb.toFixed(1)} GB`;
 }
@@ -44,6 +48,8 @@ export async function GET(request: NextRequest) {
     return {
       email: maskEmail(data.refereeEmail || ''),
       date: data.createdAt?.toDate()?.toISOString()?.split('T')[0] || '',
+      qualified: data.qualified || false,
+      bonus: formatStorage(data.bonusBytes || REFERRAL_BONUS),
     };
   });
 
@@ -56,8 +62,10 @@ export async function GET(request: NextRequest) {
     referralCount: userData.referralCount || 0,
     maxReferrals: MAX_REFERRALS,
     bonusBytes,
-    bonusFormatted: formatGB(bonusBytes),
-    maxBonusFormatted: formatGB(MAX_REFERRAL_BONUS),
+    bonusPerReferral: REFERRAL_BONUS,
+    bonusPerReferralFormatted: formatStorage(REFERRAL_BONUS),
+    bonusFormatted: formatStorage(bonusBytes),
+    maxBonusFormatted: formatStorage(MAX_REFERRAL_BONUS),
     referralLink: `${baseUrl}/register?ref=${referralCode}`,
     referrals,
   });

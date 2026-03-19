@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores';
 import { usePlanRecommendation } from '@/lib/hooks';
 
-const BILLING_OPTIONS: BillingPeriod[] = ['monthly', 'quarterly', 'semiAnnual', 'yearly'];
+const BILLING_OPTIONS: BillingPeriod[] = ['monthly', 'yearly'];
 
 export default function PricingPage() {
   return (
@@ -56,15 +56,11 @@ function PricingContent() {
     if (planType === 'ai') {
       switch (billingCycle) {
         case 'monthly': return tier.priceMonthlyAI;
-        case 'quarterly': return tier.priceQuarterlyAI / 3;
-        case 'semiAnnual': return tier.priceSemiAnnualAI / 6;
         case 'yearly': return tier.priceYearlyAI / 12;
       }
     }
     switch (billingCycle) {
       case 'monthly': return tier.priceMonthly;
-      case 'quarterly': return tier.priceQuarterly / 3;
-      case 'semiAnnual': return tier.priceSemiAnnual / 6;
       case 'yearly': return tier.priceYearly / 12;
     }
   };
@@ -73,15 +69,11 @@ function PricingContent() {
     if (planType === 'ai') {
       switch (billingCycle) {
         case 'monthly': return tier.priceMonthlyAI;
-        case 'quarterly': return tier.priceQuarterlyAI;
-        case 'semiAnnual': return tier.priceSemiAnnualAI;
         case 'yearly': return tier.priceYearlyAI;
       }
     }
     switch (billingCycle) {
       case 'monthly': return tier.priceMonthly;
-      case 'quarterly': return tier.priceQuarterly;
-      case 'semiAnnual': return tier.priceSemiAnnual;
       case 'yearly': return tier.priceYearly;
     }
   };
@@ -96,8 +88,6 @@ function PricingContent() {
   const getDiscountBadge = (period: BillingPeriod) => {
     switch (period) {
       case 'monthly': return null;
-      case 'quarterly': return '-2.5%';
-      case 'semiAnnual': return '-5%';
       case 'yearly': return '2 mes. besplatno';
     }
   };
@@ -584,7 +574,7 @@ function PricingContent() {
             />
             <FaqItem
               question="Koji su periodi plaćanja dostupni?"
-              answer="Nudimo 4 perioda plaćanja: mesečno, kvartalno (2.5% popust), polugodišnje (5% popust) i godišnje (2 meseca besplatno, ušteda ~16.7%). Duži period = veći popust."
+              answer="Nudimo 2 perioda plaćanja: mesečno i godišnje (2 meseca besplatno, ušteda ~16.7%). Godišnji plan vam daje najbolju vrednost."
             />
             <FaqItem
               question="Mogu li kombinovati više planova?"

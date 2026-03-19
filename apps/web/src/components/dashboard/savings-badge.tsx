@@ -40,8 +40,6 @@ export function SavingsBadge() {
   const monthlyPrice = tier.priceMonthly;
   const periodTotal = (() => {
     switch (subscription.billingPeriod) {
-      case 'quarterly': return tier.priceQuarterly;
-      case 'semiAnnual': return tier.priceSemiAnnual;
       case 'yearly': return tier.priceYearly;
       default: return monthlyPrice;
     }

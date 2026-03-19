@@ -62,31 +62,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Referrer has reached maximum referrals' }, { status: 400 });
   }
 
-  // Perform batch write
+  // Create referral record — bonus is NOT applied yet.
+  // Referee must upload 100MB to qualify (checked in upload confirmation API).
   const batch = db.batch();
 
-  // Create referral record
   const referralRef = db.collection('referrals').doc();
   batch.set(referralRef, {
     referrerUserId,
     refereeUserId: userId,
     refereeEmail: refereeData.email || '',
     bonusBytes: REFERRAL_BONUS,
+    qualified: false, // becomes true after referee uploads 100MB
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  // Update referrer: +1 count, +1GB bonus, +1GB storage
-  batch.update(db.collection('users').doc(referrerUserId), {
-    referralCount: FieldValue.increment(1),
-    referralBonusBytes: FieldValue.increment(REFERRAL_BONUS),
-    storageLimit: FieldValue.increment(REFERRAL_BONUS),
-  });
-
-  // Update referee: set referredBy, +1GB bonus, +1GB storage
+  // Update referee: set referredBy (no storage bonus yet — must qualify first)
   batch.update(db.collection('users').doc(userId), {
     referredBy: referrerUserId,
-    referralBonusBytes: FieldValue.increment(REFERRAL_BONUS),
-    storageLimit: FieldValue.increment(REFERRAL_BONUS),
   });
 
   await batch.commit();
@@ -94,5 +86,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     success: true,
     bonusBytes: REFERRAL_BONUS,
+    message: 'Referral registrovan. Bonus se aktivira nakon što uploadujete 100MB sadržaja.',
   });
 }

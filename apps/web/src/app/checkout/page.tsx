@@ -24,16 +24,12 @@ import { cn } from '@/lib/utils';
 function getPaddlePriceId(tier: StorageTier, isAI: boolean, period: BillingPeriod): string {
   if (isAI) {
     switch (period) {
-      case 'monthly': return tier.paddleProductIdAI;
-      case 'quarterly': return tier.paddleQuarterlyIdAI;
-      case 'semiAnnual': return tier.paddleSemiAnnualIdAI;
+      case 'monthly': return tier.paddleMonthlyIdAI;
       case 'yearly': return tier.paddleYearlyIdAI;
     }
   }
   switch (period) {
-    case 'monthly': return tier.paddleProductId;
-    case 'quarterly': return tier.paddleQuarterlyId;
-    case 'semiAnnual': return tier.paddleSemiAnnualId;
+    case 'monthly': return tier.paddleMonthlyId;
     case 'yearly': return tier.paddleYearlyId;
   }
 }
@@ -42,15 +38,11 @@ function getPeriodTotal(tier: StorageTier, isAI: boolean, period: BillingPeriod)
   if (isAI) {
     switch (period) {
       case 'monthly': return tier.priceMonthlyAI;
-      case 'quarterly': return tier.priceQuarterlyAI;
-      case 'semiAnnual': return tier.priceSemiAnnualAI;
       case 'yearly': return tier.priceYearlyAI;
     }
   }
   switch (period) {
     case 'monthly': return tier.priceMonthly;
-    case 'quarterly': return tier.priceQuarterly;
-    case 'semiAnnual': return tier.priceSemiAnnual;
     case 'yearly': return tier.priceYearly;
   }
 }
