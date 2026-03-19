@@ -1768,22 +1768,12 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
 
   // Videos
   if (mime.startsWith('video/')) {
-    return (
-      <div className="flex items-center justify-center bg-black p-4">
-        <video src={url} controls autoPlay className="max-h-[75vh] max-w-full" />
-      </div>
-    );
+    return <VideoPreview file={file} url={url} />;
   }
 
   // Audio
   if (mime.startsWith('audio/')) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <FileAudio className="h-16 w-16 text-gray-400" />
-        <p className="text-lg font-medium">{file.name}</p>
-        <audio src={url} controls autoPlay className="w-80" />
-      </div>
-    );
+    return <AudioPreview file={file} url={url} />;
   }
 
   // PDF
@@ -1798,7 +1788,7 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
     return <TextFilePreview url={url} />;
   }
 
-  // Office documents — use Google Docs Viewer
+  // Office documents
   const isOffice = mime.includes('word') || mime.includes('document') ||
     mime.includes('spreadsheet') || mime.includes('excel') ||
     mime.includes('presentation') || mime.includes('powerpoint');
@@ -1811,14 +1801,25 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
         <p className="text-sm text-gray-500">
           Office dokumenti se mogu preuzeti i otvoriti lokalno
         </p>
-        <a
-          href={url}
-          download={file.name}
-          className="rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
-        >
-          <Download className="mr-2 inline h-4 w-4" />
-          Preuzmi i otvori
-        </a>
+        <div className="flex gap-3">
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Otvori u aplikaciji
+          </a>
+          <a
+            href={url}
+            download={file.name}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 px-6 py-3 font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+          >
+            <Download className="h-4 w-4" />
+            Preuzmi
+          </a>
+        </div>
       </div>
     );
   }
@@ -1829,13 +1830,151 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
       <File className="h-16 w-16 text-gray-400" />
       <p className="text-lg font-medium">{file.name}</p>
       <p className="text-sm text-gray-500">Pregled ovog tipa fajla nije podržan</p>
+      <div className="flex gap-3">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Otvori u aplikaciji
+        </a>
+        <a
+          href={url}
+          download={file.name}
+          className="flex items-center gap-2 rounded-lg border border-gray-300 px-6 py-3 font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+        >
+          <Download className="h-4 w-4" />
+          Preuzmi
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function VideoPreview({ file, url }: { file: DiskFile; url: string }) {
+  const [error, setError] = useState(false);
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 bg-black py-16">
+        <FileVideo className="h-16 w-16 text-gray-500" />
+        <p className="text-lg font-medium text-white">{file.name}</p>
+        <p className="text-sm text-gray-400">
+          Ovaj video format nije podržan u pregledaču.
+        </p>
+        <div className="flex gap-3">
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Otvori u video playeru
+          </a>
+          <a
+            href={url}
+            download={file.name}
+            className="flex items-center gap-2 rounded-lg border border-gray-600 px-6 py-3 font-medium text-white hover:bg-gray-800"
+          >
+            <Download className="h-4 w-4" />
+            Preuzmi
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center bg-black">
+      <video
+        src={url}
+        controls
+        autoPlay
+        playsInline
+        className="max-h-[75vh] max-w-full"
+        onError={() => setError(true)}
+      >
+        Vaš pregledač ne podržava ovaj video format.
+      </video>
+      <div className="flex items-center gap-3 py-2">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Otvori u video playeru
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function AudioPreview({ file, url }: { file: DiskFile; url: string }) {
+  const [error, setError] = useState(false);
+  const ext = file.name.split('.').pop()?.toUpperCase() || 'AUDIO';
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-16">
+        <div className="rounded-full bg-purple-100 p-6 dark:bg-purple-900/30">
+          <FileAudio className="h-12 w-12 text-purple-500" />
+        </div>
+        <p className="text-lg font-semibold">{file.name}</p>
+        <p className="text-sm text-gray-500">
+          {ext} format nije podržan u pregledaču.
+        </p>
+        <div className="flex gap-3">
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Otvori u music playeru
+          </a>
+          <a
+            href={url}
+            download={file.name}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 px-6 py-3 font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+          >
+            <Download className="h-4 w-4" />
+            Preuzmi
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-5 py-12">
+      <div className="rounded-full bg-gradient-to-br from-purple-500 to-pink-500 p-8 shadow-lg">
+        <FileAudio className="h-16 w-16 text-white" />
+      </div>
+      <div className="text-center">
+        <p className="text-lg font-semibold">{file.name}</p>
+        <p className="text-xs text-gray-400">{ext} · {formatSize(file.size)}</p>
+      </div>
+      <audio
+        src={url}
+        controls
+        autoPlay
+        className="w-full max-w-md"
+        onError={() => setError(true)}
+      />
       <a
         href={url}
-        download={file.name}
-        className="rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-primary-500"
       >
-        <Download className="mr-2 inline h-4 w-4" />
-        Preuzmi
+        <ExternalLink className="h-3.5 w-3.5" />
+        Otvori u music playeru na uređaju
       </a>
     </div>
   );
