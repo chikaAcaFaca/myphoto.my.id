@@ -33,6 +33,8 @@ import {
   Link2,
   Globe,
   ExternalLink,
+  Crop,
+  Eraser,
 } from 'lucide-react';
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
@@ -1327,6 +1329,23 @@ export default function MyDiskPage() {
                 >
                   <Download className="h-4 w-4" /> Otvori fajl
                 </button>
+                {contextMenu.item.mimeType?.startsWith('image/') && (
+                  <>
+                    <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
+                    <button
+                      onClick={() => { window.open(`/tools/image-editor?fileId=${contextMenu.item.id}`, '_blank'); setContextMenu(null); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                    >
+                      <Crop className="h-4 w-4" /> Uredi / Napravi mim
+                    </button>
+                    <button
+                      onClick={() => { window.open(`/tools/remove-bg?fileId=${contextMenu.item.id}`, '_blank'); setContextMenu(null); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                    >
+                      <Eraser className="h-4 w-4" /> Ukloni pozadinu
+                    </button>
+                  </>
+                )}
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                 <button
                   onClick={() => {
