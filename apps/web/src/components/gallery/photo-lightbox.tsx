@@ -22,6 +22,7 @@ import {
   Loader2,
   Maximize,
   Eraser,
+  Crop,
 } from 'lucide-react';
 import type { FileMetadata } from '@myphoto/shared';
 import { formatDate, formatBytes } from '@myphoto/shared';
@@ -853,6 +854,15 @@ function LightboxToolbar({
           });
         }}
       />
+      {file.type !== 'video' && (
+        <ToolbarButton
+          icon={<Crop className="h-5 w-5" />}
+          label="Uredi sliku"
+          onClick={() => {
+            window.open(`/tools/image-editor?fileId=${file.id}`, '_blank');
+          }}
+        />
+      )}
       {file.type !== 'video' && (
         <ToolbarButton
           icon={<Eraser className="h-5 w-5" />}
