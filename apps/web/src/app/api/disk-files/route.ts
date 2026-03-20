@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { generateUploadUrl, copyObject } from '@/lib/s3';
+import { generateUploadUrl, copyObject, configureBucketCors } from '@/lib/s3';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 
 export const dynamic = 'force-dynamic';
+
+// One-time CORS setup for the S3 bucket
+let corsConfigured = false;
+async function ensureCorsConfigured() {
+  if (corsConfigured) return;
+  try {
+    await configureBucketCors();
+    corsConfigured = true;
+  } catch (err) {
+    console.error('Failed to configure S3 CORS (non-fatal):', err);
+  }
+}
 
 // Auto-rename duplicate filenames like Windows: file.txt -> file (1).txt -> file (2).txt
 async function getUniqueFilename(userId: string, folderId: string, filename: string): Promise<string> {
@@ -36,6 +48,9 @@ export async function POST(request: NextRequest) {
     const authResult = await verifyAuthWithRateLimit(request, 'upload');
     if (!authResult.success) return authResult.response;
     const { userId } = authResult;
+
+    // Ensure S3 CORS is configured (runs once per cold start)
+    await ensureCorsConfigured();
 
     const body = await request.json();
     const { filename, mimeType, size, folderId = 'root' } = body;

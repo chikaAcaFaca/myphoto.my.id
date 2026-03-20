@@ -118,8 +118,10 @@ export async function configureBucketCors(): Promise<void> {
           AllowedMethods: ['PUT', 'GET', 'HEAD'],
           AllowedOrigins: [
             'https://myphoto.my.id',
+            'https://www.myphoto.my.id',
             'https://*.vercel.app',
             'http://localhost:3000',
+            'http://localhost:3001',
           ],
           ExposeHeaders: ['ETag'],
           MaxAgeSeconds: 3600,
