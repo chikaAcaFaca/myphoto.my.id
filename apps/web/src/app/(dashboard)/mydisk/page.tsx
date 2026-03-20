@@ -570,35 +570,57 @@ export default function MyDiskPage() {
   // Upload a single file to a target folder
   const uploadSingleFile = async (file: File, targetFolderId: string, token: string) => {
     // 1. Get presigned URL
-    const urlRes = await fetch('/api/disk-files', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        filename: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        size: file.size,
-        folderId: targetFolderId,
-      }),
-    });
+    let urlRes;
+    try {
+      urlRes = await fetch('/api/disk-files', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          size: file.size,
+          folderId: targetFolderId,
+        }),
+      });
+    } catch (e: any) {
+      throw new Error(`Greška pri povezivanju sa serverom: ${e.message}`);
+    }
     if (!urlRes.ok) {
-      const err = await urlRes.json();
-      throw new Error(err.error || 'Failed to get upload URL');
+      const err = await urlRes.json().catch(() => ({}));
+      throw new Error(err.error || `Server greška: ${urlRes.status}`);
     }
     const { uploadUrl, fileId, s3Key } = await urlRes.json();
 
     // 2. Upload to S3
-    await fetch(uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': file.type || 'application/octet-stream' },
-    });
+    let s3Res;
+    try {
+      s3Res = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      });
+    } catch (e: any) {
+      throw new Error(`Upload na cloud nije uspeo: ${e.message}`);
+    }
+    if (!s3Res.ok) {
+      throw new Error(`Cloud storage greška: ${s3Res.status} ${s3Res.statusText}`);
+    }
 
     // 3. Confirm upload
-    await fetch('/api/disk-files', {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileId, s3Key, filename: file.name, mimeType: file.type || 'application/octet-stream', size: file.size, folderId: targetFolderId }),
-    });
+    let confirmRes;
+    try {
+      confirmRes = await fetch('/api/disk-files', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, s3Key, filename: file.name, mimeType: file.type || 'application/octet-stream', size: file.size, folderId: targetFolderId }),
+      });
+    } catch (e: any) {
+      throw new Error(`Potvrda uploada nije uspela: ${e.message}`);
+    }
+    if (!confirmRes.ok) {
+      const err = await confirmRes.json().catch(() => ({}));
+      throw new Error(err.error || `Potvrda greška: ${confirmRes.status}`);
+    }
   };
 
   // Create a folder and return its ID
