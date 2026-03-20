@@ -120,6 +120,7 @@ export async function configureBucketCors(): Promise<void> {
             'https://myphoto.my.id',
             'https://www.myphoto.my.id',
             'https://*.vercel.app',
+            'https://myphoto-my-id-web-seven.vercel.app',
             'http://localhost:3000',
             'http://localhost:3001',
           ],
