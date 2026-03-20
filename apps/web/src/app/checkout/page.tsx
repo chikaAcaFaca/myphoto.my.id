@@ -22,7 +22,9 @@ import { useAuthStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
 
 function getPaddlePriceId(tier: StorageTier, isAI: boolean, period: BillingPeriod): string {
-  if (isAI) {
+  // Fall back to standard if AI pricing not available for this tier
+  const useAI = isAI && tier.priceMonthlyAI > 0;
+  if (useAI) {
     switch (period) {
       case 'monthly': return tier.paddleMonthlyIdAI;
       case 'yearly': return tier.paddleYearlyIdAI;
@@ -35,7 +37,8 @@ function getPaddlePriceId(tier: StorageTier, isAI: boolean, period: BillingPerio
 }
 
 function getPeriodTotal(tier: StorageTier, isAI: boolean, period: BillingPeriod): number {
-  if (isAI) {
+  const useAI = isAI && tier.priceMonthlyAI > 0;
+  if (useAI) {
     switch (period) {
       case 'monthly': return tier.priceMonthlyAI;
       case 'yearly': return tier.priceYearlyAI;

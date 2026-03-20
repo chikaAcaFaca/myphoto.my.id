@@ -48,35 +48,30 @@ function PricingContent() {
 
   const periodConfig = BILLING_PERIODS[billingCycle];
 
+  // For AI plan type: use AI price if available, otherwise fall back to standard price
   const getMonthlyBase = (tier: typeof STORAGE_TIERS[0]) => {
-    return planType === 'ai' ? tier.priceMonthlyAI : tier.priceMonthly;
+    if (planType === 'ai' && tier.priceMonthlyAI > 0) return tier.priceMonthlyAI;
+    return tier.priceMonthly;
   };
 
   const getMonthlyEquivalent = (tier: typeof STORAGE_TIERS[0]) => {
-    if (planType === 'ai') {
-      switch (billingCycle) {
-        case 'monthly': return tier.priceMonthlyAI;
-        case 'yearly': return tier.priceYearlyAI / 12;
-      }
-    }
+    const useAI = planType === 'ai' && tier.priceMonthlyAI > 0;
     switch (billingCycle) {
-      case 'monthly': return tier.priceMonthly;
-      case 'yearly': return tier.priceYearly / 12;
+      case 'monthly': return useAI ? tier.priceMonthlyAI : tier.priceMonthly;
+      case 'yearly': return useAI ? tier.priceYearlyAI / 12 : tier.priceYearly / 12;
     }
   };
 
   const getPeriodTotal = (tier: typeof STORAGE_TIERS[0]) => {
-    if (planType === 'ai') {
-      switch (billingCycle) {
-        case 'monthly': return tier.priceMonthlyAI;
-        case 'yearly': return tier.priceYearlyAI;
-      }
-    }
+    const useAI = planType === 'ai' && tier.priceMonthlyAI > 0;
     switch (billingCycle) {
-      case 'monthly': return tier.priceMonthly;
-      case 'yearly': return tier.priceYearly;
+      case 'monthly': return useAI ? tier.priceMonthlyAI : tier.priceMonthly;
+      case 'yearly': return useAI ? tier.priceYearlyAI : tier.priceYearly;
     }
   };
+
+  // Has AI pricing available
+  const hasAI = (tier: typeof STORAGE_TIERS[0]) => tier.priceMonthlyAI > 0;
 
   const getSavingsPercent = (tier: typeof STORAGE_TIERS[0]) => {
     const monthly = getMonthlyBase(tier);
@@ -241,9 +236,9 @@ function PricingContent() {
           </div>
         )}
 
-        {/* Pricing cards - First 5 tiers */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {STORAGE_TIERS.slice(0, 5).map((tier) => {
+        {/* Pricing cards - Main tiers (Free through Plus) */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {STORAGE_TIERS.slice(0, 6).map((tier) => {
             const monthlyBase = getMonthlyBase(tier);
             const monthlyEquiv = getMonthlyEquivalent(tier);
             const periodTotal = getPeriodTotal(tier);
@@ -274,7 +269,14 @@ function PricingContent() {
                   </div>
                 )}
 
-                <h3 className="text-lg font-semibold">{tier.name}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">{tier.name}</h3>
+                  {planType === 'ai' && !hasAI(tier) && tier.priceMonthly > 0 && (
+                    <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-medium', isPopular ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500 dark:bg-gray-700')}>
+                      Bez AI
+                    </span>
+                  )}
+                </div>
 
                 {/* Price display */}
                 <div className="mt-1 mb-1">
@@ -378,8 +380,8 @@ function PricingContent() {
         {/* Additional tiers */}
         <div className="mt-12">
           <h2 className="mb-6 text-center text-2xl font-bold">Treba vam više prostora?</h2>
-          <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {STORAGE_TIERS.slice(5).map((tier) => {
+          <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {STORAGE_TIERS.slice(6).map((tier) => {
               const monthlyBase = getMonthlyBase(tier);
               const monthlyEquiv = getMonthlyEquivalent(tier);
               const periodTotal = getPeriodTotal(tier);
