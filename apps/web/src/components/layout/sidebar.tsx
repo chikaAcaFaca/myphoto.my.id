@@ -99,7 +99,7 @@ export function Sidebar() {
             {isCollapsed ? (
               <NextImage
                 src="/logo.png"
-                alt="MyPhoto"
+                alt="MyCameraBackup"
                 width={56}
                 height={56}
                 className="h-14 w-14 object-contain"
@@ -107,7 +107,7 @@ export function Sidebar() {
             ) : (
               <NextImage
                 src="/logo.png"
-                alt="MyPhoto.my.id"
+                alt="MyCameraBackup.com"
                 width={225}
                 height={60}
                 className="h-14 w-auto"

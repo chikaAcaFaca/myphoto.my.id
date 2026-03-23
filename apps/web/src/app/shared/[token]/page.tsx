@@ -47,19 +47,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!shared) {
     return {
-      title: 'Link nije pronađen - MyPhoto.my.id',
+      title: 'Link nije pronađen - MyCameraBackup.com',
     };
   }
 
   const isAlbum = shared.type === 'album';
   const title = isAlbum
-    ? `Album "${shared.albumName}" - Deljeno sa MyPhoto.my.id`
-    : `"${shared.fileName}" - Deljeno sa MyPhoto.my.id`;
+    ? `Album "${shared.albumName}" - Deljeno sa MyCameraBackup.com`
+    : `"${shared.fileName}" - Deljeno sa MyCameraBackup.com`;
   const description =
     'Besplatan cloud storage za vaše slike. Do 15GB besplatno, privatno i sigurno. Prijavite se za 30 sekundi.';
   const coverFileId = isAlbum ? shared.coverFileId : shared.fileId;
   const ogImageUrl = coverFileId
-    ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://myphoto.my.id'}/api/thumbnail/${coverFileId}?share=${token}`
+    ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://mycamerabackup.com'}/api/thumbnail/${coverFileId}?share=${token}`
     : undefined;
 
   return {
@@ -79,7 +79,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         ],
       }),
       type: 'article',
-      siteName: 'MyPhoto.my.id',
+      siteName: 'MyCameraBackup.com',
     },
     twitter: {
       card: 'summary_large_image',
@@ -119,7 +119,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
         <p className="mb-4 text-sm text-gray-400">
           Deljeno sa{' '}
           <Link href="/" className="text-primary-400 hover:underline">
-            MyPhoto.my.id
+            MyCameraBackup.com
           </Link>
         </p>
 
@@ -276,7 +276,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
           <div className="mx-auto flex max-w-4xl flex-col items-center gap-4 px-4 md:flex-row md:justify-between">
             <NextImage
               src="/logo.png"
-              alt="MyPhoto.my.id"
+              alt="MyCameraBackup.com"
               width={160}
               height={48}
               className="h-10 w-auto"
@@ -299,7 +299,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
               </Link>
             </div>
             <p className="text-xs text-gray-600">
-              &copy; {new Date().getFullYear()} MyPhoto.my.id
+              &copy; {new Date().getFullYear()} MyCameraBackup.com
             </p>
           </div>
         </footer>

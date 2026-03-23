@@ -1,11 +1,12 @@
 {
-  "name": "MyPhoto.my.id",
-  "short_name": "MyPhoto",
-  "description": "Privatni cloud storage za vaše slike. AI pretraga, EU serveri, GDPR zaštita.",
+  "name": "MyCameraBackup",
+  "short_name": "MyCameraBackup",
+  "description": "Privatni cloud backup za vaše slike, video i dokumente. EU serveri, GDPR zaštita.",
+  "id": "com.mycamerabackup.app",
   "start_url": "/photos",
   "display": "standalone",
   "background_color": "#111827",
-  "theme_color": "#0ea5e9",
+  "theme_color": "#2563eb",
   "orientation": "any",
   "categories": ["photo", "productivity"],
   "icons": [

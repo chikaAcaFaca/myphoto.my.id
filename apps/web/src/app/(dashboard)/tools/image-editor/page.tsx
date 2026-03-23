@@ -237,7 +237,7 @@ function ImageEditorContent() {
       if (selectedTextId === mt.id) {
         const metrics = ctx.measureText(mt.text);
         const pad = 6;
-        ctx.strokeStyle = '#0ea5e9';
+        ctx.strokeStyle = '#2563eb';
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 4]);
         ctx.strokeRect(
@@ -476,7 +476,7 @@ function ImageEditorContent() {
     }
 
     const link = document.createElement('a');
-    link.download = `myphoto-edit-${Date.now()}.png`;
+    link.download = `mycamerabackup-edit-${Date.now()}.png`;
     link.href = exportCanvas.toDataURL('image/png');
     document.body.appendChild(link);
     link.click();
@@ -496,7 +496,7 @@ function ImageEditorContent() {
 
     // Download audio separately
     const audioLink = document.createElement('a');
-    audioLink.download = `myphoto-meme-audio-${Date.now()}.webm`;
+    audioLink.download = `mycamerabackup-meme-audio-${Date.now()}.webm`;
     audioLink.href = audioUrl!;
     document.body.appendChild(audioLink);
     audioLink.click();

@@ -12,26 +12,26 @@ import {
 
 export function generateMetadata(): Metadata {
   return {
-    title: 'MyPhoto vs Google Photos: Why Switch? | MyPhoto.my.id',
+    title: 'MyCameraBackup vs Google Photos: Why Switch? | MyCameraBackup.com',
     description:
-      'Compare MyPhoto with Google Photos. Better privacy, EU servers, no AI training on your photos, original quality storage, and competitive pricing. The best Google Photos alternative.',
+      'Compare MyCameraBackup with Google Photos. Better privacy, EU servers, no AI training on your photos, original quality storage, and competitive pricing. The best Google Photos alternative.',
     alternates: {
-      canonical: 'https://myphoto.my.id/compare/google-photos',
+      canonical: 'https://mycamerabackup.com/compare/google-photos',
     },
     openGraph: {
-      title: 'MyPhoto vs Google Photos: Why Switch? | MyPhoto.my.id',
+      title: 'MyCameraBackup vs Google Photos: Why Switch? | MyCameraBackup.com',
       description:
-        'Compare MyPhoto with Google Photos. Better privacy, EU servers, original quality, and competitive pricing.',
-      url: 'https://myphoto.my.id/compare/google-photos',
-      siteName: 'MyPhoto.my.id',
+        'Compare MyCameraBackup with Google Photos. Better privacy, EU servers, original quality, and competitive pricing.',
+      url: 'https://mycamerabackup.com/compare/google-photos',
+      siteName: 'MyCameraBackup.com',
       type: 'website',
       locale: 'sr_RS',
       images: [
         {
-          url: 'https://myphoto.my.id/og-image.png',
+          url: 'https://mycamerabackup.com/og-image.png',
           width: 1200,
           height: 630,
-          alt: 'MyPhoto vs Google Photos Comparison',
+          alt: 'MyCameraBackup vs Google Photos Comparison',
         },
       ],
     },
@@ -40,24 +40,24 @@ export function generateMetadata(): Metadata {
 
 const FAQS = [
   {
-    q: 'Why should I switch from Google Photos to MyPhoto?',
-    a: 'MyPhoto offers genuine privacy - your photos are never used for AI training, stored on EU servers with GDPR compliance, and saved in original quality without compression. Google Photos compresses images in free tier and uses your data for advertising purposes.',
+    q: 'Why should I switch from Google Photos to MyCameraBackup?',
+    a: 'MyCameraBackup offers genuine privacy - your photos are never used for AI training, stored on EU servers with GDPR compliance, and saved in original quality without compression. Google Photos compresses images in free tier and uses your data for advertising purposes.',
   },
   {
-    q: 'Is MyPhoto cheaper than Google Photos?',
-    a: 'MyPhoto offers competitive per-GB pricing at €0.017/GB compared to Google One at €0.021/GB. Our 150GB plan starts at €2.49/month, while Google offers 100GB for €2.10/month - making MyPhoto a better value per gigabyte.',
+    q: 'Is MyCameraBackup cheaper than Google Photos?',
+    a: 'MyCameraBackup offers competitive per-GB pricing at €0.017/GB compared to Google One at €0.021/GB. Our 150GB plan starts at €2.49/month, while Google offers 100GB for €2.10/month - making MyCameraBackup a better value per gigabyte.',
   },
   {
     q: 'Does Google Photos use my photos for AI training?',
-    a: 'Google uses your data to improve their services, including AI models. MyPhoto never uses your photos for AI training. Your data remains yours and is only processed for features you explicitly enable.',
+    a: 'Google uses your data to improve their services, including AI models. MyCameraBackup never uses your photos for AI training. Your data remains yours and is only processed for features you explicitly enable.',
   },
   {
-    q: 'Can I import my photos from Google Photos to MyPhoto?',
-    a: 'Yes! You can export your photos from Google Takeout and upload them to MyPhoto. All photos are preserved in their original quality during the transfer process.',
+    q: 'Can I import my photos from Google Photos to MyCameraBackup?',
+    a: 'Yes! You can export your photos from Google Takeout and upload them to MyCameraBackup. All photos are preserved in their original quality during the transfer process.',
   },
   {
-    q: 'Does MyPhoto have AI features like Google Photos?',
-    a: 'Yes! MyPhoto offers AI-powered smart search, auto-tagging, and face recognition - all available as an optional AI plan addon. The difference is that your photos are never used to train these models.',
+    q: 'Does MyCameraBackup have AI features like Google Photos?',
+    a: 'Yes! MyCameraBackup offers AI-powered smart search, auto-tagging, and face recognition - all available as an optional AI plan addon. The difference is that your photos are never used to train these models.',
   },
 ];
 
@@ -82,19 +82,19 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 1,
           name: 'Pocetna',
-          item: 'https://myphoto.my.id',
+          item: 'https://mycamerabackup.com',
         },
         {
           '@type': 'ListItem',
           position: 2,
           name: 'Compare',
-          item: 'https://myphoto.my.id/compare',
+          item: 'https://mycamerabackup.com/compare',
         },
         {
           '@type': 'ListItem',
           position: 3,
           name: 'vs Google Photos',
-          item: 'https://myphoto.my.id/compare/google-photos',
+          item: 'https://mycamerabackup.com/compare/google-photos',
         },
       ],
     },
@@ -169,7 +169,7 @@ const REASONS = [
     icon: Shield,
     title: 'Privatnost na prvom mestu',
     description:
-      'Google koristi vaše podatke za personalizaciju reklama. MyPhoto nikada ne skenira vaše slike niti deli podatke sa oglasivcima.',
+      'Google koristi vaše podatke za personalizaciju reklama. MyCameraBackup nikada ne skenira vaše slike niti deli podatke sa oglasivcima.',
   },
   {
     icon: Server,
@@ -181,13 +181,13 @@ const REASONS = [
     icon: Eye,
     title: 'Bez kompresije',
     description:
-      'Google Photos kompresuje slike u besplatnom planu. MyPhoto čuva svaki piksel u originalnom kvalitetu.',
+      'Google Photos kompresuje slike u besplatnom planu. MyCameraBackup čuva svaki piksel u originalnom kvalitetu.',
   },
   {
     icon: Zap,
     title: 'Bolja cena po GB',
     description:
-      'MyPhoto nudi €0.017 po GB u odnosu na Google-ovih €0.021 po GB. Više prostora za manje novca.',
+      'MyCameraBackup nudi €0.017 po GB u odnosu na Google-ovih €0.021 po GB. Više prostora za manje novca.',
   },
 ];
 
@@ -203,10 +203,10 @@ export default function CompareGooglePhotosPage() {
       <section className="bg-gradient-to-b from-primary-50 to-white px-4 py-20 text-center dark:from-gray-900 dark:to-gray-950">
         <div className="mx-auto max-w-3xl">
           <h1 className="mb-4 text-4xl font-bold text-gray-900 dark:text-white md:text-5xl">
-            MyPhoto vs Google Photos: Why Switch?
+            MyCameraBackup vs Google Photos: Why Switch?
           </h1>
           <p className="mx-auto mb-8 max-w-xl text-lg text-gray-600 dark:text-gray-300">
-            Uporedite MyPhoto i Google Photos. Saznajte zašto sve više
+            Uporedite MyCameraBackup i Google Photos. Saznajte zašto sve više
             korisnika prelazi na privatniju alternativu.
           </p>
           <Link
@@ -258,7 +258,7 @@ export default function CompareGooglePhotosPage() {
                   </th>
                   <th className="border-b-2 border-gray-200 px-4 py-3 text-center dark:border-gray-700">
                     <span className="rounded-full bg-primary-100 px-3 py-1 text-sm font-bold text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
-                      MyPhoto
+                      MyCameraBackup
                     </span>
                   </th>
                   <th className="border-b-2 border-gray-200 px-4 py-3 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">

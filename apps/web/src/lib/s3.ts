@@ -21,7 +21,7 @@ const s3Client = new S3Client({
   forcePathStyle: true,
 });
 
-const BUCKET_NAME = process.env.WASABI_BUCKET || 'myphoto-prod';
+const BUCKET_NAME = process.env.WASABI_BUCKET || 'mycamerabackup-prod';
 
 export async function generateUploadUrl(
   key: string,
@@ -117,8 +117,6 @@ export async function configureBucketCors(): Promise<void> {
           AllowedHeaders: ['*'],
           AllowedMethods: ['PUT', 'GET', 'HEAD'],
           AllowedOrigins: [
-            'https://myphoto.my.id',
-            'https://www.myphoto.my.id',
             'https://mycamerabackup.com',
             'https://www.mycamerabackup.com',
             'https://*.vercel.app',

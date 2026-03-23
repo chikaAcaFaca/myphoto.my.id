@@ -377,7 +377,7 @@ export default function SettingsPage() {
                         <p className="mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">Podeli putem</p>
                         <div className="flex flex-wrap gap-2">
                           <a
-                            href={`https://wa.me/?text=${encodeURIComponent(`Pridruži se MyPhoto i dobij +512MB besplatnog prostora! ${referralStats.referralLink}`)}`}
+                            href={`https://wa.me/?text=${encodeURIComponent(`Pridruži se MyCameraBackup i dobij +512MB besplatnog prostora! ${referralStats.referralLink}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
@@ -386,7 +386,7 @@ export default function SettingsPage() {
                             WhatsApp
                           </a>
                           <a
-                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Čuvam slike na MyPhoto - privatno i sigurno! Registruj se i oboje dobijamo +512MB: ${referralStats.referralLink}`)}`}
+                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Čuvam slike na MyCameraBackup - privatno i sigurno! Registruj se i oboje dobijamo +512MB: ${referralStats.referralLink}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
@@ -404,7 +404,7 @@ export default function SettingsPage() {
                             Facebook
                           </a>
                           <a
-                            href={`mailto:?subject=${encodeURIComponent('Pridruži se MyPhoto!')}&body=${encodeURIComponent(`Pozivam te na MyPhoto - privatno čuvanje slika u oblaku. Registruj se i oboje dobijamo +512MB besplatnog prostora!\n\n${referralStats.referralLink}`)}`}
+                            href={`mailto:?subject=${encodeURIComponent('Pridruži se MyCameraBackup!')}&body=${encodeURIComponent(`Pozivam te na MyCameraBackup - privatno čuvanje slika u oblaku. Registruj se i oboje dobijamo +512MB besplatnog prostora!\n\n${referralStats.referralLink}`)}`}
                             className="flex items-center gap-2 rounded-lg bg-gray-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600"
                           >
                             <Share2 className="h-4 w-4" />

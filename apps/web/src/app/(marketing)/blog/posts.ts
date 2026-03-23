@@ -16,7 +16,7 @@ export const blogPosts: BlogPost[] = [
     description:
       'Saznajte zašto je zaštita privatnosti vaših fotografija ključna u digitalnom dobu i kako da izaberete siguran cloud storage.',
     date: '2025-01-15',
-    author: 'MyPhoto Tim',
+    author: 'MyCameraBackup Tim',
     readingTime: '5 min',
     tags: ['privatnost', 'GDPR', 'sigurnost'],
     content: `
@@ -39,9 +39,9 @@ GDPR (General Data Protection Regulation) je evropski zakon koji štiti vaše po
 3. **Pravo na informisanost** — morate znati kako se vaši podaci koriste
 4. **Pravo na prigovor** — možete se usprotiviti obradi vaših podataka
 
-## Kako MyPhoto štiti vašu privatnost
+## Kako MyCameraBackup štiti vašu privatnost
 
-MyPhoto.my.id je dizajniran sa privatnošću na prvom mestu:
+MyCameraBackup.com je dizajniran sa privatnošću na prvom mestu:
 - **EU serveri** — vaši podaci nikada ne napuštaju Evropu
 - **Nema AI treniranja** — vaše slike se ne koriste za treniranje modela
 - **End-to-end enkripcija** — samo vi imate pristup
@@ -50,7 +50,7 @@ MyPhoto.my.id je dizajniran sa privatnošću na prvom mestu:
 
 ## Zaključak
 
-Privatnost nije luksuz — to je pravo. Izaberite cloud storage koji poštuje vaše podatke. Isprobajte MyPhoto besplatno sa do 15GB prostora i uverite se sami.
+Privatnost nije luksuz — to je pravo. Izaberite cloud storage koji poštuje vaše podatke. Isprobajte MyCameraBackup besplatno sa do 15GB prostora i uverite se sami.
     `.trim(),
   },
   {
@@ -59,7 +59,7 @@ Privatnost nije luksuz — to je pravo. Izaberite cloud storage koji poštuje va
     description:
       'Korak po korak vodič za automatski backup svih fotografija i videa sa vašeg Android telefona u privatni cloud.',
     date: '2025-01-20',
-    author: 'MyPhoto Tim',
+    author: 'MyCameraBackup Tim',
     readingTime: '4 min',
     tags: ['android', 'backup', 'vodič'],
     content: `
@@ -67,16 +67,16 @@ Privatnost nije luksuz — to je pravo. Izaberite cloud storage koji poštuje va
 
 Telefoni se gube, kradu ili kvare. Bez backup-a, gubite godine uspomena. Automatski backup osigurava da svaka nova slika bude bezbedno sačuvana u cloud-u.
 
-## Korak 1: Instalirajte MyPhoto aplikaciju
+## Korak 1: Instalirajte MyCameraBackup aplikaciju
 
 1. Otvorite Google Play Store na vašem telefonu
-2. Pretražite "MyPhoto.my.id"
+2. Pretražite "MyCameraBackup.com"
 3. Instalirajte aplikaciju (besplatna)
 4. Prijavite se ili kreirajte besplatan nalog
 
 ## Korak 2: Uključite automatski backup
 
-1. Otvorite MyPhoto aplikaciju
+1. Otvorite MyCameraBackup aplikaciju
 2. Idite u **Podešavanja** → **Backup**
 3. Uključite **Automatski backup**
 4. Izaberite foldere za backup (ili ostavite "Svi" za kompletni backup)
@@ -102,7 +102,7 @@ Kada instalirate aplikaciju i uključite automatski backup, dobijate **+4GB besp
 ## Često postavljana pitanja
 
 **Da li backup troši puno baterije?**
-Ne. MyPhoto koristi Android Background Fetch koji je optimizovan za minimalnu potrošnju baterije.
+Ne. MyCameraBackup koristi Android Background Fetch koji je optimizovan za minimalnu potrošnju baterije.
 
 **Šta ako nemam dovoljno prostora?**
 Besplatan plan počinje sa 1GB, a sa aplikacijom i backup-om dobijate 5GB. Pozovite prijatelje za do 15GB besplatno, ili nadogradite na Starter plan (150GB za €2.49/mes).
@@ -112,22 +112,22 @@ Da! U podešavanjima možete izabrati tačno koje foldere želite da backup-ujet
     `.trim(),
   },
   {
-    slug: 'google-photos-vs-myphoto-detaljno-poredjenje',
-    title: 'Google Photos vs MyPhoto: Detaljno poređenje',
+    slug: 'google-photos-vs-mycamerabackup-detaljno-poredjenje',
+    title: 'Google Photos vs MyCameraBackup: Detaljno poređenje',
     description:
-      'Uporedite Google Photos i MyPhoto.my.id po privatnosti, ceni, kvalitetu slike i funkcijama. Saznajte koji je bolji za vas.',
+      'Uporedite Google Photos i MyCameraBackup.com po privatnosti, ceni, kvalitetu slike i funkcijama. Saznajte koji je bolji za vas.',
     date: '2025-02-01',
-    author: 'MyPhoto Tim',
+    author: 'MyCameraBackup Tim',
     readingTime: '6 min',
     tags: ['poređenje', 'google photos', 'alternativa'],
     content: `
-## Google Photos vs MyPhoto — šta je bolje za vaše slike?
+## Google Photos vs MyCameraBackup — šta je bolje za vaše slike?
 
-Google Photos je najpopularniji servis za čuvanje slika, ali da li je i najbolji? Uporedimo ga sa MyPhoto.my.id po ključnim kriterijumima.
+Google Photos je najpopularniji servis za čuvanje slika, ali da li je i najbolji? Uporedimo ga sa MyCameraBackup.com po ključnim kriterijumima.
 
 ## Privatnost
 
-| | Google Photos | MyPhoto |
+| | Google Photos | MyCameraBackup |
 |---|---|---|
 | AI treniranje | Da — koristi vaše slike | Ne — nikada |
 | Reklamiranje | Da — analizira sadržaj | Ne — bez reklama |
@@ -135,46 +135,46 @@ Google Photos je najpopularniji servis za čuvanje slika, ali da li je i najbolj
 | Serveri | SAD + globalno | EU (Frankfurt) |
 | Enkripcija | U tranzitu | End-to-end |
 
-**Pobednik: MyPhoto** — vaše slike ostaju privatne.
+**Pobednik: MyCameraBackup** — vaše slike ostaju privatne.
 
 ## Kvalitet slike
 
 - **Google Photos (besplatno)**: Kompresuje slike na 16MP, video na 1080p
 - **Google Photos (Google One)**: Original kvalitet, ali troši storage
-- **MyPhoto**: Uvek original kvalitet, bez kompresije
+- **MyCameraBackup**: Uvek original kvalitet, bez kompresije
 
-**Pobednik: MyPhoto** — nikada ne kompresuje vaše slike.
+**Pobednik: MyCameraBackup** — nikada ne kompresuje vaše slike.
 
 ## Cena
 
-| Plan | Google One | MyPhoto |
+| Plan | Google One | MyCameraBackup |
 |---|---|---|
 | Besplatan | 15GB (deljeno) | 1GB + do 14GB bonus |
 | 100-150GB | €1.99/mes | €2.49/mes (150GB) |
 | 200-250GB | €2.99/mes | €3.49/mes (250GB) |
 
-Google One deli storage sa Gmail i Drive. MyPhoto je posvećen samo fotografijama.
+Google One deli storage sa Gmail i Drive. MyCameraBackup je posvećen samo fotografijama.
 
-**Pobednik: Izjednačeno** — Google je jeftiniji, MyPhoto nudi više za slike.
+**Pobednik: Izjednačeno** — Google je jeftiniji, MyCameraBackup nudi više za slike.
 
 ## AI funkcije
 
-Oba servisa nude AI pretragu, ali sa ključnom razlikom: Google koristi vaše slike za treniranje, MyPhoto ne.
+Oba servisa nude AI pretragu, ali sa ključnom razlikom: Google koristi vaše slike za treniranje, MyCameraBackup ne.
 
 ## Zaključak
 
-Ako vam je privatnost važna i želite originalni kvalitet bez kompromisa, MyPhoto je bolji izbor. Ako vam je bitna samo cena i već koristite Google ekosistem, Google Photos može biti dovoljan.
+Ako vam je privatnost važna i želite originalni kvalitet bez kompromisa, MyCameraBackup je bolji izbor. Ako vam je bitna samo cena i već koristite Google ekosistem, Google Photos može biti dovoljan.
 
-Isprobajte MyPhoto besplatno i uverite se sami.
+Isprobajte MyCameraBackup besplatno i uverite se sami.
     `.trim(),
   },
   {
     slug: '5-razloga-da-prebacite-slike-sa-google-photos',
     title: '5 razloga da prebacite slike sa Google Photos-a',
     description:
-      'Otkrijte 5 ključnih razloga zašto sve više korisnika prelazi sa Google Photos na privatne alternative poput MyPhoto.',
+      'Otkrijte 5 ključnih razloga zašto sve više korisnika prelazi sa Google Photos na privatne alternative poput MyCameraBackup.',
     date: '2025-02-10',
-    author: 'MyPhoto Tim',
+    author: 'MyCameraBackup Tim',
     readingTime: '4 min',
     tags: ['google photos', 'migracija', 'privatnost'],
     content: `
@@ -202,9 +202,9 @@ Vaši podaci su na Google-ovim serverima, uglavnom u SAD-u. GDPR zahtevi su teš
 
 Što više slika imate na Google Photos, teže je preći na drugi servis. Google to namerno otežava.
 
-## Alternativa: MyPhoto.my.id
+## Alternativa: MyCameraBackup.com
 
-MyPhoto nudi:
+MyCameraBackup nudi:
 - **1GB besplatno** + do 14GB bonus (app + pozivi prijatelja)
 - **Originalni kvalitet** — bez kompresije
 - **EU serveri** — GDPR zaštita
@@ -220,7 +220,7 @@ Isprobajte besplatno i vidite razliku.
     description:
       'Sve što treba da znate o GDPR zaštiti vaših fotografija u cloud storage-u. Vaša prava i kako da ih zaštitite.',
     date: '2025-02-20',
-    author: 'MyPhoto Tim',
+    author: 'MyCameraBackup Tim',
     readingTime: '5 min',
     tags: ['GDPR', 'privatnost', 'pravni'],
     content: `
@@ -250,7 +250,7 @@ Možete zahtevati da vam se svi podaci isporuče u standardnom, mašinski čitlj
 ### Pravo na prigovor (Član 21)
 Možete se usprotiviti obradi vaših podataka za marketing ili profilisanje.
 
-## Kako MyPhoto poštuje GDPR
+## Kako MyCameraBackup poštuje GDPR
 
 1. **EU data centar** — svi podaci se čuvaju u Frankfurt-u, Nemačka
 2. **Minimalna obrada** — obrađujemo samo podatke potrebne za funkcionisanje servisa

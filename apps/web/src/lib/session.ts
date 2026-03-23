@@ -7,7 +7,7 @@ function getSecret(): string {
     return process.env.SESSION_SECRET;
   }
   // Derive from existing Firebase config as fallback
-  const base = process.env.FIREBASE_PRIVATE_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'myphoto-fallback-key';
+  const base = process.env.FIREBASE_PRIVATE_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'mycamerabackup-fallback-key';
   return crypto.createHash('sha256').update(base).digest('hex');
 }
 

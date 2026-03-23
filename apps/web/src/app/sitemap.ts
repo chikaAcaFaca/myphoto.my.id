@@ -2,7 +2,7 @@ import type { MetadataRoute } from 'next';
 import { getAllSlugs } from './(marketing)/blog/posts';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://myphoto.my.id';
+  const baseUrl = 'https://mycamerabackup.com';
 
   const blogSlugs = getAllSlugs();
   const blogEntries: MetadataRoute.Sitemap = blogSlugs.map((slug) => ({

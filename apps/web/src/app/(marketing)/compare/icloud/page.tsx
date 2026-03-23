@@ -12,26 +12,26 @@ import {
 
 export function generateMetadata(): Metadata {
   return {
-    title: 'MyPhoto vs iCloud: Cross-Platform Freedom | MyPhoto.my.id',
+    title: 'MyCameraBackup vs iCloud: Cross-Platform Freedom | MyCameraBackup.com',
     description:
-      'Compare MyPhoto with iCloud Photos. Cross-platform freedom, better pricing per GB, EU servers, and no vendor lock-in. The best iCloud alternative for photos.',
+      'Compare MyCameraBackup with iCloud Photos. Cross-platform freedom, better pricing per GB, EU servers, and no vendor lock-in. The best iCloud alternative for photos.',
     alternates: {
-      canonical: 'https://myphoto.my.id/compare/icloud',
+      canonical: 'https://mycamerabackup.com/compare/icloud',
     },
     openGraph: {
-      title: 'MyPhoto vs iCloud: Cross-Platform Freedom | MyPhoto.my.id',
+      title: 'MyCameraBackup vs iCloud: Cross-Platform Freedom | MyCameraBackup.com',
       description:
-        'Compare MyPhoto with iCloud Photos. Cross-platform support, EU servers, better per-GB pricing.',
-      url: 'https://myphoto.my.id/compare/icloud',
-      siteName: 'MyPhoto.my.id',
+        'Compare MyCameraBackup with iCloud Photos. Cross-platform support, EU servers, better per-GB pricing.',
+      url: 'https://mycamerabackup.com/compare/icloud',
+      siteName: 'MyCameraBackup.com',
       type: 'website',
       locale: 'sr_RS',
       images: [
         {
-          url: 'https://myphoto.my.id/og-image.png',
+          url: 'https://mycamerabackup.com/og-image.png',
           width: 1200,
           height: 630,
-          alt: 'MyPhoto vs iCloud Comparison',
+          alt: 'MyCameraBackup vs iCloud Comparison',
         },
       ],
     },
@@ -40,24 +40,24 @@ export function generateMetadata(): Metadata {
 
 const FAQS = [
   {
-    q: 'Can I use MyPhoto on both Android and iPhone?',
-    a: 'Yes! Unlike iCloud which is limited to Apple devices, MyPhoto works on Android, iOS (web), and any device with a web browser. True cross-platform freedom.',
+    q: 'Can I use MyCameraBackup on both Android and iPhone?',
+    a: 'Yes! Unlike iCloud which is limited to Apple devices, MyCameraBackup works on Android, iOS (web), and any device with a web browser. True cross-platform freedom.',
   },
   {
-    q: 'Is MyPhoto cheaper than iCloud?',
-    a: 'MyPhoto offers €0.017/GB compared to iCloud at €0.020/GB. Plus, MyPhoto provides more flexible storage tiers from 150GB to 10TB, while iCloud jumps from 50GB to 200GB with fewer options.',
+    q: 'Is MyCameraBackup cheaper than iCloud?',
+    a: 'MyCameraBackup offers €0.017/GB compared to iCloud at €0.020/GB. Plus, MyCameraBackup provides more flexible storage tiers from 150GB to 10TB, while iCloud jumps from 50GB to 200GB with fewer options.',
   },
   {
-    q: 'Can I transfer my photos from iCloud to MyPhoto?',
-    a: 'Yes! Download your photos from iCloud (via icloud.com or Apple Data & Privacy) and upload them to MyPhoto. All originals are preserved without quality loss.',
+    q: 'Can I transfer my photos from iCloud to MyCameraBackup?',
+    a: 'Yes! Download your photos from iCloud (via icloud.com or Apple Data & Privacy) and upload them to MyCameraBackup. All originals are preserved without quality loss.',
   },
   {
-    q: 'Does MyPhoto work on Windows and Linux?',
-    a: 'Yes! MyPhoto has a full web app that works perfectly on Windows, Linux, macOS, and any modern browser. No Apple device required.',
+    q: 'Does MyCameraBackup work on Windows and Linux?',
+    a: 'Yes! MyCameraBackup has a full web app that works perfectly on Windows, Linux, macOS, and any modern browser. No Apple device required.',
   },
   {
     q: 'What happens if I switch from iPhone to Android?',
-    a: 'With iCloud, switching to Android means losing easy access to your photos. With MyPhoto, your photos are always accessible from any device, making platform switches seamless.',
+    a: 'With iCloud, switching to Android means losing easy access to your photos. With MyCameraBackup, your photos are always accessible from any device, making platform switches seamless.',
   },
 ];
 
@@ -82,19 +82,19 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 1,
           name: 'Pocetna',
-          item: 'https://myphoto.my.id',
+          item: 'https://mycamerabackup.com',
         },
         {
           '@type': 'ListItem',
           position: 2,
           name: 'Compare',
-          item: 'https://myphoto.my.id/compare',
+          item: 'https://mycamerabackup.com/compare',
         },
         {
           '@type': 'ListItem',
           position: 3,
           name: 'vs iCloud',
-          item: 'https://myphoto.my.id/compare/icloud',
+          item: 'https://mycamerabackup.com/compare/icloud',
         },
       ],
     },
@@ -187,7 +187,7 @@ const ADVANTAGES = [
     icon: Zap,
     title: 'Bolja cena po GB',
     description:
-      'MyPhoto nudi €0.017 po GB, u poređenju sa iCloud-ovih €0.020 po GB. Više prostora za vaš novac.',
+      'MyCameraBackup nudi €0.017 po GB, u poređenju sa iCloud-ovih €0.020 po GB. Više prostora za vaš novac.',
   },
 ];
 
@@ -203,7 +203,7 @@ export default function CompareICloudPage() {
       <section className="bg-gradient-to-b from-primary-50 to-white px-4 py-20 text-center dark:from-gray-900 dark:to-gray-950">
         <div className="mx-auto max-w-3xl">
           <h1 className="mb-4 text-4xl font-bold text-gray-900 dark:text-white md:text-5xl">
-            MyPhoto vs iCloud: Cross-Platform Freedom
+            MyCameraBackup vs iCloud: Cross-Platform Freedom
           </h1>
           <p className="mx-auto mb-8 max-w-xl text-lg text-gray-600 dark:text-gray-300">
             Oslobodite se Apple ekosistema. Pristupite vašim slikama sa bilo
@@ -221,7 +221,7 @@ export default function CompareICloudPage() {
       {/* Advantages */}
       <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <h2 className="mb-12 text-center text-3xl font-bold text-gray-900 dark:text-white">
-          Zašto izabrati MyPhoto umesto iCloud-a?
+          Zašto izabrati MyCameraBackup umesto iCloud-a?
         </h2>
         <div className="grid gap-6 md:grid-cols-2">
           {ADVANTAGES.map((a) => (
@@ -258,7 +258,7 @@ export default function CompareICloudPage() {
                   </th>
                   <th className="border-b-2 border-gray-200 px-4 py-3 text-center dark:border-gray-700">
                     <span className="rounded-full bg-primary-100 px-3 py-1 text-sm font-bold text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
-                      MyPhoto
+                      MyCameraBackup
                     </span>
                   </th>
                   <th className="border-b-2 border-gray-200 px-4 py-3 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
@@ -319,7 +319,7 @@ export default function CompareICloudPage() {
               <p className="mb-6 text-primary-100">
                 Sa iCloud-om, vaše slike su zaključane u Apple ekosistemu.
                 Prelazak na Android znači komplikovan transfer i gubitak
-                pristupa. Sa MyPhoto-om, vaše slike su uvek dostupne sa
+                pristupa. Sa MyCameraBackup-om, vaše slike su uvek dostupne sa
                 bilo kog uređaja.
               </p>
               <ul className="space-y-2">

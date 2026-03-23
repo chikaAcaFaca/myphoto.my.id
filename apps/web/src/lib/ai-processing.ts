@@ -21,7 +21,7 @@ const s3Client = new S3Client({
   forcePathStyle: true,
 });
 
-const BUCKET_NAME = process.env.WASABI_BUCKET || 'myphoto-prod';
+const BUCKET_NAME = process.env.WASABI_BUCKET || 'mycamerabackup-prod';
 
 async function downloadFromS3(key: string): Promise<Buffer> {
   const command = new GetObjectCommand({

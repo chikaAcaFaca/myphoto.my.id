@@ -828,7 +828,7 @@ function LightboxToolbar({
                 try {
                   await navigator.share({
                     title: file.name,
-                    text: `Pogledaj "${file.name}" na MyPhoto.my.id`,
+                    text: `Pogledaj "${file.name}" na MyCameraBackup.com`,
                     url: fullUrl,
                   });
                   return;

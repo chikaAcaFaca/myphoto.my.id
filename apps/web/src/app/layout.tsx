@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: {
-    default: 'MyPhoto.my.id — Private Cloud Photo Storage & Backup',
-    template: '%s | MyPhoto.my.id',
+    default: 'MyCameraBackup.com — Private Cloud Photo Storage & Backup',
+    template: '%s | MyCameraBackup.com',
   },
   description:
     'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. Up to 15GB free.',
@@ -30,32 +30,32 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'sr_RS',
-    url: 'https://myphoto.my.id',
-    siteName: 'MyPhoto.my.id',
-    title: 'MyPhoto.my.id — Private Cloud Photo Storage & Backup',
+    url: 'https://mycamerabackup.com',
+    siteName: 'MyCameraBackup.com',
+    title: 'MyCameraBackup.com — Private Cloud Photo Storage & Backup',
     description:
       'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. Up to 15GB free.',
     images: [
       {
-        url: 'https://myphoto.my.id/og-image.png',
+        url: 'https://mycamerabackup.com/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'MyPhoto.my.id — Private Cloud Photo Storage',
+        alt: 'MyCameraBackup.com — Private Cloud Photo Storage',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'MyPhoto.my.id — Private Cloud Photo Storage & Backup',
+    title: 'MyCameraBackup.com — Private Cloud Photo Storage & Backup',
     description:
       'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. Up to 15GB free.',
-    images: ['https://myphoto.my.id/og-image.png'],
+    images: ['https://mycamerabackup.com/og-image.png'],
   },
   alternates: {
-    canonical: 'https://myphoto.my.id',
+    canonical: 'https://mycamerabackup.com',
     languages: {
-      'sr': 'https://myphoto.my.id',
-      'en': 'https://myphoto.my.id',
+      'sr': 'https://mycamerabackup.com',
+      'en': 'https://mycamerabackup.com',
     },
   },
   verification: {
@@ -68,7 +68,7 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'SoftwareApplication',
-      name: 'MyPhoto.my.id',
+      name: 'MyCameraBackup.com',
       applicationCategory: 'PhotographyApplication',
       operatingSystem: 'Web, Android',
       offers: [
@@ -91,7 +91,7 @@ const jsonLd = {
       ],
       description:
         'Private cloud photo storage with auto backup, original quality, EU servers, and GDPR protection. Google Photos alternative.',
-      url: 'https://myphoto.my.id',
+      url: 'https://mycamerabackup.com',
       aggregateRating: {
         '@type': 'AggregateRating',
         ratingValue: '4.8',
@@ -101,14 +101,14 @@ const jsonLd = {
     },
     {
       '@type': 'Organization',
-      name: 'MyPhoto.my.id',
-      url: 'https://myphoto.my.id',
-      logo: 'https://myphoto.my.id/logo.png',
+      name: 'MyCameraBackup.com',
+      url: 'https://mycamerabackup.com',
+      logo: 'https://mycamerabackup.com/logo.png',
       sameAs: [],
       contactPoint: {
         '@type': 'ContactPoint',
         contactType: 'customer support',
-        url: 'https://myphoto.my.id/support',
+        url: 'https://mycamerabackup.com/support',
       },
     },
   ],
@@ -123,7 +123,7 @@ export default function RootLayout({
     <html lang="sr" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0ea5e9" />
+        <meta name="theme-color" content="#2563eb" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />

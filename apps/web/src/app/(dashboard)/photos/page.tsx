@@ -40,7 +40,7 @@ export default function PhotosPage() {
           const fullUrl = `${window.location.origin}${data.shareUrl}`;
           if (navigator.share) {
             try {
-              await navigator.share({ title: 'MyPhoto', url: fullUrl });
+              await navigator.share({ title: 'MyCameraBackup', url: fullUrl });
               return;
             } catch {}
           }

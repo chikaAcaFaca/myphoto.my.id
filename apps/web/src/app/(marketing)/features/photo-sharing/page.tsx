@@ -13,26 +13,26 @@ import {
 
 export function generateMetadata(): Metadata {
   return {
-    title: 'Share Albums Securely | MyPhoto.my.id',
+    title: 'Share Albums Securely | MyCameraBackup.com',
     description:
       'Easy and secure photo sharing with password-protected albums, expiring links, and family sharing. Share your photos without compromising privacy.',
     alternates: {
-      canonical: 'https://myphoto.my.id/features/photo-sharing',
+      canonical: 'https://mycamerabackup.com/features/photo-sharing',
     },
     openGraph: {
-      title: 'Share Albums Securely | MyPhoto.my.id',
+      title: 'Share Albums Securely | MyCameraBackup.com',
       description:
         'Easy and secure photo sharing with password-protected albums, expiring links, and family sharing.',
-      url: 'https://myphoto.my.id/features/photo-sharing',
-      siteName: 'MyPhoto.my.id',
+      url: 'https://mycamerabackup.com/features/photo-sharing',
+      siteName: 'MyCameraBackup.com',
       type: 'website',
       locale: 'sr_RS',
       images: [
         {
-          url: 'https://myphoto.my.id/og-image.png',
+          url: 'https://mycamerabackup.com/og-image.png',
           width: 1200,
           height: 630,
-          alt: 'MyPhoto.my.id - Secure Photo Sharing',
+          alt: 'MyCameraBackup.com - Secure Photo Sharing',
         },
       ],
     },
@@ -44,7 +44,7 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'SoftwareApplication',
-      name: 'MyPhoto.my.id',
+      name: 'MyCameraBackup.com',
       applicationCategory: 'PhotographyApplication',
       operatingSystem: 'Android, Web',
       description:
@@ -54,7 +54,7 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'EUR',
       },
-      url: 'https://myphoto.my.id',
+      url: 'https://mycamerabackup.com',
     },
     {
       '@type': 'BreadcrumbList',
@@ -63,19 +63,19 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 1,
           name: 'Pocetna',
-          item: 'https://myphoto.my.id',
+          item: 'https://mycamerabackup.com',
         },
         {
           '@type': 'ListItem',
           position: 2,
           name: 'Features',
-          item: 'https://myphoto.my.id/features',
+          item: 'https://mycamerabackup.com/features',
         },
         {
           '@type': 'ListItem',
           position: 3,
           name: 'Photo Sharing',
-          item: 'https://myphoto.my.id/features/photo-sharing',
+          item: 'https://mycamerabackup.com/features/photo-sharing',
         },
       ],
     },

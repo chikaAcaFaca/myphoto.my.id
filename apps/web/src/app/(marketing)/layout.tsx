@@ -14,7 +14,7 @@ export default function MarketingLayout({
           <Link href="/" className="flex items-center gap-2">
             <Cloud className="h-7 w-7 text-primary-500" />
             <span className="text-lg font-bold text-gray-900 dark:text-white">
-              MyPhoto<span className="text-primary-500">.my.id</span>
+              MyCameraBackup<span className="text-primary-500">.com</span>
             </span>
           </Link>
 
@@ -93,7 +93,7 @@ export default function MarketingLayout({
             </div>
           </div>
           <div className="mt-8 border-t border-gray-200 pt-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            © {new Date().getFullYear()} MyPhoto.my.id — Privatni cloud za vaše slike. EU serveri, GDPR zaštita.
+            © {new Date().getFullYear()} MyCameraBackup.com — Privatni cloud za vaše slike. EU serveri, GDPR zaštita.
           </div>
         </div>
       </footer>

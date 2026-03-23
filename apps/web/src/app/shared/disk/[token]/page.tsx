@@ -334,7 +334,7 @@ export default function SharedDiskPage() {
         <div className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2">
-              <Image src="/logo.png" alt="MyPhoto.my.id" width={140} height={40} className="h-8 w-auto" />
+              <Image src="/logo.png" alt="MyCameraBackup.com" width={140} height={40} className="h-8 w-auto" />
             </Link>
             <div className="flex items-center gap-2">
               <Link
@@ -448,7 +448,7 @@ export default function SharedDiskPage() {
         {/* Footer */}
         <footer className="border-t border-gray-200 py-6 text-center dark:border-gray-700">
           <p className="text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} MyPhoto.my.id — Besplatan cloud storage
+            &copy; {new Date().getFullYear()} MyCameraBackup.com — Besplatan cloud storage
           </p>
         </footer>
       </div>

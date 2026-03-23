@@ -150,7 +150,7 @@ export const useUIStore = create<UIState>()(
       clearNotifications: () => set({ notifications: [] }),
     }),
     {
-      name: 'myphoto-ui',
+      name: 'mycamerabackup-ui',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         isDarkMode: state.isDarkMode,

@@ -102,7 +102,7 @@ const categories = [
         answer: 'Svi podaci se čuvaju na EU serverima (Frankfurt). GDPR kompatibilni smo sa punom enkripcijom u transportu i skladištu.',
       },
       {
-        question: 'Da li MyPhoto skenira moje slike?',
+        question: 'Da li MyCameraBackup skenira moje slike?',
         answer: 'Slike se ne skeniraju za reklame niti dele sa trećim stranama. AI analiza je opciona i služi samo za vašu pretragu.',
       },
     ],
@@ -114,7 +114,7 @@ const categories = [
     faqs: [
       {
         question: 'Da li postoji mobilna aplikacija?',
-        answer: 'Da. Možete instalirati MyPhoto kao PWA (Progressive Web App) direktno iz pretraživača. Takođe radimo na nativnoj Android/iOS aplikaciji.',
+        answer: 'Da. Možete instalirati MyCameraBackup kao PWA (Progressive Web App) direktno iz pretraživača. Takođe radimo na nativnoj Android/iOS aplikaciji.',
       },
       {
         question: 'Kako radi auto-sync?',

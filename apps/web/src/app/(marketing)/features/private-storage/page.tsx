@@ -12,26 +12,26 @@ import {
 
 export function generateMetadata(): Metadata {
   return {
-    title: 'Your Photos, Your Privacy | MyPhoto.my.id',
+    title: 'Your Photos, Your Privacy | MyCameraBackup.com',
     description:
       'Private photo storage with GDPR compliance, EU servers, and encryption. Your photos are never used for AI training. Secure, private cloud storage for your memories.',
     alternates: {
-      canonical: 'https://myphoto.my.id/features/private-storage',
+      canonical: 'https://mycamerabackup.com/features/private-storage',
     },
     openGraph: {
-      title: 'Your Photos, Your Privacy | MyPhoto.my.id',
+      title: 'Your Photos, Your Privacy | MyCameraBackup.com',
       description:
         'Private photo storage with GDPR compliance, EU servers, and encryption. Your photos are never used for AI training.',
-      url: 'https://myphoto.my.id/features/private-storage',
-      siteName: 'MyPhoto.my.id',
+      url: 'https://mycamerabackup.com/features/private-storage',
+      siteName: 'MyCameraBackup.com',
       type: 'website',
       locale: 'sr_RS',
       images: [
         {
-          url: 'https://myphoto.my.id/og-image.png',
+          url: 'https://mycamerabackup.com/og-image.png',
           width: 1200,
           height: 630,
-          alt: 'MyPhoto.my.id - Private Photo Storage',
+          alt: 'MyCameraBackup.com - Private Photo Storage',
         },
       ],
     },
@@ -43,7 +43,7 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'SoftwareApplication',
-      name: 'MyPhoto.my.id',
+      name: 'MyCameraBackup.com',
       applicationCategory: 'PhotographyApplication',
       operatingSystem: 'Android, Web',
       description:
@@ -53,7 +53,7 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      url: 'https://myphoto.my.id',
+      url: 'https://mycamerabackup.com',
     },
     {
       '@type': 'FAQPage',
@@ -63,7 +63,7 @@ const jsonLd = {
           name: 'Are my photos used for AI training?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'No. MyPhoto never uses your photos for AI model training. Your data is yours and is only used for the features you choose to enable.',
+            text: 'No. MyCameraBackup never uses your photos for AI model training. Your data is yours and is only used for the features you choose to enable.',
           },
         },
         {
@@ -76,18 +76,18 @@ const jsonLd = {
         },
         {
           '@type': 'Question',
-          name: 'Is MyPhoto GDPR compliant?',
+          name: 'Is MyCameraBackup GDPR compliant?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Yes. MyPhoto is fully GDPR compliant. You have the right to access, export, and permanently delete all your data at any time.',
+            text: 'Yes. MyCameraBackup is fully GDPR compliant. You have the right to access, export, and permanently delete all your data at any time.',
           },
         },
         {
           '@type': 'Question',
-          name: 'What encryption does MyPhoto use?',
+          name: 'What encryption does MyCameraBackup use?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'MyPhoto uses TLS encryption for data in transit and AES-256 encryption for data at rest. Zero-knowledge encryption is available for premium users.',
+            text: 'MyCameraBackup uses TLS encryption for data in transit and AES-256 encryption for data at rest. Zero-knowledge encryption is available for premium users.',
           },
         },
       ],
@@ -99,19 +99,19 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 1,
           name: 'Pocetna',
-          item: 'https://myphoto.my.id',
+          item: 'https://mycamerabackup.com',
         },
         {
           '@type': 'ListItem',
           position: 2,
           name: 'Features',
-          item: 'https://myphoto.my.id/features',
+          item: 'https://mycamerabackup.com/features',
         },
         {
           '@type': 'ListItem',
           position: 3,
           name: 'Private Storage',
-          item: 'https://myphoto.my.id/features/private-storage',
+          item: 'https://mycamerabackup.com/features/private-storage',
         },
       ],
     },
@@ -160,18 +160,18 @@ const PRIVACY_FEATURES = [
 const FAQS = [
   {
     q: 'Da li se moje slike koriste za trening AI modela?',
-    a: 'Ne. MyPhoto nikada ne koristi vaše slike za treniranje AI modela. Vaši podaci su vaši i služe isključivo za funkcije koje vi koristite.',
+    a: 'Ne. MyCameraBackup nikada ne koristi vaše slike za treniranje AI modela. Vaši podaci su vaši i služe isključivo za funkcije koje vi koristite.',
   },
   {
     q: 'Gde se čuvaju moji podaci?',
     a: 'Svi podaci se čuvaju na serverima u Evropskoj Uniji (Frankfurt, Nemačka), u potpunosti u skladu sa GDPR regulativom.',
   },
   {
-    q: 'Da li je MyPhoto GDPR usklađen?',
-    a: 'Da. MyPhoto je u potpunosti GDPR usklađen. Imate pravo na pristup, export i trajno brisanje svih vaših podataka u bilo kom trenutku.',
+    q: 'Da li je MyCameraBackup GDPR usklađen?',
+    a: 'Da. MyCameraBackup je u potpunosti GDPR usklađen. Imate pravo na pristup, export i trajno brisanje svih vaših podataka u bilo kom trenutku.',
   },
   {
-    q: 'Kakvu enkripciju koristi MyPhoto?',
+    q: 'Kakvu enkripciju koristi MyCameraBackup?',
     a: 'Koristimo TLS enkripciju za podatke u prenosu i AES-256 enkripciju za podatke na serveru. Zero-knowledge enkripcija je dostupna za premium korisnike.',
   },
   {
@@ -207,7 +207,7 @@ export default function PrivateStoragePage() {
             Your Photos, Your Privacy
           </h1>
           <p className="mx-auto mb-8 max-w-xl text-lg text-gray-600 dark:text-gray-300">
-            Vaše slike zaslužuju privatnost. MyPhoto čuva vaše uspomene na EU
+            Vaše slike zaslužuju privatnost. MyCameraBackup čuva vaše uspomene na EU
             serverima sa GDPR zaštitom, bez kompromisa.
           </p>
           <Link
@@ -279,7 +279,7 @@ export default function PrivateStoragePage() {
               Potpuna GDPR usklađenost
             </h2>
             <p className="mb-6 text-gray-600 dark:text-gray-300">
-              MyPhoto je dizajniran od temelja sa privatnošću na prvom mestu.
+              MyCameraBackup je dizajniran od temelja sa privatnošću na prvom mestu.
               Svaka funkcija je usklađena sa GDPR regulativom Evropske Unije.
             </p>
             <ul className="space-y-3">

@@ -2,15 +2,15 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Preuzmi MyPhoto aplikaciju — Desktop, Android, iOS',
-  description: 'Preuzmite MyPhoto aplikaciju za automatsku sinhronizaciju fajlova na računaru, Android telefonu ili tabletu.',
+  title: 'Preuzmi MyCameraBackup aplikaciju — Desktop, Android, iOS',
+  description: 'Preuzmite MyCameraBackup aplikaciju za automatsku sinhronizaciju fajlova na računaru, Android telefonu ili tabletu.',
 };
 
 export default function DownloadPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
       <div className="text-center">
-        <h1 className="text-4xl font-bold">Preuzmite MyPhoto</h1>
+        <h1 className="text-4xl font-bold">Preuzmite MyCameraBackup</h1>
         <p className="mt-4 text-lg text-gray-600">
           Sinhronizujte fajlove automatski na svim uređajima
         </p>
@@ -33,7 +33,7 @@ export default function DownloadPage() {
             <li>✓ Pokreće se sa Windowsom</li>
           </ul>
           <a
-            href="/downloads/MyPhoto-Setup.exe"
+            href="/downloads/MyCameraBackup-Setup.exe"
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
           >
             ⬇️ Preuzmi za Windows
@@ -57,7 +57,7 @@ export default function DownloadPage() {
             <li>✓ Deljenje slika</li>
           </ul>
           <a
-            href="/downloads/MyPhoto.apk"
+            href="/downloads/MyCameraBackup.apk"
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-700"
           >
             ⬇️ Preuzmi APK
@@ -105,7 +105,7 @@ export default function DownloadPage() {
           <div className="text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-600">2</div>
             <h3 className="font-semibold">Prijavite se</h3>
-            <p className="mt-1 text-sm text-gray-500">Koristite vaš MyPhoto nalog</p>
+            <p className="mt-1 text-sm text-gray-500">Koristite vaš MyCameraBackup nalog</p>
           </div>
           <div className="text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-xl font-bold text-indigo-600">3</div>

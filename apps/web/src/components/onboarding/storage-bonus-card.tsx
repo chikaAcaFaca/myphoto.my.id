@@ -48,7 +48,7 @@ export function StorageBonusCard() {
 
   const formatGB = (bytes: number) => `${Math.round(bytes / BYTES_PER_GB)} GB`;
 
-  const referralLink = referralStats?.referralLink || `https://myphoto.my.id/register?ref=${user.referralCode}`;
+  const referralLink = referralStats?.referralLink || `https://mycamerabackup.com/register?ref=${user.referralCode}`;
 
   const handleCopyLink = async () => {
     try {
@@ -87,7 +87,7 @@ export function StorageBonusCard() {
         >
           {!backupClaimed && (
             <a
-              href="https://play.google.com/store/apps/details?id=com.myphoto.app"
+              href="https://play.google.com/store/apps/details?id=com.mycamerabackup.app"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700"
