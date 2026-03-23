@@ -53,9 +53,11 @@ export async function POST(request: NextRequest) {
     await ensureCorsConfigured();
 
     const body = await request.json();
-    const { filename, mimeType, size, folderId = 'root' } = body;
+    const { filename, folderId = 'root' } = body;
+    const mimeType = body.mimeType || 'application/octet-stream';
+    const size = body.size || 0;
 
-    if (!filename || !mimeType || !size) {
+    if (!filename) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
