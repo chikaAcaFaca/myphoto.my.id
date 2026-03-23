@@ -36,6 +36,7 @@ import {
   Crop,
   Eraser,
 } from 'lucide-react';
+import JSZip from 'jszip';
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
@@ -824,6 +825,67 @@ export default function MyDiskPage() {
     }
   };
 
+  // Download entire folder as ZIP
+  const handleDownloadFolder = async (folder: DiskFolder) => {
+    addNotification({ type: 'success', title: `Priprema ZIP-a za "${folder.name}"...` });
+
+    try {
+      const token = await getIdToken();
+      if (!token) throw new Error('Not authenticated');
+
+      const zip = new JSZip();
+
+      // Recursive function to add folder contents to ZIP
+      const addFolderToZip = async (folderId: string, zipFolder: JSZip) => {
+        const res = await fetch(`/api/folders?parentId=${folderId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed to list folder');
+        const data = await res.json() as { folders: DiskFolder[]; files: DiskFile[] };
+
+        // Add files
+        for (const file of data.files) {
+          try {
+            const dlRes = await fetch(`/api/disk-files/download?fileId=${file.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!dlRes.ok) continue;
+            const { downloadUrl } = await dlRes.json();
+            const fileRes = await fetch(downloadUrl);
+            if (!fileRes.ok) continue;
+            const blob = await fileRes.blob();
+            zipFolder.file(file.name, blob);
+          } catch {
+            // Skip failed files
+          }
+        }
+
+        // Recurse into subfolders
+        for (const subfolder of data.folders) {
+          const subZipFolder = zipFolder.folder(subfolder.name)!;
+          await addFolderToZip(subfolder.id, subZipFolder);
+        }
+      };
+
+      await addFolderToZip(folder.id, zip.folder(folder.name)!);
+
+      // Generate and download ZIP
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folder.name}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      addNotification({ type: 'success', title: `"${folder.name}.zip" preuzet` });
+    } catch (err: any) {
+      addNotification({ type: 'error', title: 'Greška pri preuzimanju foldera', message: err.message });
+    }
+  };
+
   // Close context menu on click outside
   const handlePageClick = () => setContextMenu(null);
 
@@ -1329,6 +1391,13 @@ export default function MyDiskPage() {
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <Pencil className="h-4 w-4" /> Preimenuj
+                </button>
+                <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
+                <button
+                  onClick={() => { handleDownloadFolder(contextMenu.item); setContextMenu(null); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Download className="h-4 w-4" /> Preuzmi kao ZIP
                 </button>
                 <button
                   onClick={() => { deleteFolderMutation.mutate(contextMenu.item.id); setContextMenu(null); }}
