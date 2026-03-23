@@ -119,6 +119,8 @@ export async function configureBucketCors(): Promise<void> {
           AllowedOrigins: [
             'https://myphoto.my.id',
             'https://www.myphoto.my.id',
+            'https://mycamerabackup.com',
+            'https://www.mycamerabackup.com',
             'https://*.vercel.app',
             'https://myphoto-my-id-web-seven.vercel.app',
             'http://localhost:3000',
