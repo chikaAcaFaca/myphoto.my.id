@@ -11,11 +11,12 @@ export function middleware(request: NextRequest) {
     host === 'mycamerabackup.com' ||
     host === 'www.mycamerabackup.com'
   ) {
-    const url = request.nextUrl.clone();
-    url.host = 'myphotomy.space';
-    url.protocol = 'https';
-    url.port = '';
-    return NextResponse.redirect(url, 301);
+    const pathname = request.nextUrl.pathname;
+    const search = request.nextUrl.search;
+    return NextResponse.redirect(
+      new URL(`https://myphotomy.space${pathname}${search}`),
+      301
+    );
   }
 
   // Redirect old /mydisk route to /myspace
