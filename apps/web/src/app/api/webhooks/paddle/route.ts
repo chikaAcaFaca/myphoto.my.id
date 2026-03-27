@@ -19,7 +19,7 @@ interface PaddleWebhookEvent {
     items: Array<{
       price: {
         id: string;
-        product_id: string;
+        product_id?: string;
       };
       quantity: number;
     }>;
@@ -67,12 +67,12 @@ function verifyWebhookSignature(
   }
 }
 
-function getTierFromProductId(productId: string): number | null {
+function getTierFromPriceId(priceId: string): number | null {
   const tier = STORAGE_TIERS.find((t) =>
-    t.paddleMonthlyId === productId ||
-    t.paddleMonthlyIdAI === productId ||
-    t.paddleYearlyId === productId ||
-    t.paddleYearlyIdAI === productId
+    t.paddleMonthlyId === priceId ||
+    t.paddleMonthlyIdAI === priceId ||
+    t.paddleYearlyId === priceId ||
+    t.paddleYearlyIdAI === priceId
   );
   return tier ? tier.tier : null;
 }
@@ -143,11 +143,11 @@ async function handleSubscriptionCreated(event: PaddleWebhookEvent) {
 
   if (!items?.length) return;
 
-  const productId = items[0].price.product_id;
-  const tier = getTierFromProductId(productId);
+  const priceId = items[0].price.id;
+  const tier = getTierFromPriceId(priceId);
 
   if (tier === null) {
-    console.error('Unknown product ID:', productId);
+    console.error('Unknown price ID:', priceId);
     return;
   }
 
@@ -205,8 +205,8 @@ async function handleSubscriptionUpdated(event: PaddleWebhookEvent) {
 
   if (!items?.length) return;
 
-  const productId = items[0].price.product_id;
-  const tier = getTierFromProductId(productId);
+  const priceId = items[0].price.id;
+  const tier = getTierFromPriceId(priceId);
 
   if (tier === null) return;
 
