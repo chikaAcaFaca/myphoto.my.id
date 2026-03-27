@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion } from 'framer-motion';
-import { Upload, Grid, List, Trash2, Share2, FolderPlus } from 'lucide-react';
+import { Upload, Grid, List, Trash2, Share2, FolderPlus, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useFiles, useUploadFile, useBulkDeleteFiles } from '@/lib/hooks';
 import { useShareFile } from '@/lib/hooks/use-share';
 import { useAlbums, useAddFilesToAlbum } from '@/lib/hooks/use-albums';
@@ -30,6 +30,7 @@ export default function PhotosPage() {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAlbumModal, setShowAlbumModal] = useState(false);
+  const [uploadQueue, setUploadQueue] = useState<{ name: string; status: 'uploading' | 'done' | 'error' }[]>([]);
 
   const handleBulkShare = async () => {
     const ids = Array.from(selectedFiles);
@@ -80,57 +81,64 @@ export default function PhotosPage() {
 
   const files = data?.pages.flatMap((page) => page.files) ?? [];
 
+  const processFiles = useCallback(
+    (filesToUpload: File[]) => {
+      const newEntries = filesToUpload.map((f) => ({ name: f.name, status: 'uploading' as const }));
+      setUploadQueue((prev) => [...prev, ...newEntries]);
+
+      filesToUpload.forEach((file, idx) => {
+        uploadFile(file, {
+          onSuccess: () => {
+            setUploadQueue((prev) =>
+              prev.map((entry) =>
+                entry.name === file.name && entry.status === 'uploading'
+                  ? { ...entry, status: 'done' }
+                  : entry
+              )
+            );
+          },
+          onError: () => {
+            setUploadQueue((prev) =>
+              prev.map((entry) =>
+                entry.name === file.name && entry.status === 'uploading'
+                  ? { ...entry, status: 'error' }
+                  : entry
+              )
+            );
+          },
+        });
+      });
+
+      // Auto-dismiss after all complete (5s delay)
+      const checkDone = setInterval(() => {
+        setUploadQueue((prev) => {
+          if (prev.length > 0 && prev.every((e) => e.status !== 'uploading')) {
+            clearInterval(checkDone);
+            setTimeout(() => setUploadQueue([]), 3000);
+          }
+          return prev;
+        });
+      }, 500);
+    },
+    [uploadFile]
+  );
+
   // Direct file input handler for Upload button
   const handleFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const selectedFiles = e.target.files;
       if (!selectedFiles) return;
-      for (const file of Array.from(selectedFiles)) {
-        uploadFile(file, {
-          onSuccess: () => {
-            addNotification({
-              type: 'success',
-              title: 'Upload complete',
-              message: `${file.name} has been uploaded`,
-            });
-          },
-          onError: (error) => {
-            addNotification({
-              type: 'error',
-              title: 'Upload failed',
-              message: error.message,
-            });
-          },
-        });
-      }
-      // Reset input so the same files can be selected again
+      processFiles(Array.from(selectedFiles));
       e.target.value = '';
     },
-    [uploadFile, addNotification]
+    [processFiles]
   );
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
-      for (const file of acceptedFiles) {
-        uploadFile(file, {
-          onSuccess: () => {
-            addNotification({
-              type: 'success',
-              title: 'Upload complete',
-              message: `${file.name} has been uploaded`,
-            });
-          },
-          onError: (error) => {
-            addNotification({
-              type: 'error',
-              title: 'Upload failed',
-              message: error.message,
-            });
-          },
-        });
-      }
+      processFiles(acceptedFiles);
     },
-    [uploadFile, addNotification]
+    [processFiles]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -195,6 +203,56 @@ export default function PhotosPage() {
       <StorageLimitBanner />
       <SavingsBadge />
       <StorageBonusCard />
+
+      {/* Upload progress banner */}
+      {uploadQueue.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="mb-4 rounded-lg border border-primary-200 bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20"
+        >
+          <div className="flex items-center gap-3">
+            {uploadQueue.some((e) => e.status === 'uploading') ? (
+              <Loader2 className="h-5 w-5 animate-spin text-primary-600" />
+            ) : uploadQueue.every((e) => e.status === 'done') ? (
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-500" />
+            )}
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                {uploadQueue.some((e) => e.status === 'uploading')
+                  ? `Upload ${uploadQueue.filter((e) => e.status === 'done').length}/${uploadQueue.length}...`
+                  : uploadQueue.every((e) => e.status === 'done')
+                    ? `${uploadQueue.length} ${uploadQueue.length === 1 ? 'fajl uploadovan' : 'fajlova uploadovano'}`
+                    : `${uploadQueue.filter((e) => e.status === 'error').length} neuspešno`
+                }
+              </p>
+              {uploadQueue.some((e) => e.status === 'uploading') && (
+                <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-primary-200 dark:bg-primary-800">
+                  <motion.div
+                    className="h-full rounded-full bg-primary-600"
+                    initial={{ width: '5%' }}
+                    animate={{
+                      width: `${Math.max(5, (uploadQueue.filter((e) => e.status !== 'uploading').length / uploadQueue.length) * 100)}%`,
+                    }}
+                    transition={{ duration: 0.3 }}
+                  />
+                </div>
+              )}
+            </div>
+            {!uploadQueue.some((e) => e.status === 'uploading') && (
+              <button
+                onClick={() => setUploadQueue([])}
+                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                Zatvori
+              </button>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
