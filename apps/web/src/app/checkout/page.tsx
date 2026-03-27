@@ -10,7 +10,6 @@ import {
   Lock,
   Server,
   Check,
-  Sparkles,
   CreditCard,
   Loader2,
 } from 'lucide-react';
@@ -21,37 +20,22 @@ import type { StorageTier, BillingPeriod } from '@myphoto/shared';
 import { useAuthStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
 
-function getPaddlePriceId(tier: StorageTier, isAI: boolean, period: BillingPeriod): string {
-  // Fall back to standard if AI pricing not available for this tier
-  const useAI = isAI && tier.priceMonthlyAI > 0;
-  if (useAI) {
-    switch (period) {
-      case 'monthly': return tier.paddleMonthlyIdAI;
-      case 'yearly': return tier.paddleYearlyIdAI;
-    }
-  }
+function getPaddlePriceId(tier: StorageTier, period: BillingPeriod): string {
   switch (period) {
     case 'monthly': return tier.paddleMonthlyId;
     case 'yearly': return tier.paddleYearlyId;
   }
 }
 
-function getPeriodTotal(tier: StorageTier, isAI: boolean, period: BillingPeriod): number {
-  const useAI = isAI && tier.priceMonthlyAI > 0;
-  if (useAI) {
-    switch (period) {
-      case 'monthly': return tier.priceMonthlyAI;
-      case 'yearly': return tier.priceYearlyAI;
-    }
-  }
+function getPeriodTotal(tier: StorageTier, period: BillingPeriod): number {
   switch (period) {
     case 'monthly': return tier.priceMonthly;
     case 'yearly': return tier.priceYearly;
   }
 }
 
-function getMonthlyEquivalent(tier: StorageTier, isAI: boolean, period: BillingPeriod): number {
-  const total = getPeriodTotal(tier, isAI, period);
+function getMonthlyEquivalent(tier: StorageTier, period: BillingPeriod): number {
+  const total = getPeriodTotal(tier, period);
   const months = BILLING_PERIODS[period].months;
   return total / months;
 }
@@ -66,7 +50,6 @@ function CheckoutContent() {
 
   // Parse URL params
   const tierNum = parseInt(searchParams.get('tier') || '1', 10);
-  const isAI = searchParams.get('ai') === 'true';
   const period = (searchParams.get('period') || 'monthly') as BillingPeriod;
 
   // Find the tier
@@ -108,7 +91,7 @@ function CheckoutContent() {
   const handleOpenCheckout = () => {
     if (!paddle || !firebaseUser || !user) return;
 
-    const priceId = getPaddlePriceId(tier, isAI, period);
+    const priceId = getPaddlePriceId(tier, period);
     if (!priceId) return;
 
     setIsOpeningCheckout(true);
@@ -126,12 +109,8 @@ function CheckoutContent() {
     });
   };
 
-  const priceTotal = getPeriodTotal(tier, isAI, period);
-  const priceMonthly = getMonthlyEquivalent(tier, isAI, period);
-  const features = [...tier.features];
-  if (isAI && tier.aiFeatures) {
-    features.push(...tier.aiFeatures);
-  }
+  const priceTotal = getPeriodTotal(tier, period);
+  const priceMonthly = getMonthlyEquivalent(tier, period);
 
   const isLoggedIn = isInitialized && !!user && !!firebaseUser;
   const showAuthLoading = !isInitialized || authLoading;
@@ -160,15 +139,9 @@ function CheckoutContent() {
           <div className="rounded-2xl bg-white p-6 shadow-lg dark:bg-gray-800">
             <h2 className="mb-4 text-xl font-semibold">Pregled narudžbe</h2>
 
-            {/* Plan name + badge */}
-            <div className="mb-4 flex items-center gap-3">
+            {/* Plan name */}
+            <div className="mb-4">
               <span className="text-2xl font-bold">{tier.name}</span>
-              {isAI && (
-                <span className="flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-3 py-1 text-xs font-semibold text-white">
-                  <Sparkles className="h-3 w-3" />
-                  AI Powered
-                </span>
-              )}
             </div>
 
             {/* Storage */}
@@ -198,13 +171,9 @@ function CheckoutContent() {
             <div className="mb-4">
               <h3 className="mb-2 text-sm font-semibold uppercase text-gray-500">Uključeno</h3>
               <ul className="space-y-2">
-                {features.map((feature, i) => (
+                {tier.features.map((feature, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
-                    {isAI && tier.aiFeatures && i >= tier.features.length ? (
-                      <Sparkles className="mt-0.5 h-4 w-4 flex-shrink-0 text-purple-500" />
-                    ) : (
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-500" />
-                    )}
+                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary-500" />
                     <span className="text-gray-600 dark:text-gray-300">{feature}</span>
                   </li>
                 ))}
@@ -279,13 +248,13 @@ function CheckoutContent() {
                   </p>
                   <div className="flex flex-col gap-3">
                     <Link
-                      href={`/login?redirect=/checkout?tier=${tierNum}&ai=${isAI}&period=${period}`}
+                      href={`/login?redirect=/checkout?tier=${tierNum}&period=${period}`}
                       className="block w-full rounded-lg bg-primary-500 py-3 text-center font-semibold text-white transition-colors hover:bg-primary-600"
                     >
                       Prijavite se
                     </Link>
                     <Link
-                      href={`/register?tier=${tierNum}&ai=${isAI}&period=${period}`}
+                      href={`/register?tier=${tierNum}&period=${period}`}
                       className="block w-full rounded-lg border-2 border-primary-500 py-3 text-center font-semibold text-primary-600 transition-colors hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20"
                     >
                       Registrujte se

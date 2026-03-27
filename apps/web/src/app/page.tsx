@@ -166,7 +166,6 @@ function TypingAnimation({ text, delay = 1 }: { text: string; delay?: number }) 
 export default function HomePage() {
   const { user, isLoading } = useAuthStore();
   const router = useRouter();
-  const [planType, setPlanType] = useState<'standard' | 'ai'>('standard');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [showStickyCta, setShowStickyCta] = useState(false);
   const pricingSectionRef = useRef<HTMLDivElement>(null);
@@ -190,15 +189,15 @@ export default function HomePage() {
   }, []);
 
   const getMonthlyPrice = (tier: typeof STORAGE_TIERS[0]) => {
-    return planType === 'ai' ? tier.priceMonthlyAI : tier.priceMonthly;
+    return tier.priceMonthly;
   };
 
   const getYearlyMonthlyEquiv = (tier: typeof STORAGE_TIERS[0]) => {
-    return planType === 'ai' ? tier.priceYearlyAI / 12 : tier.priceYearly / 12;
+    return tier.priceYearly / 12;
   };
 
   const getYearlyTotal = (tier: typeof STORAGE_TIERS[0]) => {
-    return planType === 'ai' ? tier.priceYearlyAI : tier.priceYearly;
+    return tier.priceYearly;
   };
 
   const getSavingsPercent = (tier: typeof STORAGE_TIERS[0]) => {
@@ -559,35 +558,8 @@ export default function HomePage() {
           </p>
         </AnimatedSection>
 
-        {/* Toggles */}
-        <div className="mb-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-6">
-          <div className="inline-flex items-center rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-            <button
-              onClick={() => setPlanType('standard')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                planType === 'standard'
-                  ? 'bg-white text-gray-900 shadow dark:bg-gray-700 dark:text-white'
-                  : 'text-gray-600 dark:text-gray-400'
-              )}
-            >
-              <Image className="h-4 w-4" />
-              Standard
-            </button>
-            <button
-              onClick={() => setPlanType('ai')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                planType === 'ai'
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow'
-                  : 'text-gray-600 dark:text-gray-400'
-              )}
-            >
-              <Sparkles className="h-4 w-4" />
-              AI Powered
-            </button>
-          </div>
-
+        {/* Billing Toggle */}
+        <div className="mb-10 flex justify-center">
           <div className="inline-flex items-center rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
             <button
               onClick={() => setBillingCycle('monthly')}
@@ -688,16 +660,10 @@ export default function HomePage() {
                         {feature}
                       </li>
                     ))}
-                    {planType === 'ai' && tier.aiFeatures && tier.aiFeatures.slice(0, 2).map((feature, i) => (
-                      <li key={`ai-${i}`} className={cn('flex items-center gap-2 text-sm', isPopular ? 'text-primary-50' : 'text-purple-600 dark:text-purple-400')}>
-                        <Sparkles className={cn('h-4 w-4 flex-shrink-0', isPopular ? 'text-yellow-300' : 'text-purple-500')} />
-                        {feature}
-                      </li>
-                    ))}
                   </ul>
 
                   <Link
-                    href={isFree ? '/register' : `/register?tier=${tier.tier}&ai=${planType === 'ai'}&period=${billingCycle}`}
+                    href={isFree ? '/register' : `/checkout?tier=${tier.tier}&period=${billingCycle}`}
                     className={cn(
                       'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
                       isPopular

@@ -229,24 +229,12 @@ export interface StorageTier {
   name: string;
   storageBytes: number;
   storageDisplay: string;
-  // Standard pricing (without AI)
   priceMonthly: number;
   priceYearly: number;
   paddleMonthlyId: string;
   paddleYearlyId: string;
-  // AI pricing
-  priceMonthlyAI: number;
-  priceYearlyAI: number;
-  paddleMonthlyIdAI: string;
-  paddleYearlyIdAI: string;
-  // Features
   features: string[];
-  aiFeatures?: string[];
   isPopular?: boolean;
-  // Tier capabilities
-  myPhotoEnabled: boolean;  // Photo/video backup
-  myDiskEnabled: boolean;   // MySpace document/file storage
-  canToggle: boolean;       // Can user toggle MyPhoto/MySpace on/off and allocate space
 }
 
 // Memory/Suggestion Types

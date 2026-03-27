@@ -70,9 +70,7 @@ function verifyWebhookSignature(
 function getTierFromPriceId(priceId: string): number | null {
   const tier = STORAGE_TIERS.find((t) =>
     t.paddleMonthlyId === priceId ||
-    t.paddleMonthlyIdAI === priceId ||
-    t.paddleYearlyId === priceId ||
-    t.paddleYearlyIdAI === priceId
+    t.paddleYearlyId === priceId
   );
   return tier ? tier.tier : null;
 }
