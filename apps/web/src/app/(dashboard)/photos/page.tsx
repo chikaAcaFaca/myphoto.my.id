@@ -167,6 +167,16 @@ export default function PhotosPage() {
   );
 
   return (
+    <>
+    {/* Hidden file input OUTSIDE dropzone to avoid event interception */}
+    <input
+      ref={fileInputRef}
+      type="file"
+      multiple
+      accept={ALL_SUPPORTED_TYPES.join(',')}
+      className="hidden"
+      onChange={handleFileInputChange}
+    />
     <div
       {...getRootProps()}
       className={cn(
@@ -180,16 +190,6 @@ export default function PhotosPage() {
       transition={{ duration: 0.3 }}
     >
       <input {...getInputProps()} />
-
-      {/* Hidden file input for direct upload */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept={ALL_SUPPORTED_TYPES.join(',')}
-        className="hidden"
-        onChange={handleFileInputChange}
-      />
 
       {/* Storage limit banner + bonus card + savings */}
       <StorageLimitBanner />
@@ -325,5 +325,6 @@ export default function PhotosPage() {
       />
     </motion.div>
     </div>
+    </>
   );
 }
