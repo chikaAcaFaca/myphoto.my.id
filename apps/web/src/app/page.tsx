@@ -236,7 +236,7 @@ export default function HomePage() {
         <nav className="flex items-center justify-between">
           <NextImage
             src="/logo.png"
-            alt="MyCameraBackup.com"
+            alt="MyPhoto"
             width={240}
             height={72}
             className="h-16 w-auto"
@@ -362,7 +362,7 @@ export default function HomePage() {
       {/* ───── 3. Comparison Table ───── */}
       <section className="container mx-auto px-4 py-20">
         <AnimatedSection>
-          <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Zašto MyCameraBackup?</h2>
+          <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Zašto MyPhoto?</h2>
           <p className="mb-12 text-center text-gray-600 dark:text-gray-300">
             Uporedite nas sa konkurencijom
           </p>
@@ -378,7 +378,7 @@ export default function HomePage() {
                   </th>
                   <th className="border-b border-gray-200 px-4 py-3 text-center dark:border-gray-700">
                     <span className="rounded-full bg-primary-100 px-3 py-1 text-sm font-bold text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
-                      MyCameraBackup
+                      MyPhoto
                     </span>
                   </th>
                   <th className="border-b border-gray-200 px-4 py-3 text-center text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
@@ -859,7 +859,7 @@ export default function HomePage() {
             <div className="lg:col-span-2">
               <NextImage
                 src="/logo.png"
-                alt="MyCameraBackup.com"
+                alt="MyPhoto"
                 width={180}
                 height={54}
                 className="mb-4 h-12 w-auto"
@@ -906,7 +906,7 @@ export default function HomePage() {
 
           <div className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-700">
             <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              &copy; {new Date().getFullYear()} MyCameraBackup.com — Sva prava zadržana.
+              &copy; {new Date().getFullYear()} MyPhoto — Sva prava zadržana.
             </p>
           </div>
         </div>

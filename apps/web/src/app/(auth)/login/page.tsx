@@ -70,7 +70,7 @@ function LoginContent() {
           <Link href="/" className="inline-block">
             <Image
               src="/logo.png"
-              alt="MyCameraBackup.com"
+              alt="MyPhoto"
               width={300}
               height={90}
               className="h-20 w-auto"

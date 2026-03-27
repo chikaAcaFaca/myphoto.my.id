@@ -9,7 +9,7 @@ export default function TermsPage() {
         <nav className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Cloud className="h-8 w-8 text-primary-500" />
-            <span className="text-xl font-bold">MyCameraBackup</span>
+            <span className="text-xl font-bold">MyPhoto</span>
           </Link>
           <Link href="/" className="btn-ghost flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -41,9 +41,9 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">1. Uvod i prihvatanje uslova</h2>
             <p>
-              Dobrodošli na MyCameraBackup.com (&quot;Servis&quot;, &quot;Platforma&quot;). Ovi Uslovi korišćenja
+              Dobrodošli na MyPhoto.com (&quot;Servis&quot;, &quot;Platforma&quot;). Ovi Uslovi korišćenja
               (&quot;Uslovi&quot;) predstavljaju pravno obavezujući ugovor između vas (&quot;Korisnik&quot;)
-              i MyCameraBackup.com (&quot;MyCameraBackup&quot;, &quot;mi&quot;, &quot;nas&quot;) koji reguliše vaš pristup i
+              i MyPhoto.com (&quot;MyPhoto&quot;, &quot;mi&quot;, &quot;nas&quot;) koji reguliše vaš pristup i
               korišćenje Platforme.
             </p>
             <p className="mt-2">
@@ -64,7 +64,7 @@ export default function TermsPage() {
             <ul className="space-y-2">
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                <span><strong>&quot;Servis&quot;</strong> — web aplikacija MyCameraBackup.com, uključujući sve poddomene, API-je i mobilne aplikacije</span>
+                <span><strong>&quot;Servis&quot;</strong> — web aplikacija MyPhoto.com, uključujući sve poddomene, API-je i mobilne aplikacije</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
@@ -92,7 +92,7 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">3. Opis usluge</h2>
             <p>
-              MyCameraBackup.com je cloud storage servis za čuvanje, organizovanje i deljenje
+              MyPhoto.com je cloud storage servis za čuvanje, organizovanje i deljenje
               fotografija i video zapisa. Servis obuhvata sledeće funkcionalnosti:
             </p>
             <ul className="mt-3 space-y-2">
@@ -142,11 +142,11 @@ export default function TermsPage() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                Ćete nas odmah obavestiti o neovlašćenom pristupu putem legal@mycamerabackup.com
+                Ćete nas odmah obavestiti o neovlašćenom pristupu putem legal@myphotomy.space
               </li>
             </ul>
             <p className="mt-3">
-              MyCameraBackup zadržava pravo da odbije registraciju ili ukine nalog koji krši ove Uslove,
+              MyPhoto zadržava pravo da odbije registraciju ili ukine nalog koji krši ove Uslove,
               uz obrazloženje i mogućnost žalbe.
             </p>
           </section>
@@ -193,7 +193,7 @@ export default function TermsPage() {
                 Vi zadržavate sva prava intelektualne svojine nad sadržajem koji uploadujete.
               </p>
               <p className="mt-2 text-green-700 dark:text-green-300">
-                MyCameraBackup ne polaže nikakva vlasnička prava nad vašim fajlovima. Ne koristimo
+                MyPhoto ne polaže nikakva vlasnička prava nad vašim fajlovima. Ne koristimo
                 vaš sadržaj za trening AI modela, prodaju trećim licima niti za bilo koje druge
                 svrhe osim pružanja Servisa koji ste eksplicitno zatražili.
               </p>
@@ -221,8 +221,8 @@ export default function TermsPage() {
               </li>
             </ul>
             <p className="mt-3">
-              Ova licenca se automatski ukida brisanjem sadržaja ili naloga. MyCameraBackup logo,
-              dizajn i softver su zaštićeni autorskim pravima i pripadaju MyCameraBackup.
+              Ova licenca se automatski ukida brisanjem sadržaja ili naloga. MyPhoto logo,
+              dizajn i softver su zaštićeni autorskim pravima i pripadaju MyPhoto.
             </p>
           </section>
 
@@ -231,7 +231,7 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">7. DMCA / Autorska prava</h2>
             <p>
-              MyCameraBackup poštuje prava intelektualne svojine i postupa u skladu sa Digital
+              MyPhoto poštuje prava intelektualne svojine i postupa u skladu sa Digital
               Millennium Copyright Act (DMCA), 17 U.S.C. § 512. Ako smatrate da vaš
               autorski rad krši sadržaj na našoj Platformi, možete podneti DMCA obaveštenje.
             </p>
@@ -239,7 +239,7 @@ export default function TermsPage() {
             <ul className="mt-2 space-y-2">
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                Pošaljite pisano obaveštenje na <strong>legal@mycamerabackup.com</strong> sa identifikacijom zaštićenog dela, URL-om spornog sadržaja, vašim kontakt podacima i izjavom pod zakletvom
+                Pošaljite pisano obaveštenje na <strong>legal@myphotomy.space</strong> sa identifikacijom zaštićenog dela, URL-om spornog sadržaja, vašim kontakt podacima i izjavom pod zakletvom
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
@@ -259,7 +259,7 @@ export default function TermsPage() {
             </p>
             <p className="mt-3 font-semibold text-gray-900 dark:text-white">Repeat Infringer Policy:</p>
             <p className="mt-1">
-              MyCameraBackup primenjuje politiku ukidanja naloga korisnika koji višestruko krše
+              MyPhoto primenjuje politiku ukidanja naloga korisnika koji višestruko krše
               autorska prava. Tri potvrđena kršenja rezultiraju trajnim ukidanjem naloga.
             </p>
           </section>
@@ -269,7 +269,7 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">8. Zaštita podataka i privatnost</h2>
             <p>
-              MyCameraBackup obrađuje lične podatke u skladu sa Opštom uredbom o zaštiti podataka
+              MyPhoto obrađuje lične podatke u skladu sa Opštom uredbom o zaštiti podataka
               (GDPR — Uredba EU 2016/679), Zakonom o zaštiti podataka o ličnosti Republike
               Srbije (ZZPL — &quot;Sl. glasnik RS&quot;, br. 87/2018) i važećim propisima SAD.
             </p>
@@ -302,7 +302,7 @@ export default function TermsPage() {
               <Link href="/privacy" className="text-primary-500 hover:underline">
                 Politiku privatnosti
               </Link>.
-              DPO kontakt: <strong>dpo@mycamerabackup.com</strong>
+              DPO kontakt: <strong>dpo@myphotomy.space</strong>
             </p>
           </section>
 
@@ -340,7 +340,7 @@ export default function TermsPage() {
               </ul>
             </div>
             <p className="mt-3">
-              Za ostvarivanje ovih prava, kontaktirajte nas na <strong>dpo@mycamerabackup.com</strong>.
+              Za ostvarivanje ovih prava, kontaktirajte nas na <strong>dpo@myphotomy.space</strong>.
               Odgovorićemo u roku od 30 dana. Imate pravo na žalbu nadzornom organu za zaštitu
               podataka u vašoj zemlji.
             </p>
@@ -381,7 +381,7 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">11. Kolačići (Cookies)</h2>
             <p>
-              MyCameraBackup koristi <strong>isključivo neophodne (esencijalne) kolačiće</strong> za
+              MyPhoto koristi <strong>isključivo neophodne (esencijalne) kolačiće</strong> za
               funkcionisanje Servisa — autentifikaciju, sesije i bezbednosne tokene.
             </p>
             <ul className="mt-3 space-y-2">
@@ -462,7 +462,7 @@ export default function TermsPage() {
               ne garantujemo neprekidan rad ili potpuno odsustvo grešaka.
             </p>
             <p className="mt-2">
-              <strong>Force majeure:</strong> MyCameraBackup nije odgovoran za prekide uzrokovane
+              <strong>Force majeure:</strong> MyPhoto nije odgovoran za prekide uzrokovane
               okolnostima van naše razumne kontrole, uključujući ali ne ograničavajući se na:
               prirodne katastrofe, ratove, pandemije, ispade internet infrastrukture, odluke
               državnih organa ili napade na sajber bezbednost.
@@ -481,11 +481,11 @@ export default function TermsPage() {
             <ul className="mt-3 space-y-2">
               <li className="flex items-start gap-2">
                 <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-gray-500" />
-                <span>Ukupna odgovornost MyCameraBackup prema vama ograničena je na <strong>iznos koji ste platili u poslednjih 12 meseci</strong> za korišćenje Servisa</span>
+                <span>Ukupna odgovornost MyPhoto prema vama ograničena je na <strong>iznos koji ste platili u poslednjih 12 meseci</strong> za korišćenje Servisa</span>
               </li>
               <li className="flex items-start gap-2">
                 <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-gray-500" />
-                <span>MyCameraBackup <strong>nije odgovoran za indirektnu, posledičnu, specijalnu ili kaznenu štetu</strong>, uključujući gubitak podataka, gubitak profita ili prekid poslovanja</span>
+                <span>MyPhoto <strong>nije odgovoran za indirektnu, posledičnu, specijalnu ili kaznenu štetu</strong>, uključujući gubitak podataka, gubitak profita ili prekid poslovanja</span>
               </li>
               <li className="flex items-start gap-2">
                 <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-gray-500" />
@@ -497,7 +497,7 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">16. Obeštećenje (Indemnification)</h2>
             <p>
-              Saglasni ste da ćete obeštetiti, braniti i zaštititi MyCameraBackup, njegove vlasnike,
+              Saglasni ste da ćete obeštetiti, braniti i zaštititi MyPhoto, njegove vlasnike,
               zaposlene i partnere od svih potraživanja, gubitaka, troškova i odgovornosti
               (uključujući razumne advokatske troškove) koji proizlaze iz:
             </p>
@@ -544,7 +544,7 @@ export default function TermsPage() {
               </li>
             </ul>
             <p className="mt-3">
-              <strong>Suspenzija/ukidanje od strane MyCameraBackup:</strong> Zadržavamo pravo da
+              <strong>Suspenzija/ukidanje od strane MyPhoto:</strong> Zadržavamo pravo da
               suspendujemo ili ukinemo nalog koji krši ove Uslove, uz prethodno obaveštenje
               od 7 dana kada je to moguće. Trenutna suspenzija bez obaveštenja moguća je
               samo u hitnim slučajevima (ilegalan sadržaj, sigurnosna pretnja).
@@ -578,7 +578,7 @@ export default function TermsPage() {
                   Odricanje od kolektivne tužbe (Class Action Waiver):
                 </p>
                 <p className="mt-1">
-                  Saglasni ste da ćete sve sporove protiv MyCameraBackup rešavati isključivo individualno.
+                  Saglasni ste da ćete sve sporove protiv MyPhoto rešavati isključivo individualno.
                   Odričete se prava na učešće u bilo kojoj kolektivnoj tužbi ili kolektivnoj arbitraži.
                 </p>
               </li>
@@ -637,21 +637,21 @@ export default function TermsPage() {
             <ul className="mt-3 space-y-2">
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                <span><strong>Opšta pitanja i pravna služba:</strong> <a href="mailto:legal@mycamerabackup.com" className="text-primary-500 hover:underline">legal@mycamerabackup.com</a></span>
+                <span><strong>Opšta pitanja i pravna služba:</strong> <a href="mailto:legal@myphotomy.space" className="text-primary-500 hover:underline">legal@myphotomy.space</a></span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                <span><strong>Zaštita podataka (DPO):</strong> <a href="mailto:dpo@mycamerabackup.com" className="text-primary-500 hover:underline">dpo@mycamerabackup.com</a></span>
+                <span><strong>Zaštita podataka (DPO):</strong> <a href="mailto:dpo@myphotomy.space" className="text-primary-500 hover:underline">dpo@myphotomy.space</a></span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                <span><strong>DMCA prijave:</strong> <a href="mailto:legal@mycamerabackup.com" className="text-primary-500 hover:underline">legal@mycamerabackup.com</a> (Subject: DMCA Notice)</span>
+                <span><strong>DMCA prijave:</strong> <a href="mailto:legal@myphotomy.space" className="text-primary-500 hover:underline">legal@myphotomy.space</a> (Subject: DMCA Notice)</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
                 <span><strong>Kontakt forma:</strong>{' '}
                   <Link href="/contact" className="text-primary-500 hover:underline">
-                    mycamerabackup.com/contact
+                    myphotomy.space/contact
                   </Link>
                 </span>
               </li>
@@ -679,10 +679,10 @@ export default function TermsPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Cloud className="h-6 w-6 text-primary-500" />
-            <span className="font-semibold">MyCameraBackup</span>
+            <span className="font-semibold">MyPhoto</span>
           </div>
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} MyCameraBackup. Sva prava zadržana.
+            © {new Date().getFullYear()} MyPhoto. Sva prava zadržana.
           </p>
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">Privatnost</Link>

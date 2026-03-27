@@ -14,11 +14,11 @@ export default function ContactPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const mailtoSubject = encodeURIComponent(form.subject || 'Kontakt sa MyCameraBackup.com');
+    const mailtoSubject = encodeURIComponent(form.subject || 'Kontakt sa MyPhoto.com');
     const mailtoBody = encodeURIComponent(
       `Ime: ${form.name}\nEmail: ${form.email}\n\n${form.message}`
     );
-    window.location.href = `mailto:support@mycamerabackup.com?subject=${mailtoSubject}&body=${mailtoBody}`;
+    window.location.href = `mailto:support@myphotomy.space?subject=${mailtoSubject}&body=${mailtoBody}`;
   };
 
   return (
@@ -28,7 +28,7 @@ export default function ContactPage() {
         <nav className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Cloud className="h-8 w-8 text-primary-500" />
-            <span className="text-xl font-bold">MyCameraBackup</span>
+            <span className="text-xl font-bold">MyPhoto</span>
           </Link>
           <Link href="/" className="btn-ghost flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -139,7 +139,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold">Email</h3>
-                  <p className="text-gray-600 dark:text-gray-300">support@mycamerabackup.com</p>
+                  <p className="text-gray-600 dark:text-gray-300">support@myphotomy.space</p>
                   <p className="mt-1 text-sm text-gray-500">Za opšta pitanja i podršku</p>
                 </div>
               </div>
@@ -206,10 +206,10 @@ export default function ContactPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Cloud className="h-6 w-6 text-primary-500" />
-            <span className="font-semibold">MyCameraBackup</span>
+            <span className="font-semibold">MyPhoto</span>
           </div>
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} MyCameraBackup. Sva prava zadržana.
+            © {new Date().getFullYear()} MyPhoto. Sva prava zadržana.
           </p>
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">Privatnost</Link>

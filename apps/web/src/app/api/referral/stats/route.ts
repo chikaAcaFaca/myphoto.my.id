@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
   const bonusBytes = userData.referralBonusBytes || 0;
   const referralCode = userData.referralCode || '';
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mycamerabackup.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://myphotomy.space';
 
   return NextResponse.json({
     referralCode,

@@ -476,7 +476,7 @@ function ImageEditorContent() {
     }
 
     const link = document.createElement('a');
-    link.download = `mycamerabackup-edit-${Date.now()}.png`;
+    link.download = `myphoto-edit-${Date.now()}.png`;
     link.href = exportCanvas.toDataURL('image/png');
     document.body.appendChild(link);
     link.click();
@@ -496,7 +496,7 @@ function ImageEditorContent() {
 
     // Download audio separately
     const audioLink = document.createElement('a');
-    audioLink.download = `mycamerabackup-meme-audio-${Date.now()}.webm`;
+    audioLink.download = `myphoto-meme-audio-${Date.now()}.webm`;
     audioLink.href = audioUrl!;
     document.body.appendChild(audioLink);
     audioLink.click();

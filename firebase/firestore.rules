@@ -137,7 +137,7 @@ service cloud.firestore {
       allow write: if false; // Only server can manage
     }
 
-    // Disk shares collection (for MyDisk file/folder sharing)
+    // Disk shares collection (for MySpace file/folder sharing)
     match /diskShares/{shareToken} {
       allow read: if true; // Public access for shared links
       allow write: if false; // Only server can manage

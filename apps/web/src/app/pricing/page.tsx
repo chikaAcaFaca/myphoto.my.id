@@ -94,7 +94,7 @@ function PricingContent() {
         <nav className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Cloud className="h-8 w-8 text-primary-500" />
-            <span className="text-xl font-bold">MyCameraBackup</span>
+            <span className="text-xl font-bold">MyPhoto</span>
           </Link>
           <Link href="/" className="btn-ghost flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -440,9 +440,9 @@ function PricingContent() {
           </div>
         </div>
 
-        {/* Why MyCameraBackup Section */}
+        {/* Why MyPhoto Section */}
         <section className="mt-20">
-          <h2 className="mb-8 text-center text-3xl font-bold">Zašto MyCameraBackup?</h2>
+          <h2 className="mb-8 text-center text-3xl font-bold">Zašto MyPhoto?</h2>
 
           <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {/* Privacy */}
@@ -633,10 +633,10 @@ function PricingContent() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Cloud className="h-6 w-6 text-primary-500" />
-            <span className="font-semibold">MyCameraBackup</span>
+            <span className="font-semibold">MyPhoto</span>
           </div>
           <p className="text-sm text-gray-500">
-            &copy; {new Date().getFullYear()} MyCameraBackup. Sva prava zadržana.
+            &copy; {new Date().getFullYear()} MyPhoto. Sva prava zadržana.
           </p>
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">Privatnost</Link>

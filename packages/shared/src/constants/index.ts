@@ -26,10 +26,10 @@ export const REFERRAL_QUALIFICATION_BYTES = 100 * BYTES_PER_MB; // referee must 
 export const MAX_FAMILY_MEMBERS_REFERRAL = 6;
 
 // Max free storage: 1GB (reg) + 1GB (app) + 512MB (desktop) + 7GB (referrals) = ~10GB
-// But realistically without all referrals: 1GB + 1GB + 512MB + 512MB = 3GB (enough for MyDisk free)
+// But realistically without all referrals: 1GB + 1GB + 512MB + 512MB = 3GB (enough for MySpace free)
 export const MAX_FREE_STORAGE = 10 * BYTES_PER_GB;
 
-// MyDisk Free tier — 3.99 EUR/year for instant 10GB
+// MySpace Free tier — 3.99 EUR/year for instant 10GB
 export const MYDISK_FREE_YEARLY_PRICE = 3.99;
 export const MYDISK_FREE_STORAGE = 10 * BYTES_PER_GB;
 
@@ -73,7 +73,7 @@ export const STORAGE_TIERS: StorageTier[] = [
   },
   {
     tier: 0.3,
-    name: 'MyMiniDisk',
+    name: 'MyMiniSpace',
     storageBytes: 32 * BYTES_PER_GB,
     storageDisplay: '32 GB',
     priceMonthly: 0.69,
@@ -85,7 +85,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_myminidisk_ai_monthly',
     paddleYearlyIdAI: 'pri_myminidisk_ai_yearly',
     features: [
-      'MyDisk — cloud folder storage',
+      'MySpace — cloud folder storage',
       '32 GB cloud prostora',
       'Upload svih tipova fajlova',
       'Folder organizacija',
@@ -120,7 +120,7 @@ export const STORAGE_TIERS: StorageTier[] = [
       'Desktop sync aplikacija',
       'Deljenje albuma i foldera',
       'Remove Background (bez limita)',
-      'Može uključiti i MyDisk',
+      'Može uključiti i MySpace',
     ],
     aiFeatures: [
       'Smart search',
@@ -133,7 +133,7 @@ export const STORAGE_TIERS: StorageTier[] = [
   },
   {
     tier: 0.5,
-    name: 'MyDisk',
+    name: 'MySpace',
     storageBytes: 50 * BYTES_PER_GB,
     storageDisplay: '50 GB',
     priceMonthly: 0.88,
@@ -145,7 +145,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: '',
     paddleYearlyIdAI: '',
     features: [
-      'MyDisk — cloud folder storage',
+      'MySpace — cloud folder storage',
       '50 GB cloud prostora',
       'Desktop sync aplikacija',
       'Folder organizacija',
@@ -172,7 +172,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_starter_ai_monthly',
     paddleYearlyIdAI: 'pri_starter_ai_yearly',
     features: [
-      'MyPhoto + MyDisk uključeni',
+      'MyPhoto + MySpace uključeni',
       'Web & mobile pristup',
       'Auto-backup slika',
       'Deljenje albuma i foldera',
@@ -204,7 +204,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_plus_ai_monthly',
     paddleYearlyIdAI: 'pri_plus_ai_yearly',
     features: [
-      'MyPhoto + MyDisk uključeni',
+      'MyPhoto + MySpace uključeni',
       'Web & mobile pristup',
       'Auto-backup slika',
       'Deljenje albuma i foldera',
@@ -237,7 +237,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_standard_ai_monthly',
     paddleYearlyIdAI: 'pri_standard_ai_yearly',
     features: [
-      'MyPhoto + MyDisk uključeni',
+      'MyPhoto + MySpace uključeni',
       'Web & mobile pristup',
       'Auto-backup slika',
       'Deljenje albuma i foldera',
@@ -271,7 +271,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_pro_ai_monthly',
     paddleYearlyIdAI: 'pri_pro_ai_yearly',
     features: [
-      'MyPhoto + MyDisk uključeni',
+      'MyPhoto + MySpace uključeni',
       'Web & mobile pristup',
       'Auto-backup slika',
       'Deljenje albuma i foldera',
@@ -307,7 +307,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_proplus_ai_monthly',
     paddleYearlyIdAI: 'pri_proplus_ai_yearly',
     features: [
-      'MyPhoto + MyDisk uključeni',
+      'MyPhoto + MySpace uključeni',
       'Web & mobile pristup',
       'Auto-backup slika',
       'Deljenje albuma i foldera',
@@ -344,7 +344,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_premium_ai_monthly',
     paddleYearlyIdAI: 'pri_premium_ai_yearly',
     features: [
-      'MyPhoto + MyDisk uključeni',
+      'MyPhoto + MySpace uključeni',
       'Web & mobile pristup',
       'Auto-backup slika',
       'Deljenje albuma i foldera',
@@ -383,7 +383,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_business_ai_monthly',
     paddleYearlyIdAI: 'pri_business_ai_yearly',
     features: [
-      'MyPhoto + MyDisk uključeni',
+      'MyPhoto + MySpace uključeni',
       'Sve iz Premium-a',
       'Tim menadžment',
       'Napredne kontrole deljenja',
@@ -416,7 +416,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyIdAI: 'pri_enterprise_ai_monthly',
     paddleYearlyIdAI: 'pri_enterprise_ai_yearly',
     features: [
-      'MyPhoto + MyDisk uključeni',
+      'MyPhoto + MySpace uključeni',
       'Sve iz Business-a',
       'Dedicated podrška',
       'Custom integracije',

@@ -51,7 +51,7 @@ export function PWAPrompt() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Instaliraj MyCameraBackup
+                  Instaliraj MyPhoto
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Brži pristup, offline režim i auto-sync
@@ -99,7 +99,7 @@ export function PWAPrompt() {
                   <Download className="h-8 w-8 text-primary-500" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Instaliraj MyCameraBackup na iOS
+                  Instaliraj MyPhoto na iOS
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
                   Pratite ova 3 koraka u Safari pretraživaču
@@ -155,7 +155,7 @@ export function PWAPrompt() {
                       Tapnite &quot;Add&quot; / &quot;Dodaj&quot;
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      MyCameraBackup ikonica će se pojaviti na vašem Home Screen-u
+                      MyPhoto ikonica će se pojaviti na vašem Home Screen-u
                     </p>
                   </div>
                 </div>

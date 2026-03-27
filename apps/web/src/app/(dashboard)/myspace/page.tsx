@@ -91,7 +91,7 @@ const formatDate = (date: string) => {
   });
 };
 
-export default function MyDiskPage() {
+export default function MySpacePage() {
   const { user } = useAuthStore();
   const { addNotification } = useUIStore();
   const queryClient = useQueryClient();
@@ -123,7 +123,7 @@ export default function MyDiskPage() {
 
   // Fetch current folder contents
   const { data, isLoading } = useQuery({
-    queryKey: ['mydisk', currentFolderId, user?.id],
+    queryKey: ['myspace', currentFolderId, user?.id],
     queryFn: async () => {
       const token = await getIdToken();
       const res = await fetch(`/api/folders?parentId=${currentFolderId}`, {
@@ -137,7 +137,7 @@ export default function MyDiskPage() {
 
   // Fetch shares accessible to this user ("Deljeno sa mnom")
   const { data: sharedWithMeData } = useQuery({
-    queryKey: ['mydisk-shared-with-me', user?.id],
+    queryKey: ['myspace-shared-with-me', user?.id],
     queryFn: async () => {
       const token = await getIdToken();
       const res = await fetch('/api/disk-share/my-shares', {
@@ -222,7 +222,7 @@ export default function MyDiskPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       setShowNewFolder(false);
       setNewFolderName('');
     },
@@ -242,7 +242,7 @@ export default function MyDiskPage() {
       if (!res.ok) throw new Error('Failed');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       addNotification({ type: 'success', title: 'Folder obrisan' });
     },
   });
@@ -259,7 +259,7 @@ export default function MyDiskPage() {
       if (!res.ok) throw new Error('Failed');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       setRenamingId(null);
     },
   });
@@ -276,7 +276,7 @@ export default function MyDiskPage() {
       if (!res.ok) throw new Error('Failed');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       setRenamingId(null);
     },
   });
@@ -292,7 +292,7 @@ export default function MyDiskPage() {
       if (!res.ok) throw new Error('Failed');
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       addNotification({ type: 'success', title: 'Fajl obrisan' });
     },
   });
@@ -313,7 +313,7 @@ export default function MyDiskPage() {
         }),
       });
       if (!res.ok) throw new Error('Move failed');
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       addNotification({ type: 'success', title: `${selectionCount} stavki premešteno` });
       clearSelection();
       setShowMoveModal(false);
@@ -342,7 +342,7 @@ export default function MyDiskPage() {
           headers: { Authorization: `Bearer ${token}` },
         });
       }
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       addNotification({ type: 'success', title: `${count} stavki obrisano` });
       clearSelection();
     } catch {
@@ -391,7 +391,7 @@ export default function MyDiskPage() {
       }
       setClipboard(null);
       clearSelection();
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       addNotification({ type: 'success', title: clipboard.action === 'cut' ? 'Stavke premeštene' : 'Fajlovi kopirani' });
     } catch {
       addNotification({ type: 'error', title: 'Greška pri lepljenju' });
@@ -686,7 +686,7 @@ export default function MyDiskPage() {
         setUploadProgress(Math.round((completed / total) * 100));
       }
 
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       addNotification({
         type: 'success',
         title: 'Upload završen',
@@ -908,7 +908,7 @@ export default function MyDiskPage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <HardDrive className="h-6 w-6 text-primary-500" />
-            MyDisk
+            MySpace
           </h1>
           <p className="text-sm text-gray-500">Vaši fajlovi organizovani po folderima</p>
         </div>
@@ -2106,7 +2106,7 @@ function FolderPicker({
   const [browsePath, setBrowsePath] = useState<{ id: string; name: string }[]>([]);
 
   const { data } = useQuery({
-    queryKey: ['mydisk-picker', browseFolderId, user?.id],
+    queryKey: ['myspace-picker', browseFolderId, user?.id],
     queryFn: async () => {
       const token = await getIdToken();
       const res = await fetch(`/api/folders?parentId=${browseFolderId}`, {

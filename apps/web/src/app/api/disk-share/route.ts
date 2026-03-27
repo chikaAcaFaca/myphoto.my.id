@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const folderName = folderId === 'root' ? 'MyDisk' : (await db.collection('folders').doc(folderId).get()).data()?.name || 'Folder';
+      const folderName = folderId === 'root' ? 'MySpace' : (await db.collection('folders').doc(folderId).get()).data()?.name || 'Folder';
 
       // Check if active share already exists for this folder
       const existing = await db

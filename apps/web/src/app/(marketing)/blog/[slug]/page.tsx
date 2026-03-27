@@ -17,21 +17,21 @@ export function generateMetadata({ params }: Props): Metadata {
   if (!post) return { title: 'Post Not Found' };
 
   return {
-    title: `${post.title} | MyCameraBackup.com Blog`,
+    title: `${post.title} | MyPhoto Blog`,
     description: post.description,
     openGraph: {
       type: 'article',
       locale: 'sr_RS',
-      url: `https://mycamerabackup.com/blog/${post.slug}`,
-      siteName: 'MyCameraBackup.com',
+      url: `https://myphotomy.space/blog/${post.slug}`,
+      siteName: 'MyPhoto',
       title: post.title,
       description: post.description,
       publishedTime: post.date,
       authors: [post.author],
-      images: [{ url: 'https://mycamerabackup.com/og-image.png', width: 1200, height: 630 }],
+      images: [{ url: 'https://myphotomy.space/og-image.png', width: 1200, height: 630 }],
     },
     alternates: {
-      canonical: `https://mycamerabackup.com/blog/${post.slug}`,
+      canonical: `https://myphotomy.space/blog/${post.slug}`,
     },
   };
 }
@@ -194,19 +194,19 @@ export default function BlogPostPage({ params }: Props) {
     author: { '@type': 'Person', name: post.author },
     publisher: {
       '@type': 'Organization',
-      name: 'MyCameraBackup.com',
-      url: 'https://mycamerabackup.com',
+      name: 'MyPhoto',
+      url: 'https://myphotomy.space',
     },
-    url: `https://mycamerabackup.com/blog/${post.slug}`,
-    mainEntityOfPage: `https://mycamerabackup.com/blog/${post.slug}`,
+    url: `https://myphotomy.space/blog/${post.slug}`,
+    mainEntityOfPage: `https://myphotomy.space/blog/${post.slug}`,
   };
 
   const breadcrumbLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Početna', item: 'https://mycamerabackup.com' },
-      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://mycamerabackup.com/blog' },
+      { '@type': 'ListItem', position: 1, name: 'Početna', item: 'https://myphotomy.space' },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://myphotomy.space/blog' },
       { '@type': 'ListItem', position: 3, name: post.title },
     ],
   };
@@ -270,7 +270,7 @@ export default function BlogPostPage({ params }: Props) {
         {/* CTA */}
         <div className="mt-12 rounded-xl bg-primary-50 p-6 text-center dark:bg-primary-950/30">
           <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-            Isprobajte MyCameraBackup besplatno
+            Isprobajte MyPhoto besplatno
           </h3>
           <p className="mb-4 text-gray-600 dark:text-gray-400">
             Do 15GB besplatnog prostora, bez kreditne kartice.

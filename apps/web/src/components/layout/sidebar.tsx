@@ -39,7 +39,7 @@ const mainNav = [
   { name: 'Omiljeno', href: '/favorites', icon: Heart },
   { name: 'Arhiva', href: '/archive', icon: Archive },
   { name: 'Uspomene', href: '/memories', icon: Clock },
-  { name: 'MyDisk', href: '/mydisk', icon: HardDrive },
+  { name: 'MySpace', href: '/myspace', icon: HardDrive },
 ];
 
 const secondaryNav = [
@@ -99,7 +99,7 @@ export function Sidebar() {
             {isCollapsed ? (
               <NextImage
                 src="/logo.png"
-                alt="MyCameraBackup"
+                alt="MyPhoto"
                 width={56}
                 height={56}
                 className="h-14 w-14 object-contain"
@@ -107,7 +107,7 @@ export function Sidebar() {
             ) : (
               <NextImage
                 src="/logo.png"
-                alt="MyCameraBackup.com"
+                alt="MyPhoto"
                 width={225}
                 height={60}
                 className="h-14 w-auto"

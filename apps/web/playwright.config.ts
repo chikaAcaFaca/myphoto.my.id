@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: process.env.TEST_URL || 'https://myphoto.my.id',
+    baseURL: process.env.TEST_URL || 'https://myphotomy.space',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

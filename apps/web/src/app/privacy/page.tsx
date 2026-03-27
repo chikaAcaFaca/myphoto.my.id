@@ -9,7 +9,7 @@ export default function PrivacyPage() {
         <nav className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Cloud className="h-8 w-8 text-primary-500" />
-            <span className="text-xl font-bold">MyCameraBackup</span>
+            <span className="text-xl font-bold">MyPhoto</span>
           </Link>
           <Link href="/" className="btn-ghost flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">1. Uvod</h2>
             <p>
-              MyCameraBackup.com (&quot;MyCameraBackup&quot;, &quot;mi&quot;, &quot;nas&quot;, &quot;naš&quot;) se obavezuje da štiti vašu
+              MyPhoto.com (&quot;MyPhoto&quot;, &quot;mi&quot;, &quot;nas&quot;, &quot;naš&quot;) se obavezuje da štiti vašu
               privatnost. Ova Politika privatnosti (&quot;Politika&quot;) opisuje kako prikupljamo,
               koristimo, čuvamo i štitimo vaše podatke kada koristite naš servis za čuvanje
               fotografija i videa.
@@ -92,7 +92,7 @@ export default function PrivacyPage() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
-                <span><strong>&quot;Rukovalac&quot; (Controller)</strong> — MyCameraBackup.com, koji određuje svrhe i sredstva obrade ličnih podataka</span>
+                <span><strong>&quot;Rukovalac&quot; (Controller)</strong> — MyPhoto.com, koji određuje svrhe i sredstva obrade ličnih podataka</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
@@ -115,9 +115,9 @@ export default function PrivacyPage() {
               Rukovalac (kontrolor) vaših ličnih podataka u smislu GDPR Člana 4(7) i ZZPL Člana 4 je:
             </p>
             <div className="mt-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-              <p><strong>MyCameraBackup.com</strong></p>
-              <p className="mt-1">Email: <a href="mailto:legal@mycamerabackup.com" className="text-primary-500 hover:underline">legal@mycamerabackup.com</a></p>
-              <p>DPO: <a href="mailto:dpo@mycamerabackup.com" className="text-primary-500 hover:underline">dpo@mycamerabackup.com</a></p>
+              <p><strong>MyPhoto.com</strong></p>
+              <p className="mt-1">Email: <a href="mailto:legal@myphotomy.space" className="text-primary-500 hover:underline">legal@myphotomy.space</a></p>
+              <p>DPO: <a href="mailto:dpo@myphotomy.space" className="text-primary-500 hover:underline">dpo@myphotomy.space</a></p>
             </div>
             <p className="mt-3">
               Za sva pitanja vezana za obradu vaših ličnih podataka, možete kontaktirati
@@ -433,7 +433,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">13. Kolačići i slične tehnologije</h2>
             <p>
-              MyCameraBackup koristi <strong>isključivo neophodne (esencijalne) kolačiće</strong> za
+              MyPhoto koristi <strong>isključivo neophodne (esencijalne) kolačiće</strong> za
               funkcionisanje Servisa:
             </p>
             <ul className="mt-3 space-y-2">
@@ -572,7 +572,7 @@ export default function PrivacyPage() {
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                <span><strong>Pravo na opt-out od prodaje:</strong> MyCameraBackup <strong>ne prodaje</strong> vaše lične podatke — ovo pravo je automatski ispunjeno</span>
+                <span><strong>Pravo na opt-out od prodaje:</strong> MyPhoto <strong>ne prodaje</strong> vaše lične podatke — ovo pravo je automatski ispunjeno</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
@@ -581,11 +581,11 @@ export default function PrivacyPage() {
             </ul>
             <p className="mt-3 font-semibold text-gray-900 dark:text-white">Children&apos;s Online Privacy Protection Act (COPPA):</p>
             <p className="mt-1">
-              MyCameraBackup ne prikuplja svesno lične podatke dece mlađe od 13 godina. Naš
+              MyPhoto ne prikuplja svesno lične podatke dece mlađe od 13 godina. Naš
               Servis zahteva minimum <strong>16 godina</strong>. Ako saznamo da smo prikupili
               podatke deteta mlađeg od 13 godina, odmah ćemo ih obrisati.
               Ako ste roditelj i verujete da je vaše dete otvorilo nalog,
-              kontaktirajte nas na <strong>dpo@mycamerabackup.com</strong>.
+              kontaktirajte nas na <strong>dpo@myphotomy.space</strong>.
             </p>
           </section>
 
@@ -595,7 +595,7 @@ export default function PrivacyPage() {
             <ul className="mt-3 space-y-2">
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
-                <span><strong>Kako:</strong> pošaljite zahtev na <a href="mailto:dpo@mycamerabackup.com" className="text-primary-500 hover:underline">dpo@mycamerabackup.com</a> ili koristite opciju u podešavanjima naloga</span>
+                <span><strong>Kako:</strong> pošaljite zahtev na <a href="mailto:dpo@myphotomy.space" className="text-primary-500 hover:underline">dpo@myphotomy.space</a> ili koristite opciju u podešavanjima naloga</span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
@@ -617,7 +617,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">18. Deca i maloletnici</h2>
             <p>
-              MyCameraBackup zahteva minimalni uzrast od <strong>16 godina</strong> za kreiranje naloga,
+              MyPhoto zahteva minimalni uzrast od <strong>16 godina</strong> za kreiranje naloga,
               u skladu sa:
             </p>
             <ul className="mt-3 space-y-2">
@@ -706,21 +706,21 @@ export default function PrivacyPage() {
             <ul className="mt-3 space-y-2">
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
-                <span><strong>Zaštita podataka (DPO):</strong> <a href="mailto:dpo@mycamerabackup.com" className="text-primary-500 hover:underline">dpo@mycamerabackup.com</a></span>
+                <span><strong>Zaštita podataka (DPO):</strong> <a href="mailto:dpo@myphotomy.space" className="text-primary-500 hover:underline">dpo@myphotomy.space</a></span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
-                <span><strong>Opšta pitanja o privatnosti:</strong> <a href="mailto:privacy@mycamerabackup.com" className="text-primary-500 hover:underline">privacy@mycamerabackup.com</a></span>
+                <span><strong>Opšta pitanja o privatnosti:</strong> <a href="mailto:privacy@myphotomy.space" className="text-primary-500 hover:underline">privacy@myphotomy.space</a></span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
-                <span><strong>Pravna služba:</strong> <a href="mailto:legal@mycamerabackup.com" className="text-primary-500 hover:underline">legal@mycamerabackup.com</a></span>
+                <span><strong>Pravna služba:</strong> <a href="mailto:legal@myphotomy.space" className="text-primary-500 hover:underline">legal@myphotomy.space</a></span>
               </li>
               <li className="flex items-start gap-2">
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
                 <span><strong>Kontakt forma:</strong>{' '}
                   <Link href="/contact" className="text-primary-500 hover:underline">
-                    mycamerabackup.com/contact
+                    myphotomy.space/contact
                   </Link>
                 </span>
               </li>
@@ -759,10 +759,10 @@ export default function PrivacyPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Cloud className="h-6 w-6 text-primary-500" />
-            <span className="font-semibold">MyCameraBackup</span>
+            <span className="font-semibold">MyPhoto</span>
           </div>
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} MyCameraBackup. Sva prava zadržana.
+            © {new Date().getFullYear()} MyPhoto. Sva prava zadržana.
           </p>
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">Privatnost</Link>

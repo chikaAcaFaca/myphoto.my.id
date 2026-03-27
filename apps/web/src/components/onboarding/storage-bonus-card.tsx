@@ -48,7 +48,7 @@ export function StorageBonusCard() {
 
   const formatGB = (bytes: number) => `${Math.round(bytes / BYTES_PER_GB)} GB`;
 
-  const referralLink = referralStats?.referralLink || `https://mycamerabackup.com/register?ref=${user.referralCode}`;
+  const referralLink = referralStats?.referralLink || `https://myphotomy.space/register?ref=${user.referralCode}`;
 
   const handleCopyLink = async () => {
     try {

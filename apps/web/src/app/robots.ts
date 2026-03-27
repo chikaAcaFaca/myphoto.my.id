@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/photos', '/albums', '/favorites', '/trash', '/duplicates', '/memories'],
     },
-    sitemap: 'https://mycamerabackup.com/sitemap.xml',
+    sitemap: 'https://myphotomy.space/sitemap.xml',
   };
 }

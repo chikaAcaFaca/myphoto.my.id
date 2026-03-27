@@ -334,7 +334,7 @@ export default function SharedDiskPage() {
         <div className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
             <Link href="/" className="flex items-center gap-2">
-              <Image src="/logo.png" alt="MyCameraBackup.com" width={140} height={40} className="h-8 w-auto" />
+              <Image src="/logo.png" alt="myphotomy.space" width={140} height={40} className="h-8 w-auto" />
             </Link>
             <div className="flex items-center gap-2">
               <Link
@@ -434,7 +434,7 @@ export default function SharedDiskPage() {
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <HardDrive className="mb-3 h-8 w-8 text-purple-500" />
-              <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">MyDisk storage</h3>
+              <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">MySpace storage</h3>
               <p className="text-sm text-gray-500">Skladistite fajlove, foldere i dokumente. Pristupite sa bilo kog uredjaja.</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
@@ -448,7 +448,7 @@ export default function SharedDiskPage() {
         {/* Footer */}
         <footer className="border-t border-gray-200 py-6 text-center dark:border-gray-700">
           <p className="text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} MyCameraBackup.com — Besplatan cloud storage
+            &copy; {new Date().getFullYear()} myphotomy.space — Besplatan cloud storage
           </p>
         </footer>
       </div>
@@ -466,9 +466,9 @@ export default function SharedDiskPage() {
       <div className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <Link href="/mydisk" className="flex items-center gap-2">
+            <Link href="/myspace" className="flex items-center gap-2">
               <HardDrive className="h-5 w-5 text-primary-500" />
-              <span className="font-semibold text-gray-900 dark:text-white">MyDisk</span>
+              <span className="font-semibold text-gray-900 dark:text-white">MySpace</span>
             </Link>
             <span className="text-gray-300 dark:text-gray-600">|</span>
             <div className="flex items-center gap-1.5 text-sm text-gray-500">
@@ -485,10 +485,10 @@ export default function SharedDiskPage() {
               {canWrite ? 'Citanje i pisanje' : 'Samo citanje'}
             </span>
             <Link
-              href="/mydisk"
+              href="/myspace"
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              Moj disk
+              Moj space
             </Link>
           </div>
         </div>

@@ -1,0 +1,56 @@
+{
+  "name": "myphoto-desktop",
+  "version": "1.0.0",
+  "description": "MyPhoto Desktop Sync - Sinhronizacija fajlova kao Dropbox",
+  "main": "dist/main.js",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && electron .",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "id.my.myphoto.desktop",
+    "productName": "MyPhoto Sync",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "assets/icon.png"
+    }
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "electron-store": "^8.2.0",
+    "form-data": "^4.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.4.5"
+  }
+}

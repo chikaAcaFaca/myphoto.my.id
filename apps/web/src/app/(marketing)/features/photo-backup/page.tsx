@@ -13,26 +13,26 @@ import {
 
 export function generateMetadata(): Metadata {
   return {
-    title: 'Auto Backup All Your Photos & Videos | MyCameraBackup.com',
+    title: 'Auto Backup All Your Photos & Videos | MyPhoto',
     description:
       'Automatic photo backup app that saves all your photos and videos to a secure cloud. Auto backup photos to cloud with original quality, no compression. EU servers, GDPR compliant.',
     alternates: {
-      canonical: 'https://mycamerabackup.com/features/photo-backup',
+      canonical: 'https://myphotomy.space/features/photo-backup',
     },
     openGraph: {
-      title: 'Auto Backup All Your Photos & Videos | MyCameraBackup.com',
+      title: 'Auto Backup All Your Photos & Videos | MyPhoto',
       description:
         'Automatic photo backup app that saves all your photos and videos to a secure cloud. Original quality, EU servers.',
-      url: 'https://mycamerabackup.com/features/photo-backup',
-      siteName: 'MyCameraBackup.com',
+      url: 'https://myphotomy.space/features/photo-backup',
+      siteName: 'MyPhoto',
       type: 'website',
       locale: 'sr_RS',
       images: [
         {
-          url: 'https://mycamerabackup.com/og-image.png',
+          url: 'https://myphotomy.space/og-image.png',
           width: 1200,
           height: 630,
-          alt: 'MyCameraBackup.com - Auto Photo Backup',
+          alt: 'MyPhoto - Auto Photo Backup',
         },
       ],
     },
@@ -44,7 +44,7 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'SoftwareApplication',
-      name: 'MyCameraBackup.com',
+      name: 'MyPhoto',
       applicationCategory: 'PhotographyApplication',
       operatingSystem: 'Android, Web',
       description:
@@ -54,7 +54,7 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      url: 'https://mycamerabackup.com',
+      url: 'https://myphotomy.space',
     },
     {
       '@type': 'BreadcrumbList',
@@ -63,19 +63,19 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 1,
           name: 'Pocetna',
-          item: 'https://mycamerabackup.com',
+          item: 'https://myphotomy.space',
         },
         {
           '@type': 'ListItem',
           position: 2,
           name: 'Features',
-          item: 'https://mycamerabackup.com/features',
+          item: 'https://myphotomy.space/features',
         },
         {
           '@type': 'ListItem',
           position: 3,
           name: 'Photo Backup',
-          item: 'https://mycamerabackup.com/features/photo-backup',
+          item: 'https://myphotomy.space/features/photo-backup',
         },
       ],
     },
@@ -87,7 +87,7 @@ const STEPS = [
     icon: Smartphone,
     title: 'Instalirajte aplikaciju',
     description:
-      'Preuzmite MyCameraBackup aplikaciju sa Google Play Store-a i prijavite se na svoj nalog.',
+      'Preuzmite MyPhoto aplikaciju sa Google Play Store-a i prijavite se na svoj nalog.',
   },
   {
     icon: Upload,
@@ -145,7 +145,7 @@ const FEATURES = [
 const FAQS = [
   {
     q: 'Da li backup troši puno baterije?',
-    a: 'Ne. MyCameraBackup koristi optimizovane pozadinske procese koji minimalno utiču na bateriju. Backup se podrazumevano pokreće samo na Wi-Fi mreži.',
+    a: 'Ne. MyPhoto koristi optimizovane pozadinske procese koji minimalno utiču na bateriju. Backup se podrazumevano pokreće samo na Wi-Fi mreži.',
   },
   {
     q: 'Da li se slike kompresuju prilikom backup-a?',
@@ -179,7 +179,7 @@ export default function PhotoBackupPage() {
             Auto Backup All Your Photos &amp; Videos
           </h1>
           <p className="mx-auto mb-8 max-w-xl text-lg text-gray-600 dark:text-gray-300">
-            Nikad više ne brinite o izgubljenim slikama. MyCameraBackup automatski
+            Nikad više ne brinite o izgubljenim slikama. MyPhoto automatski
             čuva svaki momenat u originalnom kvalitetu na sigurnim EU serverima.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
@@ -235,7 +235,7 @@ export default function PhotoBackupPage() {
       <section className="bg-gray-50 px-4 py-20 dark:bg-gray-900/50 sm:px-6">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-12 text-center text-3xl font-bold text-gray-900 dark:text-white">
-            Zašto izabrati MyCameraBackup za backup?
+            Zašto izabrati MyPhoto za backup?
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
@@ -264,7 +264,7 @@ export default function PhotoBackupPage() {
             Preuzmite Android aplikaciju
           </h2>
           <p className="mx-auto mb-6 max-w-lg text-primary-100">
-            Instalirajte MyCameraBackup na vaš Android telefon i aktivirajte automatski
+            Instalirajte MyPhoto na vaš Android telefon i aktivirajte automatski
             backup za sve vaše slike i video zapise.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">

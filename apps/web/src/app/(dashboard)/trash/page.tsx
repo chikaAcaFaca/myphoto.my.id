@@ -76,7 +76,7 @@ export default function TrashPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['disk-trash'] });
-      queryClient.invalidateQueries({ queryKey: ['mydisk'] });
+      queryClient.invalidateQueries({ queryKey: ['myspace'] });
       addNotification({ type: 'success', title: 'Vraćeno iz korpe' });
     },
   });
@@ -178,7 +178,7 @@ export default function TrashPage() {
             tab === 'disk' ? 'bg-white shadow dark:bg-gray-700' : 'text-gray-500'
           }`}
         >
-          MyDisk ({diskCount})
+          MySpace ({diskCount})
         </button>
       </div>
 
@@ -203,7 +203,7 @@ export default function TrashPage() {
       {tab === 'disk' && (
         <>
           {!diskLoading && diskCount === 0 ? (
-            <EmptyState message="Nema obrisanih fajlova sa MyDisk-a" />
+            <EmptyState message="Nema obrisanih fajlova sa MySpace-a" />
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
               {diskFolders.map((folder) => (

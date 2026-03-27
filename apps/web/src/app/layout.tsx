@@ -7,8 +7,8 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   title: {
-    default: 'MyCameraBackup.com — Private Cloud Photo Storage & Backup',
-    template: '%s | MyCameraBackup.com',
+    default: 'MyPhoto — Private Cloud Photo Storage & Backup',
+    template: '%s | MyPhoto',
   },
   description:
     'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. Up to 15GB free.',
@@ -30,32 +30,32 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'sr_RS',
-    url: 'https://mycamerabackup.com',
-    siteName: 'MyCameraBackup.com',
-    title: 'MyCameraBackup.com — Private Cloud Photo Storage & Backup',
+    url: 'https://myphotomy.space',
+    siteName: 'MyPhoto',
+    title: 'MyPhoto — Private Cloud Photo Storage & Backup',
     description:
       'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. Up to 15GB free.',
     images: [
       {
-        url: 'https://mycamerabackup.com/og-image.png',
+        url: 'https://myphotomy.space/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'MyCameraBackup.com — Private Cloud Photo Storage',
+        alt: 'MyPhoto — Private Cloud Photo Storage',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'MyCameraBackup.com — Private Cloud Photo Storage & Backup',
+    title: 'MyPhoto — Private Cloud Photo Storage & Backup',
     description:
       'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. Up to 15GB free.',
-    images: ['https://mycamerabackup.com/og-image.png'],
+    images: ['https://myphotomy.space/og-image.png'],
   },
   alternates: {
-    canonical: 'https://mycamerabackup.com',
+    canonical: 'https://myphotomy.space',
     languages: {
-      'sr': 'https://mycamerabackup.com',
-      'en': 'https://mycamerabackup.com',
+      'sr': 'https://myphotomy.space',
+      'en': 'https://myphotomy.space',
     },
   },
   verification: {
@@ -68,7 +68,7 @@ const jsonLd = {
   '@graph': [
     {
       '@type': 'SoftwareApplication',
-      name: 'MyCameraBackup.com',
+      name: 'MyPhoto',
       applicationCategory: 'PhotographyApplication',
       operatingSystem: 'Web, Android',
       offers: [
@@ -91,7 +91,7 @@ const jsonLd = {
       ],
       description:
         'Private cloud photo storage with auto backup, original quality, EU servers, and GDPR protection. Google Photos alternative.',
-      url: 'https://mycamerabackup.com',
+      url: 'https://myphotomy.space',
       aggregateRating: {
         '@type': 'AggregateRating',
         ratingValue: '4.8',
@@ -101,14 +101,14 @@ const jsonLd = {
     },
     {
       '@type': 'Organization',
-      name: 'MyCameraBackup.com',
-      url: 'https://mycamerabackup.com',
-      logo: 'https://mycamerabackup.com/logo.png',
+      name: 'MyPhoto',
+      url: 'https://myphotomy.space',
+      logo: 'https://myphotomy.space/logo.png',
       sameAs: [],
       contactPoint: {
         '@type': 'ContactPoint',
         contactType: 'customer support',
-        url: 'https://mycamerabackup.com/support',
+        url: 'https://myphotomy.space/support',
       },
     },
   ],

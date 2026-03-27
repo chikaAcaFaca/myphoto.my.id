@@ -4,34 +4,34 @@ import { Calendar, Clock, ArrowRight } from 'lucide-react';
 import { blogPosts } from './posts';
 
 export const metadata: Metadata = {
-  title: 'Blog — MyCameraBackup.com',
+  title: 'Blog — MyPhoto',
   description:
     'Saveti o privatnosti fotografija, cloud backup-u, GDPR zaštiti i poređenju servisa za čuvanje slika.',
   openGraph: {
     type: 'website',
     locale: 'sr_RS',
-    url: 'https://mycamerabackup.com/blog',
-    siteName: 'MyCameraBackup.com',
-    title: 'Blog — MyCameraBackup.com',
+    url: 'https://myphotomy.space/blog',
+    siteName: 'MyPhoto',
+    title: 'Blog — MyPhoto',
     description:
       'Saveti o privatnosti fotografija, cloud backup-u, GDPR zaštiti i poređenju servisa za čuvanje slika.',
-    images: [{ url: 'https://mycamerabackup.com/og-image.png', width: 1200, height: 630 }],
+    images: [{ url: 'https://myphotomy.space/og-image.png', width: 1200, height: 630 }],
   },
   alternates: {
-    canonical: 'https://mycamerabackup.com/blog',
+    canonical: 'https://myphotomy.space/blog',
   },
 };
 
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Blog',
-  name: 'MyCameraBackup.com Blog',
+  name: 'MyPhoto Blog',
   description: 'Saveti o privatnosti fotografija, cloud backup-u i GDPR zaštiti.',
-  url: 'https://mycamerabackup.com/blog',
+  url: 'https://myphotomy.space/blog',
   publisher: {
     '@type': 'Organization',
-    name: 'MyCameraBackup.com',
-    url: 'https://mycamerabackup.com',
+    name: 'MyPhoto',
+    url: 'https://myphotomy.space',
   },
 };
 

@@ -7,7 +7,7 @@ export interface UserSettings {
   faceRecognition: boolean;
   darkMode: boolean;
   backupFolders: string[]; // Device album/folder titles to backup (empty = all folders)
-  // Storage allocation — how much of total storage is dedicated to MyDisk vs MyPhoto
+  // Storage allocation — how much of total storage is dedicated to MySpace vs MyPhoto
   myDiskAllocatedBytes?: number; // If set, rest goes to MyPhoto. If not set, auto-managed.
 }
 
@@ -245,8 +245,8 @@ export interface StorageTier {
   isPopular?: boolean;
   // Tier capabilities
   myPhotoEnabled: boolean;  // Photo/video backup
-  myDiskEnabled: boolean;   // Document/file storage
-  canToggle: boolean;       // Can user toggle MyPhoto/MyDisk on/off and allocate space
+  myDiskEnabled: boolean;   // MySpace document/file storage
+  canToggle: boolean;       // Can user toggle MyPhoto/MySpace on/off and allocate space
 }
 
 // Memory/Suggestion Types
