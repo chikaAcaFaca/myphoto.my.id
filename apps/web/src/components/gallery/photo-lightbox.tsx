@@ -23,7 +23,9 @@ import {
   Maximize,
   Eraser,
   Crop,
+  HardDrive,
 } from 'lucide-react';
+import Link from 'next/link';
 import type { FileMetadata } from '@myphoto/shared';
 import { formatDate, formatBytes } from '@myphoto/shared';
 import { useUIStore } from '@/lib/stores';
@@ -1098,6 +1100,20 @@ function InfoContent({ file }: { file: FileMetadata }) {
               </span>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* MySpace folder link — shown when photo was uploaded via MySpace */}
+      {file.diskFolderId && (
+        <div>
+          <h4 className="mb-2 text-xs text-white/40">Lokacija na MySpace</h4>
+          <Link
+            href={`/myspace?folder=${file.diskFolderId}`}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-sky-400 hover:bg-white/20 transition-colors"
+          >
+            <HardDrive className="h-3.5 w-3.5" />
+            Otvori folder u MySpace
+          </Link>
         </div>
       )}
     </div>

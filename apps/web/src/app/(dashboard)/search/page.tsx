@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, Image, Film, X } from 'lucide-react';
+import { Search, Filter, Image, Film, X, User, MapPin, Calendar, Sparkles, Mountain, Building2, Eye } from 'lucide-react';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { getIdToken } from '@/lib/firebase';
 import type { FileMetadata } from '@myphoto/shared';
@@ -18,6 +18,14 @@ function SearchContent() {
   const [hasMore, setHasMore] = useState(false);
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [parsedInfo, setParsedInfo] = useState<{
+    personNames: string[];
+    locationTerms: string[];
+    dateRange: { from: string; to: string } | null;
+    sceneFilters?: { field: string; value: string }[];
+    faceFilters?: { field: string; value: string }[];
+    keywords: string[];
+  } | null>(null);
 
   // Filters
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -86,6 +94,9 @@ function SearchContent() {
       }
       setTotal(data.total);
       setHasMore(data.hasMore);
+      if (data.parsed) {
+        setParsedInfo(data.parsed);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -126,7 +137,7 @@ function SearchContent() {
               type="text"
               value={localQuery}
               onChange={(e) => setLocalQuery(e.target.value)}
-              placeholder="Pretražite po imenu, oznakama, tekstu..."
+              placeholder="npr. Branka u Vranju pre 5 meseci..."
               className="input pl-10"
               autoFocus
             />
@@ -201,6 +212,46 @@ function SearchContent() {
               : `${total} ${total === 1 ? 'rezultat' : 'rezultata'} za "${query}"`}
           </p>
         )}
+
+        {/* Parsed query info — shows what the AI understood */}
+        {parsedInfo && query && !isSearching && (
+          (parsedInfo.personNames.length > 0 || parsedInfo.locationTerms.length > 0 || parsedInfo.dateRange) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-xs text-gray-400">Prepoznato:</span>
+              {parsedInfo.personNames.map((name) => (
+                <span key={name} className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                  <User className="h-3 w-3" />
+                  {name}
+                </span>
+              ))}
+              {parsedInfo.locationTerms.map((loc) => (
+                <span key={loc} className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-300">
+                  <MapPin className="h-3 w-3" />
+                  {loc}
+                </span>
+              ))}
+              {parsedInfo.dateRange && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(parsedInfo.dateRange.from).toLocaleDateString('sr-RS')} — {new Date(parsedInfo.dateRange.to).toLocaleDateString('sr-RS')}
+                </span>
+              )}
+              {parsedInfo.sceneFilters?.map((f, i) => (
+                <span key={`s-${i}`} className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  <Mountain className="h-3 w-3" />
+                  {f.field}: {f.value}
+                </span>
+              ))}
+              {parsedInfo.faceFilters?.map((f, i) => (
+                <span key={`f-${i}`} className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-2.5 py-0.5 text-xs text-pink-700 dark:bg-pink-900/30 dark:text-pink-300">
+                  <Eye className="h-3 w-3" />
+                  {f.field}: {f.value}
+                </span>
+              ))}
+            </div>
+          )
+        )}
       </div>
 
       {/* Error */}
@@ -229,14 +280,43 @@ function SearchContent() {
         </>
       ) : (
         /* Empty state - no query */
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="mb-6 rounded-full bg-gray-100 p-6 dark:bg-gray-800">
             <Search className="h-12 w-12 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold">Pretražite svoje fajlove</h2>
+          <h2 className="text-xl font-semibold">Pametna pretraga</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Pretražujte po imenu fajla, AI oznakama ili tekstu na slikama
+            Pretražujte prirodnim jezikom — po osobi, mestu, vremenu ili bilo čemu na slici
           </p>
+
+          {/* Example queries */}
+          <div className="mt-8 w-full max-w-md">
+            <p className="mb-3 text-xs font-medium text-gray-400">Probajte na primer:</p>
+            <div className="grid gap-2">
+              {[
+                'Branka u Vranju pre 5 meseci',
+                'plaža prošlog leta',
+                'brda i livade',
+                'moderna zgrada u gradu',
+                'stara gradnja noću',
+                'plavuša na planini',
+                'zalazak sunca na moru',
+                'Marko i Ana na rođendanu',
+              ].map((example) => (
+                <button
+                  key={example}
+                  onClick={() => {
+                    setLocalQuery(example);
+                    router.push(`/search?q=${encodeURIComponent(example)}`);
+                  }}
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-left text-sm text-gray-600 transition-colors hover:border-sky-300 hover:bg-sky-50 dark:border-gray-700 dark:text-gray-400 dark:hover:border-sky-600 dark:hover:bg-sky-900/20"
+                >
+                  <Search className="h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+                  {example}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

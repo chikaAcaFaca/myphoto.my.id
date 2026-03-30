@@ -15,11 +15,19 @@ export async function POST(request: NextRequest) {
     const { userId } = authResult;
 
     const body = await request.json();
-    const { fileId, albumId } = body;
+    const { fileId, albumId, permission = 'read' } = body;
 
     if (!fileId && !albumId) {
       return NextResponse.json(
         { error: 'Missing fileId or albumId' },
+        { status: 400 }
+      );
+    }
+
+    // Validate permission
+    if (permission !== 'read' && permission !== 'readwrite') {
+      return NextResponse.json(
+        { error: 'Invalid permission. Must be "read" or "readwrite"' },
         { status: 400 }
       );
     }
@@ -51,16 +59,30 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ shareUrl: `/shared/${token}`, token });
       }
 
-      // Get album files for metadata
-      const filesSnapshot = await db
-        .collection('files')
-        .where('userId', '==', userId)
-        .where('albumIds', 'array-contains', albumId)
-        .where('isTrashed', '==', false)
-        .limit(50)
-        .get();
+      // Get ALL album files (no limit - album size is only bounded by storage capacity)
+      const fileIds: string[] = [];
+      let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+      const batchSize = 500;
 
-      const fileIds = filesSnapshot.docs.map((d) => d.id);
+      while (true) {
+        let query = db
+          .collection('files')
+          .where('userId', '==', userId)
+          .where('albumIds', 'array-contains', albumId)
+          .where('isTrashed', '==', false)
+          .orderBy('createdAt', 'desc')
+          .limit(batchSize);
+
+        if (lastDoc) {
+          query = query.startAfter(lastDoc);
+        }
+
+        const snapshot = await query.get();
+        snapshot.docs.forEach((d) => fileIds.push(d.id));
+
+        if (snapshot.size < batchSize) break;
+        lastDoc = snapshot.docs[snapshot.docs.length - 1];
+      }
       const coverFileId = albumData.coverFileId || (fileIds.length > 0 ? fileIds[0] : null);
 
       const token = generateShareToken();
@@ -70,6 +92,7 @@ export async function POST(request: NextRequest) {
         albumId,
         fileId: coverFileId,
         userId,
+        permission,
         albumName: albumData.name,
         albumDescription: albumData.description || null,
         albumFileIds: fileIds,
@@ -139,6 +162,7 @@ export async function POST(request: NextRequest) {
       type: 'file' as const,
       fileId,
       userId,
+      permission,
       fileName: fileData.name,
       fileType: fileData.type,
       mimeType: fileData.mimeType,

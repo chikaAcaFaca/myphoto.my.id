@@ -138,6 +138,8 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             <SharedGallery
               fileIds={shared.albumFileIds || []}
               shareToken={token}
+              albumName={shared.albumName}
+              permission={shared.permission || 'read'}
             />
           </>
         ) : isImage || isVideo ? (

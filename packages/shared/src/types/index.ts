@@ -47,6 +47,15 @@ export interface Referral {
 // File Types
 export type FileType = 'image' | 'video' | 'document' | 'other';
 
+export interface FaceAttributes {
+  age?: number;
+  gender?: 'male' | 'female';
+  hairColor?: 'black' | 'brown' | 'blonde' | 'red' | 'gray' | 'white';
+  expression?: string;
+  glasses?: boolean;
+  beard?: boolean;
+}
+
 export interface FaceData {
   personId?: string;
   boundingBox: {
@@ -56,6 +65,29 @@ export interface FaceData {
     height: number;
   };
   confidence: number;
+  attributes?: FaceAttributes;
+}
+
+// Rich scene attributes extracted by AI
+export type TimeOfDay = 'dawn' | 'morning' | 'afternoon' | 'evening' | 'night';
+export type ArchitectureStyle = 'modern' | 'old' | 'industrial' | 'rural' | 'none';
+export type WeatherCondition = 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'foggy' | 'unknown';
+
+export interface SceneAttributes {
+  // Landscape & environment
+  landscape?: string[];    // 'hills', 'meadow', 'forest', 'river', 'lake', 'sea', 'desert', 'field'
+  urban?: string[];        // 'city', 'street', 'building', 'skyscraper', 'bridge', 'park'
+  architecture?: ArchitectureStyle;
+  indoor?: boolean;
+
+  // Time & weather
+  timeOfDay?: TimeOfDay;
+  weather?: WeatherCondition;
+  season?: 'spring' | 'summer' | 'autumn' | 'winter';
+
+  // Activity & context
+  activity?: string[];     // 'sport', 'celebration', 'travel', 'work', 'food', 'selfie'
+  mood?: string;           // 'happy', 'calm', 'energetic', 'romantic'
 }
 
 export interface GeoLocation {
@@ -82,6 +114,7 @@ export interface FileMetadata {
   duration?: number;
   takenAt?: Date;
   location?: GeoLocation;
+  locationName?: string; // Reverse-geocoded place name (e.g. "Vranje, Serbia")
   deviceInfo?: string;
 
   // AI Data
@@ -90,6 +123,14 @@ export interface FileMetadata {
   ocrText?: string;
   isNsfw?: boolean;
   qualityScore?: number;
+  sceneType?: string;
+  sceneAttributes?: SceneAttributes;
+  dominantColors?: string[];
+  pHash?: string;
+
+  // Cross-reference to MySpace (disk) — links photo to its source file/folder
+  diskFileId?: string;   // ID in diskFiles collection (same physical file)
+  diskFolderId?: string; // Folder in MySpace where the original file lives
 
   // Organization
   albumIds: string[];
@@ -98,6 +139,35 @@ export interface FileMetadata {
   isTrashed: boolean;
   trashedAt?: Date;
 
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// MySpace (Disk) Types
+export interface DiskFolder {
+  id: string;
+  userId: string;
+  name: string;
+  parentId: string;
+  path: string;
+  isTrashed?: boolean;
+  trashedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DiskFile {
+  id: string;
+  userId: string;
+  name: string;
+  s3Key: string;
+  mimeType: string;
+  size: number;
+  folderId: string;
+  isTrashed?: boolean;
+  trashedAt?: Date;
+  // Cross-reference to MyPhoto — if this is an image/video, links to the photo record
+  photoFileId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -119,6 +189,8 @@ export interface Album {
 }
 
 // Shared Link Types
+export type SharePermission = 'read' | 'readwrite';
+
 export interface SharedLink {
   token: string;
   type: 'file' | 'album';
@@ -130,6 +202,15 @@ export interface SharedLink {
   mimeType: string;
   width?: number;
   height?: number;
+  // Permission level for shared content
+  permission: SharePermission;
+  // Album metadata
+  albumId?: string;
+  albumName?: string;
+  albumDescription?: string;
+  albumFileIds?: string[];
+  albumFileCount?: number;
+  coverFileId?: string;
   // Metadata
   createdAt: Date;
   expiresAt?: Date;

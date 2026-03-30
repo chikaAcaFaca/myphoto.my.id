@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Share2, Trash2, Plus, Copy, Check, Link2, MoreHorizontal, Pencil } from 'lucide-react';
+import { ArrowLeft, Share2, Trash2, Plus, Copy, Check, Link2, MoreHorizontal, Pencil, Download } from 'lucide-react';
+import JSZip from 'jszip';
 import { useAlbum, useFiles, useDeleteAlbum, useUpdateAlbum, useBulkDeleteFiles } from '@/lib/hooks';
 import { useShareAlbum } from '@/lib/hooks/use-share';
 import { useFilesStore, useUIStore } from '@/lib/stores';
@@ -39,25 +40,32 @@ export default function AlbumDetailPage() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+  const [sharePermission, setSharePermission] = useState<'read' | 'readwrite'>('read');
   const [isEditing, setIsEditing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
   const files: FileMetadata[] = filesData?.pages?.flatMap((page) => page.files) ?? [];
 
-  const handleShare = async () => {
+  const handleShare = async (perm?: 'read' | 'readwrite') => {
     if (!album) return;
+    const permToUse = perm ?? sharePermission;
     try {
-      const result = await shareAlbum(album.id);
+      const result = await shareAlbum({ albumId: album.id, permission: permToUse });
       const fullUrl = `${window.location.origin}${result.shareUrl}`;
       setShareUrl(fullUrl);
+      setShowShareOptions(false);
       await navigator.clipboard.writeText(fullUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       addNotification({
         type: 'success',
         title: 'Link kopiran',
-        message: 'Link za deljenje albuma je kopiran u clipboard',
+        message: permToUse === 'readwrite'
+          ? 'Link za deljenje (sa pravom izmene) kopiran u clipboard'
+          : 'Link za deljenje (samo pregled) kopiran u clipboard',
       });
     } catch (error: any) {
       addNotification({
@@ -124,6 +132,52 @@ export default function AlbumDetailPage() {
         title: 'Greška',
         message: error.message,
       });
+    }
+  };
+
+  const handleDownloadAlbum = async () => {
+    if (!album || files.length === 0 || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const zip = new JSZip();
+      let downloaded = 0;
+
+      for (const file of files) {
+        try {
+          const res = await fetch(`/api/stream/${file.id}`);
+          if (!res.ok) continue;
+          const blob = await res.blob();
+          zip.file(file.name, blob);
+          downloaded++;
+        } catch {
+          // Skip failed files
+        }
+      }
+
+      if (downloaded === 0) {
+        addNotification({ type: 'error', title: 'Greška', message: 'Nije moguće preuzeti slike' });
+        return;
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${album.name}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      addNotification({
+        type: 'success',
+        title: 'Preuzimanje završeno',
+        message: `"${album.name}.zip" sa ${downloaded} fajlova`,
+      });
+    } catch (error: any) {
+      addNotification({ type: 'error', title: 'Greška', message: error.message });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -200,19 +254,62 @@ export default function AlbumDetailPage() {
 
           {!isEditing && (
             <div className="flex items-center gap-2">
-              {/* Share button */}
+              {/* Download album as ZIP */}
               <button
-                onClick={handleShare}
-                disabled={isSharing}
-                className="btn-primary flex items-center gap-2"
+                onClick={handleDownloadAlbum}
+                disabled={isDownloading || files.length === 0}
+                className="btn-secondary flex items-center gap-2"
+                title="Preuzmi ceo album kao ZIP"
               >
-                {isSharing ? (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                {isDownloading ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
                 ) : (
-                  <Share2 className="h-4 w-4" />
+                  <Download className="h-4 w-4" />
                 )}
-                Podeli
+                Preuzmi
               </button>
+
+              {/* Share button with permission options */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowShareOptions(!showShareOptions)}
+                  disabled={isSharing}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  {isSharing ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <Share2 className="h-4 w-4" />
+                  )}
+                  Podeli
+                </button>
+
+                {showShareOptions && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowShareOptions(false)} />
+                    <div className="absolute right-0 z-20 mt-1 w-64 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                      <button
+                        onClick={() => handleShare('read')}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Samo pregled</p>
+                          <p className="text-xs text-gray-500">Može da gleda i preuzme slike</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={() => handleShare('readwrite')}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Pregled i izmena</p>
+                          <p className="text-xs text-gray-500">Može da dodaje i briše slike</p>
+                        </div>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Menu */}
               <div className="relative">

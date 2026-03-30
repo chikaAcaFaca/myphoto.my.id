@@ -123,8 +123,22 @@ export async function processImageAI(fileId: string, s3Key: string): Promise<AIP
       return defaults[i];
     })) as [ExifData, string[], FaceDetection[], number, string[], string];
 
-    // Detect scene type based on labels
+    // Detect scene type and rich scene attributes
     const sceneType = detectSceneType(labels);
+
+    // Calculate image brightness for time-of-day inference
+    let brightness = 128;
+    try {
+      const stats = await sharp(imageBuffer).stats();
+      brightness = stats.channels.reduce((sum, ch) => sum + ch.mean, 0) / stats.channels.length;
+    } catch { /* use default */ }
+
+    const sceneAttributes = analyzeSceneAttributes(
+      labels,
+      dominantColors,
+      exifData.takenAt ? { takenAt: exifData.takenAt } : null,
+      { brightness }
+    );
 
     // Prepare update data
     const updateData: Record<string, any> = {
@@ -138,6 +152,7 @@ export async function processImageAI(fileId: string, s3Key: string): Promise<AIP
       dominantColors,
       pHash,
       sceneType,
+      sceneAttributes,
       faceCount: faces.length,
       aiProcessedAt: new Date(),
     };
@@ -153,12 +168,17 @@ export async function processImageAI(fileId: string, s3Key: string): Promise<AIP
       updateData.deviceInfo = exifData.camera;
     }
 
-    // Add face data if detected
+    // Add face data with attributes if detected
     if (faces.length > 0) {
       updateData.faces = faces.map((f) => ({
         boundingBox: f.boundingBox,
         confidence: f.confidence,
         descriptor: f.descriptor,
+        attributes: {
+          age: f.age,
+          gender: f.gender,
+          expression: f.expression,
+        },
       }));
 
       // Process faces for person grouping
@@ -318,91 +338,158 @@ async function detectObjects(imageBuffer: Buffer): Promise<string[]> {
 
 function addContextualLabels(detectedObjects: string[]): string[] {
   const contextual: string[] = [];
+  const has = (obj: string) => detectedObjects.includes(obj);
+  const hasAny = (objs: string[]) => detectedObjects.some((o) => objs.includes(o));
 
-  if (detectedObjects.includes('person')) {
-    contextual.push('people', 'portrait');
-  }
-  if (detectedObjects.includes('dog') || detectedObjects.includes('cat')) {
-    contextual.push('pet', 'animal');
-  }
-  if (
-    detectedObjects.includes('car') ||
-    detectedObjects.includes('truck') ||
-    detectedObjects.includes('motorcycle')
-  ) {
-    contextual.push('vehicle', 'transportation');
-  }
-  if (detectedObjects.includes('airplane')) {
-    contextual.push('travel', 'aviation');
-  }
-  if (detectedObjects.includes('boat')) {
-    contextual.push('water', 'marine');
-  }
-  if (detectedObjects.includes('bicycle')) {
-    contextual.push('sports', 'outdoor');
-  }
-  if (detectedObjects.includes('bird')) {
-    contextual.push('nature', 'wildlife');
-  }
-  if (
-    detectedObjects.some((o) =>
-      ['apple', 'orange', 'banana', 'sandwich', 'pizza', 'cake'].includes(o)
-    )
-  ) {
-    contextual.push('food');
-  }
-  if (
-    detectedObjects.some((o) =>
-      ['laptop', 'keyboard', 'mouse', 'cell phone', 'tv'].includes(o)
-    )
-  ) {
-    contextual.push('technology');
-  }
-  if (
-    detectedObjects.some((o) =>
-      ['chair', 'couch', 'bed', 'dining table'].includes(o)
-    )
-  ) {
-    contextual.push('indoor', 'furniture');
-  }
-  if (
-    detectedObjects.some((o) => ['tree', 'potted plant', 'flower'].includes(o))
-  ) {
-    contextual.push('nature', 'plants');
-  }
+  // People
+  if (has('person')) contextual.push('people', 'portrait');
+
+  // Animals
+  if (has('dog') || has('cat')) contextual.push('pet', 'animal');
+  if (has('bird')) contextual.push('nature', 'wildlife');
+  if (has('horse') || has('cow') || has('sheep')) contextual.push('animal', 'rural', 'countryside');
+
+  // Vehicles & transport
+  if (hasAny(['car', 'truck', 'motorcycle'])) contextual.push('vehicle', 'transportation');
+  if (has('airplane')) contextual.push('travel', 'aviation');
+  if (has('boat')) contextual.push('water', 'marine');
+  if (has('bicycle')) contextual.push('sports', 'outdoor');
+  if (has('bus') || has('train')) contextual.push('public_transport', 'city');
+
+  // Landscape & nature
+  if (hasAny(['tree', 'potted plant', 'flower'])) contextual.push('nature', 'plants');
+  if (hasAny(['mountain', 'hill', 'cliff', 'rock'])) contextual.push('landscape', 'hills', 'outdoor');
+  if (hasAny(['grass', 'field', 'meadow'])) contextual.push('meadow', 'green', 'outdoor');
+  if (hasAny(['river', 'lake', 'pond', 'waterfall'])) contextual.push('water', 'nature');
+  if (hasAny(['forest', 'woods'])) contextual.push('forest', 'nature');
+  if (hasAny(['sky', 'cloud', 'sunset', 'sunrise'])) contextual.push('sky', 'outdoor');
+  if (hasAny(['snow', 'ice'])) contextual.push('winter', 'cold');
+
+  // Urban & architecture
+  if (hasAny(['building', 'house', 'apartment'])) contextual.push('architecture', 'urban');
+  if (hasAny(['skyscraper', 'tower', 'high-rise'])) contextual.push('city', 'tall_building', 'modern_architecture');
+  if (hasAny(['church', 'castle', 'monument', 'statue', 'fountain'])) contextual.push('old_architecture', 'landmark', 'historic');
+  if (hasAny(['bridge', 'road', 'street', 'sidewalk'])) contextual.push('urban', 'city');
+  if (hasAny(['construction', 'crane'])) contextual.push('construction', 'modern_architecture');
+
+  // Food & dining
+  if (hasAny(['apple', 'orange', 'banana', 'sandwich', 'pizza', 'cake'])) contextual.push('food');
+  if (hasAny(['wine glass', 'cup', 'bottle'])) contextual.push('drink');
+
+  // Technology & indoor
+  if (hasAny(['laptop', 'keyboard', 'mouse', 'cell phone', 'tv'])) contextual.push('technology');
+  if (hasAny(['chair', 'couch', 'bed', 'dining table'])) contextual.push('indoor', 'furniture');
+
+  // Sports & activities
+  if (hasAny(['sports ball', 'tennis racket', 'skateboard', 'surfboard', 'ski'])) contextual.push('sport', 'active');
 
   return [...new Set(contextual)];
 }
 
 function detectSceneType(labels: string[]): string {
   const combined = labels.map((s) => s.toLowerCase());
+  const hasAny = (terms: string[]) => combined.some((l) => terms.includes(l));
 
-  if (combined.some((l) => ['beach', 'ocean', 'sand', 'surfboard'].includes(l))) {
-    return 'beach';
-  }
-  if (combined.some((l) => ['mountain', 'hiking', 'cliff', 'snow'].includes(l))) {
-    return 'mountain';
-  }
-  if (combined.some((l) => ['cake', 'candle', 'balloon', 'party'].includes(l))) {
-    return 'birthday';
-  }
-  if (combined.some((l) => ['wine', 'dinner', 'restaurant', 'food', 'pizza'].includes(l))) {
-    return 'dining';
-  }
-  if (combined.filter((l) => l === 'person').length >= 3) {
-    return 'group_photo';
-  }
-  if (combined.some((l) => ['dog', 'cat', 'pet', 'animal'].includes(l))) {
-    return 'pets';
-  }
-  if (combined.some((l) => ['car', 'truck', 'vehicle'].includes(l))) {
-    return 'automotive';
-  }
-  if (combined.some((l) => ['nature', 'tree', 'flower', 'plants'].includes(l))) {
-    return 'nature';
-  }
+  if (hasAny(['beach', 'ocean', 'sand', 'surfboard'])) return 'beach';
+  if (hasAny(['mountain', 'hiking', 'cliff', 'hills'])) return 'mountain';
+  if (hasAny(['cake', 'candle', 'balloon', 'party'])) return 'birthday';
+  if (hasAny(['wine', 'dinner', 'restaurant', 'food', 'pizza'])) return 'dining';
+  if (combined.filter((l) => l === 'person').length >= 3) return 'group_photo';
+  if (hasAny(['dog', 'cat', 'pet', 'animal'])) return 'pets';
+  if (hasAny(['car', 'truck', 'vehicle'])) return 'automotive';
+  if (hasAny(['skyscraper', 'tall_building', 'city'])) return 'cityscape';
+  if (hasAny(['church', 'castle', 'old_architecture', 'monument'])) return 'historic';
+  if (hasAny(['meadow', 'field', 'grass', 'green'])) return 'countryside';
+  if (hasAny(['forest', 'woods'])) return 'forest';
+  if (hasAny(['river', 'lake', 'waterfall'])) return 'waterscape';
+  if (hasAny(['sport', 'active', 'sports ball'])) return 'sports';
+  if (hasAny(['nature', 'tree', 'flower', 'plants'])) return 'nature';
 
   return 'general';
+}
+
+/**
+ * Analyze rich scene attributes from labels, EXIF data, and image properties.
+ * This powers natural-language searches like "moderna zgrada", "livada", "veče".
+ */
+function analyzeSceneAttributes(
+  labels: string[],
+  dominantColors: string[],
+  exifData: { takenAt?: Date } | null,
+  imageStats: { brightness: number } | null
+): Record<string, any> {
+  const combined = new Set(labels.map((s) => s.toLowerCase()));
+  const attrs: Record<string, any> = {};
+
+  // --- Landscape ---
+  const landscape: string[] = [];
+  if (combined.has('hills') || combined.has('mountain') || combined.has('cliff')) landscape.push('hills');
+  if (combined.has('meadow') || combined.has('field') || combined.has('grass')) landscape.push('meadow');
+  if (combined.has('forest') || combined.has('woods')) landscape.push('forest');
+  if (combined.has('river') || combined.has('lake') || combined.has('water')) landscape.push('water');
+  if (combined.has('beach') || combined.has('ocean') || combined.has('sand')) landscape.push('sea');
+  if (landscape.length > 0) attrs.landscape = landscape;
+
+  // --- Urban ---
+  const urban: string[] = [];
+  if (combined.has('city') || combined.has('urban') || combined.has('street')) urban.push('city');
+  if (combined.has('tall_building') || combined.has('skyscraper')) urban.push('skyscraper');
+  if (combined.has('bridge')) urban.push('bridge');
+  if (combined.has('architecture') || combined.has('building')) urban.push('building');
+  if (urban.length > 0) attrs.urban = urban;
+
+  // --- Architecture style ---
+  if (combined.has('modern_architecture') || combined.has('skyscraper') || combined.has('construction')) {
+    attrs.architecture = 'modern';
+  } else if (combined.has('old_architecture') || combined.has('historic') || combined.has('castle') || combined.has('church')) {
+    attrs.architecture = 'old';
+  } else if (combined.has('rural') || combined.has('countryside')) {
+    attrs.architecture = 'rural';
+  }
+
+  // --- Indoor/outdoor ---
+  attrs.indoor = combined.has('indoor') || combined.has('furniture');
+
+  // --- Time of day (from EXIF timestamp or image brightness) ---
+  if (exifData?.takenAt) {
+    const hour = exifData.takenAt.getHours();
+    if (hour >= 5 && hour < 7) attrs.timeOfDay = 'dawn';
+    else if (hour >= 7 && hour < 12) attrs.timeOfDay = 'morning';
+    else if (hour >= 12 && hour < 17) attrs.timeOfDay = 'afternoon';
+    else if (hour >= 17 && hour < 20) attrs.timeOfDay = 'evening';
+    else attrs.timeOfDay = 'night';
+  } else if (imageStats) {
+    // Infer from brightness: very dark → night, very bright → daytime
+    if (imageStats.brightness < 40) attrs.timeOfDay = 'night';
+    else if (imageStats.brightness < 80) attrs.timeOfDay = 'evening';
+    else if (imageStats.brightness > 180) attrs.timeOfDay = 'morning';
+    else attrs.timeOfDay = 'afternoon';
+  }
+
+  // --- Season (from date) ---
+  if (exifData?.takenAt) {
+    const month = exifData.takenAt.getMonth();
+    if (month >= 2 && month <= 4) attrs.season = 'spring';
+    else if (month >= 5 && month <= 7) attrs.season = 'summer';
+    else if (month >= 8 && month <= 10) attrs.season = 'autumn';
+    else attrs.season = 'winter';
+  }
+
+  // --- Weather (from labels + colors) ---
+  if (combined.has('snow') || combined.has('ice')) attrs.weather = 'snowy';
+  else if (combined.has('cloud') || combined.has('overcast')) attrs.weather = 'cloudy';
+  else if (combined.has('rain') || combined.has('umbrella')) attrs.weather = 'rainy';
+  else if (combined.has('sun') || combined.has('sunny')) attrs.weather = 'sunny';
+
+  // --- Activity ---
+  const activity: string[] = [];
+  if (combined.has('sport') || combined.has('active')) activity.push('sport');
+  if (combined.has('food') || combined.has('drink')) activity.push('food');
+  if (combined.has('travel') || combined.has('aviation')) activity.push('travel');
+  if (combined.has('party') || combined.has('birthday')) activity.push('celebration');
+  if (activity.length > 0) attrs.activity = activity;
+
+  return attrs;
 }
 
 async function generateThumbnails(

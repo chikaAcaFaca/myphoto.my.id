@@ -22,6 +22,7 @@ export function UploadModal() {
   const [showNetworkSettings, setShowNetworkSettings] = useState(false);
   const [showUpgradeBanner, setShowUpgradeBanner] = useState(false);
   const uploadingRef = useRef(false);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const networkStatus = useNetworkStatus();
   const uploadPermission = useUploadPermission(user?.settings);
@@ -36,19 +37,10 @@ export function UploadModal() {
     const pendingItems = useFilesStore.getState().uploadQueue.filter((item) => item.status === 'pending');
     if (pendingItems.length === 0 || uploadingRef.current) return;
 
-    // Check storage
+    // Check storage — show upgrade banner for ALL users when space is insufficient
     const totalSize = pendingItems.reduce((sum, item) => sum + item.file.size, 0);
     if (storage && storage.remaining < totalSize) {
-      const isFreeUser = !user?.subscriptionIds?.length;
-      if (isFreeUser) {
-        setShowUpgradeBanner(true);
-      } else {
-        addNotification({
-          type: 'error',
-          title: 'Nedovoljno prostora',
-          message: 'Nadogradite plan ili obrišite neke fajlove',
-        });
-      }
+      setShowUpgradeBanner(true);
       return;
     }
 
@@ -57,9 +49,10 @@ export function UploadModal() {
     let successCount = 0;
     let failCount = 0;
 
-    for (const item of pendingItems) {
+    // Parallel upload: process up to 4 files concurrently
+    const CONCURRENCY = 4;
+    const uploadOneItem = async (item: UploadItem) => {
       setUploadStatus(item.id, 'uploading');
-
       try {
         const progressInterval = setInterval(() => {
           const current = useFilesStore.getState().uploadQueue.find((q) => q.id === item.id);
@@ -80,6 +73,12 @@ export function UploadModal() {
           error instanceof Error ? error.message : 'Upload failed'
         );
       }
+    };
+
+    // Process items in batches of CONCURRENCY
+    for (let i = 0; i < pendingItems.length; i += CONCURRENCY) {
+      const batch = pendingItems.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(uploadOneItem));
     }
 
     uploadingRef.current = false;
@@ -354,27 +353,34 @@ export function UploadModal() {
 
             {/* Storage full — upgrade banner for free users */}
             {showUpgradeBanner && (
-              <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
                 <div className="flex items-start gap-3">
-                  <Crown className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                   <div className="flex-1">
-                    <p className="font-semibold text-emerald-800 dark:text-emerald-300">
-                      Vaš besplatni prostor je popunjen
+                    <p className="font-semibold text-amber-800 dark:text-amber-300">
+                      Nedovoljno prostora za upload
                     </p>
-                    <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-400">
-                      Nadogradite na Starter (150 GB) za samo €2.49/mes — 15x više prostora!
+                    <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
+                      Preostalo vam je {storage?.remainingFormatted || '0 B'}. Izaberite jednu od opcija:
                     </p>
-                    <div className="mt-3 flex items-center gap-3">
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Link
-                        href="/checkout?tier=1&ai=false&period=monthly"
+                        href="/pricing"
                         className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
                       >
                         <Crown className="h-4 w-4" />
-                        Nadogradi
+                        Nadogradi plan
+                      </Link>
+                      <Link
+                        href="/photos?view=trash"
+                        className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-600 dark:bg-gray-800 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Oslobodi prostor
                       </Link>
                       <button
                         onClick={() => setShowUpgradeBanner(false)}
-                        className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+                        className="text-sm text-amber-600 hover:underline dark:text-amber-400"
                       >
                         Zatvori
                       </button>
@@ -401,19 +407,47 @@ export function UploadModal() {
               {!uploadPermission.allowed ? (
                 <p className="text-gray-500">Upload je trenutno blokiran mrežnim podešavanjima</p>
               ) : isDragActive ? (
-                <p className="text-primary-600">Drop files here...</p>
+                <p className="text-primary-600">Pustite fajlove ovde...</p>
               ) : (
                 <>
                   <p className="text-gray-600 dark:text-gray-300">
-                    Drag and drop files here, or{' '}
-                    <span className="text-primary-500">browse</span>
+                    Prevucite fajlove ovde ili{' '}
+                    <span className="text-primary-500">izaberite</span>
                   </p>
                   <p className="mt-2 text-sm text-gray-500">
-                    Files will upload automatically when selected
+                    Fajlovi se automatski uploaduju kada ih izaberete
                   </p>
                 </>
               )}
             </div>
+
+            {/* Folder upload button */}
+            {uploadPermission.allowed && (
+              <div className="mt-3">
+                <input
+                  ref={folderInputRef}
+                  type="file"
+                  className="hidden"
+                  multiple
+                  {...({ webkitdirectory: '', directory: '' } as any)}
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      onDrop(Array.from(files));
+                    }
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => folderInputRef.current?.click()}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 px-4 py-3 text-sm text-gray-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-primary-500"
+                >
+                  <Folder className="h-4 w-4" />
+                  Upload ceo folder
+                </button>
+              </div>
+            )}
 
             {/* Storage info */}
             {storage && (

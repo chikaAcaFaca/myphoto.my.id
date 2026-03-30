@@ -41,26 +41,7 @@ import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { StorageLimitBanner } from '@/components/onboarding/storage-limit-banner';
-
-interface DiskFolder {
-  id: string;
-  name: string;
-  parentId: string;
-  path: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface DiskFile {
-  id: string;
-  name: string;
-  s3Key: string;
-  mimeType: string;
-  size: number;
-  folderId: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { DiskFolder, DiskFile } from '@myphoto/shared';
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith('image/')) return FileImage;
@@ -825,20 +806,78 @@ export default function MySpacePage() {
     }
   };
 
-  // Download entire folder as ZIP
-  const handleDownloadFolder = async (folder: DiskFolder) => {
-    addNotification({ type: 'success', title: `Priprema ZIP-a za "${folder.name}"...` });
+  // Helper: fetch folder contents recursively and download files to a directory handle (File System Access API)
+  const downloadFolderToFS = async (
+    folderId: string,
+    dirHandle: FileSystemDirectoryHandle,
+    authToken: string
+  ) => {
+    const res = await fetch(`/api/folders?parentId=${folderId}`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    if (!res.ok) throw new Error('Failed to list folder');
+    const data = await res.json() as { folders: DiskFolder[]; files: DiskFile[] };
 
+    // Download files directly to filesystem
+    for (const file of data.files) {
+      try {
+        const dlRes = await fetch(`/api/disk-files/download?fileId=${file.id}`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        if (!dlRes.ok) continue;
+        const { downloadUrl } = await dlRes.json();
+        const fileRes = await fetch(downloadUrl);
+        if (!fileRes.ok) continue;
+        const blob = await fileRes.blob();
+        const fileHandle = await dirHandle.getFileHandle(file.name, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } catch {
+        // Skip failed files
+      }
+    }
+
+    // Recurse into subfolders
+    for (const subfolder of data.folders) {
+      const subDirHandle = await dirHandle.getDirectoryHandle(subfolder.name, { create: true });
+      await downloadFolderToFS(subfolder.id, subDirHandle, authToken);
+    }
+  };
+
+  // Download entire folder — uses File System Access API when available, falls back to ZIP
+  const handleDownloadFolder = async (folder: DiskFolder) => {
     try {
-      const token = await getIdToken();
-      if (!token) throw new Error('Not authenticated');
+      const authToken = await getIdToken();
+      if (!authToken) throw new Error('Not authenticated');
+
+      // Try File System Access API first (preserves real folder structure)
+      if ('showDirectoryPicker' in window) {
+        try {
+          addNotification({ type: 'info', title: `Izaberite gde želite da sačuvate "${folder.name}"` });
+          const rootHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+          const folderHandle = await rootHandle.getDirectoryHandle(folder.name, { create: true });
+
+          addNotification({ type: 'success', title: `Preuzimanje "${folder.name}"...` });
+          await downloadFolderToFS(folder.id, folderHandle, authToken);
+
+          addNotification({ type: 'success', title: `"${folder.name}" je preuzet` });
+          return;
+        } catch (err: any) {
+          // User cancelled picker or API failed — fall through to ZIP
+          if (err.name === 'AbortError') return;
+        }
+      }
+
+      // Fallback: ZIP download
+      addNotification({ type: 'success', title: `Priprema ZIP-a za "${folder.name}"...` });
 
       const zip = new JSZip();
 
       // Recursive function to add folder contents to ZIP
       const addFolderToZip = async (folderId: string, zipFolder: JSZip) => {
         const res = await fetch(`/api/folders?parentId=${folderId}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${authToken}` },
         });
         if (!res.ok) throw new Error('Failed to list folder');
         const data = await res.json() as { folders: DiskFolder[]; files: DiskFile[] };
@@ -847,7 +886,7 @@ export default function MySpacePage() {
         for (const file of data.files) {
           try {
             const dlRes = await fetch(`/api/disk-files/download?fileId=${file.id}`, {
-              headers: { Authorization: `Bearer ${token}` },
+              headers: { Authorization: `Bearer ${authToken}` },
             });
             if (!dlRes.ok) continue;
             const { downloadUrl } = await dlRes.json();
@@ -1420,21 +1459,33 @@ export default function MySpacePage() {
                 >
                   <Download className="h-4 w-4" /> Otvori fajl
                 </button>
-                {contextMenu.item.mimeType?.startsWith('image/') && (
+                {(contextMenu.item.mimeType?.startsWith('image/') || contextMenu.item.mimeType?.startsWith('video/')) && (
                   <>
                     <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
-                    <button
-                      onClick={() => { window.open(`/tools/image-editor?fileId=${contextMenu.item.id}`, '_blank'); setContextMenu(null); }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                    >
-                      <Crop className="h-4 w-4" /> Uredi / Napravi mim
-                    </button>
-                    <button
-                      onClick={() => { window.open(`/tools/remove-bg?fileId=${contextMenu.item.id}`, '_blank'); setContextMenu(null); }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                    >
-                      <Eraser className="h-4 w-4" /> Ukloni pozadinu
-                    </button>
+                    {contextMenu.item.photoFileId && (
+                      <button
+                        onClick={() => { window.location.href = `/photos?highlight=${contextMenu.item.photoFileId}`; setContextMenu(null); }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-900/20"
+                      >
+                        <FileImage className="h-4 w-4" /> Vidi u galeriji
+                      </button>
+                    )}
+                    {contextMenu.item.mimeType?.startsWith('image/') && (
+                      <>
+                        <button
+                          onClick={() => { window.open(`/tools/image-editor?fileId=${contextMenu.item.id}`, '_blank'); setContextMenu(null); }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                        >
+                          <Crop className="h-4 w-4" /> Uredi / Napravi mim
+                        </button>
+                        <button
+                          onClick={() => { window.open(`/tools/remove-bg?fileId=${contextMenu.item.id}`, '_blank'); setContextMenu(null); }}
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                        >
+                          <Eraser className="h-4 w-4" /> Ukloni pozadinu
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />

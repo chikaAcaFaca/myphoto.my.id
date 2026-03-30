@@ -3,6 +3,10 @@ import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { generateUploadUrl, copyObject, configureBucketCors } from '@/lib/s3';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
+import { processImageAI } from '@/lib/ai-processing';
+
+// MIME types that should be cross-indexed in MyPhoto gallery
+const PHOTO_MIME_PREFIXES = ['image/', 'video/'];
 
 export const dynamic = 'force-dynamic';
 
@@ -304,26 +308,65 @@ export async function PATCH(request: NextRequest) {
 
     // Auto-rename if a file with the same name exists in this folder
     const finalName = await getUniqueFilename(userId, folderId, filename);
+    const resolvedMimeType = mimeType || 'application/octet-stream';
+    const isMediaFile = PHOTO_MIME_PREFIXES.some((prefix) => resolvedMimeType.startsWith(prefix));
 
     const now = new Date();
-    await db.collection('diskFiles').doc(fileId).set({
+    const diskFileData: Record<string, any> = {
       userId,
       name: finalName,
       s3Key,
-      mimeType: mimeType || 'application/octet-stream',
+      mimeType: resolvedMimeType,
       size: size || 0,
       folderId,
       isTrashed: false,
       createdAt: now,
       updatedAt: now,
-    });
+    };
 
-    // Update storage used
+    // If this is an image or video, also create a photo record in the files collection
+    // so it appears in MyPhoto gallery with AI processing (face detection, labels, etc.)
+    let photoFileId: string | undefined;
+    if (isMediaFile) {
+      photoFileId = generateFileId();
+      diskFileData.photoFileId = photoFileId;
+
+      const fileType = resolvedMimeType.startsWith('video/') ? 'video' : 'image';
+
+      // Create the photo record — same s3Key, linked to disk file
+      await db.collection('files').doc(photoFileId).set({
+        userId,
+        type: fileType,
+        name: finalName,
+        size: size || 0,
+        mimeType: resolvedMimeType,
+        s3Key,
+        albumIds: [],
+        isFavorite: false,
+        isArchived: false,
+        isTrashed: false,
+        diskFileId: fileId,
+        diskFolderId: folderId,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    await db.collection('diskFiles').doc(fileId).set(diskFileData);
+
+    // Update storage used (file is stored once in S3, so only count once)
     await db.collection('users').doc(userId).update({
       storageUsed: (await db.collection('users').doc(userId).get()).data()?.storageUsed + (size || 0),
     });
 
-    return NextResponse.json({ success: true, fileId });
+    // Trigger AI processing asynchronously for images/videos (fire-and-forget)
+    if (isMediaFile && photoFileId) {
+      processImageAI(photoFileId, s3Key).catch((err) => {
+        console.error(`AI processing failed for disk file ${fileId} (photo ${photoFileId}):`, err);
+      });
+    }
+
+    return NextResponse.json({ success: true, fileId, photoFileId });
   } catch (error) {
     console.error('Disk files PATCH error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

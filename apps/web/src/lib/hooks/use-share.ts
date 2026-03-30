@@ -30,7 +30,7 @@ export function useShareFile() {
 
 export function useShareAlbum() {
   return useMutation({
-    mutationFn: async (albumId: string) => {
+    mutationFn: async ({ albumId, permission = 'read' }: { albumId: string; permission?: 'read' | 'readwrite' }) => {
       const token = await getIdToken();
       if (!token) throw new Error('Not authenticated');
 
@@ -40,7 +40,7 @@ export function useShareAlbum() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ albumId }),
+        body: JSON.stringify({ albumId, permission }),
       });
 
       if (!res.ok) {
