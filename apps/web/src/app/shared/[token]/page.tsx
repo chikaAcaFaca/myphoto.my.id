@@ -106,7 +106,12 @@ export default async function SharedPhotoPage({ params }: PageProps) {
 
   // Get sharer's referral code for CTA links
   const referralCode = await getUserReferralCode(shared.userId);
-  const registerUrl = referralCode ? `/register?ref=${referralCode}` : '/register';
+  // Build register URL with referral code AND share token for attribution tracking
+  const registerParams = new URLSearchParams();
+  if (referralCode) registerParams.set('ref', referralCode);
+  registerParams.set('via', 'share');
+  registerParams.set('st', token); // share token — so we know which shared content brought them
+  const registerUrl = `/register?${registerParams.toString()}`;
 
   const isAlbum = shared.type === 'album';
   const isImage = shared.mimeType?.startsWith('image/');
@@ -216,7 +221,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             href={registerUrl}
             className="inline-block rounded-xl bg-primary-500 px-10 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-primary-600 hover:shadow-xl"
           >
-            Započni besplatno - do 15GB
+            Započni besplatno - do 10GB
           </Link>
           <p className="mt-3 text-sm text-gray-500">
             Bez kreditne kartice. Bez obaveza. Otkažite bilo kada.
@@ -267,7 +272,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             />
           </div>
           <div className="mt-6 text-center">
-            <Link href={referralCode ? `/pricing?ref=${referralCode}` : '/pricing'} className="text-sm text-primary-400 hover:underline">
+            <Link href={referralCode ? `/pricing?ref=${referralCode}&via=share&st=${token}` : `/pricing?via=share&st=${token}`} className="text-sm text-primary-400 hover:underline">
               Pogledaj sve planove &rarr;
             </Link>
           </div>

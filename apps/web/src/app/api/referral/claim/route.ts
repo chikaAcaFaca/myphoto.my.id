@@ -14,14 +14,14 @@ export async function POST(request: NextRequest) {
 
   const { userId } = auth;
 
-  let body: { referralCode?: string };
+  let body: { referralCode?: string; source?: string; shareToken?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const { referralCode } = body;
+  const { referralCode, source, shareToken } = body;
   if (!referralCode || typeof referralCode !== 'string') {
     return NextResponse.json({ error: 'Missing referralCode' }, { status: 400 });
   }
@@ -73,6 +73,8 @@ export async function POST(request: NextRequest) {
     refereeEmail: refereeData.email || '',
     bonusBytes: REFERRAL_BONUS,
     qualified: false, // becomes true after referee uploads 100MB
+    source: source || 'direct',       // 'share', 'direct', 'app', etc.
+    shareToken: shareToken || null,    // which shared content brought this user
     createdAt: FieldValue.serverTimestamp(),
   });
 

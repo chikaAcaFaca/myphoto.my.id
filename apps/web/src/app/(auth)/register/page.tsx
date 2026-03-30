@@ -28,6 +28,8 @@ function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const referralCode = searchParams.get('ref');
+  const viaChannel = searchParams.get('via');     // 'share' if came from shared content
+  const shareToken = searchParams.get('st');       // which shared content brought them
 
   const getPostAuthRedirect = () => {
     const redirect = searchParams.get('redirect');
@@ -54,7 +56,11 @@ function RegisterContent() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ referralCode }),
+        body: JSON.stringify({
+          referralCode,
+          source: viaChannel || 'direct',
+          shareToken: shareToken || undefined,
+        }),
       });
     } catch {
       // Referral claim is best-effort, don't block registration
