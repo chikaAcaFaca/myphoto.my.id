@@ -20,12 +20,12 @@ export const DESKTOP_INSTALL_BONUS = 512 * BYTES_PER_MB;
 
 // Referral constants
 export const REFERRAL_BONUS = 512 * BYTES_PER_MB;        // +512MB per referral
-export const MAX_REFERRAL_BONUS = 7 * BYTES_PER_GB;       // max 7GB bonus (14 referrals × 512MB)
-export const MAX_REFERRALS = 14;                           // max 14 friends
+export const MAX_REFERRAL_BONUS = 7.5 * BYTES_PER_GB;      // max 7.5GB bonus (15 referrals × 512MB)
+export const MAX_REFERRALS = 15;                           // max 15 friends
 export const REFERRAL_QUALIFICATION_BYTES = 100 * BYTES_PER_MB; // referee must upload 100MB to qualify
 export const MAX_FAMILY_MEMBERS_REFERRAL = 6;
 
-// Max free storage: 1GB (reg) + 1GB (app) + 512MB (desktop) + 7GB (referrals) = ~10GB
+// Max free storage: 1GB (reg) + 1GB (app) + 512MB (desktop) + 7.5GB (15 referrals) = ~10GB
 // But realistically without all referrals: 1GB + 1GB + 512MB + 512MB = 3GB (enough for MySpace free)
 export const MAX_FREE_STORAGE = 10 * BYTES_PER_GB;
 
