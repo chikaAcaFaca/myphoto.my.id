@@ -35,7 +35,10 @@ function RootLayoutNav() {
     <>
       <Stack screenOptions={{ headerShown: false }}>
         {user ? (
-          <Stack.Screen name="(tabs)" />
+          <>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="onboarding" options={{ gestureEnabled: false }} />
+          </>
         ) : (
           <Stack.Screen name="(auth)" />
         )}

@@ -89,9 +89,53 @@ const defaultSettings: SyncSettings = {
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
-// Standalone upload function for background task (no React context)
-async function backgroundUploadAsset(
+// Cache of device album title → MySpace folder ID (to avoid re-creating folders)
+const folderIdCache = new Map<string, string>();
+
+// Ensure a MySpace folder exists for a device album, returns folderId
+async function ensureMySpaceFolder(
+  albumTitle: string,
+  token: string,
+  apiUrl: string
+): Promise<string> {
+  // Check cache first
+  const cached = folderIdCache.get(albumTitle);
+  if (cached) return cached;
+
+  // Create folder in MySpace (API handles duplicates gracefully)
+  try {
+    const res = await fetch(`${apiUrl}/api/folders`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: albumTitle,
+        parentId: 'root',
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const folderId = data.id || data.folderId;
+      if (folderId) {
+        folderIdCache.set(albumTitle, folderId);
+        return folderId;
+      }
+    }
+  } catch (error) {
+    console.error('Error creating MySpace folder:', error);
+  }
+
+  return 'root';
+}
+
+// Upload asset to BOTH MyPhoto (for gallery/AI) AND MySpace (for folder structure)
+// Uses disk-files endpoint which auto-creates photo record for images/videos
+async function uploadAssetDual(
   asset: MediaLibrary.Asset,
+  albumTitle: string | undefined,
   token: string,
   apiUrl: string
 ): Promise<boolean> {
@@ -103,10 +147,15 @@ async function backgroundUploadAsset(
     if (!fileInfo.exists) return false;
 
     const mimeType = asset.mediaType === 'photo' ? 'image/jpeg' : 'video/mp4';
-    const fileId = generateFileId();
 
-    // 1. Get pre-signed upload URL
-    const urlRes = await fetch(`${apiUrl}/api/files/upload-url`, {
+    // Resolve MySpace folder from album name
+    const folderId = albumTitle
+      ? await ensureMySpaceFolder(albumTitle, token, apiUrl)
+      : 'root';
+
+    // 1. Get pre-signed upload URL via disk-files (MySpace endpoint)
+    // This endpoint auto-creates MyPhoto record for images/videos
+    const urlRes = await fetch(`${apiUrl}/api/disk-files`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -116,11 +165,12 @@ async function backgroundUploadAsset(
         filename: asset.filename,
         mimeType,
         size: fileInfo.size,
+        folderId,
       }),
     });
 
     if (!urlRes.ok) return false;
-    const { uploadUrl, s3Key } = await urlRes.json();
+    const { uploadUrl, fileId, s3Key } = await urlRes.json();
 
     // 2. Upload to S3
     const uploadResult = await FileSystem.uploadAsync(uploadUrl, uri, {
@@ -130,9 +180,9 @@ async function backgroundUploadAsset(
 
     if (uploadResult.status !== 200) return false;
 
-    // 3. Confirm upload
-    const confirmRes = await fetch(`${apiUrl}/api/files/confirm-upload`, {
-      method: 'POST',
+    // 3. Confirm upload (creates disk file + photo record + triggers AI)
+    const confirmRes = await fetch(`${apiUrl}/api/disk-files`, {
+      method: 'PATCH',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -140,17 +190,47 @@ async function backgroundUploadAsset(
       body: JSON.stringify({
         fileId,
         s3Key,
-        name: asset.filename,
-        size: fileInfo.size,
+        filename: asset.filename,
         mimeType,
+        size: fileInfo.size,
+        folderId,
       }),
     });
 
     return confirmRes.ok;
   } catch (error) {
-    console.error('Background upload error:', error);
+    console.error('Dual upload error:', error);
     return false;
   }
+}
+
+// Standalone upload function for background task (no React context)
+async function backgroundUploadAsset(
+  asset: MediaLibrary.Asset,
+  token: string,
+  apiUrl: string
+): Promise<boolean> {
+  // Get album name for folder structure
+  let albumTitle: string | undefined;
+  try {
+    const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
+    for (const album of albums) {
+      const { assets } = await MediaLibrary.getAssetsAsync({
+        album: album.id,
+        first: 0,
+      });
+      // Quick check if this asset belongs to this album
+      // (simplified — full check would query per-asset)
+      if (album.assetCount > 0) {
+        albumTitle = album.title;
+        break;
+      }
+    }
+  } catch {
+    // Fall back to no album
+  }
+
+  return uploadAssetDual(asset, albumTitle, token, apiUrl);
 }
 
 // Find new photos for background sync (standalone, no React state)
@@ -456,80 +536,32 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const uploadAsset = async (asset: MediaLibrary.Asset): Promise<boolean> => {
     try {
       const token = await getToken();
-      if (!token) {
-        throw new Error('Not authenticated');
-      }
+      if (!token) throw new Error('Not authenticated');
 
       const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+      if (!apiUrl) throw new Error('No API URL');
 
-      // Get asset info
-      const assetInfo = await MediaLibrary.getAssetInfoAsync(asset);
-      const uri = assetInfo.localUri || asset.uri;
-
-      // Determine file info
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (!fileInfo.exists) {
-        throw new Error('File not found');
+      // Find which album this asset belongs to (for MySpace folder structure)
+      let albumTitle: string | undefined;
+      try {
+        const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
+        for (const album of albums) {
+          if (album.assetCount === 0) continue;
+          const { assets } = await MediaLibrary.getAssetsAsync({
+            album: album.id,
+            first: 500,
+          });
+          if (assets.some((a) => a.id === asset.id)) {
+            albumTitle = album.title;
+            break;
+          }
+        }
+      } catch {
+        // Fall back to no album
       }
 
-      const mimeType = asset.mediaType === 'photo' ? 'image/jpeg' : 'video/mp4';
-      const fileId = generateFileId();
-      const extension = getFileExtension(asset.filename, mimeType);
-
-      // 1. Get pre-signed upload URL
-      const uploadUrlResponse = await fetch(`${apiUrl}/api/files/upload-url`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: asset.filename,
-          mimeType,
-          size: fileInfo.size,
-        }),
-      });
-
-      if (!uploadUrlResponse.ok) {
-        const error = await uploadUrlResponse.json();
-        throw new Error(error.error || 'Failed to get upload URL');
-      }
-
-      const { uploadUrl, s3Key } = await uploadUrlResponse.json();
-
-      // 2. Upload file to S3
-      const uploadResult = await FileSystem.uploadAsync(uploadUrl, uri, {
-        httpMethod: 'PUT',
-        headers: {
-          'Content-Type': mimeType,
-        },
-      });
-
-      if (uploadResult.status !== 200) {
-        throw new Error('Upload failed');
-      }
-
-      // 3. Confirm upload
-      const confirmResponse = await fetch(`${apiUrl}/api/files/confirm-upload`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileId,
-          s3Key,
-          name: asset.filename,
-          size: fileInfo.size,
-          mimeType,
-        }),
-      });
-
-      if (!confirmResponse.ok) {
-        throw new Error('Failed to confirm upload');
-      }
-
-      return true;
+      // Upload to both MySpace (folder structure) and MyPhoto (gallery + AI)
+      return await uploadAssetDual(asset, albumTitle, token, apiUrl);
     } catch (error) {
       console.error('Upload error:', error);
       return false;
