@@ -58,7 +58,8 @@
           "photosPermission": "Allow MyPhoto to access your photos for backup."
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

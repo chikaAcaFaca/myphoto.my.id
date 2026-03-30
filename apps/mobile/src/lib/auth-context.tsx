@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
@@ -11,7 +12,16 @@ import {
   signInWithCredential,
 } from 'firebase/auth';
 import * as SecureStore from 'expo-secure-store';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 import type { User as AppUser } from '@myphoto/shared';
+
+// Complete auth session on return from browser
+WebBrowser.maybeCompleteAuthSession();
+
+// Google OAuth configuration
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -99,11 +109,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
   };
 
-  const signInWithGoogle = async () => {
-    // In a real app, you would use expo-auth-session or expo-google-sign-in
-    // This is a placeholder for the Google Sign-In flow
-    throw new Error('Google Sign-In requires native configuration');
-  };
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      // Use the appropriate client ID per platform
+      const clientId = Platform.OS === 'android'
+        ? GOOGLE_ANDROID_CLIENT_ID
+        : GOOGLE_WEB_CLIENT_ID;
+
+      if (!clientId) {
+        throw new Error('Google Client ID nije konfigurisan. Dodajte EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID u .env');
+      }
+
+      // Create auth request using Google's OAuth2 discovery
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'myphoto',
+      });
+
+      const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+      };
+
+      const request = new AuthSession.AuthRequest({
+        clientId,
+        redirectUri,
+        scopes: ['openid', 'profile', 'email'],
+        responseType: AuthSession.ResponseType.IdToken,
+        usePKCE: false,
+        extraParams: {
+          nonce: Math.random().toString(36).substring(2),
+        },
+      });
+
+      const result = await request.promptAsync(discovery);
+
+      if (result.type === 'success' && result.params.id_token) {
+        // Exchange Google ID token for Firebase credential
+        const credential = GoogleAuthProvider.credential(result.params.id_token);
+        await signInWithCredential(auth, credential);
+      } else if (result.type === 'cancel') {
+        // User cancelled — do nothing
+        return;
+      } else {
+        throw new Error('Google prijava nije uspela');
+      }
+    } catch (error: any) {
+      console.error('Google Sign-In error:', error);
+      throw error;
+    }
+  }, []);
 
   const getToken = async (): Promise<string | null> => {
     if (user) {
