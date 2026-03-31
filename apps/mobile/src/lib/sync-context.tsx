@@ -5,7 +5,6 @@ import * as Network from 'expo-network';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import * as SecureStore from 'expo-secure-store';
-import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { useAuth } from './auth-context';
@@ -32,13 +31,7 @@ async function tryClaimBackupBonus(token: string, apiUrl: string): Promise<void>
 
     if (res.ok) {
       await AsyncStorage.setItem(BACKUP_BONUS_CLAIMED_KEY, 'true');
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'MyPhoto',
-          body: 'Dobili ste +4GB besplatnog prostora!',
-        },
-        trigger: null,
-      });
+      console.log('Backup bonus claimed: +1GB');
     }
   } catch (error) {
     console.error('Backup bonus claim error:', error);
@@ -276,7 +269,8 @@ async function backgroundFindNewPhotos(
   return allAssets.filter((a) => !syncState.uploadedAssets.includes(a.id));
 }
 
-// Register background task
+// Register background task (wrapped in try-catch to prevent crash on init)
+try {
 TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
   try {
     console.log('Background sync task running...');
@@ -351,6 +345,9 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
+} catch (e) {
+  console.warn('Failed to register background task:', e);
+}
 
 async function loadSyncState(): Promise<SyncState> {
   try {
