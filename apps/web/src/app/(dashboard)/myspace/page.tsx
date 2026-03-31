@@ -41,7 +41,28 @@ import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { StorageLimitBanner } from '@/components/onboarding/storage-limit-banner';
-import type { DiskFolder, DiskFile } from '@myphoto/shared';
+// API returns dates as strings, so we use local types instead of shared ones
+interface DiskFolder {
+  id: string;
+  name: string;
+  parentId: string;
+  path: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface DiskFile {
+  id: string;
+  name: string;
+  s3Key: string;
+  mimeType: string;
+  size: number;
+  folderId: string;
+  photoFileId?: string;
+  isTrashed?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType.startsWith('image/')) return FileImage;
