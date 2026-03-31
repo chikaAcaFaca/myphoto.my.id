@@ -54,7 +54,15 @@ export async function GET(request: NextRequest) {
   });
 
   const bonusBytes = userData.referralBonusBytes || 0;
-  const referralCode = userData.referralCode || '';
+  let referralCode = userData.referralCode || '';
+
+  // Auto-generate referral code for users who registered before this feature existed
+  if (!referralCode) {
+    const { nanoid } = await import('nanoid');
+    referralCode = nanoid(8).toUpperCase();
+    await db.collection('users').doc(userId).update({ referralCode });
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://myphotomy.space';
 
   return NextResponse.json({

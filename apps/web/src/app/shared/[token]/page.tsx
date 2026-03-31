@@ -35,7 +35,17 @@ async function getUserReferralCode(userId: string): Promise<string | null> {
   try {
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) return null;
-    return userDoc.data()?.referralCode || null;
+    const data = userDoc.data()!;
+
+    // Auto-generate referral code if missing (legacy users)
+    if (!data.referralCode) {
+      const { nanoid } = await import('nanoid');
+      const code = nanoid(8).toUpperCase();
+      await db.collection('users').doc(userId).update({ referralCode: code });
+      return code;
+    }
+
+    return data.referralCode;
   } catch {
     return null;
   }
