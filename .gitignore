@@ -14,8 +14,7 @@ build
 .env.local
 .env.*.local
 
-# Firebase config (contains API keys)
-google-services.json
+# Firebase config (iOS — contains unrestricted keys)
 GoogleService-Info.plist
 README.md
 

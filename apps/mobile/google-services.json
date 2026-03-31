@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "878912856774",
+    "project_id": "myphotomyid",
+    "storage_bucket": "myphotomyid.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:878912856774:android:f2f5e547834b44bb856dc7",
+        "android_client_info": {
+          "package_name": "id.my.myphoto"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "878912856774-6jvadru9ovjubeohp8gamdiirt4evon9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "id.my.myphoto",
+            "certificate_hash": "71d9742362948bc8ba4d5702736af971aa842ee1"
+          }
+        },
+        {
+          "client_id": "878912856774-3l92pfqtqv3hv0u19dkmddofmb49i93i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-ySaBYCLPwzCu3Twf05nxmRfK4crOwnY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "878912856774-3l92pfqtqv3hv0u19dkmddofmb49i93i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
