@@ -102,13 +102,29 @@ const debugStyles = StyleSheet.create({
 });
 
 export default function RootLayout() {
+  // TEMP: Bypass all providers to test if basic UI renders
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    SplashScreen.hideAsync();
+    setReady(true);
+  }, []);
+
+  if (!ready) return null;
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <SyncProvider>
-          <RootLayoutNav />
-        </SyncProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff', padding: 32 }}>
+      <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#0ea5e9', marginBottom: 16 }}>MyPhoto</Text>
+      <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 24 }}>
+        App je pokrenut uspešno!
+      </Text>
+      <Text style={{ fontSize: 11, color: '#999', fontFamily: 'monospace', backgroundColor: '#f3f4f6', padding: 12, borderRadius: 8 }}>
+        {`Firebase Project: ${process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'NOT SET'}\n`}
+        {`API URL: ${process.env.EXPO_PUBLIC_API_URL || 'NOT SET'}\n`}
+        {`API Key: ${process.env.EXPO_PUBLIC_FIREBASE_API_KEY ? 'SET ✓' : 'NOT SET ✗'}\n`}
+        {`App ID: ${process.env.EXPO_PUBLIC_FIREBASE_APP_ID ? 'SET ✓' : 'NOT SET ✗'}\n`}
+        {`Google Web: ${process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ? 'SET ✓' : 'NOT SET ✗'}`}
+      </Text>
+    </View>
   );
 }
