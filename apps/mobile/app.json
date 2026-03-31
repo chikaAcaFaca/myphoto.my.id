@@ -12,14 +12,19 @@
       "resizeMode": "contain",
       "backgroundColor": "#0ea5e9"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "id.my.myphoto",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "MyPhoto needs access to your photos to back them up securely.",
-        "NSPhotoLibraryAddUsageDescription": "MyPhoto needs access to save downloaded photos to your library.",
-        "UIBackgroundModes": ["fetch", "processing"]
+        "NSPhotoLibraryUsageDescription": "Allow MyPhoto to access your photos for backup.",
+        "NSPhotoLibraryAddUsageDescription": "Allow MyPhoto to save photos to your library.",
+        "UIBackgroundModes": [
+          "fetch",
+          "processing"
+        ]
       }
     },
     "android": {
@@ -28,13 +33,16 @@
         "backgroundColor": "#0ea5e9"
       },
       "package": "id.my.myphoto",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_MEDIA_VIDEO",
         "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.RECEIVE_BOOT_COMPLETED"
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -59,10 +67,25 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": false
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "39901b89-3e19-43af-ba14-95a9ad6eee43"
+      }
     }
   }
 }
