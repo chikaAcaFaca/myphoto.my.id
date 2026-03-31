@@ -136,7 +136,8 @@ export function isSupportedMimeType(mimeType: string): boolean {
 /**
  * Format date for display
  */
-export function formatDate(date: Date, format: 'short' | 'long' | 'relative' = 'short'): string {
+export function formatDate(dateInput: Date | string | number, format: 'short' | 'long' | 'relative' = 'short'): string {
+  const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
