@@ -45,6 +45,7 @@ interface AuthContextType {
   user: User | null;
   appUser: AppUser | null;
   isLoading: boolean;
+  error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -58,42 +59,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
-
-      if (firebaseUser) {
-        // Store token for API calls
-        const token = await firebaseUser.getIdToken();
-        await SecureStore.setItemAsync('auth_token', token);
-
-        // Fetch user data from API
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         try {
-          const response = await fetch(
-            `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
+          setUser(firebaseUser);
+
+          if (firebaseUser) {
+            // Store token for API calls
+            const token = await firebaseUser.getIdToken();
+            await SecureStore.setItemAsync('auth_token', token);
+
+            // Fetch user data from API
+            try {
+              const response = await fetch(
+                `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              if (response.ok) {
+                const userData = await response.json();
+                setAppUser(userData);
+              }
+            } catch (fetchErr) {
+              console.error('Error fetching user data:', fetchErr);
             }
-          );
-          if (response.ok) {
-            const userData = await response.json();
-            setAppUser(userData);
+          } else {
+            await SecureStore.deleteItemAsync('auth_token');
+            setAppUser(null);
           }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
+
+          setIsLoading(false);
+        } catch (err: any) {
+          console.error('Auth state error:', err);
+          setError(err.message || 'Auth initialization failed');
+          setIsLoading(false);
         }
-      } else {
-        await SecureStore.deleteItemAsync('auth_token');
-        setAppUser(null);
-      }
-
+      });
+    } catch (err: any) {
+      console.error('Firebase init error:', err);
+      setError(err.message || 'Firebase initialization failed');
       setIsLoading(false);
-    });
+    }
 
-    return () => unsubscribe();
+    return () => unsubscribe?.();
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -172,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         appUser,
         isLoading,
+        error,
         signIn,
         signUp,
         signOut,
