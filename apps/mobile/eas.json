@@ -7,7 +7,16 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_USE_METRO_WORKSPACE_ROOT": "1"
+        "EXPO_USE_METRO_WORKSPACE_ROOT": "1",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyA-ySaBYCLPwzCu3Twf05nxmRfK4crOwnY",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "myphotomyid.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "myphotomyid",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "myphotomyid.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "878912856774",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:878912856774:android:f2f5e547834b44bb856dc7",
+        "EXPO_PUBLIC_API_URL": "https://myphotomy.space",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878912856774-3l92pfqtqv3hv0u19dkmddofmb49i93i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-6jvadru9ovjubeohp8gamdiirt4evon9.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -16,7 +25,16 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_USE_METRO_WORKSPACE_ROOT": "1"
+        "EXPO_USE_METRO_WORKSPACE_ROOT": "1",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyA-ySaBYCLPwzCu3Twf05nxmRfK4crOwnY",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "myphotomyid.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "myphotomyid",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "myphotomyid.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "878912856774",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:878912856774:android:f2f5e547834b44bb856dc7",
+        "EXPO_PUBLIC_API_URL": "https://myphotomy.space",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878912856774-3l92pfqtqv3hv0u19dkmddofmb49i93i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-6jvadru9ovjubeohp8gamdiirt4evon9.apps.googleusercontent.com"
       },
       "node": "18.18.0"
     },
@@ -25,7 +43,16 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_USE_METRO_WORKSPACE_ROOT": "1"
+        "EXPO_USE_METRO_WORKSPACE_ROOT": "1",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyA-ySaBYCLPwzCu3Twf05nxmRfK4crOwnY",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "myphotomyid.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "myphotomyid",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "myphotomyid.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "878912856774",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:878912856774:android:f2f5e547834b44bb856dc7",
+        "EXPO_PUBLIC_API_URL": "https://myphotomy.space",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878912856774-3l92pfqtqv3hv0u19dkmddofmb49i93i.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-6jvadru9ovjubeohp8gamdiirt4evon9.apps.googleusercontent.com"
       }
     }
   },

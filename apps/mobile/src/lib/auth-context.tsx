@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 import { Platform } from 'react-native';
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
-  getAuth,
+  initializeAuth,
+  getReactNativePersistence,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -10,10 +11,12 @@ import {
   User,
   GoogleAuthProvider,
   signInWithCredential,
+  type Auth,
 } from 'firebase/auth';
 import * as SecureStore from 'expo-secure-store';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User as AppUser } from '@myphoto/shared';
 
 // Complete auth session on return from browser
@@ -39,7 +42,18 @@ if (!getApps().length) {
   app = getApps()[0];
 }
 
-const auth = getAuth(app);
+// Use initializeAuth with AsyncStorage persistence for React Native
+// getAuth() alone causes onAuthStateChanged to never fire on RN
+let auth: Auth;
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} catch (e) {
+  // Auth already initialized (hot reload) — fall back to existing instance
+  const { getAuth } = require('firebase/auth');
+  auth = getAuth(app);
+}
 
 interface AuthContextType {
   user: User | null;
