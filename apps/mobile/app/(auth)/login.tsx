@@ -9,7 +9,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 
@@ -33,7 +33,7 @@ export default function LoginScreen() {
 
     try {
       await signIn(email, password);
-      router.replace('/(tabs)');
+      // Navigation handled by RootNavigator auth gate
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -47,7 +47,7 @@ export default function LoginScreen() {
 
     try {
       await signInWithGoogle();
-      router.replace('/(tabs)');
+      // Navigation handled by RootNavigator auth gate
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Google login failed');
     } finally {

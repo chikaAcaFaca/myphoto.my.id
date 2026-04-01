@@ -34,7 +34,7 @@ export default function PhotosScreen() {
   // Request permissions and load photos
   useEffect(() => {
     (async () => {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
       setHasPermission(status === 'granted');
 
       if (status === 'granted') {
@@ -94,7 +94,7 @@ export default function PhotosScreen() {
           <TouchableOpacity
             style={styles.permissionButton}
             onPress={async () => {
-              const { status } = await MediaLibrary.requestPermissionsAsync();
+              const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
               setHasPermission(status === 'granted');
               if (status === 'granted') {
                 loadLocalPhotos();

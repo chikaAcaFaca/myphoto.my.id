@@ -10,6 +10,7 @@ import {
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSync } from '@/lib/sync-context';
 
 type Step = 'permissions' | 'backup' | 'done';
@@ -22,7 +23,7 @@ export default function OnboardingScreen() {
   const handleRequestPermissions = async () => {
     setIsLoading(true);
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
       if (status === 'granted') {
         setStep('backup');
       } else {
@@ -56,7 +57,8 @@ export default function OnboardingScreen() {
     setStep('done');
   };
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    await AsyncStorage.setItem('@myphoto/onboarding_complete', 'true');
     router.replace('/(tabs)');
   };
 

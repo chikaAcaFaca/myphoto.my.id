@@ -1,9 +1,13 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { Platform } from 'react-native';
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
+// @ts-ignore – getReactNativePersistence is exported from the RN bundle via
+// the "react-native" condition in package.json. Metro resolves it at runtime,
+// but tsc uses the Node export that omits it.
 import {
   initializeAuth,
   getReactNativePersistence,
+  getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -19,10 +23,8 @@ import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User as AppUser } from '@myphoto/shared';
 
-// Complete auth session on return from browser
 WebBrowser.maybeCompleteAuthSession();
 
-// Google OAuth configuration
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
 
@@ -35,24 +37,30 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-let app: FirebaseApp;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
+// Lazy-initialize Firebase app and auth to avoid "Component auth has not been
+// registered yet" errors that occur when auth is initialized at module scope
+// on RN 0.76+ with the new architecture.
+let _app: FirebaseApp | null = null;
+let _auth: Auth | null = null;
+
+function getFirebaseApp(): FirebaseApp {
+  if (_app) return _app;
+  _app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+  return _app;
 }
 
-// Use initializeAuth with AsyncStorage persistence for React Native
-// getAuth() alone causes onAuthStateChanged to never fire on RN
-let auth: Auth;
-try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-} catch (e) {
-  // Auth already initialized (hot reload) — fall back to existing instance
-  const { getAuth } = require('firebase/auth');
-  auth = getAuth(app);
+function getFirebaseAuth(): Auth {
+  if (_auth) return _auth;
+  const app = getFirebaseApp();
+  try {
+    _auth = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch (e: any) {
+    // Already initialized (hot reload) — reuse existing instance
+    _auth = getAuth(app);
+  }
+  return _auth;
 }
 
 interface AuthContextType {
@@ -74,28 +82,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const authRef = useRef<Auth | null>(null);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     try {
+      const auth = getFirebaseAuth();
+      authRef.current = auth;
+
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         try {
           setUser(firebaseUser);
 
           if (firebaseUser) {
-            // Store token for API calls
             const token = await firebaseUser.getIdToken();
             await SecureStore.setItemAsync('auth_token', token);
 
-            // Fetch user data from API
             try {
               const response = await fetch(
                 `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
+                { headers: { Authorization: `Bearer ${token}` } }
               );
               if (response.ok) {
                 const userData = await response.json();
@@ -126,33 +132,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    const auth = authRef.current || getFirebaseAuth();
     await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signUp = async (email: string, password: string, displayName: string) => {
-    const { user } = await createUserWithEmailAndPassword(auth, email, password);
-    // User document creation is handled by server
+    const auth = authRef.current || getFirebaseAuth();
+    await createUserWithEmailAndPassword(auth, email, password);
   };
 
   const signOut = async () => {
+    const auth = authRef.current || getFirebaseAuth();
     await firebaseSignOut(auth);
   };
 
   const signInWithGoogle = useCallback(async () => {
+    const auth = authRef.current || getFirebaseAuth();
     try {
-      // Use the appropriate client ID per platform
       const clientId = Platform.OS === 'android'
         ? GOOGLE_ANDROID_CLIENT_ID
         : GOOGLE_WEB_CLIENT_ID;
 
       if (!clientId) {
-        throw new Error('Google Client ID nije konfigurisan. Dodajte EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID u .env');
+        throw new Error('Google Client ID not configured');
       }
 
-      // Create auth request using Google's OAuth2 discovery
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'myphoto',
-      });
+      const redirectUri = AuthSession.makeRedirectUri({ scheme: 'myphoto' });
 
       const discovery = {
         authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -173,14 +178,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await request.promptAsync(discovery);
 
       if (result.type === 'success' && result.params.id_token) {
-        // Exchange Google ID token for Firebase credential
         const credential = GoogleAuthProvider.credential(result.params.id_token);
         await signInWithCredential(auth, credential);
-      } else if (result.type === 'cancel') {
-        // User cancelled — do nothing
-        return;
-      } else {
-        throw new Error('Google prijava nije uspela');
+      } else if (result.type !== 'cancel') {
+        throw new Error('Google sign-in failed');
       }
     } catch (error: any) {
       console.error('Google Sign-In error:', error);
@@ -197,17 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        appUser,
-        isLoading,
-        error,
-        signIn,
-        signUp,
-        signOut,
-        signInWithGoogle,
-        getToken,
-      }}
+      value={{ user, appUser, isLoading, error, signIn, signUp, signOut, signInWithGoogle, getToken }}
     >
       {children}
     </AuthContext.Provider>

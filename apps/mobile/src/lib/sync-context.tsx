@@ -231,7 +231,7 @@ async function backgroundFindNewPhotos(
   settings: SyncSettings,
   syncState: SyncState
 ): Promise<MediaLibrary.Asset[]> {
-  const { status } = await MediaLibrary.requestPermissionsAsync();
+  const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
   if (status !== 'granted') return [];
 
   let allAssets: MediaLibrary.Asset[] = [];
@@ -410,7 +410,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const refreshDeviceAlbums = useCallback(async () => {
     setIsLoadingAlbums(true);
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
       if (status !== 'granted') {
         setDeviceAlbums([]);
         return;
@@ -481,7 +481,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // Find new photos to upload (filtered by selected backup folders)
   const findNewPhotos = async (): Promise<MediaLibrary.Asset[]> => {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
+    const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
     if (status !== 'granted') {
       return [];
     }

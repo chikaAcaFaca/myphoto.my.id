@@ -25,7 +25,9 @@
   "pnpm": {
     "overrides": {
       "canvas": "npm:empty-npm-package@1.0.0",
-      "@tensorflow/tfjs-node": "npm:empty-npm-package@1.0.0"
+      "@tensorflow/tfjs-node": "npm:empty-npm-package@1.0.0",
+      "react": "19.1.4",
+      "react-native-screens": "4.10.0"
     }
   },
   "engines": {

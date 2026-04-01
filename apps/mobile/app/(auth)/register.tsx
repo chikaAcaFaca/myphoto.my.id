@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 
@@ -48,9 +48,8 @@ export default function RegisterScreen() {
     setError('');
 
     try {
-      await signUp(email, password);
-      // After signup, go to onboarding
-      router.replace('/onboarding');
+      await signUp(email, password, displayName);
+      // Navigation handled by RootNavigator auth gate → onboarding
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registracija nije uspela');
     } finally {
@@ -64,7 +63,7 @@ export default function RegisterScreen() {
 
     try {
       await signInWithGoogle();
-      router.replace('/onboarding');
+      // Navigation handled by RootNavigator auth gate → onboarding
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Google prijava nije uspela');
     } finally {
