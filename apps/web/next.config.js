@@ -31,13 +31,6 @@ const nextConfig = {
     serverComponentsExternalPackages: ['undici'],
   },
   webpack: (config, { isServer }) => {
-    const path = require('path');
-    // Force resolve react from web's own node_modules to avoid
-    // picking up React 19 from monorepo root (mobile uses React 19)
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      react: path.resolve(__dirname, 'node_modules/react'),
-    };
     // Exclude undici from client-side bundling
     if (!isServer) {
       config.resolve.fallback = {
