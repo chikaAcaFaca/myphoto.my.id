@@ -1,153 +1,134 @@
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
+  RefreshControl, Image, Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { useAuth } from '@/lib/auth-context';
+import { colors, radius, fonts } from '@/lib/theme';
+import type { Album } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
-const ITEM_SIZE = (width - 48) / 2;
-
-// Placeholder data - in real app, fetch from API
-const albums = [
-  { id: '1', name: 'Favorites', count: 24, cover: null },
-  { id: '2', name: 'Screenshots', count: 156, cover: null },
-  { id: '3', name: 'Vacation 2024', count: 89, cover: null },
-  { id: '4', name: 'Family', count: 234, cover: null },
-];
+const COL = 2;
+const GAP = 10;
+const CARD_W = (width - 12 * 2 - GAP) / COL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function AlbumsScreen() {
+  const { getToken } = useAuth();
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchAlbums = useCallback(async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/albums`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setAlbums(data.albums || data || []);
+    } catch (e) {
+      console.error('Error fetching albums:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
+
+  const onRefresh = () => { setRefreshing(true); fetchAlbums(); };
+
+  const renderAlbum = ({ item }: { item: Album }) => (
+    <TouchableOpacity style={styles.albumCard} activeOpacity={0.7} delayPressIn={100}>
+      {item.coverFileId ? (
+        <Image
+          source={{ uri: `${API_URL}/api/thumbnail/${item.coverFileId}?size=medium` }}
+          style={styles.albumCover}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.albumCover, styles.albumCoverEmpty]}>
+          <Ionicons name="images-outline" size={32} color={colors.textMuted} />
+        </View>
+      )}
+      <View style={styles.albumInfo}>
+        <Text style={styles.albumName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.albumCount}>{item.fileCount} slika</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Albums</Text>
-        <TouchableOpacity style={styles.addButton}>
-          <Ionicons name="add" size={24} color="#0ea5e9" />
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.headerBg}>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Albums</Text>
+          <TouchableOpacity style={styles.addBtn} activeOpacity={0.7}>
+            <Ionicons name="add" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Albums Grid */}
-      <FlatList
-        data={albums}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.albumItem}>
-            <View style={styles.albumCover}>
-              {item.cover ? (
-                <Image source={{ uri: item.cover }} style={styles.coverImage} contentFit="cover" />
-              ) : (
-                <Ionicons name="images" size={32} color="#d1d5db" />
-              )}
-            </View>
-            <Text style={styles.albumName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={styles.albumCount}>{item.count} items</Text>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : albums.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons name="albums-outline" size={64} color={colors.textMuted} />
+          <Text style={styles.emptyText}>Nema albuma</Text>
+          <Text style={styles.emptySubtext}>Kreirajte prvi album da organizujete slike</Text>
+          <TouchableOpacity style={styles.createBtn} activeOpacity={0.7}>
+            <Ionicons name="add-circle" size={20} color="#fff" />
+            <Text style={styles.createBtnText}>Novi album</Text>
           </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.gridContent}
-        columnWrapperStyle={styles.columnWrapper}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="albums-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyText}>No albums yet</Text>
-            <Text style={styles.emptySubtext}>Create an album to organize your photos</Text>
-            <TouchableOpacity style={styles.createButton}>
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.createButtonText}>Create Album</Text>
-            </TouchableOpacity>
-          </View>
-        }
-      />
+        </View>
+      ) : (
+        <FlatList
+          data={albums}
+          renderItem={renderAlbum}
+          keyExtractor={(item) => item.id}
+          numColumns={COL}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
+  safe: { flex: 1, backgroundColor: colors.bg },
+  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
+  addBtn: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  row: { gap: GAP },
+  albumCard: {
+    width: CARD_W, borderRadius: radius.lg, overflow: 'hidden',
+    backgroundColor: '#fff', marginBottom: GAP,
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
+  albumCover: { width: '100%', height: 100 },
+  albumCoverEmpty: { backgroundColor: colors.bgInput, alignItems: 'center', justifyContent: 'center' },
+  albumInfo: { padding: 10 },
+  albumName: { fontSize: 13, ...fonts.bold, color: colors.text },
+  albumCount: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  emptyText: { fontSize: 18, ...fonts.bold, color: colors.text, marginTop: 12 },
+  emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 20 },
+  createBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md,
   },
-  addButton: {
-    padding: 8,
-  },
-  gridContent: {
-    padding: 16,
-  },
-  columnWrapper: {
-    gap: 16,
-  },
-  albumItem: {
-    width: ITEM_SIZE,
-    marginBottom: 16,
-  },
-  albumCover: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 12,
-  },
-  albumName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  albumCount: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0ea5e9',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 24,
-    gap: 8,
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  createBtnText: { color: '#fff', fontSize: 14, ...fonts.semibold },
 });

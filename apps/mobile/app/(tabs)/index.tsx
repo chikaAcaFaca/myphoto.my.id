@@ -1,374 +1,204 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  RefreshControl,
-  ActivityIndicator,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
+  RefreshControl, Image, Dimensions,
 } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as MediaLibrary from 'expo-media-library';
-import { useSync } from '@/lib/sync-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
+import { apiClient, apiFetch } from '@/lib/api';
+import { colors, radius, fonts } from '@/lib/theme';
 import type { FileMetadata } from '@myphoto/shared';
+import { formatBytes } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
-const ITEM_SIZE = (width - 6) / 3;
+const COL = 3;
+const GAP = 2;
+const CELL = (width - GAP * (COL + 1)) / COL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
-export default function PhotosScreen() {
-  const [localPhotos, setLocalPhotos] = useState<MediaLibrary.Asset[]>([]);
-  const [cloudPhotos, setCloudPhotos] = useState<FileMetadata[]>([]);
-  const [activeTab, setActiveTab] = useState<'device' | 'cloud'>('device');
-  const [isLoading, setIsLoading] = useState(true);
+export default function MyPhotoScreen() {
+  const { getToken } = useAuth();
+  const [photos, setPhotos] = useState<FileMetadata[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [hasPermission, setHasPermission] = useState(false);
+  const [tab, setTab] = useState<'cloud' | 'device'>('cloud');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  const { user } = useAuth();
-  const { startSync, syncProgress, isSyncing, pendingCount } = useSync();
-
-  // Request permissions and load photos
-  useEffect(() => {
-    (async () => {
-      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
-      setHasPermission(status === 'granted');
-
-      if (status === 'granted') {
-        await loadLocalPhotos();
-      }
-      setIsLoading(false);
-    })();
-  }, []);
-
-  const loadLocalPhotos = async () => {
+  const fetchPhotos = useCallback(async (pageNum = 1, refresh = false) => {
     try {
-      const { assets } = await MediaLibrary.getAssetsAsync({
-        mediaType: ['photo', 'video'],
-        sortBy: [MediaLibrary.SortBy.creationTime],
-        first: 100,
-      });
-      setLocalPhotos(assets);
-    } catch (error) {
-      console.error('Error loading photos:', error);
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await fetch(
+        `${API_URL}/api/files?type=image&isTrashed=false&isArchived=false&page=${pageNum}&pageSize=60`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      const files = data.files || data.items || [];
+
+      if (refresh || pageNum === 1) {
+        setPhotos(files);
+      } else {
+        setPhotos(prev => [...prev, ...files]);
+      }
+      setHasMore(data.hasMore ?? files.length >= 60);
+      setPage(pageNum);
+    } catch (e) {
+      console.error('Error fetching photos:', e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [getToken]);
+
+  useEffect(() => {
+    fetchPhotos(1);
+  }, [fetchPhotos]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchPhotos(1, true);
+  };
+
+  const loadMore = () => {
+    if (hasMore && !loading) {
+      fetchPhotos(page + 1);
     }
   };
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadLocalPhotos();
-    setRefreshing(false);
-  }, []);
+  const getThumbnailUrl = (photo: FileMetadata) => {
+    return `${API_URL}/api/thumbnail/${photo.id}?size=small`;
+  };
 
-  const renderPhoto = ({ item }: { item: MediaLibrary.Asset }) => (
-    <TouchableOpacity style={styles.photoItem}>
+  const renderPhoto = ({ item }: { item: FileMetadata }) => (
+    <TouchableOpacity
+      style={styles.cell}
+      activeOpacity={0.8}
+      delayPressIn={100}
+      onPress={() => router.push({ pathname: '/photo-viewer', params: { id: item.id, name: item.name, type: item.type } })}
+    >
       <Image
-        source={{ uri: item.uri }}
-        style={styles.photo}
-        contentFit="cover"
-        transition={200}
+        source={{ uri: getThumbnailUrl(item), headers: {} }}
+        style={styles.cellImage}
+        resizeMode="cover"
       />
-      {item.mediaType === 'video' && (
-        <View style={styles.videoIndicator}>
-          <Ionicons name="play" size={12} color="#fff" />
-          <Text style={styles.videoDuration}>
-            {formatDuration(item.duration)}
-          </Text>
+      {item.type === 'video' && (
+        <View style={styles.videoBadge}>
+          <Ionicons name="play" size={10} color="#fff" />
+          {item.duration && (
+            <Text style={styles.duration}>
+              {Math.floor(item.duration / 60)}:{String(Math.floor(item.duration % 60)).padStart(2, '0')}
+            </Text>
+          )}
         </View>
       )}
     </TouchableOpacity>
   );
 
-  if (!hasPermission) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.permissionContainer}>
-          <Ionicons name="images-outline" size={64} color="#9ca3af" />
-          <Text style={styles.permissionTitle}>Photo Access Required</Text>
-          <Text style={styles.permissionText}>
-            MyPhoto needs access to your photos to back them up securely.
-          </Text>
-          <TouchableOpacity
-            style={styles.permissionButton}
-            onPress={async () => {
-              const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
-              setHasPermission(status === 'granted');
-              if (status === 'granted') {
-                loadLocalPhotos();
-              }
-            }}
-          >
-            <Text style={styles.permissionButtonText}>Grant Access</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Photos</Text>
-        <View style={styles.headerActions}>
-          {isSyncing ? (
-            <View style={styles.syncIndicator}>
-              <ActivityIndicator size="small" color="#0ea5e9" />
-              <Text style={styles.syncText}>Syncing...</Text>
+        <View style={styles.headerBg}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerLeft}>
+              <Ionicons name="cloud" size={22} color="#fff" />
+              <Text style={styles.headerTitle}>MyPhoto</Text>
             </View>
-          ) : pendingCount > 0 ? (
-            <TouchableOpacity onPress={startSync} style={styles.syncButton}>
-              <Ionicons name="cloud-upload-outline" size={24} color="#0ea5e9" />
-              <Text style={styles.pendingBadge}>{pendingCount}</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
+              <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
             </TouchableOpacity>
-          ) : null}
+          </View>
         </View>
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'device' && styles.activeTab]}
-          onPress={() => setActiveTab('device')}
-        >
-          <Ionicons
-            name="phone-portrait-outline"
-            size={18}
-            color={activeTab === 'device' ? '#0ea5e9' : '#9ca3af'}
-          />
-          <Text style={[styles.tabText, activeTab === 'device' && styles.activeTabText]}>
-            Device
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'cloud' && styles.activeTab]}
-          onPress={() => setActiveTab('cloud')}
-        >
-          <Ionicons
-            name="cloud-outline"
-            size={18}
-            color={activeTab === 'cloud' ? '#0ea5e9' : '#9ca3af'}
-          />
-          <Text style={[styles.tabText, activeTab === 'cloud' && styles.activeTabText]}>
-            Cloud
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Sync progress */}
-      {isSyncing && syncProgress > 0 && (
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { width: `${syncProgress}%` }]} />
+      {/* Sync bar */}
+      {photos.length > 0 && (
+        <View style={styles.syncBar}>
+          <View style={styles.syncDot} />
+          <Text style={styles.syncText}>{photos.length} slika u cloudu</Text>
         </View>
       )}
 
-      {/* Photos grid */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0ea5e9" />
+      {/* Toggle */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleTab, tab === 'cloud' && styles.toggleTabActive]}
+          onPress={() => setTab('cloud')}
+        >
+          <Text style={[styles.toggleText, tab === 'cloud' && styles.toggleTextActive]}>Cloud</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleTab, tab === 'device' && styles.toggleTabActive]}
+          onPress={() => setTab('device')}
+        >
+          <Text style={[styles.toggleText, tab === 'device' && styles.toggleTextActive]}>Device</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Photo Grid */}
+      {loading && photos.length === 0 ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : photos.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons name="images-outline" size={64} color={colors.textMuted} />
+          <Text style={styles.emptyText}>Nema slika</Text>
+          <Text style={styles.emptySubtext}>Vase slike ce se pojaviti ovde nakon sync-a</Text>
         </View>
       ) : (
         <FlatList
-          data={activeTab === 'device' ? localPhotos : []}
+          data={photos}
           renderItem={renderPhoto}
           keyExtractor={(item) => item.id}
-          numColumns={3}
-          contentContainerStyle={styles.gridContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="images-outline" size={64} color="#d1d5db" />
-              <Text style={styles.emptyText}>
-                {activeTab === 'device'
-                  ? 'No photos on this device'
-                  : 'No photos in the cloud yet'}
-              </Text>
-              {activeTab === 'device' && (
-                <Text style={styles.emptySubtext}>
-                  Take some photos to get started
-                </Text>
-              )}
-            </View>
-          }
+          numColumns={COL}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={{ paddingBottom: 80 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
         />
       )}
     </SafeAreaView>
   );
 }
 
-function formatDuration(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
+  safe: { flex: 1, backgroundColor: colors.bg },
+  header: { overflow: 'hidden' },
+  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
+  syncBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.accent, marginHorizontal: 12, marginTop: 8,
+    borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 14,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  syncDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
+  syncText: { color: '#fff', fontSize: 11, ...fonts.semibold },
+  toggleContainer: {
+    flexDirection: 'row', marginHorizontal: 12, marginVertical: 10,
+    backgroundColor: colors.bgInput, borderRadius: radius.md, padding: 3,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
+  toggleTab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10 },
+  toggleTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+  toggleText: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary },
+  toggleTextActive: { color: colors.primary },
+  row: { gap: GAP, paddingHorizontal: 1 },
+  cell: { width: CELL, height: CELL, marginBottom: GAP, backgroundColor: colors.bgInput, borderRadius: 2 },
+  cellImage: { width: '100%', height: '100%', borderRadius: 2 },
+  videoBadge: {
+    position: 'absolute', bottom: 4, right: 4, flexDirection: 'row', alignItems: 'center', gap: 2,
+    backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1,
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  syncIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  syncText: {
-    color: '#0ea5e9',
-    fontSize: 14,
-  },
-  syncButton: {
-    position: 'relative',
-    padding: 8,
-  },
-  pendingBadge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: '#ef4444',
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 8,
-    gap: 8,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    gap: 6,
-  },
-  activeTab: {
-    backgroundColor: '#e0f2fe',
-  },
-  tabText: {
-    fontSize: 14,
-    color: '#9ca3af',
-    fontWeight: '500',
-  },
-  activeTabText: {
-    color: '#0ea5e9',
-  },
-  progressContainer: {
-    height: 3,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 16,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#0ea5e9',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gridContent: {
-    padding: 1,
-  },
-  photoItem: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    padding: 1,
-  },
-  photo: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-  },
-  videoIndicator: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    gap: 4,
-  },
-  videoDuration: {
-    color: '#fff',
-    fontSize: 11,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 8,
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  permissionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  permissionText: {
-    fontSize: 14,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  permissionButton: {
-    backgroundColor: '#0ea5e9',
-    paddingVertical: 12,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-  },
-  permissionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  duration: { color: '#fff', fontSize: 9, ...fonts.semibold },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  emptyText: { fontSize: 18, ...fonts.bold, color: colors.text, marginTop: 12 },
+  emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
 });

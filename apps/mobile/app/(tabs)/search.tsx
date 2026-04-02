@@ -1,234 +1,160 @@
 import { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Dimensions,
+  View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Image, Dimensions, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
+import { router } from 'expo-router';
+import { useAuth } from '@/lib/auth-context';
+import { colors, radius, fonts } from '@/lib/theme';
+import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
-const ITEM_SIZE = (width - 6) / 3;
+const COL = 3;
+const GAP = 2;
+const CELL = (width - GAP * (COL + 1)) / COL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
-// Suggested searches
-const suggestions = [
-  { icon: 'paw', label: 'Pets', color: '#f59e0b' },
-  { icon: 'car', label: 'Cars', color: '#3b82f6' },
-  { icon: 'restaurant', label: 'Food', color: '#ef4444' },
-  { icon: 'leaf', label: 'Nature', color: '#22c55e' },
-  { icon: 'people', label: 'People', color: '#8b5cf6' },
-  { icon: 'airplane', label: 'Travel', color: '#06b6d4' },
+const SUGGESTIONS = [
+  { label: 'Pets', icon: '🐶' },
+  { label: 'Cars', icon: '🚗' },
+  { label: 'Food', icon: '🍔' },
+  { label: 'Nature', icon: '🌳' },
+  { label: 'People', icon: '👥' },
+  { label: 'Travel', icon: '✈️' },
+  { label: 'Architecture', icon: '🏛️' },
+  { label: 'Sunset', icon: '🌅' },
 ];
 
-// Recent searches
-const recentSearches = ['beach', 'birthday', 'dog'];
-
 export default function SearchScreen() {
+  const { getToken } = useAuth();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState<FileMetadata[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
-
-    setIsSearching(true);
-    // In real app, call search API
-    setTimeout(() => {
-      setResults([]);
-      setIsSearching(false);
-    }, 500);
+  const doSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) return;
+    Keyboard.dismiss();
+    setLoading(true);
+    setSearched(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/api/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ query: searchQuery, pageSize: 50 }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setResults(data.items || []);
+    } catch (e) {
+      console.error('Search error:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const renderResult = ({ item }: { item: FileMetadata }) => (
+    <TouchableOpacity
+      style={styles.cell}
+      activeOpacity={0.8}
+      delayPressIn={100}
+      onPress={() => router.push({ pathname: '/photo-viewer', params: { id: item.id, name: item.name, type: item.type } })}
+    >
+      <Image
+        source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=small` }}
+        style={styles.cellImage}
+        resizeMode="cover"
+      />
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Search Header */}
-      <View style={styles.header}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color="#9ca3af" />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.headerArea}>
+        <Text style={styles.title}>Search</Text>
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={18} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search photos, videos..."
-            placeholderTextColor="#9ca3af"
+            placeholder="Search photos, videos, files..."
+            placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={setQuery}
-            onSubmitEditing={handleSearch}
+            onSubmitEditing={() => doSearch(query)}
             returnKeyType="search"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#9ca3af" />
+            <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setSearched(false); }}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Content */}
-      {query.length === 0 ? (
-        <View style={styles.content}>
-          {/* Suggested Searches */}
-          <Text style={styles.sectionTitle}>Explore</Text>
-          <View style={styles.suggestionsGrid}>
-            {suggestions.map((item) => (
+      {!searched ? (
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionLabel}>AI SUGGESTIONS</Text>
+          <View style={styles.suggestions}>
+            {SUGGESTIONS.map(s => (
               <TouchableOpacity
-                key={item.label}
-                style={styles.suggestionItem}
-                onPress={() => setQuery(item.label)}
+                key={s.label}
+                style={styles.suggestionChip}
+                onPress={() => { setQuery(s.label); doSearch(s.label); }}
               >
-                <View style={[styles.suggestionIcon, { backgroundColor: item.color }]}>
-                  <Ionicons name={item.icon as any} size={24} color="#fff" />
-                </View>
-                <Text style={styles.suggestionLabel}>{item.label}</Text>
+                <Text style={styles.suggestionText}>{s.icon} {s.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
-
-          {/* Recent Searches */}
-          {recentSearches.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { marginTop: 32 }]}>Recent</Text>
-              {recentSearches.map((term) => (
-                <TouchableOpacity
-                  key={term}
-                  style={styles.recentItem}
-                  onPress={() => setQuery(term)}
-                >
-                  <Ionicons name="time-outline" size={20} color="#9ca3af" />
-                  <Text style={styles.recentText}>{term}</Text>
-                </TouchableOpacity>
-              ))}
-            </>
-          )}
         </View>
-      ) : results.length > 0 ? (
+      ) : loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : results.length === 0 ? (
+        <View style={styles.center}>
+          <Ionicons name="search-outline" size={48} color={colors.textMuted} />
+          <Text style={styles.noResults}>Nema rezultata za "{query}"</Text>
+        </View>
+      ) : (
         <FlatList
           data={results}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.resultItem}>
-              <Image
-                source={{ uri: item.thumbnailUrl }}
-                style={styles.resultImage}
-                contentFit="cover"
-              />
-            </TouchableOpacity>
-          )}
+          renderItem={renderResult}
           keyExtractor={(item) => item.id}
-          numColumns={3}
-          contentContainerStyle={styles.resultsGrid}
+          numColumns={COL}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={{ paddingBottom: 80 }}
+          ListHeaderComponent={
+            <Text style={styles.resultCount}>{results.length} rezultata</Text>
+          }
         />
-      ) : (
-        <View style={styles.emptyResults}>
-          <Ionicons name="search-outline" size={64} color="#d1d5db" />
-          <Text style={styles.emptyText}>
-            {isSearching ? 'Searching...' : `No results for "${query}"`}
-          </Text>
-          <Text style={styles.emptySubtext}>
-            Try searching for things like "dog", "beach", or "birthday"
-          </Text>
-        </View>
       )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
+  safe: { flex: 1, backgroundColor: colors.bg },
+  headerArea: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 },
+  title: { fontSize: 22, ...fonts.extrabold, color: colors.text, marginBottom: 10 },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.bgInput, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 12,
   },
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-    gap: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-  },
-  content: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-  },
-  suggestionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  suggestionItem: {
-    alignItems: 'center',
-    width: (width - 64) / 3,
-  },
-  suggestionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  suggestionLabel: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  recentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    gap: 12,
-  },
-  recentText: {
-    fontSize: 16,
-    color: '#374151',
-  },
-  resultsGrid: {
-    padding: 1,
-  },
-  resultItem: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    padding: 1,
-  },
-  resultImage: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-  },
-  emptyResults: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6b7280',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'center',
-  },
+  searchInput: { flex: 1, fontSize: 13, color: colors.text },
+  sectionLabel: { fontSize: 10, ...fonts.bold, color: colors.textMuted, letterSpacing: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
+  suggestions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12 },
+  suggestionChip: { backgroundColor: '#e0f2fe', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  suggestionText: { fontSize: 12, ...fonts.semibold, color: '#0369a1' },
+  row: { gap: GAP, paddingHorizontal: 1 },
+  cell: { width: CELL, height: CELL, marginBottom: GAP, backgroundColor: colors.bgInput, borderRadius: 2 },
+  cellImage: { width: '100%', height: '100%', borderRadius: 2 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  noResults: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
+  resultCount: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary, paddingHorizontal: 12, paddingVertical: 8 },
 });

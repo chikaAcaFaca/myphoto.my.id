@@ -1,30 +1,40 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@/lib/theme';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#0ea5e9',
-        tabBarInactiveTintColor: '#9ca3af',
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle: {
           backgroundColor: '#fff',
-          borderTopColor: '#e5e7eb',
-          height: 60,
+          borderTopColor: colors.border,
+          height: 64,
           paddingBottom: 8,
-          paddingTop: 8,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: 10,
+          fontWeight: '600',
         },
       }}
     >
       <Tabs.Screen
+        name="myspace"
+        options={{
+          title: 'MySpace',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="folder-open" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
-          title: 'Photos',
+          title: 'MyPhoto',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="images" size={size} color={color} />
           ),
@@ -40,11 +50,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="search"
+        name="videos"
         options={{
-          title: 'Search',
+          title: 'Video',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="search" size={size} color={color} />
+            <Ionicons name="videocam" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="upload"
+        options={{
+          title: 'Upload',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cloud-upload" size={size} color={color} />
           ),
         }}
       />
@@ -57,6 +76,8 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Hide old screens from tabs */}
+      <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>
   );
 }
