@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyPhoto Mobile - Sync-Swift Design Preview v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #0f172a, #1e293b); color: #fff; padding: 20px; min-height: 100vh; }
+
+  h1 { text-align: center; margin: 20px 0 6px; font-size: 32px; font-weight: 900; background: linear-gradient(135deg, #38bdf8, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  h1 small { display: block; font-size: 13px; -webkit-text-fill-color: #64748b; font-weight: 500; margin-top: 6px; letter-spacing: 2px; text-transform: uppercase; }
+
+  .screens { display: flex; flex-wrap: wrap; gap: 32px; justify-content: center; padding: 20px 0; }
+  .screen-wrapper { text-align: center; }
+  .screen-label { color: #f97316; font-weight: 800; font-size: 13px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+
+  /* Phone Frame */
+  .phone { width: 300px; height: 620px; background: #000; border-radius: 40px; overflow: hidden; position: relative; box-shadow: 0 25px 80px rgba(0,0,0,0.6), 0 0 0 2px #333, 0 0 0 6px #1a1a1a; }
+  .phone::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 100px; height: 22px; background: #000; border-radius: 0 0 14px 14px; z-index: 10; }
+  .phone-inner { width: 100%; height: 100%; background: #fff; border-radius: 36px; overflow: hidden; }
+  .status-bar { height: 44px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 24px 6px; font-size: 12px; font-weight: 600; color: #fff; position: relative; z-index: 5; }
+  .status-bar.dark { color: #1e293b; }
+  .status-icons { display: flex; gap: 4px; align-items: center; font-size: 10px; }
+  .screen-content { height: calc(100% - 44px); overflow-y: auto; position: relative; }
+  .screen-content::-webkit-scrollbar { display: none; }
+
+  /* Tab bar - polished */
+  .tab-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 64px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); display: flex; align-items: center; justify-content: space-around; padding: 0 2px; border-top: 1px solid rgba(0,0,0,0.05); z-index: 20; }
+  .tab-item { display: flex; flex-direction: column; align-items: center; font-size: 9px; font-weight: 600; color: #94a3b8; gap: 3px; padding: 4px 0; }
+  .tab-item.active { color: #0ea5e9; }
+  .tab-icon { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 16px; border-radius: 8px; }
+  .tab-item.active .tab-icon { background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #fff; width: 32px; height: 32px; border-radius: 10px; font-size: 16px; box-shadow: 0 4px 12px rgba(14,165,233,0.3); }
+
+  /* Headers - glass morphism */
+  .header-gradient { background: linear-gradient(160deg, #38bdf8, #0ea5e9, #0284c7); padding: 12px 16px 20px; color: #fff; position: relative; overflow: hidden; }
+  .header-gradient::after { content: ''; position: absolute; top: -40px; right: -20px; width: 120px; height: 120px; background: rgba(255,255,255,0.08); border-radius: 50%; }
+  .header-gradient::before { content: ''; position: absolute; bottom: -30px; left: -10px; width: 80px; height: 80px; background: rgba(255,255,255,0.06); border-radius: 50%; }
+  .header-title { font-size: 22px; font-weight: 800; position: relative; z-index: 2; }
+  .header-subtitle { font-size: 11px; opacity: 0.7; margin-top: 2px; position: relative; z-index: 2; }
+  .header-row { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; }
+
+  /* Cards - elevated */
+  .card { background: #fff; border-radius: 16px; padding: 14px; margin: 8px 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02); }
+  .card-orange { background: linear-gradient(135deg, #fb923c, #f97316, #ea580c); color: #fff; border-radius: 16px; padding: 16px; margin: 8px 12px; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; box-shadow: 0 8px 24px rgba(249,115,22,0.3); position: relative; overflow: hidden; }
+  .card-orange::after { content: ''; position: absolute; top: -20px; right: -10px; width: 60px; height: 60px; background: rgba(255,255,255,0.15); border-radius: 50%; }
+
+  /* Progress bars */
+  .progress-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .progress-item:last-child { border-bottom: none; }
+  .progress-name { font-size: 12px; color: #334155; font-weight: 600; }
+  .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; margin: 6px 0 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .progress-fill.blue { background: linear-gradient(90deg, #38bdf8, #0ea5e9); }
+  .progress-fill.green { background: linear-gradient(90deg, #4ade80, #22c55e); }
+  .progress-fill.pink { background: linear-gradient(90deg, #fb923c, #ef4444); }
+  .progress-text { font-size: 10px; color: #94a3b8; }
+  .progress-row { display: flex; justify-content: space-between; align-items: center; }
+  .cancel-btn { background: linear-gradient(135deg, #f87171, #ef4444); color: #fff; border: none; border-radius: 50%; width: 24px; height: 24px; font-size: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(239,68,68,0.3); }
+
+  /* Photo grid */
+  .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 2px; }
+  .photo-cell { aspect-ratio: 1; position: relative; overflow: hidden; }
+
+  /* Album grid */
+  .album-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 12px; }
+  .album-card { border-radius: 16px; overflow: hidden; background: #f8fafc; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .album-cover { height: 90px; }
+  .album-info { padding: 8px 10px; }
+  .album-name { font-size: 12px; font-weight: 700; color: #1e293b; }
+  .album-count { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+
+  /* Video grid */
+  .video-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 12px; }
+  .video-card { border-radius: 14px; overflow: hidden; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .video-thumb { height: 100px; position: relative; display: flex; align-items: center; justify-content: center; }
+  .play-btn { width: 36px; height: 36px; background: rgba(255,255,255,0.95); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+  .duration { position: absolute; bottom: 6px; right: 8px; background: rgba(0,0,0,0.75); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+
+  /* Folder list */
+  .folder-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #f1f5f9; }
+  .folder-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .folder-name { font-size: 13px; font-weight: 600; color: #1e293b; }
+  .folder-meta { font-size: 10px; color: #94a3b8; margin-top: 1px; }
+
+  /* Settings */
+  .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 13px 14px; border-bottom: 1px solid #f1f5f9; }
+  .setting-label { font-size: 13px; color: #334155; font-weight: 500; }
+  .toggle { width: 42px; height: 24px; border-radius: 12px; background: linear-gradient(135deg, #22c55e, #16a34a); position: relative; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1); }
+  .toggle::after { content: ''; position: absolute; right: 2px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+  .toggle.off { background: #cbd5e1; }
+  .toggle.off::after { right: auto; left: 2px; }
+  .storage-bar { height: 10px; background: #e2e8f0; border-radius: 5px; margin: 8px 0; overflow: hidden; }
+  .storage-fill { height: 100%; background: linear-gradient(90deg, #38bdf8, #f97316, #ef4444); border-radius: 5px; }
+
+  /* Profile card */
+  .profile-card { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+  .avatar { width: 48px; height: 48px; border-radius: 16px; background: linear-gradient(135deg, #38bdf8, #0ea5e9); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; font-weight: 800; box-shadow: 0 4px 12px rgba(14,165,233,0.3); }
+  .profile-name { font-size: 15px; font-weight: 700; color: #1e293b; }
+  .profile-email { font-size: 11px; color: #94a3b8; }
+
+  /* Transfer cards */
+  .transfers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .transfer-card { border-radius: 12px; padding: 10px; font-size: 10px; position: relative; }
+  .transfer-card.blue { background: linear-gradient(135deg, #e0f2fe, #bae6fd); color: #0369a1; }
+  .transfer-card.orange { background: linear-gradient(135deg, #ffedd5, #fed7aa); color: #c2410c; }
+  .transfer-name { font-weight: 700; font-size: 11px; }
+  .transfer-meta { margin-top: 2px; opacity: 0.7; }
+  .check { float: right; color: #22c55e; font-size: 14px; }
+
+  /* Sync status */
+  .sync-bar { background: linear-gradient(135deg, #fb923c, #f97316); margin: 0 12px; border-radius: 12px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; color: #fff; font-size: 11px; font-weight: 600; box-shadow: 0 4px 16px rgba(249,115,22,0.25); }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* Toggle tabs */
+  .toggle-tabs { display: flex; margin: 10px 12px; background: #f1f5f9; border-radius: 12px; padding: 3px; }
+  .toggle-tab { flex: 1; text-align: center; padding: 8px; font-size: 12px; font-weight: 600; color: #64748b; border-radius: 10px; transition: all 0.2s; }
+  .toggle-tab.active { background: #fff; color: #0ea5e9; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+
+  /* Search */
+  .search-box { margin: 10px 12px; background: #f1f5f9; border-radius: 14px; padding: 12px 14px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #94a3b8; }
+  .search-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+  .suggestion { background: linear-gradient(135deg, #e0f2fe, #bae6fd); color: #0369a1; padding: 7px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+
+  /* Auth screens */
+  .auth-bg { background: linear-gradient(180deg, #f8fafc, #f1f5f9); height: 100%; }
+  .auth-logo { text-align: center; padding: 30px 0 16px; }
+  .auth-logo-icon { width: 56px; height: 56px; background: linear-gradient(135deg, #38bdf8, #0ea5e9); border-radius: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; box-shadow: 0 8px 24px rgba(14,165,233,0.3); }
+  .auth-logo-text { font-size: 22px; font-weight: 900; color: #0ea5e9; margin-top: 8px; }
+  .auth-title { font-size: 20px; font-weight: 800; text-align: center; color: #1e293b; }
+  .auth-subtitle { font-size: 12px; text-align: center; color: #64748b; margin: 4px 0 20px; }
+  .auth-input { display: flex; align-items: center; gap: 10px; background: #fff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 13px 14px; margin: 6px 16px; font-size: 13px; color: #94a3b8; transition: border 0.2s; }
+  .btn-primary { background: linear-gradient(135deg, #38bdf8, #0ea5e9, #0284c7); color: #fff; border: none; border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; width: calc(100% - 32px); margin: 10px 16px; text-align: center; box-shadow: 0 4px 16px rgba(14,165,233,0.3); }
+  .btn-orange { background: linear-gradient(135deg, #fb923c, #f97316); color: #fff; border: none; border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; width: calc(100% - 32px); margin: 10px 16px; text-align: center; box-shadow: 0 4px 16px rgba(249,115,22,0.3); }
+
+  /* Onboarding */
+  .onboard-bg { background: #fff; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+  .onboard-icon { width: 88px; height: 88px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; margin-bottom: 20px; }
+  .onboard-dots { display: flex; gap: 6px; margin-bottom: 30px; }
+  .dot { width: 8px; height: 8px; border-radius: 4px; background: #e2e8f0; transition: all 0.3s; }
+  .dot.active { width: 24px; background: linear-gradient(90deg, #38bdf8, #0ea5e9); }
+
+  /* FAB */
+  .fab { position: absolute; bottom: 74px; right: 16px; width: 50px; height: 50px; border-radius: 16px; background: linear-gradient(135deg, #fb923c, #f97316); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 8px 24px rgba(249,115,22,0.4); z-index: 15; font-weight: 300; }
+
+  /* Section */
+  .section-title { text-align: center; margin: 50px 0 10px; }
+  .section-title h2 { font-size: 16px; color: #94a3b8; text-transform: uppercase; letter-spacing: 3px; font-weight: 700; position: relative; display: inline-block; }
+  .section-title h2::before, .section-title h2::after { content: ''; position: absolute; top: 50%; width: 40px; height: 1px; background: linear-gradient(90deg, transparent, #475569); }
+  .section-title h2::before { right: calc(100% + 12px); }
+  .section-title h2::after { left: calc(100% + 12px); background: linear-gradient(90deg, #475569, transparent); }
+
+  /* Pricing */
+  .plan-card { background: #fff; border-radius: 16px; padding: 14px 16px; margin: 6px 12px; display: flex; justify-content: space-between; align-items: center; border: 2px solid #f1f5f9; position: relative; transition: all 0.2s; }
+  .plan-card.popular { border-color: #0ea5e9; box-shadow: 0 4px 20px rgba(14,165,233,0.15); }
+  .plan-badge { position: absolute; top: -9px; right: 14px; background: linear-gradient(135deg, #fb923c, #f97316); color: #fff; font-size: 9px; padding: 3px 10px; border-radius: 10px; font-weight: 800; letter-spacing: 0.5px; box-shadow: 0 2px 8px rgba(249,115,22,0.3); }
+  .plan-name { font-size: 14px; font-weight: 800; color: #1e293b; }
+  .plan-storage { font-size: 11px; color: #64748b; font-weight: 500; }
+  .plan-price { font-size: 18px; font-weight: 900; color: #0ea5e9; }
+  .plan-period { font-size: 10px; color: #94a3b8; font-weight: 500; }
+  .plan-yearly { font-size: 10px; color: #22c55e; font-weight: 600; margin-top: 1px; }
+  .plan-free { color: #22c55e; }
+
+  /* Colors for photo cells - more realistic gradients */
+  .c1 { background: linear-gradient(135deg, #bae6fd, #7dd3fc); }
+  .c2 { background: linear-gradient(135deg, #93c5fd, #60a5fa); }
+  .c3 { background: linear-gradient(135deg, #fcd34d, #fbbf24); }
+  .c4 { background: linear-gradient(135deg, #a5b4fc, #818cf8); }
+  .c5 { background: linear-gradient(135deg, #86efac, #4ade80); }
+  .c6 { background: linear-gradient(135deg, #fca5a5, #f87171); }
+  .c7 { background: linear-gradient(135deg, #c4b5fd, #a78bfa); }
+  .c8 { background: linear-gradient(135deg, #fdba74, #fb923c); }
+  .c9 { background: linear-gradient(135deg, #67e8f9, #22d3ee); }
+  .c10 { background: linear-gradient(135deg, #d9f99d, #bef264); }
+  .c11 { background: linear-gradient(135deg, #f9a8d4, #f472b6); }
+  .c12 { background: linear-gradient(135deg, #a7f3d0, #6ee7b7); }
+
+  /* Footer */
+  .footer { text-align: center; padding: 50px; color: #475569; font-size: 12px; font-weight: 500; }
+  .footer span { color: #f97316; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<h1>MyPhoto Mobile App <small>Sync-Swift Design System &mdash; v2.0</small></h1>
+
+<div class="section-title"><h2>Auth Ekrani</h2></div>
+
+<div class="screens">
+
+  <!-- LOGIN -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Login</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar dark"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889; 100%</div></div>
+      <div class="screen-content auth-bg">
+        <div class="auth-logo">
+          <div class="auth-logo-icon">&#9729;</div>
+          <div class="auth-logo-text">MyPhoto</div>
+        </div>
+        <div class="auth-title">Welcome back</div>
+        <div class="auth-subtitle">Sign in to access your photos</div>
+        <div class="auth-input"><span style="font-size:16px">&#9993;</span> Email</div>
+        <div class="auth-input"><span style="font-size:16px">&#128274;</span> Password <span style="margin-left:auto;font-size:16px">&#128065;</span></div>
+        <div style="text-align:right;padding:4px 16px 0;font-size:12px;color:#0ea5e9;font-weight:600">Forgot password?</div>
+        <div class="btn-primary">Sign In</div>
+        <div style="display:flex;align-items:center;margin:12px 16px;gap:12px"><div style="flex:1;height:1px;background:#e2e8f0"></div><span style="font-size:11px;color:#94a3b8;font-weight:500">or</span><div style="flex:1;height:1px;background:#e2e8f0"></div></div>
+        <div style="margin:0 16px;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px;text-align:center;font-size:13px;color:#334155;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff"><span style="font-size:18px">G</span> Continue with Google</div>
+        <div style="text-align:center;padding:20px;font-size:12px;color:#64748b">Don't have an account? <span style="color:#0ea5e9;font-weight:700">Sign up free</span></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Register</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar dark"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content auth-bg">
+        <div class="auth-logo" style="padding:20px 0 10px">
+          <div class="auth-logo-icon" style="width:44px;height:44px;font-size:22px;border-radius:14px">&#9729;</div>
+          <div class="auth-logo-text" style="font-size:18px">MyPhoto</div>
+        </div>
+        <div class="auth-title" style="font-size:18px">Kreirajte nalog</div>
+        <div class="auth-subtitle">1 GB besplatno, odmah</div>
+        <div style="margin:0 16px 8px;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px;text-align:center;font-size:13px;color:#334155;font-weight:600;background:#fff;display:flex;align-items:center;justify-content:center;gap:8px"><span style="font-size:16px">G</span> Nastavi sa Google</div>
+        <div style="display:flex;align-items:center;margin:8px 16px;gap:10px"><div style="flex:1;height:1px;background:#e2e8f0"></div><span style="font-size:10px;color:#94a3b8">ili email</span><div style="flex:1;height:1px;background:#e2e8f0"></div></div>
+        <div class="auth-input" style="margin:5px 16px"><span style="font-size:14px">&#128100;</span> <span>Vase ime</span></div>
+        <div class="auth-input" style="margin:5px 16px"><span style="font-size:14px">&#9993;</span> <span>Email</span></div>
+        <div class="auth-input" style="margin:5px 16px"><span style="font-size:14px">&#128274;</span> <span>Lozinka</span></div>
+        <div class="auth-input" style="margin:5px 16px"><span style="font-size:14px">&#128274;</span> <span>Potvrdite</span></div>
+        <div class="auth-input" style="margin:5px 16px"><span style="font-size:14px">&#127873;</span> <span>Referral kod (opciono)</span></div>
+        <div class="btn-primary" style="margin-top:8px">Kreiraj nalog</div>
+        <div style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);margin:8px 16px;border-radius:12px;padding:10px 12px;font-size:10px;color:#0369a1;line-height:1.7;font-weight:500">
+          &#9729; 1 GB besplatno &nbsp;&middot;&nbsp; &#128241; +1 GB za backup &nbsp;&middot;&nbsp; &#128101; +512 MB po referral-u &nbsp;&middot;&nbsp; &#128737; EU serveri
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Onboarding</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar dark"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content onboard-bg">
+        <div class="onboard-dots"><div class="dot"></div><div class="dot active"></div><div class="dot"></div></div>
+        <div class="onboard-icon" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5)">&#9729;</div>
+        <div style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:10px">Auto-backup</div>
+        <div style="font-size:13px;color:#64748b;line-height:1.6;margin-bottom:16px">Ukljucite automatski backup i vase slike ce se cuvati u cloudu cim se povezete na WiFi.</div>
+        <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:14px;padding:14px;display:flex;gap:10px;align-items:center;width:100%;margin-bottom:20px">
+          <span style="font-size:28px">&#127873;</span>
+          <div style="text-align:left"><div style="font-size:14px;font-weight:800;color:#92400e">+1 GB besplatno!</div><div style="font-size:11px;color:#a16207;margin-top:2px">Dodatnih 1 GB za auto-backup</div></div>
+        </div>
+        <div class="btn-primary" style="width:100%;margin:0;border-radius:14px">Ukljuci backup (+1 GB)</div>
+        <div style="padding:14px;font-size:13px;color:#94a3b8;font-weight:500">Kasnije</div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="section-title"><h2>6 Tabova</h2></div>
+
+<div class="screens">
+
+  <!-- TAB 1: MySpace -->
+  <div class="screen-wrapper">
+    <div class="screen-label">MySpace</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content">
+        <div class="header-gradient">
+          <div class="header-row">
+            <div class="header-title">MySpace</div>
+            <span style="font-size:18px;opacity:0.8">&#128269;</span>
+          </div>
+          <div class="header-subtitle">Vasi fajlovi u cloudu</div>
+        </div>
+        <div style="padding-bottom:74px">
+          <div class="card" style="margin-top:10px">
+            <div style="font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Quick Access</div>
+            <div style="display:flex;gap:14px">
+              <div style="text-align:center"><div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#dbeafe,#bfdbfe);display:flex;align-items:center;justify-content:center;font-size:18px">&#128193;</div><div style="font-size:9px;color:#64748b;margin-top:4px;font-weight:500">Slike</div></div>
+              <div style="text-align:center"><div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#fce7f3,#fbcfe8);display:flex;align-items:center;justify-content:center;font-size:18px">&#128247;</div><div style="font-size:9px;color:#64748b;margin-top:4px;font-weight:500">Camera</div></div>
+              <div style="text-align:center"><div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#dcfce7,#bbf7d0);display:flex;align-items:center;justify-content:center;font-size:18px">&#128196;</div><div style="font-size:9px;color:#64748b;margin-top:4px;font-weight:500">Docs</div></div>
+              <div style="text-align:center"><div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#fff7ed,#ffedd5);display:flex;align-items:center;justify-content:center;font-size:18px">&#127925;</div><div style="font-size:9px;color:#64748b;margin-top:4px;font-weight:500">Audio</div></div>
+            </div>
+          </div>
+          <div style="padding:12px 12px 4px;font-size:11px;font-weight:700;color:#334155">Folderi</div>
+          <div class="card" style="padding:0;margin-top:4px">
+            <div class="folder-item"><div class="folder-icon" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe)">&#128193;</div><div><div class="folder-name">Camera Roll</div><div class="folder-meta">247 fajlova &middot; 1.2 GB</div></div></div>
+            <div class="folder-item"><div class="folder-icon" style="background:linear-gradient(135deg,#fce7f3,#fbcfe8)">&#128193;</div><div><div class="folder-name">Screenshots</div><div class="folder-meta">89 fajlova &middot; 156 MB</div></div></div>
+            <div class="folder-item"><div class="folder-icon" style="background:linear-gradient(135deg,#dcfce7,#bbf7d0)">&#128193;</div><div><div class="folder-name">Downloads</div><div class="folder-meta">34 fajla &middot; 678 MB</div></div></div>
+            <div class="folder-item"><div class="folder-icon" style="background:linear-gradient(135deg,#fff7ed,#ffedd5)">&#128193;</div><div><div class="folder-name">Documents</div><div class="folder-meta">12 fajlova &middot; 45 MB</div></div></div>
+            <div class="folder-item" style="border:none"><div class="folder-icon" style="background:linear-gradient(135deg,#f3e8ff,#e9d5ff)">&#128193;</div><div><div class="folder-name">WhatsApp Images</div><div class="folder-meta">523 fajla &middot; 2.1 GB</div></div></div>
+          </div>
+        </div>
+        <div class="fab">+</div>
+        <div class="tab-bar">
+          <div class="tab-item active"><div class="tab-icon">&#128193;</div><span>MySpace</span></div>
+          <div class="tab-item"><div class="tab-icon">&#128248;</div><span>MyPhoto</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127748;</div><span>Albums</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127909;</div><span>Video</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9729;</div><span>Upload</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- TAB 2: MyPhoto -->
+  <div class="screen-wrapper">
+    <div class="screen-label">MyPhoto</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content">
+        <div class="header-gradient">
+          <div class="header-row">
+            <div class="header-title">&#9729; MyPhoto</div>
+            <span style="font-size:18px;opacity:0.8">&#128269;</span>
+          </div>
+        </div>
+        <div class="sync-bar" style="margin-top:-8px">
+          <div class="sync-dot"></div>
+          3 slike cekaju sync &middot; Tap za upload
+        </div>
+        <div class="toggle-tabs">
+          <div class="toggle-tab active">Device</div>
+          <div class="toggle-tab">Cloud</div>
+        </div>
+        <div class="photo-grid" style="padding-bottom:74px">
+          <div class="photo-cell c1"></div><div class="photo-cell c2"></div><div class="photo-cell c3"></div>
+          <div class="photo-cell c4"></div><div class="photo-cell c5"></div><div class="photo-cell c6"></div>
+          <div class="photo-cell c7"></div><div class="photo-cell c8"></div><div class="photo-cell c9"></div>
+          <div class="photo-cell c10"></div><div class="photo-cell c11"></div><div class="photo-cell c12"></div>
+          <div class="photo-cell c3"></div><div class="photo-cell c1"></div><div class="photo-cell c5"></div>
+          <div class="photo-cell c8"></div><div class="photo-cell c4"></div><div class="photo-cell c6"></div>
+          <div class="photo-cell c9"></div><div class="photo-cell c2"></div><div class="photo-cell c7"></div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab-item"><div class="tab-icon">&#128193;</div><span>MySpace</span></div>
+          <div class="tab-item active"><div class="tab-icon">&#128248;</div><span>MyPhoto</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127748;</div><span>Albums</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127909;</div><span>Video</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9729;</div><span>Upload</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- TAB 3: Albums -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Albums</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content">
+        <div class="header-gradient">
+          <div class="header-row">
+            <div class="header-title">Albums</div>
+            <span style="font-size:20px;background:rgba(255,255,255,0.15);border-radius:10px;width:32px;height:32px;display:flex;align-items:center;justify-content:center">+</span>
+          </div>
+        </div>
+        <div class="album-grid" style="padding-bottom:74px">
+          <div class="album-card"><div class="album-cover c1"></div><div class="album-info"><div class="album-name">Camera Roll</div><div class="album-count">247 slika</div></div></div>
+          <div class="album-card"><div class="album-cover c4"></div><div class="album-info"><div class="album-name">Favorites &#9829;</div><div class="album-count">34 slika</div></div></div>
+          <div class="album-card"><div class="album-cover c8"></div><div class="album-info"><div class="album-name">Leto 2025</div><div class="album-count">89 slika</div></div></div>
+          <div class="album-card"><div class="album-cover c6"></div><div class="album-info"><div class="album-name">Porodica</div><div class="album-count">156 slika</div></div></div>
+          <div class="album-card"><div class="album-cover c5"></div><div class="album-info"><div class="album-name">Priroda</div><div class="album-count">67 slika</div></div></div>
+          <div class="album-card"><div class="album-cover c9"></div><div class="album-info"><div class="album-name">Posao</div><div class="album-count">23 slika</div></div></div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab-item"><div class="tab-icon">&#128193;</div><span>MySpace</span></div>
+          <div class="tab-item"><div class="tab-icon">&#128248;</div><span>MyPhoto</span></div>
+          <div class="tab-item active"><div class="tab-icon">&#127748;</div><span>Albums</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127909;</div><span>Video</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9729;</div><span>Upload</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- TAB 4: Video -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Video</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content">
+        <div class="header-gradient">
+          <div class="header-title">Video</div>
+        </div>
+        <div class="toggle-tabs">
+          <div class="toggle-tab active">Svi</div>
+          <div class="toggle-tab">Device</div>
+          <div class="toggle-tab">Cloud</div>
+        </div>
+        <div class="video-grid" style="padding-bottom:74px">
+          <div class="video-card"><div class="video-thumb c2"><div class="play-btn">&#9654;</div><div class="duration">2:34</div></div></div>
+          <div class="video-card"><div class="video-thumb c8"><div class="play-btn">&#9654;</div><div class="duration">0:45</div></div></div>
+          <div class="video-card"><div class="video-thumb c5"><div class="play-btn">&#9654;</div><div class="duration">5:12</div></div></div>
+          <div class="video-card"><div class="video-thumb c11"><div class="play-btn">&#9654;</div><div class="duration">1:08</div></div></div>
+          <div class="video-card"><div class="video-thumb c3"><div class="play-btn">&#9654;</div><div class="duration">3:45</div></div></div>
+          <div class="video-card"><div class="video-thumb c7"><div class="play-btn">&#9654;</div><div class="duration">0:22</div></div></div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab-item"><div class="tab-icon">&#128193;</div><span>MySpace</span></div>
+          <div class="tab-item"><div class="tab-icon">&#128248;</div><span>MyPhoto</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127748;</div><span>Albums</span></div>
+          <div class="tab-item active"><div class="tab-icon">&#127909;</div><span>Video</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9729;</div><span>Upload</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- TAB 5: Upload -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Upload</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content">
+        <div class="header-gradient" style="text-align:center;padding-bottom:24px">
+          <div class="header-title" style="font-size:20px">&#9729; Upload</div>
+          <div class="header-subtitle">Sync your files to cloud</div>
+        </div>
+        <div class="card-orange" style="margin-top:-10px;font-size:15px">
+          &#128640; Upload New Files
+        </div>
+        <div class="card">
+          <div class="progress-item">
+            <div class="progress-row"><div class="progress-name">Vacation_2025.zip</div><div class="cancel-btn">&#10005;</div></div>
+            <div class="progress-bar"><div class="progress-fill green" style="width:75%"></div></div>
+            <div class="progress-text">75% &middot; Uploading...</div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-row"><div class="progress-name">Holiday_Photos.tar</div><div class="cancel-btn">&#10005;</div></div>
+            <div class="progress-bar"><div class="progress-fill pink" style="width:30%"></div></div>
+            <div class="progress-text">30% &middot; Connecting...</div>
+          </div>
+          <div class="progress-item">
+            <div class="progress-row"><div class="progress-name">Meeting_Notes.pdf</div><div style="color:#22c55e;font-size:16px;font-weight:700">&#10003;</div></div>
+            <div class="progress-bar"><div class="progress-fill blue" style="width:100%"></div></div>
+            <div class="progress-text">Complete</div>
+          </div>
+        </div>
+        <div style="padding:8px 12px 4px;font-size:11px;font-weight:700;color:#334155">Recent Transfers</div>
+        <div style="padding:0 12px 74px">
+          <div class="transfers">
+            <div class="transfer-card blue"><span class="check">&#10003;</span><div class="transfer-name">Holiday_Photos</div><div class="transfer-meta">2 min ago</div></div>
+            <div class="transfer-card orange"><span class="check">&#10003;</span><div class="transfer-name">Design_Mockup</div><div class="transfer-meta">5 min ago</div></div>
+            <div class="transfer-card blue"><span class="check">&#10003;</span><div class="transfer-name">Meeting_Notes</div><div class="transfer-meta">12 min ago</div></div>
+            <div class="transfer-card orange"><span class="check">&#10003;</span><div class="transfer-name">Screen_Record</div><div class="transfer-meta">1 hour ago</div></div>
+          </div>
+        </div>
+        <div class="tab-bar">
+          <div class="tab-item"><div class="tab-icon">&#128193;</div><span>MySpace</span></div>
+          <div class="tab-item"><div class="tab-icon">&#128248;</div><span>MyPhoto</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127748;</div><span>Albums</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127909;</div><span>Video</span></div>
+          <div class="tab-item active"><div class="tab-icon">&#9729;</div><span>Upload</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- TAB 6: Settings -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Settings</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content">
+        <div class="header-gradient">
+          <div class="header-title">Settings</div>
+        </div>
+        <div class="card" style="margin-top:10px">
+          <div class="profile-card">
+            <div class="avatar">E</div>
+            <div><div class="profile-name">Exalted</div><div class="profile-email">exalted.venus86@gmail.com</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Storage</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:6px"><span style="color:#334155;font-weight:700">2.4 GB / 3 GB</span><span style="color:#f97316;font-weight:700">80%</span></div>
+          <div class="storage-bar"><div class="storage-fill" style="width:80%"></div></div>
+          <div style="background:linear-gradient(135deg,#fb923c,#f97316);color:#fff;text-align:center;padding:10px;border-radius:10px;font-size:12px;font-weight:700;margin-top:6px;box-shadow:0 4px 12px rgba(249,115,22,0.25)">&#11014; Upgrade Storage</div>
+        </div>
+        <div class="card" style="padding:0">
+          <div style="padding:10px 14px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Backup & Sync</div>
+          <div class="setting-row"><span class="setting-label">Auto Backup</span><div class="toggle"></div></div>
+          <div class="setting-row"><span class="setting-label">WiFi Only</span><div class="toggle"></div></div>
+          <div class="setting-row"><span class="setting-label">Upload Quality</span><span style="font-size:12px;color:#0ea5e9;font-weight:600">Original</span></div>
+          <div class="setting-row" style="border:none"><span class="setting-label">Backup Folders</span><span style="font-size:12px;color:#0ea5e9;font-weight:600">All &#8250;</span></div>
+        </div>
+        <div class="card" style="padding:0">
+          <div style="padding:10px 14px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">App</div>
+          <div class="setting-row"><span class="setting-label">Dark Mode</span><div class="toggle off"></div></div>
+          <div class="setting-row"><span class="setting-label">Notifications</span><div class="toggle"></div></div>
+          <div class="setting-row" style="border:none"><span class="setting-label">About</span><span style="font-size:12px;color:#94a3b8">v1.0.0</span></div>
+        </div>
+        <div style="margin:10px 12px 80px;padding:13px;background:linear-gradient(135deg,#fef2f2,#fee2e2);border-radius:14px;text-align:center;color:#ef4444;font-weight:700;font-size:13px">Sign Out</div>
+        <div class="tab-bar">
+          <div class="tab-item"><div class="tab-icon">&#128193;</div><span>MySpace</span></div>
+          <div class="tab-item"><div class="tab-icon">&#128248;</div><span>MyPhoto</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127748;</div><span>Albums</span></div>
+          <div class="tab-item"><div class="tab-icon">&#127909;</div><span>Video</span></div>
+          <div class="tab-item"><div class="tab-icon">&#9729;</div><span>Upload</span></div>
+          <div class="tab-item active"><div class="tab-icon">&#9881;</div><span>Settings</span></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="section-title"><h2>Dodatni Ekrani</h2></div>
+
+<div class="screens">
+
+  <!-- SEARCH -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Search</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar dark"><span>9:41</span><div class="status-icons" style="color:#334155">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content" style="background:#f8fafc">
+        <div style="padding:12px 12px 8px">
+          <div style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:10px">Search</div>
+          <div class="search-box">&#128269; Search photos, videos, files...</div>
+        </div>
+        <div style="padding:6px 12px 2px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">AI Suggestions</div>
+        <div class="search-suggestions">
+          <div class="suggestion">&#128054; Pets</div>
+          <div class="suggestion">&#128663; Cars</div>
+          <div class="suggestion">&#127828; Food</div>
+          <div class="suggestion">&#127795; Nature</div>
+          <div class="suggestion">&#128101; People</div>
+          <div class="suggestion">&#9992; Travel</div>
+          <div class="suggestion">&#127960; Architecture</div>
+          <div class="suggestion">&#127749; Sunset</div>
+        </div>
+        <div style="padding:12px 12px 4px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px">Recent</div>
+        <div style="padding:0 12px">
+          <div style="padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:12px;color:#334155;display:flex;align-items:center;gap:8px"><span style="color:#94a3b8">&#128337;</span> beach vacation</div>
+          <div style="padding:10px 0;border-bottom:1px solid #e2e8f0;font-size:12px;color:#334155;display:flex;align-items:center;gap:8px"><span style="color:#94a3b8">&#128337;</span> birthday party</div>
+          <div style="padding:10px 0;font-size:12px;color:#334155;display:flex;align-items:center;gap:8px"><span style="color:#94a3b8">&#128337;</span> dog photos</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- PHOTO VIEWER -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Photo Viewer</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content" style="background:#000;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;padding:4px 16px;color:#fff;font-size:18px">
+          <span>&#10005;</span>
+          <span>&#8942;</span>
+        </div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:8px">
+          <div style="width:100%;height:320px;background:linear-gradient(135deg,#bae6fd,#93c5fd,#60a5fa,#3b82f6);border-radius:4px"></div>
+        </div>
+        <div style="background:rgba(255,255,255,0.05);backdrop-filter:blur(20px);border-radius:20px 20px 0 0;padding:16px 20px 24px;display:flex;justify-content:space-around;color:#fff">
+          <div style="text-align:center;font-size:18px"><div>&#9825;</div><div style="font-size:9px;margin-top:4px;color:#94a3b8;font-weight:500">Favorite</div></div>
+          <div style="text-align:center;font-size:18px"><div>&#9998;</div><div style="font-size:9px;margin-top:4px;color:#94a3b8;font-weight:500">Edit</div></div>
+          <div style="text-align:center;font-size:18px"><div>&#8599;</div><div style="font-size:9px;margin-top:4px;color:#94a3b8;font-weight:500">Share</div></div>
+          <div style="text-align:center;font-size:18px"><div>&#9432;</div><div style="font-size:9px;margin-top:4px;color:#94a3b8;font-weight:500">Info</div></div>
+          <div style="text-align:center;font-size:18px;color:#f87171"><div>&#128465;</div><div style="font-size:9px;margin-top:4px;font-weight:500">Delete</div></div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- STORAGE / PRICING -->
+  <div class="screen-wrapper">
+    <div class="screen-label">Storage Plans</div>
+    <div class="phone"><div class="phone-inner">
+      <div class="status-bar"><span>9:41</span><div class="status-icons">&#9679;&#9679;&#9679; &#9889;</div></div>
+      <div class="screen-content">
+        <div class="header-gradient" style="text-align:center;padding-bottom:24px">
+          <div class="header-title">Upgrade Storage</div>
+          <div class="header-subtitle">All plans include all features</div>
+        </div>
+        <div class="toggle-tabs" style="margin-top:10px">
+          <div class="toggle-tab active">Monthly</div>
+          <div class="toggle-tab">Yearly <span style="font-size:9px;color:#22c55e;font-weight:700">-17%</span></div>
+        </div>
+        <div style="padding-bottom:20px">
+          <div class="plan-card">
+            <div><div class="plan-name plan-free">Free</div><div class="plan-storage">1 GB</div></div>
+            <div style="text-align:right"><div class="plan-price plan-free">&euro;0</div><div class="plan-period">forever</div></div>
+          </div>
+          <div class="plan-card">
+            <div><div class="plan-name">Mini</div><div class="plan-storage">32 GB</div></div>
+            <div style="text-align:right"><div class="plan-price">&euro;0.69</div><div class="plan-period">/month</div></div>
+          </div>
+          <div class="plan-card">
+            <div><div class="plan-name">Basic</div><div class="plan-storage">64 GB</div></div>
+            <div style="text-align:right"><div class="plan-price">&euro;0.99</div><div class="plan-period">/month</div></div>
+          </div>
+          <div class="plan-card popular">
+            <div class="plan-badge">POPULAR</div>
+            <div><div class="plan-name">Starter</div><div class="plan-storage">150 GB</div></div>
+            <div style="text-align:right"><div class="plan-price">&euro;2.49</div><div class="plan-period">/month</div><div class="plan-yearly">&euro;24.90/year</div></div>
+          </div>
+          <div class="plan-card">
+            <div><div class="plan-name">Plus</div><div class="plan-storage">250 GB</div></div>
+            <div style="text-align:right"><div class="plan-price">&euro;3.99</div><div class="plan-period">/month</div></div>
+          </div>
+          <div class="plan-card">
+            <div><div class="plan-name">Pro</div><div class="plan-storage">500 GB</div></div>
+            <div style="text-align:right"><div class="plan-price">&euro;7.49</div><div class="plan-period">/month</div></div>
+          </div>
+          <div class="plan-card">
+            <div><div class="plan-name">Pro+</div><div class="plan-storage">750 GB</div></div>
+            <div style="text-align:right"><div class="plan-price">&euro;10.99</div><div class="plan-period">/month</div></div>
+          </div>
+          <div class="plan-card">
+            <div><div class="plan-name">Max</div><div class="plan-storage">1 TB</div></div>
+            <div style="text-align:right"><div class="plan-price">&euro;14.49</div><div class="plan-period">/month</div></div>
+          </div>
+          <div class="plan-card">
+            <div><div class="plan-name">Ultra</div><div class="plan-storage">2 TB</div></div>
+            <div style="text-align:right"><div class="plan-price">&euro;24.99</div><div class="plan-period">/month</div></div>
+          </div>
+          <div style="margin:12px;padding:10px;text-align:center;font-size:10px;color:#64748b;line-height:1.5">
+            &#127873; Start with up to 10 GB free<br>
+            &#9745; Cancel anytime &middot; EU servers &middot; GDPR
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="footer">
+  MyPhoto Mobile &middot; <span>Sync-Swift</span> Design System &middot; 12 ekrana &middot; v2.0
+</div>
+
+</body>
+</html>

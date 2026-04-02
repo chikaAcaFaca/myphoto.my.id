@@ -59,15 +59,15 @@ function RootNavigator() {
     );
   }
 
-  if (user) {
-    return (
-      <SyncProvider>
-        <Slot />
-      </SyncProvider>
-    );
-  }
-
-  return <Slot />;
+  // SyncProvider must always wrap Slot for authenticated users because
+  // Expo Router v6 eagerly renders all tab screens including Settings/Upload
+  // which use useSync(). Without this, they crash with "useSync must be used
+  // within a SyncProvider".
+  return (
+    <SyncProvider>
+      <Slot />
+    </SyncProvider>
+  );
 }
 
 export default function RootLayout() {
