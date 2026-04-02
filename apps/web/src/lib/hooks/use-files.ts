@@ -15,7 +15,6 @@ import {
 } from 'firebase/firestore';
 import type { FileMetadata } from '@myphoto/shared';
 import { useAuthStore, useFilesStore } from '../stores';
-import { generateDownloadUrl } from '../s3';
 import { getIdToken } from '../firebase';
 import { queueFileForUpload, requestBackgroundSync } from '../upload-queue';
 
@@ -396,7 +395,20 @@ export function useBulkDeleteFiles() {
 export function useGetDownloadUrl() {
   return useMutation({
     mutationFn: async (s3Key: string) => {
-      return generateDownloadUrl(s3Key);
+      // Use server-side API to generate presigned URL (s3.ts credentials are
+      // server-only and not available in the browser bundle)
+      const token = await getIdToken();
+      const res = await fetch('/api/files/download-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ s3Key }),
+      });
+      if (!res.ok) throw new Error('Failed to get download URL');
+      const data = await res.json();
+      return data.downloadUrl;
     },
   });
 }
