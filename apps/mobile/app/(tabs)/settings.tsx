@@ -159,6 +159,28 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* Creative */}
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>KREATIVNI ALATI</Text>
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/creative-hub')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="color-wand-outline" size={18} color="#f97316" />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Meme, Strip, Stikeri</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => router.push('/meme-wall')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="flame-outline" size={18} color="#ef4444" />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>MemeWall</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontSize: 11, color: themeColors.textMuted }}>Javni mimovi</Text>
+              <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Library */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
           <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>BIBLIOTEKA</Text>

@@ -293,6 +293,14 @@ export default function PhotoViewerScreen() {
               <Text style={styles.actionText}>Uredi</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.action} onPress={() => router.push({
+              pathname: '/creative-hub',
+              params: { id: id!, name: name || 'Photo' },
+            })}>
+              <Ionicons name="color-wand-outline" size={22} color={colors.accent} />
+              <Text style={[styles.actionText, { color: colors.accent }]}>Kreiraj</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.action} onPress={handleToggleFavorite} disabled={togglingFav}>
               {togglingFav ? (
                 <ActivityIndicator size="small" color="#fff" />
