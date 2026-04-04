@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  RefreshControl, Image, Dimensions, Share, Alert,
+  RefreshControl, Image, Dimensions, Share, Alert, ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
@@ -16,6 +17,8 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 interface MemePost {
   id: string;
   imageUrl: string;
+  videoUrl?: string;
+  mediaType: 'image' | 'video' | 'gif';
   caption: string;
   authorName: string;
   authorAvatar: string;
@@ -31,6 +34,17 @@ export default function MemeWallScreen() {
   const [memes, setMemes] = useState<MemePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [visibleId, setVisibleId] = useState<string | null>(null);
+
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const firstVideo = viewableItems.find(v => {
+      const item = v.item as MemePost;
+      return item.mediaType === 'video' && v.isViewable;
+    });
+    setVisibleId(firstVideo ? (firstVideo.item as MemePost).id : null);
+  }, []);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
 
   const fetchMemes = useCallback(async () => {
     try {
@@ -105,13 +119,34 @@ export default function MemeWallScreen() {
         </View>
       </View>
 
-      {/* Meme image */}
-      <Image
-        source={{ uri: item.imageUrl }}
-        style={styles.memeImage}
-        contentFit="cover"
-        transition={200}
-      />
+      {/* Meme media */}
+      {item.mediaType === 'video' && item.videoUrl ? (
+        <View>
+          <Video
+            source={{ uri: item.videoUrl }}
+            style={styles.memeImage}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay={visibleId === item.id}
+            isLooping
+            isMuted={false}
+          />
+          <View style={styles.videoBadge}>
+            <Ionicons name="videocam" size={12} color="#fff" />
+          </View>
+        </View>
+      ) : (
+        <Image
+          source={{ uri: item.imageUrl }}
+          style={styles.memeImage}
+          contentFit="cover"
+          transition={200}
+        />
+      )}
+      {item.mediaType === 'gif' && (
+        <View style={styles.videoBadge}>
+          <Text style={{ color: '#fff', fontSize: 10, ...fonts.bold }}>GIF</Text>
+        </View>
+      )}
 
       {/* Caption */}
       {item.caption ? (
@@ -182,6 +217,8 @@ export default function MemeWallScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 80 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         />
       )}
@@ -227,4 +264,8 @@ const styles = StyleSheet.create({
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionCount: { fontSize: 12, ...fonts.semibold },
   watermark: { fontSize: 10, color: colors.textMuted, ...fonts.medium },
+  videoBadge: {
+    position: 'absolute', top: 8, right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2,
+  },
 });

@@ -89,9 +89,32 @@ export default function AiCaptionScreen() {
     if (!imageUri) return;
     setGenerating(true);
     try {
-      // Try server-side AI caption generation first
       if (id) {
         const token = await getToken();
+
+        // Try AI-powered caption generation first
+        try {
+          const aiRes = await fetch(`${API_URL}/api/ai/generate-captions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ fileId: id, language: 'sr', count: 5 }),
+          });
+          if (aiRes.ok) {
+            const aiData = await aiRes.json();
+            if (aiData.captions && aiData.captions.length > 0) {
+              setCaptions(aiData.captions);
+              setGenerating(false);
+              return;
+            }
+          }
+        } catch {
+          // AI endpoint not available, fall back to templates
+        }
+
+        // Fallback: template-based captions using file labels
         const res = await fetch(`${API_URL}/api/files/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
@@ -100,7 +123,6 @@ export default function AiCaptionScreen() {
           const file = data.file || data;
           const labels = file.labels || [];
 
-          // Find matching template category
           let category = 'default';
           for (const label of labels) {
             const lower = label.toLowerCase();
@@ -111,7 +133,6 @@ export default function AiCaptionScreen() {
             if (lower.includes('car') || lower.includes('vehicle')) { category = 'vehicle'; break; }
           }
 
-          // Shuffle and pick 5
           const templates = [...(CAPTION_TEMPLATES[category] || CAPTION_TEMPLATES.default)];
           for (let i = templates.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));

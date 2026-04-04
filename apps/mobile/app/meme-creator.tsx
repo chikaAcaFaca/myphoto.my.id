@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions,
   Alert, ActivityIndicator, Share, Platform, ScrollView, KeyboardAvoidingView,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { Video, ResizeMode } from 'expo-av';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
@@ -35,31 +36,40 @@ export default function MemeCreatorScreen() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
   const { getToken } = useAuth();
 
-  const [imageUri, setImageUri] = useState<string | null>(
+  const [mediaUri, setMediaUri] = useState<string | null>(
     id ? `${API_URL}/api/thumbnail/${id}?size=large` : null
   );
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'gif'>('image');
   const [topText, setTopText] = useState('');
   const [bottomText, setBottomText] = useState('');
   const [template, setTemplate] = useState(MEME_TEMPLATES[0]);
   const [fontSize, setFontSize] = useState(FONT_SIZES[1]);
   const [saving, setSaving] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const videoRef = useRef<Video>(null);
 
-  const pickImage = useCallback(async () => {
+  const pickMedia = useCallback(async (type: 'image' | 'video') => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: type === 'video' ? ['videos'] : ['images'],
       quality: 0.9,
+      videoMaxDuration: 30, // max 30 sec for memes
     });
     if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+      const asset = result.assets[0];
+      setMediaUri(asset.uri);
+      // Detect if it's a GIF
+      const isGif = asset.uri.toLowerCase().endsWith('.gif') ||
+                    asset.mimeType?.includes('gif');
+      setMediaType(type === 'video' ? 'video' : (isGif ? 'gif' : 'image'));
     }
   }, []);
 
   const handleShare = useCallback(async () => {
-    if (!imageUri) return;
+    if (!mediaUri) return;
     try {
-      const shareUrl = imageUri.startsWith('http')
+      const shareUrl = mediaUri.startsWith('http')
         ? `${API_URL}/api/stream/${id}`
-        : imageUri;
+        : mediaUri;
       await Share.share({
         message: `${topText ? topText + '\n' : ''}${bottomText ? bottomText + '\n' : ''}\nNapravljeno u MyPhoto app`,
         url: shareUrl,
@@ -67,20 +77,21 @@ export default function MemeCreatorScreen() {
     } catch (e) {
       console.log('Share error:', e);
     }
-  }, [imageUri, topText, bottomText, id]);
+  }, [mediaUri, topText, bottomText, id]);
 
   const handleSave = useCallback(async () => {
-    if (!imageUri) return;
+    if (!mediaUri) return;
     setSaving(true);
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
+      const perms = mediaType === 'video' ? ['video'] : ['photo'];
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, perms as any);
       if (status !== 'granted') {
         Alert.alert('Dozvola', 'Dozvolite pristup galeriji.');
         return;
       }
 
-      let saveUri = imageUri;
-      if (imageUri.startsWith('http')) {
+      let saveUri = mediaUri;
+      if (mediaUri.startsWith('http')) {
         const token = await getToken();
         const urlRes = await fetch(`${API_URL}/api/files/${id}/download-url`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -99,7 +110,7 @@ export default function MemeCreatorScreen() {
     } finally {
       setSaving(false);
     }
-  }, [imageUri, id, getToken]);
+  }, [mediaUri, mediaType, id, getToken]);
 
   return (
     <KeyboardAvoidingView
@@ -126,11 +137,50 @@ export default function MemeCreatorScreen() {
         </View>
 
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-          {/* Image preview with text overlay */}
+          {/* Media type picker */}
+          {!mediaUri && (
+            <View style={styles.mediaTypePicker}>
+              <TouchableOpacity
+                style={[styles.mediaTypeBtn, { backgroundColor: '#3b82f6' }]}
+                onPress={() => pickMedia('image')}
+              >
+                <Ionicons name="image-outline" size={24} color="#fff" />
+                <Text style={styles.mediaTypeText}>Slika / GIF</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.mediaTypeBtn, { backgroundColor: '#8b5cf6' }]}
+                onPress={() => pickMedia('video')}
+              >
+                <Ionicons name="videocam-outline" size={24} color="#fff" />
+                <Text style={styles.mediaTypeText}>Video</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Media preview with text overlay */}
           <View style={styles.previewContainer}>
-            {imageUri ? (
+            {mediaUri ? (
               <View style={styles.memeFrame}>
-                <Image source={{ uri: imageUri }} style={styles.memeImage} contentFit="cover" />
+                {mediaType === 'video' ? (
+                  <TouchableOpacity activeOpacity={0.9} onPress={() => setIsPlaying(!isPlaying)}>
+                    <Video
+                      ref={videoRef}
+                      source={{ uri: mediaUri }}
+                      style={styles.memeImage}
+                      resizeMode={ResizeMode.COVER}
+                      shouldPlay={isPlaying}
+                      isLooping
+                      isMuted={false}
+                    />
+                    {!isPlaying && (
+                      <View style={styles.playOverlay}>
+                        <Ionicons name="play" size={48} color="rgba(255,255,255,0.8)" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <Image source={{ uri: mediaUri }} style={styles.memeImage} contentFit="cover" />
+                )}
                 {/* Top text */}
                 {template.topPos !== null && topText ? (
                   <Text style={[styles.memeText, { top: `${template.topPos * 100}%`, fontSize: fontSize.size }]}>
@@ -143,15 +193,17 @@ export default function MemeCreatorScreen() {
                     {bottomText.toUpperCase()}
                   </Text>
                 ) : null}
+                {/* Media type badge */}
+                {mediaType !== 'image' && (
+                  <View style={styles.mediaTypeBadge}>
+                    <Ionicons name={mediaType === 'video' ? 'videocam' : 'infinite'} size={12} color="#fff" />
+                    <Text style={styles.mediaTypeBadgeText}>{mediaType === 'video' ? 'VIDEO' : 'GIF'}</Text>
+                  </View>
+                )}
                 {/* Watermark */}
                 <Text style={styles.watermark}>Made with MyPhoto</Text>
               </View>
-            ) : (
-              <TouchableOpacity style={[styles.pickImage, { backgroundColor: tc.bgCard }]} onPress={pickImage}>
-                <Ionicons name="image-outline" size={48} color={tc.textMuted} />
-                <Text style={[styles.pickText, { color: tc.textMuted }]}>Izaberi sliku</Text>
-              </TouchableOpacity>
-            )}
+            ) : null}
           </View>
 
           {/* Controls */}
@@ -206,12 +258,18 @@ export default function MemeCreatorScreen() {
               ))}
             </View>
 
-            {/* Pick different image */}
-            {imageUri && (
-              <TouchableOpacity style={styles.changeBtn} onPress={pickImage}>
-                <Ionicons name="swap-horizontal" size={16} color={tc.primary} />
-                <Text style={[styles.changeBtnText, { color: tc.primary }]}>Promeni sliku</Text>
-              </TouchableOpacity>
+            {/* Pick different media */}
+            {mediaUri && (
+              <View style={styles.changeRow}>
+                <TouchableOpacity style={styles.changeBtn} onPress={() => pickMedia('image')}>
+                  <Ionicons name="image-outline" size={16} color={tc.primary} />
+                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>Slika/GIF</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.changeBtn} onPress={() => pickMedia('video')}>
+                  <Ionicons name="videocam-outline" size={16} color={tc.primary} />
+                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>Video</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </ScrollView>
@@ -266,4 +324,25 @@ const styles = StyleSheet.create({
     marginTop: 12, paddingVertical: 10,
   },
   changeBtnText: { fontSize: 13, ...fonts.semibold },
+  // Media type picker
+  mediaTypePicker: {
+    flexDirection: 'row', gap: 12, justifyContent: 'center',
+    paddingVertical: 16, paddingHorizontal: 16,
+  },
+  mediaTypeBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: radius.md, paddingVertical: 16,
+  },
+  mediaTypeText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  changeRow: { flexDirection: 'row', gap: 16, justifyContent: 'center', marginTop: 12 },
+  // Video overlay
+  playOverlay: {
+    ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  mediaTypeBadge: {
+    position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+  },
+  mediaTypeBadgeText: { color: '#fff', fontSize: 10, ...fonts.bold },
 });
