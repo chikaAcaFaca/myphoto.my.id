@@ -51,6 +51,7 @@
     },
     "plugins": [
       "expo-router",
+      "@react-native-ml-kit/image-labeling",
       [
         "expo-media-library",
         {

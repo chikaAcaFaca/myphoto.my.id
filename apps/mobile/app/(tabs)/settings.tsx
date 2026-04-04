@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -8,12 +8,35 @@ import { useSync } from '@/lib/sync-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
+import { processUnindexedPhotos, getAiStatus, type AiProcessingStatus } from '@/lib/background-ai-processor';
 
 export default function SettingsScreen() {
   const { user, appUser, signOut } = useAuth();
   const { isDark, mode, setMode } = useTheme();
   const { settings, updateSettings, deviceAlbums, isLoadingAlbums, refreshDeviceAlbums } = useSync();
   const [isFolderSectionOpen, setIsFolderSectionOpen] = useState(false);
+  const [aiStatus, setAiStatus] = useState<AiProcessingStatus | null>(null);
+  const [aiProcessing, setAiProcessing] = useState(false);
+
+  useEffect(() => {
+    getAiStatus().then(setAiStatus).catch(() => {});
+  }, []);
+
+  const handleRunAi = useCallback(async () => {
+    setAiProcessing(true);
+    try {
+      const count = await processUnindexedPhotos((done, total) => {
+        setAiStatus(prev => prev ? { ...prev, indexed: (prev.indexed || 0) + 1, processing: true } : prev);
+      });
+      const updated = await getAiStatus();
+      setAiStatus(updated);
+      Alert.alert('AI Indeksiranje', `Obradjeno ${count} slika.`);
+    } catch (e) {
+      Alert.alert('Greska', 'AI indeksiranje nije uspelo.');
+    } finally {
+      setAiProcessing(false);
+    }
+  }, []);
 
   const storageUsed = appUser?.storageUsed || 0;
   const storageLimit = appUser?.storageLimit || 0;
@@ -174,6 +197,33 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
+        </View>
+
+        {/* AI */}
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>AI NA UREDJAJU</Text>
+          <View style={styles.settingRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Indeksirano slika</Text>
+              <Text style={{ fontSize: 11, color: themeColors.textMuted }}>
+                {aiStatus ? `${aiStatus.indexed} / ${aiStatus.totalOnDevice} na uredjaju` : 'Ucitavanje...'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.upgradeBtn, { paddingVertical: 7, paddingHorizontal: 14, marginTop: 0 }]}
+              onPress={handleRunAi}
+              disabled={aiProcessing}
+            >
+              {aiProcessing ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="sparkles" size={14} color="#fff" />
+                  <Text style={styles.upgradeBtnText}>Pokreni AI</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* App */}
