@@ -64,7 +64,7 @@ export default function SearchScreen() {
       style={styles.cell}
       activeOpacity={0.8}
       delayPressIn={100}
-      onPress={() => router.push({ pathname: '/photo-viewer', params: { id: item.id, name: item.name, type: item.type } })}
+      onPress={() => router.push({ pathname: '/photo-viewer', params: { id: item.id, name: item.name, type: item.type, isFavorite: item.isFavorite ? '1' : '0' } })}
     >
       <Image
         source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=small` }}

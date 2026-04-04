@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { apiClient, apiFetch } from '@/lib/api';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 import { formatBytes } from '@myphoto/shared';
 
@@ -19,6 +20,7 @@ const CELL = (width - GAP * (COL + 1)) / COL;
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function MyPhotoScreen() {
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [photos, setPhotos] = useState<FileMetadata[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +81,7 @@ export default function MyPhotoScreen() {
       style={styles.cell}
       activeOpacity={0.8}
       delayPressIn={100}
-      onPress={() => router.push({ pathname: '/photo-viewer', params: { id: item.id, name: item.name, type: item.type } })}
+      onPress={() => router.push({ pathname: '/photo-viewer', params: { id: item.id, name: item.name, type: item.type, isFavorite: item.isFavorite ? '1' : '0' } })}
     >
       <Image
         source={{ uri: getThumbnailUrl(item), headers: {} }}
@@ -100,10 +102,10 @@ export default function MyPhotoScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerBg}>
+        <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
               <Ionicons name="cloud" size={22} color="#fff" />

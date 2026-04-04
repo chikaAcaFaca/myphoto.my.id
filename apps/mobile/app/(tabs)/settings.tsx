@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { useSync } from '@/lib/sync-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
 
 export default function SettingsScreen() {
   const { user, appUser, signOut } = useAuth();
+  const { isDark, mode, setMode } = useTheme();
   const { settings, updateSettings, deviceAlbums, isLoadingAlbums, refreshDeviceAlbums } = useSync();
   const [isFolderSectionOpen, setIsFolderSectionOpen] = useState(false);
 
@@ -23,15 +26,17 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const themeColors = useTheme().colors;
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerBg}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.bg }]} edges={['top']}>
+      <View style={[styles.headerBg, { backgroundColor: themeColors.primary }]}>
         <Text style={styles.headerTitle}>Settings</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Profile */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
           <View style={styles.profileRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
@@ -39,17 +44,17 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.profileName}>{appUser?.displayName || 'User'}</Text>
+              <Text style={[styles.profileName, { color: themeColors.text }]}>{appUser?.displayName || 'User'}</Text>
               <Text style={styles.profileEmail}>{user?.email}</Text>
             </View>
           </View>
         </View>
 
         {/* Storage */}
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>STORAGE</Text>
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>STORAGE</Text>
           <View style={styles.storageRow}>
-            <Text style={styles.storageUsed}>{formatBytes(storageUsed)} / {formatBytes(storageLimit)}</Text>
+            <Text style={[styles.storageUsed, { color: themeColors.text }]}>{formatBytes(storageUsed)} / {formatBytes(storageLimit)}</Text>
             <Text style={[styles.storagePercent, storagePercent > 80 && { color: colors.error }]}>{storagePercent}%</Text>
           </View>
           <View style={styles.storageBar}>
@@ -62,10 +67,10 @@ export default function SettingsScreen() {
         </View>
 
         {/* Backup & Sync */}
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>BACKUP & SYNC</Text>
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>BACKUP & SYNC</Text>
           <View style={styles.settingRow}>
-            <Text style={styles.settingText}>Auto Backup</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>Auto Backup</Text>
             <Switch
               value={settings.autoBackup}
               onValueChange={(v) => updateSettings({ autoBackup: v })}
@@ -74,7 +79,7 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.settingRow}>
-            <Text style={styles.settingText}>WiFi Only</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>WiFi Only</Text>
             <Switch
               value={settings.syncMode === 'wifi_only'}
               onValueChange={(v) => updateSettings({ syncMode: v ? 'wifi_only' : 'wifi_and_mobile' })}
@@ -83,14 +88,14 @@ export default function SettingsScreen() {
             />
           </View>
           <TouchableOpacity style={styles.settingRow}>
-            <Text style={styles.settingText}>Upload Quality</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>Upload Quality</Text>
             <Text style={styles.settingValue}>{settings.uploadQuality === 'original' ? 'Original' : settings.uploadQuality === 'high' ? 'High' : 'Medium'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.settingRow, { borderBottomWidth: 0 }]}
             onPress={() => { setIsFolderSectionOpen(!isFolderSectionOpen); refreshDeviceAlbums(); }}
           >
-            <Text style={styles.settingText}>Backup Folders</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>Backup Folders</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={styles.settingValue}>
                 {(settings.backupFolders || []).length === 0 ? 'All' : `${settings.backupFolders.length}`}
@@ -131,24 +136,64 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* Library */}
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>BIBLIOTEKA</Text>
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/trash')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="trash-outline" size={18} color={themeColors.text} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Korpa</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/archive')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="archive-outline" size={18} color={themeColors.text} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Arhiva</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/memories')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="sparkles-outline" size={18} color={themeColors.text} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Secanja</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/people')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="people-outline" size={18} color={themeColors.text} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Ljudi</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => router.push('/duplicates')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="copy-outline" size={18} color={themeColors.text} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Duplikati</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
         {/* App */}
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>APP</Text>
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>APP</Text>
           <View style={styles.settingRow}>
-            <Text style={styles.settingText}>Dark Mode</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>Dark Mode</Text>
             <Switch
-              value={false}
-              disabled
+              value={isDark}
+              onValueChange={(v) => setMode(v ? 'dark' : 'light')}
               trackColor={{ false: '#cbd5e1', true: colors.success }}
               thumbColor="#fff"
             />
           </View>
-          <TouchableOpacity style={styles.settingRow}>
-            <Text style={styles.settingText}>Notifications</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/notifications-settings')}>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>Notifications</Text>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]}>
-            <Text style={styles.settingText}>About</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>About</Text>
             <Text style={styles.settingValueMuted}>v1.0.0</Text>
           </TouchableOpacity>
         </View>

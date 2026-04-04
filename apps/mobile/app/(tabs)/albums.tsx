@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  RefreshControl, Image, Dimensions,
+  RefreshControl, Image, Dimensions, Modal, TextInput, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,10 @@ export default function AlbumsScreen() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newAlbumName, setNewAlbumName] = useState('');
+  const [newAlbumDesc, setNewAlbumDesc] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const fetchAlbums = useCallback(async () => {
     try {
@@ -42,6 +46,30 @@ export default function AlbumsScreen() {
   useEffect(() => { fetchAlbums(); }, [fetchAlbums]);
 
   const onRefresh = () => { setRefreshing(true); fetchAlbums(); };
+
+  const handleCreateAlbum = async () => {
+    const trimmed = newAlbumName.trim();
+    if (!trimmed) { Alert.alert('Greska', 'Unesite naziv albuma.'); return; }
+    setCreating(true);
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/albums`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed, description: newAlbumDesc.trim() || undefined }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setShowCreate(false);
+      setNewAlbumName('');
+      setNewAlbumDesc('');
+      fetchAlbums();
+    } catch (e) {
+      Alert.alert('Greska', 'Kreiranje albuma nije uspelo.');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const renderAlbum = ({ item }: { item: Album }) => (
     <TouchableOpacity style={styles.albumCard} activeOpacity={0.7} delayPressIn={100}>
@@ -68,7 +96,7 @@ export default function AlbumsScreen() {
       <View style={styles.headerBg}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Albums</Text>
-          <TouchableOpacity style={styles.addBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.addBtn} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
             <Ionicons name="add" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -83,7 +111,7 @@ export default function AlbumsScreen() {
           <Ionicons name="albums-outline" size={64} color={colors.textMuted} />
           <Text style={styles.emptyText}>Nema albuma</Text>
           <Text style={styles.emptySubtext}>Kreirajte prvi album da organizujete slike</Text>
-          <TouchableOpacity style={styles.createBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.createBtn} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
             <Ionicons name="add-circle" size={20} color="#fff" />
             <Text style={styles.createBtnText}>Novi album</Text>
           </TouchableOpacity>
@@ -99,6 +127,38 @@ export default function AlbumsScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         />
       )}
+      {/* Create Album Modal */}
+      <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Novi album</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Naziv albuma"
+              placeholderTextColor={colors.textMuted}
+              value={newAlbumName}
+              onChangeText={setNewAlbumName}
+              autoFocus
+            />
+            <TextInput
+              style={[styles.modalInput, { height: 60 }]}
+              placeholder="Opis (opciono)"
+              placeholderTextColor={colors.textMuted}
+              value={newAlbumDesc}
+              onChangeText={setNewAlbumDesc}
+              multiline
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setShowCreate(false); setNewAlbumName(''); setNewAlbumDesc(''); }}>
+                <Text style={styles.modalCancelText}>Otkazi</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalCreateBtn} onPress={handleCreateAlbum} disabled={creating}>
+                {creating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.modalCreateText}>Kreiraj</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -131,4 +191,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md,
   },
   createBtnText: { color: '#fff', fontSize: 14, ...fonts.semibold },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 20, width: width - 48, maxWidth: 400 },
+  modalTitle: { fontSize: 18, ...fonts.bold, color: colors.text, marginBottom: 16 },
+  modalInput: {
+    backgroundColor: colors.bgInput, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 14, color: colors.text, marginBottom: 12, ...fonts.medium,
+  },
+  modalButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
+  modalCancelBtn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: radius.md },
+  modalCancelText: { fontSize: 14, color: colors.textSecondary, ...fonts.semibold },
+  modalCreateBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: radius.md },
+  modalCreateText: { fontSize: 14, color: '#fff', ...fonts.semibold },
 });

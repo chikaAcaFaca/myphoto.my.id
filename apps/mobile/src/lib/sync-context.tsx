@@ -231,8 +231,13 @@ async function backgroundFindNewPhotos(
   settings: SyncSettings,
   syncState: SyncState
 ): Promise<MediaLibrary.Asset[]> {
-  const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
-  if (status !== 'granted') return [];
+  try {
+    const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
+    if (status !== 'granted') return [];
+  } catch {
+    console.log('MediaLibrary permissions not available (Expo Go limitation)');
+    return [];
+  }
 
   let allAssets: MediaLibrary.Asset[] = [];
 
@@ -431,7 +436,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
       setDeviceAlbums(albumList);
     } catch (error) {
-      console.error('Error loading device albums:', error);
+      console.log('Device albums not available:', error?.toString?.() || error);
     } finally {
       setIsLoadingAlbums(false);
     }
@@ -481,8 +486,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // Find new photos to upload (filtered by selected backup folders)
   const findNewPhotos = async (): Promise<MediaLibrary.Asset[]> => {
-    const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
-    if (status !== 'granted') {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
+      if (status !== 'granted') return [];
+    } catch {
+      console.log('MediaLibrary permissions not available (Expo Go limitation)');
       return [];
     }
 

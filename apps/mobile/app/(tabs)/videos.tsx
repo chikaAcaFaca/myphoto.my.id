@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import * as MediaLibrary from 'expo-media-library';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import type { FileMetadata } from '@myphoto/shared';
@@ -15,6 +17,14 @@ const GAP = 8;
 const CARD_W = (width - 12 * 2 - GAP) / COL;
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
+interface DeviceVideo {
+  id: string;
+  uri: string;
+  filename: string;
+  duration: number;
+  creationTime: number;
+}
+
 function formatDuration(seconds?: number): string {
   if (!seconds) return '0:00';
   const m = Math.floor(seconds / 60);
@@ -24,12 +34,13 @@ function formatDuration(seconds?: number): string {
 
 export default function VideosScreen() {
   const { getToken } = useAuth();
-  const [videos, setVideos] = useState<FileMetadata[]>([]);
+  const [cloudVideos, setCloudVideos] = useState<FileMetadata[]>([]);
+  const [deviceVideos, setDeviceVideos] = useState<DeviceVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'device' | 'cloud'>('all');
+  const [filter, setFilter] = useState<'all' | 'device' | 'cloud'>('cloud');
 
-  const fetchVideos = useCallback(async () => {
+  const fetchCloudVideos = useCallback(async () => {
     try {
       const token = await getToken();
       if (!token) return;
@@ -39,18 +50,45 @@ export default function VideosScreen() {
       );
       if (!res.ok) return;
       const data = await res.json();
-      setVideos(data.files || data.items || []);
+      setCloudVideos(data.files || data.items || []);
     } catch (e) {
-      console.error('Error fetching videos:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      console.error('Error fetching cloud videos:', e);
     }
   }, [getToken]);
 
-  useEffect(() => { fetchVideos(); }, [fetchVideos]);
+  const fetchDeviceVideos = useCallback(async () => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ['video']);
+      if (status !== 'granted') return;
+      const { assets } = await MediaLibrary.getAssetsAsync({
+        mediaType: ['video'],
+        sortBy: [MediaLibrary.SortBy.creationTime],
+        first: 60,
+      });
+      setDeviceVideos(assets.map(a => ({
+        id: a.id,
+        uri: a.uri,
+        filename: a.filename,
+        duration: a.duration,
+        creationTime: a.creationTime,
+      })));
+    } catch (e) {
+      console.log('Device videos not available:', e?.toString?.() || e);
+    }
+  }, []);
 
-  const onRefresh = () => { setRefreshing(true); fetchVideos(); };
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([fetchCloudVideos(), fetchDeviceVideos()]);
+    setLoading(false);
+    setRefreshing(false);
+  }, [fetchCloudVideos, fetchDeviceVideos]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const onRefresh = () => { setRefreshing(true); fetchAll(); };
+
+  const displayVideos = filter === 'cloud' ? cloudVideos : filter === 'device' ? [] : cloudVideos; // device uses separate list
 
   const renderVideo = ({ item }: { item: FileMetadata }) => (
     <TouchableOpacity style={styles.videoCard} activeOpacity={0.7} delayPressIn={100}>
@@ -104,7 +142,7 @@ export default function VideosScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      ) : videos.length === 0 ? (
+      ) : displayVideos.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="videocam-outline" size={64} color={colors.textMuted} />
           <Text style={styles.emptyText}>Nema videa</Text>
@@ -112,7 +150,7 @@ export default function VideosScreen() {
         </View>
       ) : (
         <FlatList
-          data={videos}
+          data={displayVideos}
           renderItem={renderVideo}
           keyExtractor={(item) => item.id}
           numColumns={COL}
