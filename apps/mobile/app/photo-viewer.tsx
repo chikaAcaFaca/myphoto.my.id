@@ -11,6 +11,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/lib/auth-context';
 import { colors, fonts, radius } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
 import type { FileMetadata } from '@myphoto/shared';
 
@@ -22,6 +23,7 @@ export default function PhotoViewerScreen() {
     id: string; name: string; type: string; isFavorite?: string; isTrashed?: string; isArchived?: string;
   }>();
   const isTrashed = trashedParam === '1';
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -317,8 +319,8 @@ export default function PhotoViewerScreen() {
       {/* Info Modal */}
       <Modal visible={showInfo} animationType="slide" transparent>
         <View style={styles.infoOverlay}>
-          <View style={styles.infoSheet}>
-            <View style={styles.infoHeader}>
+          <View style={[styles.infoSheet, { backgroundColor: tc.bgCard }]}>
+            <View style={[styles.infoHeader, { borderBottomColor: tc.borderLight }]}>
               <Text style={styles.infoTitle}>Detalji</Text>
               <TouchableOpacity onPress={() => setShowInfo(false)}>
                 <Ionicons name="close" size={22} color={colors.text} />
@@ -367,7 +369,7 @@ export default function PhotoViewerScreen() {
                     <Text style={styles.infoLabel}>AI TAGOVI</Text>
                     <View style={styles.tagsRow}>
                       {fileInfo.labels.map((tag: string, i: number) => (
-                        <View key={i} style={styles.tag}>
+                        <View key={i} style={[styles.tag, { backgroundColor: tc.bgInput }]}>
                           <Text style={styles.tagText}>{tag}</Text>
                         </View>
                       ))}

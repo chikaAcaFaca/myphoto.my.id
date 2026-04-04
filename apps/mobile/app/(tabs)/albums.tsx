@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import type { Album } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -16,6 +17,7 @@ const CARD_W = (width - 12 * 2 - GAP) / COL;
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function AlbumsScreen() {
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,7 @@ export default function AlbumsScreen() {
   };
 
   const renderAlbum = ({ item }: { item: Album }) => (
-    <TouchableOpacity style={styles.albumCard} activeOpacity={0.7} delayPressIn={100}>
+    <TouchableOpacity style={[styles.albumCard, { backgroundColor: tc.bgCard }]} activeOpacity={0.7} delayPressIn={100}>
       {item.coverFileId ? (
         <Image
           source={{ uri: `${API_URL}/api/thumbnail/${item.coverFileId}?size=medium` }}
@@ -85,15 +87,15 @@ export default function AlbumsScreen() {
         </View>
       )}
       <View style={styles.albumInfo}>
-        <Text style={styles.albumName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.albumCount}>{item.fileCount} slika</Text>
+        <Text style={[styles.albumName, { color: tc.text }]} numberOfLines={1}>{item.name}</Text>
+        <Text style={[styles.albumCount, { color: tc.textMuted }]}>{item.fileCount} slika</Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerBg}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Albums</Text>
           <TouchableOpacity style={styles.addBtn} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
@@ -109,8 +111,8 @@ export default function AlbumsScreen() {
       ) : albums.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="albums-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Nema albuma</Text>
-          <Text style={styles.emptySubtext}>Kreirajte prvi album da organizujete slike</Text>
+          <Text style={[styles.emptyText, { color: tc.text }]}>Nema albuma</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>Kreirajte prvi album da organizujete slike</Text>
           <TouchableOpacity style={styles.createBtn} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
             <Ionicons name="add-circle" size={20} color="#fff" />
             <Text style={styles.createBtnText}>Novi album</Text>
@@ -130,8 +132,8 @@ export default function AlbumsScreen() {
       {/* Create Album Modal */}
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Novi album</Text>
+          <View style={[styles.modalContent, { backgroundColor: tc.bgCard }]}>
+            <Text style={[styles.modalTitle, { color: tc.text }]}>Novi album</Text>
             <TextInput
               style={styles.modalInput}
               placeholder="Naziv albuma"

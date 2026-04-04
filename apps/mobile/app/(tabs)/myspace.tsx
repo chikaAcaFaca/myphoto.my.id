@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
 import type { DiskFolder, DiskFile } from '@myphoto/shared';
 
@@ -21,6 +22,7 @@ function getFileIcon(mimeType: string): string {
 }
 
 export default function MySpaceScreen() {
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [folders, setFolders] = useState<DiskFolder[]>([]);
   const [files, setFiles] = useState<DiskFile[]>([]);
@@ -74,20 +76,20 @@ export default function MySpaceScreen() {
   };
 
   const renderFolder = (folder: DiskFolder, index: number) => (
-    <TouchableOpacity key={folder.id} style={styles.folderItem} onPress={() => navigateToFolder(folder)}>
+    <TouchableOpacity key={folder.id} style={[styles.folderItem, { backgroundColor: tc.bgCard }]} onPress={() => navigateToFolder(folder)}>
       <View style={[styles.folderIcon, { backgroundColor: FOLDER_COLORS[index % FOLDER_COLORS.length] }]}>
         <Ionicons name="folder" size={20} color={colors.accent} />
       </View>
       <View style={styles.folderInfo}>
-        <Text style={styles.folderName} numberOfLines={1}>{folder.name}</Text>
-        <Text style={styles.folderMeta}>{new Date(folder.updatedAt).toLocaleDateString()}</Text>
+        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{folder.name}</Text>
+        <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{new Date(folder.updatedAt).toLocaleDateString()}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      <Ionicons name="chevron-forward" size={18} color={tc.textMuted} />
     </TouchableOpacity>
   );
 
   const renderFile = (file: DiskFile) => (
-    <TouchableOpacity key={file.id} style={styles.folderItem}>
+    <TouchableOpacity key={file.id} style={[styles.folderItem, { backgroundColor: tc.bgCard }]}>
       <View style={[styles.folderIcon, { backgroundColor: '#f1f5f9' }]}>
         <Ionicons name={getFileIcon(file.mimeType) as any} size={20} color={colors.primary} />
       </View>
@@ -99,9 +101,9 @@ export default function MySpaceScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.headerBg}>
+      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>MySpace</Text>
           <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
@@ -111,7 +113,7 @@ export default function MySpaceScreen() {
 
       {/* Breadcrumbs */}
       {breadcrumbs.length > 0 && (
-        <View style={styles.breadcrumbs}>
+        <View style={[styles.breadcrumbs, { backgroundColor: tc.bgCard }]}>
           <TouchableOpacity onPress={() => { setBreadcrumbs([]); setCurrentFolder('root'); setLoading(true); }}>
             <Ionicons name="home" size={16} color={colors.primary} />
           </TouchableOpacity>

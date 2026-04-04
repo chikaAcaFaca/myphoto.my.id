@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useSync } from '@/lib/sync-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 
 interface TransferItem {
   id: string;
@@ -13,16 +14,17 @@ interface TransferItem {
 }
 
 export default function UploadScreen() {
+  const { colors: tc } = useTheme();
   const { isSyncing, syncProgress, pendingCount, startSync, stopSync } = useSync();
 
   // Mock recent transfers for now - will be populated from sync history
   const [recentTransfers] = useState<TransferItem[]>([]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
         {/* Header */}
-        <View style={styles.headerBg}>
+        <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
           <View style={styles.headerCenter}>
             <Ionicons name="cloud-upload" size={24} color="#fff" />
             <Text style={styles.headerTitle}>Upload</Text>
@@ -44,7 +46,7 @@ export default function UploadScreen() {
 
         {/* Active uploads */}
         {isSyncing && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
             <View style={styles.progressItem}>
               <View style={styles.progressRow}>
                 <Text style={styles.progressName}>Syncing photos...</Text>
@@ -62,7 +64,7 @@ export default function UploadScreen() {
 
         {/* Pending count */}
         {!isSyncing && pendingCount > 0 && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
             <View style={styles.pendingRow}>
               <View style={styles.pendingIcon}>
                 <Ionicons name="time" size={20} color={colors.accent} />
@@ -77,7 +79,7 @@ export default function UploadScreen() {
 
         {/* Status when nothing to do */}
         {!isSyncing && pendingCount === 0 && (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
             <View style={styles.pendingRow}>
               <View style={[styles.pendingIcon, { backgroundColor: '#dcfce7' }]}>
                 <Ionicons name="checkmark-circle" size={20} color={colors.success} />
@@ -94,7 +96,7 @@ export default function UploadScreen() {
         <Text style={styles.sectionTitle}>Recent Transfers</Text>
 
         {recentTransfers.length === 0 ? (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
             <View style={{ alignItems: 'center', padding: 20 }}>
               <Ionicons name="swap-vertical-outline" size={36} color={colors.textMuted} />
               <Text style={[styles.pendingSubtitle, { marginTop: 8 }]}>Istorija transfera ce se pojaviti ovde</Text>

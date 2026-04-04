@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -24,6 +25,7 @@ function daysRemaining(trashedAt: string): number {
 }
 
 export default function TrashScreen() {
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,8 +101,8 @@ export default function TrashScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerBg}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />

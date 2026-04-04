@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -28,6 +29,7 @@ const SUGGESTIONS = [
 ];
 
 export default function SearchScreen() {
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FileMetadata[]>([]);
@@ -75,9 +77,9 @@ export default function SearchScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       <View style={styles.headerArea}>
-        <Text style={styles.title}>Search</Text>
+        <Text style={[styles.title, { color: tc.text }]}>Search</Text>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color={colors.textMuted} />
           <TextInput
@@ -99,7 +101,7 @@ export default function SearchScreen() {
 
       {!searched ? (
         <View style={{ flex: 1 }}>
-          <Text style={styles.sectionLabel}>AI SUGGESTIONS</Text>
+          <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>AI SUGGESTIONS</Text>
           <View style={styles.suggestions}>
             {SUGGESTIONS.map(s => (
               <TouchableOpacity
@@ -107,7 +109,7 @@ export default function SearchScreen() {
                 style={styles.suggestionChip}
                 onPress={() => { setQuery(s.label); doSearch(s.label); }}
               >
-                <Text style={styles.suggestionText}>{s.icon} {s.label}</Text>
+                <Text style={[styles.suggestionText, { color: tc.primary }]}>{s.icon} {s.label}</Text>
               </TouchableOpacity>
             ))}
           </View>

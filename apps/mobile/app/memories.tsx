@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -24,6 +25,7 @@ interface MemoryGroup {
 }
 
 export default function MemoriesScreen() {
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [onThisDay, setOnThisDay] = useState<FileMetadata[]>([]);
   const [memories, setMemories] = useState<MemoryGroup[]>([]);
@@ -70,8 +72,8 @@ export default function MemoriesScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.headerBg}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+        <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
           <View style={styles.headerRow}>
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
               <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -90,8 +92,8 @@ export default function MemoriesScreen() {
   const isEmpty = onThisDay.length === 0 && memories.length === 0;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerBg}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -144,7 +146,7 @@ export default function MemoriesScreen() {
 
           {/* Memory collections */}
           {memories.map((memory) => (
-            <View key={memory.id} style={styles.memoryCard}>
+            <View key={memory.id} style={[styles.memoryCard, { backgroundColor: tc.bgCard }]}>
               <Text style={styles.memoryTitle}>{memory.title}</Text>
               {memory.description && (
                 <Text style={styles.memoryDesc}>{memory.description}</Text>

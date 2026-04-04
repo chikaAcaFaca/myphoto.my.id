@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 
 const NOTIF_KEY = '@myphoto/notifications';
 
@@ -23,6 +24,7 @@ const defaults: NotifSettings = {
 };
 
 export default function NotificationsSettingsScreen() {
+  const { colors: tc } = useTheme();
   const [settings, setSettings] = useState<NotifSettings>(defaults);
 
   useEffect(() => {
@@ -38,8 +40,8 @@ export default function NotificationsSettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerBg}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -49,7 +51,7 @@ export default function NotificationsSettingsScreen() {
         </View>
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
         <Text style={styles.sectionLabel}>OBAVESTAVAJ ME KADA</Text>
 
         <View style={styles.settingRow}>

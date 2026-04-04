@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -21,6 +22,7 @@ interface DuplicateGroup {
 }
 
 export default function DuplicatesScreen() {
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [groups, setGroups] = useState<DuplicateGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +92,7 @@ export default function DuplicatesScreen() {
   };
 
   const renderGroup = ({ item }: { item: DuplicateGroup }) => (
-    <View style={styles.groupCard}>
+    <View style={[styles.groupCard, { backgroundColor: tc.bgCard }]}>
       <View style={styles.groupHeader}>
         <View style={styles.similarityBadge}>
           <Text style={styles.similarityText}>{Math.round(item.similarity * 100)}% slicno</Text>
@@ -129,8 +131,8 @@ export default function DuplicatesScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerBg}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />

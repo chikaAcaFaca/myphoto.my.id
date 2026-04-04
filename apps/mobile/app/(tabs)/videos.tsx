@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
+import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -33,6 +34,7 @@ function formatDuration(seconds?: number): string {
 }
 
 export default function VideosScreen() {
+  const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [cloudVideos, setCloudVideos] = useState<FileMetadata[]>([]);
   const [deviceVideos, setDeviceVideos] = useState<DeviceVideo[]>([]);
@@ -91,7 +93,7 @@ export default function VideosScreen() {
   const displayVideos = filter === 'cloud' ? cloudVideos : filter === 'device' ? [] : cloudVideos; // device uses separate list
 
   const renderVideo = ({ item }: { item: FileMetadata }) => (
-    <TouchableOpacity style={styles.videoCard} activeOpacity={0.7} delayPressIn={100}>
+    <TouchableOpacity style={[styles.videoCard, { backgroundColor: tc.bgCard }]} activeOpacity={0.7} delayPressIn={100}>
       <View style={styles.videoThumb}>
         {item.thumbnailKey ? (
           <Image
@@ -112,14 +114,14 @@ export default function VideosScreen() {
         </View>
       </View>
       <View style={styles.videoInfo}>
-        <Text style={styles.videoName} numberOfLines={1}>{item.name}</Text>
+        <Text style={[styles.videoName, { color: tc.text }]} numberOfLines={1}>{item.name}</Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerBg}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
         <Text style={styles.headerTitle}>Video</Text>
       </View>
 
@@ -128,7 +130,7 @@ export default function VideosScreen() {
         {(['all', 'device', 'cloud'] as const).map(f => (
           <TouchableOpacity
             key={f}
-            style={[styles.toggleTab, filter === f && styles.toggleTabActive]}
+            style={[styles.toggleTab, filter === f && [styles.toggleTabActive, { backgroundColor: tc.bgCard }]]}
             onPress={() => setFilter(f)}
           >
             <Text style={[styles.toggleText, filter === f && styles.toggleTextActive]}>
@@ -145,8 +147,8 @@ export default function VideosScreen() {
       ) : displayVideos.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="videocam-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Nema videa</Text>
-          <Text style={styles.emptySubtext}>Vasi video snimci ce se pojaviti ovde</Text>
+          <Text style={[styles.emptyText, { color: tc.text }]}>Nema videa</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>Vasi video snimci ce se pojaviti ovde</Text>
         </View>
       ) : (
         <FlatList
