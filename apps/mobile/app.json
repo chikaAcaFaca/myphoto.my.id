@@ -52,6 +52,8 @@
     "plugins": [
       "expo-router",
       "@react-native-ml-kit/image-labeling",
+      "@react-native-ml-kit/face-detection",
+      "@react-native-ml-kit/text-recognition",
       [
         "expo-media-library",
         {

@@ -6,6 +6,8 @@ export interface PhotoIndexEntry {
   sceneType: string;
   faceCount: number;
   isScreenshot: boolean;
+  ocrText: string;
+  qualityScore: number;
   createdAt: number;
   syncedToCloud: boolean;
   cloudFileId: string | null;
@@ -23,6 +25,8 @@ async function getDb(): Promise<SQLite.SQLiteDatabase> {
         scene_type TEXT DEFAULT 'other',
         face_count INTEGER DEFAULT 0,
         is_screenshot INTEGER DEFAULT 0,
+        ocr_text TEXT DEFAULT '',
+        quality_score REAL DEFAULT 0,
         created_at INTEGER DEFAULT 0,
         synced_to_cloud INTEGER DEFAULT 0,
         cloud_file_id TEXT
@@ -42,13 +46,15 @@ export async function upsertLocalPhoto(entry: PhotoIndexEntry): Promise<void> {
   const database = await getDb();
   await database.runAsync(
     `INSERT OR REPLACE INTO photo_index
-     (asset_id, labels, scene_type, face_count, is_screenshot, created_at, synced_to_cloud, cloud_file_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     (asset_id, labels, scene_type, face_count, is_screenshot, ocr_text, quality_score, created_at, synced_to_cloud, cloud_file_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     entry.assetId,
     entry.labels,
     entry.sceneType,
     entry.faceCount,
     entry.isScreenshot ? 1 : 0,
+    entry.ocrText || '',
+    entry.qualityScore || 0,
     entry.createdAt,
     entry.syncedToCloud ? 1 : 0,
     entry.cloudFileId
@@ -64,9 +70,10 @@ export async function searchLocalPhotos(query: string): Promise<PhotoIndexEntry[
   const pattern = `%${query.toLowerCase()}%`;
   const rows = await database.getAllAsync<any>(
     `SELECT * FROM photo_index
-     WHERE LOWER(labels) LIKE ? OR LOWER(scene_type) LIKE ?
+     WHERE LOWER(labels) LIKE ? OR LOWER(scene_type) LIKE ? OR LOWER(ocr_text) LIKE ?
      ORDER BY created_at DESC
      LIMIT 100`,
+    pattern,
     pattern,
     pattern
   );
@@ -138,6 +145,8 @@ function mapRow(row: any): PhotoIndexEntry {
     sceneType: row.scene_type,
     faceCount: row.face_count,
     isScreenshot: row.is_screenshot === 1,
+    ocrText: row.ocr_text || '',
+    qualityScore: row.quality_score || 0,
     createdAt: row.created_at,
     syncedToCloud: row.synced_to_cloud === 1,
     cloudFileId: row.cloud_file_id,

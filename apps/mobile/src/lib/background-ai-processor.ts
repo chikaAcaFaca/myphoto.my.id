@@ -1,5 +1,8 @@
 import * as MediaLibrary from 'expo-media-library';
 import { classifyImage, detectSceneType, isScreenshot } from './on-device-ai';
+import { detectFacesLocal } from './on-device-face';
+import { extractText } from './on-device-ocr';
+import { scorePhotoQuality } from './on-device-quality';
 import { upsertLocalPhoto, isIndexed, getIndexedCount } from './local-search-index';
 
 const BATCH_SIZE = 5;
@@ -61,13 +64,47 @@ export async function processUnindexedPhotos(
         const sceneType = detectSceneType(labels);
         const screenshot = isScreenshot(asset.filename);
 
+        // Face detection (only if labels suggest people)
+        let faceCount = 0;
+        const labelSet = new Set(labels.map((l) => l.label.toLowerCase()));
+        if (labelSet.has('person') || labelSet.has('people') || labelSet.has('face') || labelSet.has('selfie')) {
+          try {
+            const faces = await detectFacesLocal(localUri);
+            faceCount = faces.length;
+          } catch {
+            // Face detection not available
+          }
+        }
+
+        // OCR for screenshots and documents
+        let ocrText = '';
+        const finalSceneType = screenshot ? 'screenshot' : (faceCount > 0 && sceneType === 'other' ? 'people' : sceneType);
+        if (finalSceneType === 'screenshot' || finalSceneType === 'document') {
+          try {
+            const ocr = await extractText(localUri);
+            ocrText = ocr.text.slice(0, 500); // limit stored text
+          } catch {
+            // OCR not available
+          }
+        }
+
+        // Quality scoring
+        let qualityScore = 50;
+        try {
+          qualityScore = await scorePhotoQuality(localUri);
+        } catch {
+          // Quality scoring failed
+        }
+
         // Store in local index
         await upsertLocalPhoto({
           assetId: asset.id,
           labels: labels.map((l) => l.label).join(', '),
-          sceneType: screenshot ? 'screenshot' : sceneType,
-          faceCount: 0, // Will be filled in Phase 2
+          sceneType: finalSceneType,
+          faceCount,
           isScreenshot: screenshot,
+          ocrText,
+          qualityScore,
           createdAt: asset.creationTime,
           syncedToCloud: false,
           cloudFileId: null,
