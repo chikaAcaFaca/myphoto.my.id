@@ -285,6 +285,14 @@ export default function PhotoViewerScreen() {
               <Text style={styles.actionText}>Share</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity style={styles.action} onPress={() => router.push({
+              pathname: '/image-editor',
+              params: { id: id!, name: name || 'Photo' },
+            })}>
+              <Ionicons name="brush-outline" size={22} color="#fff" />
+              <Text style={styles.actionText}>Uredi</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.action} onPress={handleToggleFavorite} disabled={togglingFav}>
               {togglingFav ? (
                 <ActivityIndicator size="small" color="#fff" />
