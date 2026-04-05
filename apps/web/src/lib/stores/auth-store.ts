@@ -158,7 +158,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'mycamerabackup-auth',
+      name: 'myphoto-auth',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         // Only persist minimal data, not sensitive info

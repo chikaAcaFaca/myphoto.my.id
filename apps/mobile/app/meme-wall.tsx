@@ -20,6 +20,7 @@ interface MemePost {
   videoUrl?: string;
   mediaType: 'image' | 'video' | 'gif';
   caption: string;
+  authorId: string;
   authorName: string;
   authorAvatar: string;
   likes: number;
@@ -30,7 +31,7 @@ interface MemePost {
 
 export default function MemeWallScreen() {
   const { colors: tc } = useTheme();
-  const { getToken } = useAuth();
+  const { user, getToken } = useAuth();
   const [memes, setMemes] = useState<MemePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,6 +91,37 @@ export default function MemeWallScreen() {
     }
   }, [getToken]);
 
+  const handleReport = useCallback(async (meme: MemePost) => {
+    Alert.alert(
+      'Prijavi meme',
+      'Zasto prijavljujete ovaj sadrzaj?',
+      [
+        { text: 'Odustani', style: 'cancel' },
+        { text: 'Uvredljiv sadrzaj', onPress: () => submitReport(meme.id, 'offensive') },
+        { text: 'Diskriminacija', onPress: () => submitReport(meme.id, 'discrimination') },
+        { text: 'Spam', onPress: () => submitReport(meme.id, 'spam') },
+        { text: 'Drugo', onPress: () => submitReport(meme.id, 'other') },
+      ]
+    );
+  }, []);
+
+  const submitReport = useCallback(async (memeId: string, reason: string) => {
+    try {
+      const token = await getToken();
+      await fetch(`${API_URL}/api/meme-wall/${memeId}/report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ reason }),
+      });
+      Alert.alert('Prijavljeno', 'Hvala. Pregledacemo sadrzaj u najkracem roku.');
+    } catch {
+      Alert.alert('Greska', 'Prijava nije uspela. Pokusajte ponovo.');
+    }
+  }, [getToken]);
+
   const handleShare = useCallback(async (meme: MemePost) => {
     await Share.share({
       message: `${meme.caption}\n\nPogledaj jos mimova na MyPhoto!\nhttps://myphotomy.space/meme-wall/${meme.id}`,
@@ -106,18 +138,22 @@ export default function MemeWallScreen() {
 
   const renderMeme = ({ item }: { item: MemePost }) => (
     <View style={[styles.memeCard, { backgroundColor: tc.bgCard }]}>
-      {/* Author row */}
-      <View style={styles.authorRow}>
+      {/* Author row — tap opens creator profile */}
+      <TouchableOpacity
+        style={styles.authorRow}
+        onPress={() => router.push({ pathname: '/meme-profile', params: { userId: item.authorId, userName: item.authorName } })}
+      >
         <View style={[styles.avatar, { backgroundColor: tc.primary }]}>
           <Text style={styles.avatarText}>{(item.authorName || '?')[0].toUpperCase()}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.authorName, { color: tc.text }]}>{item.authorName}</Text>
+          <Text style={[styles.authorName, { color: tc.text }]}>@{item.authorName}</Text>
           <Text style={{ fontSize: 10, color: tc.textMuted }}>
             {new Date(item.createdAt).toLocaleDateString('sr-Latn')}
           </Text>
         </View>
-      </View>
+        <Ionicons name="chevron-forward" size={16} color={tc.textMuted} />
+      </TouchableOpacity>
 
       {/* Meme media */}
       {item.mediaType === 'video' && item.videoUrl ? (
@@ -171,7 +207,9 @@ export default function MemeWallScreen() {
 
         <View style={{ flex: 1 }} />
 
-        <Text style={styles.watermark}>MyPhoto</Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => handleReport(item)}>
+          <Ionicons name="flag-outline" size={18} color={tc.textMuted} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -192,6 +230,21 @@ export default function MemeWallScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* CTA for non-logged-in users — funnel */}
+      {!user && !loading && (
+        <TouchableOpacity
+          style={styles.ctaBanner}
+          onPress={() => router.push('/register')}
+        >
+          <Ionicons name="sparkles" size={20} color="#fff" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.ctaTitle}>Napravi svoj meme!</Text>
+            <Text style={styles.ctaSubtitle}>Registruj se besplatno i kreiraj neograniceno memova</Text>
+          </View>
+          <Ionicons name="arrow-forward" size={20} color="#fff" />
+        </TouchableOpacity>
+      )}
 
       {loading ? (
         <View style={styles.center}>
@@ -228,6 +281,13 @@ export default function MemeWallScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  ctaBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#f97316', marginHorizontal: 12, marginTop: 12,
+    borderRadius: radius.lg, padding: 16,
+  },
+  ctaTitle: { color: '#fff', fontSize: 15, ...fonts.bold },
+  ctaSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 11, ...fonts.medium, marginTop: 2 },
   headerBg: { paddingHorizontal: 16, paddingVertical: 12, paddingTop: 8 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 6 },

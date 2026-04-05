@@ -1,30 +1,100 @@
 /**
- * AI Caption Generation System — 4-layer fallback chain:
+ * AI Caption Generation System — 4-layer fallback:
  *
- * 1. Gemini 2.0 Flash (free: 1500 req/day) — primary
- * 2. Anthropic Claude (free trial / API key) — fallback
+ * 1. Gemini 2.0 Flash (free 1500/day, then paid — cheapest AI) — primary
+ * 2. Grok (xAI, $25/mo free) — only if Gemini is down
  * 3. Community Trending (from MemeWall) — social captions
- * 4. Template + ML Kit matching — offline, zero cost
+ * 4. Template + ML Kit matching — offline, zero cost, always works
  */
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
-const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY || '';
+const GROK_API_KEY = process.env.EXPO_PUBLIC_GROK_API_KEY || '';
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const GROK_URL = 'https://api.x.ai/v1/chat/completions';
 
-const MEME_PROMPT = (labels: string, scene: string, count: number) =>
-  `Generisi ${count} smesnih i duhovitih komentara za meme sliku na srpskom jeziku (latinica).
+export type CaptionLanguage = 'sr' | 'en';
+
+// Balkan humor patterns — teaches AI what's funny in Serbia
+const BALKAN_HUMOR_GUIDE = `
+Stil humora: Balkanski, srpski internet humor (Vukajlija stil).
+
+NAJVAZNIJE PRAVILO: Komentar mora biti KRATAK i OSTAR. Jedna recenica, maksimum dve. NIKAD ne objasnjuj foru. NIKAD ne dodaj komentar posle poente. Kad punchline zavrsi — stani. Manje je vise.
+
+LOSE primeri (predugacko, objasnjava foru, pravi lokalizovane WTF fore):
+"Ja kad se slikam u ogledalu — jbg, brate, takav sam heroj!" ❌
+"Ocekivao sam romantiku — to je kao epska bitka za moj prazan dzep!" ❌
+"Ovo je moj balkanski Oscar!" ❌
+"Prava drama, legenda sam, klasika!" ❌
+
+DOBRO (kratko, univerzalno smesno, staje na poenti):
+"Ocekivanje: model sa plaze. Realnost: zombi u pidzami." ✅
+"Filter kaze lepo, ogledalo kaze drugacije 🪞" ✅
+"Dieta pocinje od ponedeljka... vec 5 godina 😂" ✅
+"Radno vreme: 8-16. Produktivno vreme: 10:30-10:45." ✅
+"Plata dosla i otisla brze nego sto sam trepnuo 💸" ✅
+"Zoom poziv koji je mogao biti mejl. Opet." ✅
+
+Tehnike:
+- KONTRAST: ocekivanje vs realnost u 2 kratke fraze — ovo je GLAVNA tehnika
+- SAMOISMEIVANJE: "Ja kad..." — ali kratko, bez objasnjenja
+- UNIVERZALNE TEME: ponedeljak, prazan frizider, kasnjenje, plata, lenjost, ispiti, WiFi ne radi
+- TON: topao, samoironican, nikad zloban. Fore moraju biti smesne SVIMA, ne samo jednoj kulturi.
+
+ZABRANJENO:
+- Politika, veronauka, nacionalizam, uvrede
+- Objasnjavanje fore ili dodavanje teksta posle poente
+- Lokalizovane fraze koje nisu smesne ("balkanski Oscar", "epska bitka", "kafanska filozofija")
+- Filler fraze: "prava drama", "takav sam heroj", "legenda sam", "klasika", "am I right?"
+- Forsiranje balkanski izraza. "brate" i "jbg" samo ako prirodno stoji u recenici.`;
+
+const MEME_PROMPT = (labels: string, scene: string, count: number, lang: CaptionLanguage = 'sr') => {
+  if (lang === 'en') {
+    return `Generate ${count} funny meme captions in English.
+Image contains: ${labels}.
+Scene: ${scene}.
+
+MOST IMPORTANT RULE: Keep it SHORT. One sentence, max two. NEVER explain the joke. When the punchline lands — STOP. Less is more.
+
+BAD (too long, explains the joke):
+"Me when I sit down to work and instantly become a couch potato — classic procrastination at its finest, am I right?" ❌
+
+GOOD (short, punchy, stops):
+"Me when I sit down to work 💤" ✅
+"Expectation: productivity. Reality: this." ✅
+"My motivation left the chat" ✅
+
+Techniques: expectation vs reality, "me when...", everyday struggles, passive-aggressive observations.
+Tone: warm, self-aware, never mean.
+Emojis allowed but don't overdo it.
+Each caption on a new line, no numbering.`;
+  }
+  return `Generisi ${count} smesnih i duhovitih komentara za meme sliku na srpskom jeziku (latinica).
 Slika sadrzi: ${labels}.
 Scena: ${scene}.
 
-Pravila:
-- Komentari treba da budu smesni, kratki (max 2 recenice)
-- Koristi humor koji je popularan na Balkanu
-- Moze da ukljuci emoji
+${BALKAN_HUMOR_GUIDE}
+
+Format:
+- Max 2 recenice po komentaru
+- Emoji dozvoljeni ali ne preterivati
 - Svaki komentar u novom redu
 - Samo komentare, bez numeracije ili dodatnog teksta`;
+};
+
+// Content moderation prompt — checks if meme text violates ToS
+const MODERATION_PROMPT = (text: string) =>
+  `Analyze this meme caption and determine if it contains any of the following:
+- Hate speech or discrimination (religious, racial, sexual orientation)
+- Threats or harassment
+- Content that violates basic human rights
+- Explicit calls to violence
+
+Caption: "${text}"
+
+Respond with ONLY a JSON object:
+{"flagged": true/false, "reason": "short explanation if flagged, empty string if not"}`;
 
 function parseCaptions(text: string): string[] {
   return text
@@ -59,29 +129,28 @@ async function tryGemini(prompt: string): Promise<string[] | null> {
 }
 
 // =====================================================
-// Layer 2: Anthropic Claude (fallback)
+// Layer 2: Grok / xAI (OpenAI-compatible)
 // =====================================================
 
-async function tryClaude(prompt: string): Promise<string[] | null> {
-  if (!ANTHROPIC_API_KEY) return null;
+async function tryGrok(prompt: string): Promise<string[] | null> {
+  if (!GROK_API_KEY) return null;
   try {
-    const res = await fetch(ANTHROPIC_URL, {
+    const res = await fetch(GROK_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
+        'Authorization': `Bearer ${GROK_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 500,
+        model: 'grok-3-mini',
         messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500,
+        temperature: 0.9,
       }),
     });
     if (!res.ok) return null;
     const data = await res.json();
-    const text = data.content?.[0]?.text || '';
+    const text = data.choices?.[0]?.message?.content || '';
     const captions = parseCaptions(text);
     return captions.length >= 3 ? captions : null;
   } catch {
@@ -89,6 +158,8 @@ async function tryClaude(prompt: string): Promise<string[] | null> {
   }
 }
 
+
+// =====================================================
 // =====================================================
 // Layer 3: Community Trending (from MemeWall API)
 // =====================================================
@@ -237,6 +308,22 @@ const TEMPLATES: Record<string, string[]> = {
     'Mali genije. Jede cipelice ali je genije.',
     'Kad ti beba nasmeje se — vredelo je svih besanih noci ❤️',
   ],
+  monday: [
+    'Ponedeljak: dan kad telo ustaje ali dusa ostaje u krevetu 😴',
+    'Kad ti alarm zvoni u ponedeljak a ti razmisljas o smislu zivota',
+    'Ponedeljak je dokaz da Bog ima smisao za humor. Los humor.',
+    'Petak: heroj. Ponedeljak: zlocin protiv covecnosti.',
+    'Svaki ponedeljak je novi pocetak. Ja: *spava do srede*',
+    'Motivacioni govornik: "Ponedeljak je prilika!" Ja: 💀',
+  ],
+  money: [
+    'Plata dosla i otisla brze nego sto sam trepnuo 💸',
+    'Stedim novac tako sto ne gledam stanje na racunu',
+    'Kad vidis cenu i stavis polako nazad na policu',
+    'Banka: "Imate novo obaveštenje." Ja: *panika*',
+    'Poslednji dan pred platu: preživljavanje na hlebu i vodi',
+    'Kad ti drugar kaze "idemo napolje" a ti imas 200 din do plate',
+  ],
   default: [
     'Kad ne znas sta da napises ali hoces lajkove 😅',
     'Ovo je moj zvanicni mood za danas',
@@ -250,6 +337,70 @@ const TEMPLATES: Record<string, string[]> = {
     'Kad svi misle da si lud ali ti samo uzivas',
     'Ponedeljak je izmisljen da nas testira 😤',
     'Ovo je dokaz da se cuda desavaju. Ili nesrece. Jedno od dva.',
+    'Niko: ... Apsolutno niko: ... Ja: *ovo*',
+    'Ma kakvi brate, sve pod kontrolom. *nista nije pod kontrolom*',
+    'Zivot mi je kao WiFi — kad ga najvise trebam, ne radi',
+    'Kad kazes "jbg" i to resi 90% problema',
+  ],
+};
+
+const TEMPLATES_EN: Record<string, string[]> = {
+  food: [
+    'Diet starts Monday... for the 5th year in a row 😂',
+    'When you say "just one bite" and then... 🍕',
+    'This meal was made with a lot of love and even more calories',
+    'Opening the fridge for the 47th time today, maybe something new appeared',
+    'Fitness guru: "Eat healthy!" Me at 3am:',
+    'My stomach says NO but my eyes say YES 👀',
+    'Eating because I\'m sad, sad because I\'m eating. Circle of life. 🔄',
+  ],
+  animal: [
+    'When your boss catches you scrolling Instagram at work 🐶',
+    'Me when I hear someone opening the fridge',
+    'Mood: don\'t touch me, I\'m sleeping ❌',
+    'This one understands me better than any human I know',
+    'When they ask "did you eat?" but you\'re already thinking about dinner',
+    'The pet I deserve vs the pet I have',
+  ],
+  people: [
+    'The squad that fails together, laughs together 😎',
+    'When you say "leaving at 10" but start getting ready at 11:30',
+    'This is my "I\'m being productive" face',
+    'When your friend says "trust me bro"...',
+    'Monday mood vs Friday mood',
+    'Introvert at a party: *stands next to the food table*',
+  ],
+  nature: [
+    'Nature walk: 5 min relaxation, 50 min looking for signal 📱',
+    'Nature is beautiful until the mosquitoes arrive 🦟',
+    'Instagram vs Reality: me in nature',
+    'This is the place where WiFi doesn\'t exist. Bye! 👋',
+    'Google Maps says 2 hours walking. Me after 30 min: 💀',
+  ],
+  selfie: [
+    'It took 47 attempts for this selfie. This is attempt 48. 📸',
+    'When you find the perfect bathroom lighting',
+    'Filter says beautiful, mirror says otherwise 🪞',
+    'Front camera: model. Back camera: FBI wanted poster.',
+    'One good selfie and self-confidence for the whole week 💪',
+  ],
+  work: [
+    'Work hours: 8-4. Productive hours: 10:30-10:45.',
+    'When the boss sends an email at 4:55pm on Friday 📧',
+    'Salary: small. Expectations: huge. Motivation: 404 not found.',
+    'A Zoom call that could have been an email. Again.',
+    'When you say "working from home" but you\'re watching Netflix',
+  ],
+  default: [
+    'When you don\'t know what to write but want likes 😅',
+    'This is my official mood for today',
+    'No context, just vibes ✨',
+    'Send this to someone who needs to laugh 😂',
+    'No explanation needed. Just look. 👀',
+    'A picture is worth a thousand words and I have none',
+    'This happened. Don\'t ask. 🤷',
+    'Me: I have a plan. Life: I have a better plan. 😤',
+    'Monday was invented to test us 😤',
   ],
 };
 
@@ -268,6 +419,8 @@ const LABEL_CATEGORY_MAP: [RegExp, string][] = [
   [/office|work|desk|computer|meeting|business|laptop/i, 'work'],
   [/baby|infant|toddler|newborn|stroller/i, 'baby'],
   [/screenshot|screen|ui|interface|notification|chat|message/i, 'screenshot'],
+  [/money|cash|wallet|bank|credit|card|coin|price|bill|receipt/i, 'money'],
+  [/monday|alarm|clock|morning|bed|sleep|tired|wake/i, 'monday'],
 ];
 
 function matchCategory(labels: string[], sceneType: string): string {
@@ -288,14 +441,91 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function generateTemplateCaptions(labels: string[], sceneType: string, count: number): string[] {
+function generateTemplateCaptions(labels: string[], sceneType: string, count: number, lang: CaptionLanguage = 'sr'): string[] {
   const category = matchCategory(labels, sceneType);
-  const pool = [...(TEMPLATES[category] || TEMPLATES.default)];
+  const templates = lang === 'en' ? TEMPLATES_EN : TEMPLATES;
+  const pool = [...(templates[category] || templates.default)];
   // Mix in some defaults for variety
   if (category !== 'default') {
-    pool.push(...TEMPLATES.default.slice(0, 3));
+    pool.push(...(templates.default).slice(0, 3));
   }
   return shuffle(pool).slice(0, count);
+}
+
+// =====================================================
+// Content Moderation
+// =====================================================
+
+/**
+ * Check if a meme caption might violate Terms of Service.
+ * Uses Gemini (free) → Grok → Claude fallback for moderation.
+ * Returns { flagged, reason } — if flagged, UI must get user consent before publishing.
+ */
+export async function moderateCaption(
+  caption: string
+): Promise<{ flagged: boolean; reason: string }> {
+  const prompt = MODERATION_PROMPT(caption);
+  const safe = { flagged: false, reason: '' };
+
+  function parseModeration(text: string): { flagged: boolean; reason: string } | null {
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*?\}/);
+      if (!jsonMatch) return null;
+      const result = JSON.parse(jsonMatch[0]);
+      if (typeof result.flagged === 'boolean') return result;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Try Gemini first (free)
+  if (GEMINI_API_KEY) {
+    try {
+      const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 200 },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const result = parseModeration(text);
+        if (result) return result;
+      }
+    } catch { /* fall through */ }
+  }
+
+  // Try Grok
+  if (GROK_API_KEY) {
+    try {
+      const res = await fetch(GROK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROK_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'grok-3-mini',
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 200,
+          temperature: 0.1,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || '';
+        const result = parseModeration(text);
+        if (result) return result;
+      }
+    } catch { /* fall through */ }
+  }
+
+  // If all moderation fails, allow (don't block users because AI is down)
+  return safe;
 }
 
 // =====================================================
@@ -303,55 +533,68 @@ function generateTemplateCaptions(labels: string[], sceneType: string, count: nu
 // =====================================================
 
 /**
- * Generate funny meme captions using 4-layer fallback:
- * Gemini → Claude → Community Trending → Templates
+ * Generate funny meme captions using 5-layer fallback:
+ * Gemini → Grok → Claude → Community Trending → Templates
  */
 export async function generateAiCaptions(
   labels: string[],
   sceneType: string,
   count: number = 5,
-  authToken?: string
+  authToken?: string,
+  lang: CaptionLanguage = 'sr'
 ): Promise<string[]> {
   const labelsText = labels.length > 0 ? labels.join(', ') : sceneType;
-  const prompt = MEME_PROMPT(labelsText, sceneType, count);
+  const prompt = MEME_PROMPT(labelsText, sceneType, count, lang);
 
-  // Layer 1: Gemini
+  // Layer 1: Gemini (free 1500/day, then paid — cheapest)
   const geminiResult = await tryGemini(prompt);
   if (geminiResult) return geminiResult.slice(0, count);
 
-  // Layer 2: Claude
-  const claudeResult = await tryClaude(prompt);
-  if (claudeResult) return claudeResult.slice(0, count);
+  // Layer 2: Grok (only if Gemini is down)
+  const grokResult = await tryGrok(prompt);
+  if (grokResult) return grokResult.slice(0, count);
 
   // Layer 3: Community trending
   const trendingResult = await tryTrending(matchCategory(labels, sceneType), authToken);
   if (trendingResult) return trendingResult.slice(0, count);
 
-  // Layer 4: Templates + ML Kit matching
-  return generateTemplateCaptions(labels, sceneType, count);
+  // Layer 4: Templates (offline, always works)
+  return generateTemplateCaptions(labels, sceneType, count, lang);
 }
 
 /**
  * Re-caption an existing meme with fresh humor.
- * Same 4-layer fallback.
+ * Same 5-layer fallback.
  */
 export async function recaptionMeme(
   currentCaption: string,
   imageDescription: string,
-  count: number = 5
+  count: number = 5,
+  lang: CaptionLanguage = 'sr'
 ): Promise<string[]> {
-  const prompt = `Ovo je meme sa tekstom: "${currentCaption}"
+  const prompt = lang === 'en'
+    ? `This is a meme with text: "${currentCaption}"
+Image description: ${imageDescription}
+
+Create ${count} alternative funny captions in English that would be even funnier.
+Use relatable, self-deprecating humor. "Me when...", expectation vs reality, everyday struggles as comedy.
+Be creative, emojis allowed. Each caption on a new line, no numbering.`
+    : `Ovo je meme sa tekstom: "${currentCaption}"
 Opis slike: ${imageDescription}
 
-Napravi ${count} alternativnih smesnih komentara na srpskom (latinica) koji bi bili jos smesniji.
-Budi kreativan, koristi balkanski humor, emoji dozvoljeni.
+${BALKAN_HUMOR_GUIDE}
+
+Napravi ${count} alternativnih smesnih komentara na srpskom (latinica) koji bi bili jos smesniji od originala.
 Svaki komentar u novom redu, bez numeracije.`;
 
   const geminiResult = await tryGemini(prompt);
   if (geminiResult) return geminiResult.slice(0, count);
 
+  const grokResult = await tryGrok(prompt);
+  if (grokResult) return grokResult.slice(0, count);
+
   const claudeResult = await tryClaude(prompt);
   if (claudeResult) return claudeResult.slice(0, count);
 
-  return generateTemplateCaptions([], 'default', count);
+  return generateTemplateCaptions([], 'default', count, lang);
 }

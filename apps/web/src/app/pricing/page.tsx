@@ -13,7 +13,8 @@ import {
   Server,
   Zap,
   Coffee,
-  TrendingUp
+  TrendingUp,
+  Sparkles
 } from 'lucide-react';
 import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
 import type { BillingPeriod } from '@myphoto/shared';
@@ -235,10 +236,17 @@ function PricingContent() {
                 </div>
 
                 <p className={cn(
-                  'mb-2 mt-2 text-2xl font-medium',
+                  'mb-1 mt-2 text-2xl font-medium',
                   isPopular ? 'text-primary-100' : 'text-gray-600 dark:text-gray-300'
                 )}>
                   {tier.storageDisplay}
+                </p>
+                <p className={cn(
+                  'mb-2 flex items-center gap-1 text-xs font-medium',
+                  isPopular ? 'text-primary-200' : 'text-purple-600 dark:text-purple-400'
+                )}>
+                  <Sparkles className="h-3 w-3" />
+                  {tier.memesPerDay} memova/dan · {tier.memesPerMonth}/mes
                 </p>
 
                 {!isFree && monthlyEquiv <= 3.50 && (
@@ -308,6 +316,10 @@ function PricingContent() {
                     </div>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white">
                       {tier.storageDisplay}
+                    </p>
+                    <p className="flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400">
+                      <Sparkles className="h-3 w-3" />
+                      {tier.memesPerDay} memova/dan · {tier.memesPerMonth}/mes
                     </p>
 
                     {/* Price with savings */}
@@ -466,6 +478,10 @@ function PricingContent() {
             <FaqItem
               question="Gde se čuvaju moji podaci?"
               answer="Vaši podaci se čuvaju na serverima u Evropskoj Uniji (Frankfurt), u skladu sa GDPR regulativom."
+            />
+            <FaqItem
+              question="Šta je AI Meme Generator?"
+              answer="AI Meme Generator koristi veštačku inteligenciju da generiše smešne komentare za vaše fotografije. Broj memova koje možete kreirati zavisi od vašeg plana — od 2 dnevno (Free) do 40 dnevno (Ultra). AI automatski analizira sadržaj pre objave radi zaštite zajednice."
             />
             <FaqItem
               question="Mogu li exportovati sve svoje slike?"

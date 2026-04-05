@@ -87,7 +87,7 @@ export function StorageBonusCard() {
         >
           {!backupClaimed && (
             <a
-              href="https://play.google.com/store/apps/details?id=com.mycamerabackup.app"
+              href="https://play.google.com/store/apps/details?id=id.my.myphoto"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700"

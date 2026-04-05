@@ -316,6 +316,8 @@ export interface StorageTier {
   paddleYearlyId: string;
   features: string[];
   isPopular?: boolean;
+  memesPerDay: number;
+  memesPerMonth: number;
 }
 
 // Memory/Suggestion Types

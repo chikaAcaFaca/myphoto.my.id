@@ -11,7 +11,8 @@ import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
-import { generateAiCaptions, recaptionMeme } from '@/lib/ai-captions';
+import { generateAiCaptions, recaptionMeme, type CaptionLanguage } from '@/lib/ai-captions';
+import { checkMemeLimit, incrementMemeUsage } from '@/lib/meme-limits';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -19,7 +20,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 export default function AiCaptionScreen() {
   const { colors: tc } = useTheme();
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
-  const { getToken } = useAuth();
+  const { appUser, getToken } = useAuth();
 
   const [imageUri, setImageUri] = useState<string | null>(
     id ? `${API_URL}/api/thumbnail/${id}?size=large` : null
@@ -27,6 +28,7 @@ export default function AiCaptionScreen() {
   const [captions, setCaptions] = useState<string[]>([]);
   const [selectedCaption, setSelectedCaption] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [lang, setLang] = useState<CaptionLanguage>('sr');
 
   const pickImage = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -42,6 +44,17 @@ export default function AiCaptionScreen() {
 
   const generateCaptions = useCallback(async () => {
     if (!imageUri) return;
+
+    // AI limit check — manual memes are free, AI has limits
+    const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, true);
+    if (!limitCheck.allowed) {
+      Alert.alert('AI limit dostignut', limitCheck.reason, [
+        { text: 'OK' },
+        { text: 'Nadogradi plan', onPress: () => router.push('/settings') },
+      ]);
+      return;
+    }
+
     setGenerating(true);
     try {
       let labels: string[] = [];
@@ -62,11 +75,12 @@ export default function AiCaptionScreen() {
       }
 
       // Generate captions — tries Gemini AI first, falls back to templates
-      const results = await generateAiCaptions(labels, sceneType, 5);
+      const results = await generateAiCaptions(labels, sceneType, 5, undefined, lang);
       setCaptions(results);
+      await incrementMemeUsage();
     } catch (e) {
       console.log('Caption generation error:', e);
-      const results = await generateAiCaptions([], 'default', 5);
+      const results = await generateAiCaptions([], 'default', 5, undefined, lang);
       setCaptions(results);
     } finally {
       setGenerating(false);
@@ -114,6 +128,24 @@ export default function AiCaptionScreen() {
           )}
         </View>
 
+        {/* Language picker */}
+        {imageUri && (
+          <View style={styles.langRow}>
+            <TouchableOpacity
+              style={[styles.langBtn, lang === 'sr' && styles.langBtnActive]}
+              onPress={() => setLang('sr')}
+            >
+              <Text style={[styles.langText, lang === 'sr' && styles.langTextActive]}>Srpski</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.langBtn, lang === 'en' && styles.langBtnActive]}
+              onPress={() => setLang('en')}
+            >
+              <Text style={[styles.langText, lang === 'en' && styles.langTextActive]}>English</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Generate button */}
         {imageUri && (
           <TouchableOpacity
@@ -138,7 +170,7 @@ export default function AiCaptionScreen() {
             style={[styles.recaptionBtn, { borderColor: '#06b6d4' }]}
             onPress={async () => {
               setGenerating(true);
-              const results = await recaptionMeme(selectedCaption, 'meme slika', 5);
+              const results = await recaptionMeme(selectedCaption, 'meme slika', 5, lang);
               setCaptions(results);
               setSelectedCaption(null);
               setGenerating(false);
@@ -249,4 +281,17 @@ const styles = StyleSheet.create({
     marginTop: 16, paddingVertical: 10,
   },
   changeBtnText: { fontSize: 13, ...fonts.semibold },
+  langRow: {
+    flexDirection: 'row', justifyContent: 'center', gap: 8,
+    marginHorizontal: 16, marginBottom: 10,
+  },
+  langBtn: {
+    paddingHorizontal: 20, paddingVertical: 8, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  langBtnActive: {
+    backgroundColor: '#06b6d4', borderColor: '#06b6d4',
+  },
+  langText: { fontSize: 13, ...fonts.semibold, color: colors.textSecondary },
+  langTextActive: { color: '#fff' },
 });

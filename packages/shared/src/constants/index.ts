@@ -64,6 +64,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    memesPerDay: 2,
+    memesPerMonth: 50,
   },
   {
     tier: 1,
@@ -75,6 +77,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    memesPerDay: 5,
+    memesPerMonth: 150,
   },
   {
     tier: 2,
@@ -86,6 +90,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    memesPerDay: 8,
+    memesPerMonth: 250,
   },
   {
     tier: 3,
@@ -98,6 +104,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleYearlyId: '',
     features: ALL_FEATURES,
     isPopular: true,
+    memesPerDay: 11,
+    memesPerMonth: 350,
   },
   {
     tier: 4,
@@ -109,6 +117,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    memesPerDay: 14,
+    memesPerMonth: 450,
   },
   {
     tier: 5,
@@ -120,6 +130,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    memesPerDay: 17,
+    memesPerMonth: 550,
   },
   {
     tier: 6,
@@ -131,6 +143,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    memesPerDay: 22,
+    memesPerMonth: 700,
   },
   {
     tier: 7,
@@ -142,6 +156,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    memesPerDay: 28,
+    memesPerMonth: 850,
   },
   {
     tier: 8,
@@ -153,6 +169,8 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    memesPerDay: 40,
+    memesPerMonth: 1200,
   },
 ];
 

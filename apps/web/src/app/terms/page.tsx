@@ -452,10 +452,135 @@ export default function TermsPage() {
             </ul>
           </section>
 
+          {/* ═══════════════ BLOK 5.5: AI MEME GENERATOR ═══════════════ */}
+
+          <section>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">14. AI Meme Generator i MemeWall</h2>
+            <p>
+              MyPhoto nudi AI Meme Generator (&quot;Meme Servis&quot;) koji koristi veštačku inteligenciju
+              za generisanje humorističnih komentara na fotografijama, kao i MemeWall — javni feed
+              za deljenje memova sa zajednicom.
+            </p>
+
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">14.1 Kreiranje i vlasništvo nad memovima</h3>
+            <ul className="mt-2 space-y-2">
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>Korisnik je <strong>kreator i izdavač</strong> svakog mema koji napravi korišćenjem Meme Servisa</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>Svaki meme sadrži oznaku kreatora (<strong>@korisničko_ime</strong>) i oznaku platforme (<strong>myphotomy.space</strong>)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>MyPhoto pruža alat za kreiranje — <strong>Korisnik je isključivo odgovoran za sadržaj koji kreira i objavljuje</strong></span>
+              </li>
+            </ul>
+
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">14.2 Zabranjeni sadržaj</h3>
+            <p className="mt-2">
+              Korišćenjem Meme Servisa, Korisnik se obavezuje da <strong>neće</strong> kreirati ili objavljivati sadržaj koji:
+            </p>
+            <ul className="mt-2 space-y-2">
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-red-500" />
+                <span>Promoviše <strong>diskriminaciju</strong> na osnovu rase, vere, nacionalnosti, pola ili seksualne orijentacije</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-red-500" />
+                <span>Sadrži <strong>govor mržnje</strong>, pretnje, uznemiravanje ili podsticanje nasilja</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-red-500" />
+                <span>Krši <strong>Ustav Republike Srbije</strong>, Krivični zakonik ili druge pozitivne propise</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-red-500" />
+                <span>Krši <strong>autorska prava</strong> ili prava intelektualne svojine trećih lica</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-red-500" />
+                <span>Sadrži eksplicitno <strong>seksualno</strong>, nasilno ili uznemirujuće materijale</span>
+              </li>
+            </ul>
+
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">14.3 AI moderacija sadržaja</h3>
+            <p className="mt-2">
+              MyPhoto koristi veštačku inteligenciju za automatsku analizu sadržaja pre javne objave.
+              AI sistem može označiti sadržaj koji potencijalno krši ove Uslove.
+            </p>
+            <ul className="mt-2 space-y-2">
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>Ako AI označi sadržaj kao potencijalno problematičan, Korisnik će dobiti <strong>upozorenje</strong> pre objave</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>Korisnik mora <strong>eksplicitno da potvrdi</strong> da preuzima potpunu odgovornost za sadržaj pre objave upozorenog mema</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>Potvrda Korisnika se <strong>beleži</strong> (ID korisnika, vreme, razlog upozorenja) kao dokaz preuzete odgovornosti</span>
+              </li>
+            </ul>
+
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">14.4 Prijavljivanje i uklanjanje sadržaja</h3>
+            <ul className="mt-2 space-y-2">
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>Svaki korisnik može <strong>prijaviti</strong> meme koji smatra neprimerenim</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>MyPhoto zadržava pravo da <strong>ukloni bilo koji meme</strong> bez prethodne najave</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>Korisnicima koji krše pravila može se <strong>trajno uskratiti pristup Meme Servisu</strong></span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
+                <span>Uskraćivanje pristupa Meme Servisu <strong>ne utiče</strong> na korišćenje ostalih funkcija Platforme (storage, backup, foto organizacija)</span>
+              </li>
+            </ul>
+
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">14.5 Odricanje odgovornosti za korisnički sadržaj</h3>
+            <p className="mt-2">
+              MyPhoto je <strong>platforma</strong>, ne izdavač korisničkog sadržaja. Objavljivanjem mema na MemeWall-u,
+              Korisnik potvrđuje da:
+            </p>
+            <ul className="mt-2 space-y-2">
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-gray-500" />
+                <span>Objavljuje sadržaj <strong>na sopstvenu odgovornost</strong></span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-gray-500" />
+                <span>Snosi <strong>potpunu krivičnu i prekršajnu odgovornost</strong> za sadržaj koji objavljuje</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-gray-500" />
+                <span>MyPhoto <strong>ne odobrava, ne potvrđuje i ne garantuje</strong> za tačnost, zakonitost ili prikladnost korisničkog sadržaja</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Scale className="mt-1 h-4 w-4 flex-shrink-0 text-gray-500" />
+                <span>MyPhoto nije odgovoran za <strong>bilo kakvu štetu</strong> nastalu objavljivanjem, deljenjem ili korišćenjem korisničkog sadržaja</span>
+              </li>
+            </ul>
+
+            <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">14.6 Limiti korišćenja</h3>
+            <p className="mt-2">
+              Broj memova koje Korisnik može kreirati ograničen je u zavisnosti od izabranog plana (od 2 mema dnevno za
+              besplatni plan do 40 memova dnevno za Ultra plan). Detaljni limiti su dostupni na stranici{' '}
+              <Link href="/pricing" className="text-primary-500 underline hover:text-primary-600">Cenovnik</Link>.
+            </p>
+          </section>
+
           {/* ═══════════════ BLOK 6: ODGOVORNOST ═══════════════ */}
 
           <section>
-            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">14. Dostupnost servisa</h2>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">15. Dostupnost servisa</h2>
             <p>
               Servis se pruža <strong>&quot;kakav jeste&quot; (as is)</strong> i <strong>&quot;kako je dostupan&quot;
               (as available)</strong>. Ulažemo razumne napore da obezbedimo visoku dostupnost, ali
@@ -474,7 +599,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">15. Ograničenje odgovornosti</h2>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">16. Ograničenje odgovornosti</h2>
             <p>
               U maksimalnom obimu dozvoljenom zakonom:
             </p>
@@ -495,7 +620,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">16. Obeštećenje (Indemnification)</h2>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">17. Obeštećenje (Indemnification)</h2>
             <p>
               Saglasni ste da ćete obeštetiti, braniti i zaštititi MyPhoto, njegove vlasnike,
               zaposlene i partnere od svih potraživanja, gubitaka, troškova i odgovornosti
@@ -524,7 +649,7 @@ export default function TermsPage() {
           {/* ═══════════════ BLOK 7: PREKID I SPOROVI ═══════════════ */}
 
           <section>
-            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">17. Prekid korišćenja</h2>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">18. Prekid korišćenja</h2>
             <p>
               <strong>Brisanje naloga od strane korisnika:</strong> Možete obrisati nalog u bilo kom
               trenutku putem podešavanja naloga. Po zahtevu za brisanje:
@@ -552,7 +677,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">18. Merodavno pravo i rešavanje sporova</h2>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">19. Merodavno pravo i rešavanje sporova</h2>
             <p>
               <strong>Primarno merodavno pravo:</strong> Ovi Uslovi se tumače u skladu sa
               zakonima Republike Srbije, bez primene kolizionih normi.
@@ -593,7 +718,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">19. Izmene uslova</h2>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">20. Izmene uslova</h2>
             <p>
               Zadržavamo pravo da izmenimo ove Uslove. Obaveštavaćemo vas o svim izmenama
               na sledeći način:
@@ -620,7 +745,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">20. Razdvojivost (Severability)</h2>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">21. Razdvojivost (Severability)</h2>
             <p>
               Ako se bilo koja odredba ovih Uslova proglasi nevažećom, nezakonitom ili
               neizvršivom od strane nadležnog suda, ta odredba će se tumačiti u najvećem
@@ -630,7 +755,7 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">21. Kontakt</h2>
+            <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">22. Kontakt</h2>
             <p>
               Za sva pitanja vezana za ove Uslove korišćenja:
             </p>

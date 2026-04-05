@@ -1,4 +1,4 @@
-const DB_NAME = 'mycamerabackup-uploads';
+const DB_NAME = 'myphoto-uploads';
 const DB_VERSION = 2;
 
 export interface QueuedUpload {

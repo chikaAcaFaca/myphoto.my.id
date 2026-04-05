@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions,
   Alert, ActivityIndicator, Share, Platform, ScrollView, KeyboardAvoidingView,
@@ -13,6 +13,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { checkMemeLimit, getMemeUsageStats } from '@/lib/meme-limits';
+import { moderateCaption } from '@/lib/ai-captions';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -34,7 +36,7 @@ const FONT_SIZES = [
 export default function MemeCreatorScreen() {
   const { colors: tc } = useTheme();
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
-  const { getToken } = useAuth();
+  const { user, appUser, getToken } = useAuth();
 
   const [mediaUri, setMediaUri] = useState<string | null>(
     id ? `${API_URL}/api/thumbnail/${id}?size=large` : null
@@ -45,8 +47,19 @@ export default function MemeCreatorScreen() {
   const [template, setTemplate] = useState(MEME_TEMPLATES[0]);
   const [fontSize, setFontSize] = useState(FONT_SIZES[1]);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [memeStats, setMemeStats] = useState<{ daily: number; maxDaily: number; monthly: number; maxMonthly: number } | null>(null);
   const videoRef = useRef<Video>(null);
+
+  // Load meme usage stats
+  useEffect(() => {
+    const loadStats = async () => {
+      const stats = await getMemeUsageStats(appUser?.storageLimit || 0);
+      setMemeStats({ daily: stats.daily, maxDaily: stats.maxDaily, monthly: stats.monthly, maxMonthly: stats.maxMonthly });
+    };
+    loadStats();
+  }, [appUser?.storageLimit]);
 
   const pickMedia = useCallback(async (type: 'image' | 'video') => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -66,21 +79,62 @@ export default function MemeCreatorScreen() {
 
   const handleShare = useCallback(async () => {
     if (!mediaUri) return;
+
+    // Manual meme limit check (Free users can't create)
+    const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
+    if (!limitCheck.allowed) {
+      Alert.alert('Nadogradite plan', limitCheck.reason, [
+        { text: 'OK' },
+        { text: 'Pogledaj planove', onPress: () => router.push('/settings') },
+      ]);
+      return;
+    }
+
+    // AI content moderation — check caption text
+    const captionText = [topText, bottomText].filter(Boolean).join(' ');
+    if (captionText.length > 0) {
+      const modResult = await moderateCaption(captionText);
+      if (modResult.flagged) {
+        const proceed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            '⚠️ Upozorenje o sadržaju',
+            `Ovaj sadržaj može kršiti Uslove korišćenja.\n\nRazlog: ${modResult.reason}\n\nObjavljivanjem preuzimate POTPUNU odgovornost za sve pravne posledice, uključujući krivičnu ili prekršajnu. Nastaviti?`,
+            [
+              { text: 'Odustani', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Objavi na svoju odgovornost', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+        if (!proceed) return;
+        // TODO: Log consent to server (userId, timestamp, reason, content hash)
+      }
+    }
+
     try {
       const shareUrl = mediaUri.startsWith('http')
         ? `${API_URL}/api/stream/${id}`
         : mediaUri;
       await Share.share({
-        message: `${topText ? topText + '\n' : ''}${bottomText ? bottomText + '\n' : ''}\nNapravljeno u MyPhoto app`,
+        message: `${topText ? topText + '\n' : ''}${bottomText ? bottomText + '\n' : ''}\n@${user?.displayName || 'user'} • myphotomy.space`,
         url: shareUrl,
       });
     } catch (e) {
       console.log('Share error:', e);
     }
-  }, [mediaUri, topText, bottomText, id]);
+  }, [mediaUri, topText, bottomText, id, appUser?.storageLimit]);
 
   const handleSave = useCallback(async () => {
     if (!mediaUri) return;
+
+    const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
+    if (!limitCheck.allowed) {
+      Alert.alert('Nadogradite plan', limitCheck.reason, [
+        { text: 'OK' },
+        { text: 'Pogledaj planove', onPress: () => router.push('/settings') },
+      ]);
+      return;
+    }
+
     setSaving(true);
     try {
       const perms = mediaType === 'video' ? ['video'] : ['photo'];
@@ -112,6 +166,74 @@ export default function MemeCreatorScreen() {
     }
   }, [mediaUri, mediaType, id, getToken]);
 
+  const handlePublish = useCallback(async () => {
+    if (!mediaUri) return;
+    const captionText = [topText, bottomText].filter(Boolean).join(' ');
+    if (!captionText.trim()) {
+      Alert.alert('Dodaj tekst', 'Meme mora imati tekst pre objave na MemeWall.');
+      return;
+    }
+
+    const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
+    if (!limitCheck.allowed) {
+      Alert.alert('Nadogradite plan', limitCheck.reason, [
+        { text: 'OK' },
+        { text: 'Pogledaj planove', onPress: () => router.push('/settings') },
+      ]);
+      return;
+    }
+
+    // AI content moderation
+    const modResult = await moderateCaption(captionText);
+    if (modResult.flagged) {
+      const proceed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Upozorenje o sadrzaju',
+          `Ovaj sadrzaj moze krsiti Uslove koriscenja.\n\nRazlog: ${modResult.reason}\n\nObjavljivanjem preuzimate POTPUNU odgovornost za sve pravne posledice, ukljucujuci krivicnu ili prekrsajnu. Nastaviti?`,
+          [
+            { text: 'Odustani', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Objavi na svoju odgovornost', style: 'destructive', onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!proceed) return;
+    }
+
+    setPublishing(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/api/meme-wall`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          fileId: id || null,
+          mediaUri: mediaUri.startsWith('http') ? null : mediaUri,
+          mediaType,
+          caption: captionText,
+          topText,
+          bottomText,
+          template: template.id,
+          fontSize: fontSize.size,
+        }),
+      });
+      if (res.ok) {
+        Alert.alert('Objavljeno!', 'Tvoj meme je sada na MemeWall-u!', [
+          { text: 'Pogledaj', onPress: () => router.push('/meme-wall') },
+          { text: 'OK' },
+        ]);
+      } else {
+        Alert.alert('Greska', 'Objavljivanje nije uspelo. Pokusajte ponovo.');
+      }
+    } catch (e) {
+      Alert.alert('Greska', 'Objavljivanje nije uspelo.');
+    } finally {
+      setPublishing(false);
+    }
+  }, [mediaUri, topText, bottomText, template, fontSize, mediaType, id, appUser?.storageLimit, getToken]);
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -137,6 +259,18 @@ export default function MemeCreatorScreen() {
         </View>
 
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+          {/* AI usage indicator */}
+          {memeStats && (
+            <View style={[styles.usageBanner, { backgroundColor: tc.bgCard }]}>
+              <Ionicons name="sparkles" size={14} color={tc.primary} />
+              <Text style={[styles.usageText, { color: tc.textMuted }]}>
+                {appUser && appUser.storageLimit > 1073741824
+                  ? `AI: ${memeStats.daily}/${memeStats.maxDaily} danas · Rucno: neograniceno`
+                  : 'Nadogradite plan za kreiranje memova'}
+              </Text>
+            </View>
+          )}
+
           {/* Media type picker */}
           {!mediaUri && (
             <View style={styles.mediaTypePicker}>
@@ -201,7 +335,9 @@ export default function MemeCreatorScreen() {
                   </View>
                 )}
                 {/* Watermark */}
-                <Text style={styles.watermark}>Made with MyPhoto</Text>
+                <Text style={styles.watermark}>
+                  @{user?.displayName || 'user'} • myphotomy.space
+                </Text>
               </View>
             ) : null}
           </View>
@@ -257,6 +393,24 @@ export default function MemeCreatorScreen() {
                 </TouchableOpacity>
               ))}
             </View>
+
+            {/* Publish to MemeWall */}
+            {mediaUri && (topText || bottomText) && (
+              <TouchableOpacity
+                style={styles.publishBtn}
+                onPress={handlePublish}
+                disabled={publishing}
+              >
+                {publishing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="globe-outline" size={18} color="#fff" />
+                )}
+                <Text style={styles.publishText}>
+                  {publishing ? 'Objavljujem...' : 'Objavi na MemeWall'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Pick different media */}
             {mediaUri && (
@@ -345,4 +499,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
   },
   mediaTypeBadgeText: { color: '#fff', fontSize: 10, ...fonts.bold },
+  usageBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: 6, paddingHorizontal: 12, marginHorizontal: 12, marginTop: 4,
+    borderRadius: 8,
+  },
+  usageText: { fontSize: 11, ...fonts.medium },
+  publishBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#f97316', borderRadius: radius.md, paddingVertical: 14,
+    marginTop: 16,
+  },
+  publishText: { color: '#fff', fontSize: 14, ...fonts.bold },
 });
