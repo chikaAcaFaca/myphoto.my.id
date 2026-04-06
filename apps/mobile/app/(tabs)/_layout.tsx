@@ -25,15 +25,6 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="myspace"
-        options={{
-          title: 'MySpace',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="folder-open" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           title: 'MyPhoto',
@@ -43,20 +34,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="albums"
+        name="meme-wall-tab"
         options={{
-          title: 'Albums',
+          title: 'MemeWall',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="albums" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="videos"
-        options={{
-          title: 'Video',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="videocam" size={size} color={color} />
+            <Ionicons name="flame" size={size} color={color} />
           ),
         }}
       />
@@ -70,6 +52,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="albums"
+        options={{
+          title: 'Albums',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="albums" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
@@ -78,7 +69,9 @@ export default function TabLayout() {
           ),
         }}
       />
-      {/* Hide old screens from tabs */}
+      {/* Hide screens from tab bar */}
+      <Tabs.Screen name="myspace" options={{ href: null }} />
+      <Tabs.Screen name="videos" options={{ href: null }} />
       <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>
   );

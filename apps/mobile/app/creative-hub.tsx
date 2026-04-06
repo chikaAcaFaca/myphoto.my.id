@@ -33,14 +33,6 @@ const TOOLS = [
     color: '#ec4899',
     route: '/sticker-maker',
   },
-  {
-    id: 'caption',
-    title: 'AI Komentari',
-    desc: 'AI generise smesne komentare za sliku',
-    icon: 'sparkles-outline' as const,
-    color: '#06b6d4',
-    route: '/ai-caption',
-  },
 ];
 
 export default function CreativeHubScreen() {

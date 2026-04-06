@@ -50,7 +50,7 @@ export default function AiCaptionScreen() {
     if (!limitCheck.allowed) {
       Alert.alert('AI limit dostignut', limitCheck.reason, [
         { text: 'OK' },
-        { text: 'Nadogradi plan', onPress: () => router.push('/settings') },
+        { text: 'Nadogradi plan', onPress: () => require('expo-linking').openURL('https://myphotomy.space/pricing') },
       ]);
       return;
     }

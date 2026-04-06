@@ -50,6 +50,9 @@ export default function MemeCreatorScreen() {
   const [publishing, setPublishing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [memeStats, setMemeStats] = useState<{ daily: number; maxDaily: number; monthly: number; maxMonthly: number } | null>(null);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imageOffsetX, setImageOffsetX] = useState(0);
+  const [imageOffsetY, setImageOffsetY] = useState(0);
   const videoRef = useRef<Video>(null);
 
   // Load meme usage stats
@@ -85,7 +88,7 @@ export default function MemeCreatorScreen() {
     if (!limitCheck.allowed) {
       Alert.alert('Nadogradite plan', limitCheck.reason, [
         { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/settings') },
+        { text: 'Pogledaj planove', onPress: () => require('expo-linking').openURL('https://myphotomy.space/pricing') },
       ]);
       return;
     }
@@ -130,7 +133,7 @@ export default function MemeCreatorScreen() {
     if (!limitCheck.allowed) {
       Alert.alert('Nadogradite plan', limitCheck.reason, [
         { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/settings') },
+        { text: 'Pogledaj planove', onPress: () => require('expo-linking').openURL('https://myphotomy.space/pricing') },
       ]);
       return;
     }
@@ -178,7 +181,7 @@ export default function MemeCreatorScreen() {
     if (!limitCheck.allowed) {
       Alert.alert('Nadogradite plan', limitCheck.reason, [
         { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/settings') },
+        { text: 'Pogledaj planove', onPress: () => require('expo-linking').openURL('https://myphotomy.space/pricing') },
       ]);
       return;
     }
@@ -313,7 +316,17 @@ export default function MemeCreatorScreen() {
                     )}
                   </TouchableOpacity>
                 ) : (
-                  <Image source={{ uri: mediaUri }} style={styles.memeImage} contentFit="cover" />
+                  <Image
+                    source={{ uri: mediaUri }}
+                    style={[styles.memeImage, {
+                      transform: [
+                        { scale: imageZoom },
+                        { translateX: imageOffsetX },
+                        { translateY: imageOffsetY },
+                      ],
+                    }]}
+                    contentFit="cover"
+                  />
                 )}
                 {/* Top text */}
                 {template.topPos !== null && topText ? (
@@ -404,6 +417,47 @@ export default function MemeCreatorScreen() {
               ))}
             </View>
 
+            {/* Image zoom & pan */}
+            {mediaUri && mediaType === 'image' && (
+              <>
+                <Text style={[styles.controlLabel, { color: tc.textMuted }]}>SLIKA ZOOM I POZICIJA</Text>
+                <View style={styles.zoomControls}>
+                  <TouchableOpacity
+                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
+                    onPress={() => setImageZoom(Math.max(0.5, imageZoom - 0.1))}
+                  >
+                    <Ionicons name="remove" size={18} color={tc.text} />
+                  </TouchableOpacity>
+                  <Text style={[styles.zoomLabel, { color: tc.textMuted }]}>{Math.round(imageZoom * 100)}%</Text>
+                  <TouchableOpacity
+                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
+                    onPress={() => setImageZoom(Math.min(3, imageZoom + 0.1))}
+                  >
+                    <Ionicons name="add" size={18} color={tc.text} />
+                  </TouchableOpacity>
+                  <View style={{ width: 16 }} />
+                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetX(imageOffsetX - 10)}>
+                    <Ionicons name="arrow-back" size={16} color={tc.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetY(imageOffsetY - 10)}>
+                    <Ionicons name="arrow-up" size={16} color={tc.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetY(imageOffsetY + 10)}>
+                    <Ionicons name="arrow-down" size={16} color={tc.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetX(imageOffsetX + 10)}>
+                    <Ionicons name="arrow-forward" size={16} color={tc.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
+                    onPress={() => { setImageZoom(1); setImageOffsetX(0); setImageOffsetY(0); }}
+                  >
+                    <Ionicons name="refresh" size={16} color={tc.text} />
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
             {/* Publish to MemeWall */}
             {mediaUri && (topText || bottomText) && (
               <TouchableOpacity
@@ -451,7 +505,7 @@ const styles = StyleSheet.create({
   topBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
   previewContainer: { alignItems: 'center', paddingVertical: 12 },
-  memeFrame: { width: width - 24, aspectRatio: 1, borderRadius: radius.md, overflow: 'hidden', position: 'relative' },
+  memeFrame: { width: width - 24, aspectRatio: 3 / 4, borderRadius: radius.md, overflow: 'hidden', position: 'relative' },
   memeImage: { width: '100%', height: '100%' },
   memeText: {
     position: 'absolute', left: 8, right: 8, textAlign: 'center',
@@ -515,6 +569,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   usageText: { fontSize: 11, ...fonts.medium },
+  zoomControls: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
+  zoomBtn: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  zoomLabel: { fontSize: 12, ...fonts.bold, width: 40, textAlign: 'center' },
   publishBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: '#f97316', borderRadius: radius.md, paddingVertical: 14,
