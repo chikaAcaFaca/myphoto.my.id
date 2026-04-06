@@ -20,10 +20,10 @@ const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 const MEME_TEMPLATES = [
-  { id: 'classic', label: 'Klasicni', topPos: 0.05, bottomPos: 0.88 },
-  { id: 'top-only', label: 'Gore', topPos: 0.08, bottomPos: null },
-  { id: 'bottom-only', label: 'Dole', topPos: null, bottomPos: 0.85 },
-  { id: 'center', label: 'Centar', topPos: 0.45, bottomPos: null },
+  { id: 'classic', label: 'Klasicni', topPos: 0.03, bottomPos: 0.78 },
+  { id: 'top-only', label: 'Gore', topPos: 0.05, bottomPos: null },
+  { id: 'bottom-only', label: 'Dole', topPos: null, bottomPos: 0.75 },
+  { id: 'center', label: 'Centar', topPos: 0.40, bottomPos: null },
 ];
 
 const FONT_SIZES = [
@@ -317,13 +317,23 @@ export default function MemeCreatorScreen() {
                 )}
                 {/* Top text */}
                 {template.topPos !== null && topText ? (
-                  <Text style={[styles.memeText, { top: `${template.topPos * 100}%`, fontSize: fontSize.size }]}>
+                  <Text
+                    style={[styles.memeText, { top: `${template.topPos * 100}%`, fontSize: fontSize.size }]}
+                    adjustsFontSizeToFit
+                    numberOfLines={3}
+                    minimumFontScale={0.5}
+                  >
                     {topText.toUpperCase()}
                   </Text>
                 ) : null}
                 {/* Bottom text */}
                 {template.bottomPos !== null && bottomText ? (
-                  <Text style={[styles.memeText, { top: `${template.bottomPos * 100}%`, fontSize: fontSize.size }]}>
+                  <Text
+                    style={[styles.memeText, { top: `${template.bottomPos * 100}%`, fontSize: fontSize.size }]}
+                    adjustsFontSizeToFit
+                    numberOfLines={3}
+                    minimumFontScale={0.5}
+                  >
                     {bottomText.toUpperCase()}
                   </Text>
                 ) : null}
@@ -444,10 +454,10 @@ const styles = StyleSheet.create({
   memeFrame: { width: width - 24, aspectRatio: 1, borderRadius: radius.md, overflow: 'hidden', position: 'relative' },
   memeImage: { width: '100%', height: '100%' },
   memeText: {
-    position: 'absolute', left: 0, right: 0, textAlign: 'center',
+    position: 'absolute', left: 8, right: 8, textAlign: 'center',
     color: '#fff', ...fonts.extrabold, textTransform: 'uppercase',
     textShadowColor: '#000', textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6, paddingVertical: 4,
   },
   watermark: {
     position: 'absolute', bottom: 4, right: 6,

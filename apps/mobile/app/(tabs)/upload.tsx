@@ -1,24 +1,97 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useState, useCallback } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useSync } from '@/lib/sync-context';
+import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 
-interface TransferItem {
-  id: string;
-  name: string;
-  time: string;
-  color: 'blue' | 'orange';
-}
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function UploadScreen() {
   const { colors: tc } = useTheme();
   const { isSyncing, syncProgress, pendingCount, startSync, stopSync } = useSync();
+  const { getToken } = useAuth();
+  const [uploading, setUploading] = useState(false);
+  const [uploadCount, setUploadCount] = useState(0);
 
-  // Mock recent transfers for now - will be populated from sync history
-  const [recentTransfers] = useState<TransferItem[]>([]);
+  const pickAndUpload = useCallback(async (type: 'photos' | 'videos' | 'files') => {
+    try {
+      let assets: { uri: string; name?: string; mimeType?: string }[] = [];
+
+      if (type === 'files') {
+        const result = await DocumentPicker.getDocumentAsync({
+          multiple: true,
+          type: '*/*',
+        });
+        if (!result.canceled && result.assets) {
+          assets = result.assets.map(a => ({ uri: a.uri, name: a.name, mimeType: a.mimeType || undefined }));
+        }
+      } else {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: type === 'videos' ? ['videos'] : ['images'],
+          allowsMultipleSelection: true,
+          quality: 1,
+          selectionLimit: 50,
+        });
+        if (!result.canceled && result.assets) {
+          assets = result.assets.map(a => ({
+            uri: a.uri,
+            name: a.fileName || `${type}_${Date.now()}.${a.uri.split('.').pop()}`,
+            mimeType: a.mimeType || undefined,
+          }));
+        }
+      }
+
+      if (assets.length === 0) return;
+
+      setUploading(true);
+      setUploadCount(0);
+      const token = await getToken();
+      let success = 0;
+
+      for (const asset of assets) {
+        try {
+          const formData = new FormData();
+          formData.append('file', {
+            uri: asset.uri,
+            name: asset.name || `file_${Date.now()}`,
+            type: asset.mimeType || 'application/octet-stream',
+          } as any);
+
+          const res = await fetch(`${API_URL}/api/upload`, {
+            method: 'POST',
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: formData,
+          });
+
+          if (res.ok) {
+            success++;
+            setUploadCount(success);
+          }
+        } catch (e) {
+          console.log('Upload error for file:', asset.name, e);
+        }
+      }
+
+      Alert.alert(
+        'Upload zavrsen',
+        `${success}/${assets.length} fajlova uspesno uploadovano.`
+      );
+    } catch (e) {
+      console.log('Pick error:', e);
+      Alert.alert('Greska', 'Nije moguce izabrati fajlove.');
+    } finally {
+      setUploading(false);
+    }
+  }, [getToken]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
@@ -29,88 +102,98 @@ export default function UploadScreen() {
             <Ionicons name="cloud-upload" size={24} color="#fff" />
             <Text style={styles.headerTitle}>Upload</Text>
           </View>
-          <Text style={styles.headerSubtitle}>Sync your files to cloud</Text>
+          <Text style={styles.headerSubtitle}>Uploadujte fajlove u cloud</Text>
         </View>
 
-        {/* Upload button */}
+        {/* Manual upload buttons */}
+        <View style={styles.pickSection}>
+          <TouchableOpacity
+            style={[styles.pickBtn, { backgroundColor: '#3b82f6' }]}
+            onPress={() => pickAndUpload('photos')}
+            disabled={uploading}
+          >
+            <Ionicons name="images-outline" size={28} color="#fff" />
+            <Text style={styles.pickBtnTitle}>Slike</Text>
+            <Text style={styles.pickBtnSub}>Izaberi iz galerije</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.pickBtn, { backgroundColor: '#8b5cf6' }]}
+            onPress={() => pickAndUpload('videos')}
+            disabled={uploading}
+          >
+            <Ionicons name="videocam-outline" size={28} color="#fff" />
+            <Text style={styles.pickBtnTitle}>Video</Text>
+            <Text style={styles.pickBtnSub}>Izaberi snimke</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.pickBtn, { backgroundColor: '#f97316' }]}
+            onPress={() => pickAndUpload('files')}
+            disabled={uploading}
+          >
+            <Ionicons name="document-outline" size={28} color="#fff" />
+            <Text style={styles.pickBtnTitle}>Fajlovi</Text>
+            <Text style={styles.pickBtnSub}>PDF, dokument...</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Upload progress */}
+        {uploading && (
+          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
+            <View style={styles.progressItem}>
+              <ActivityIndicator size="small" color={tc.primary} />
+              <Text style={[styles.pendingTitle, { marginLeft: 10 }]}>
+                Uploadovano {uploadCount} fajlova...
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Auto-backup section */}
+        <Text style={[styles.sectionTitle, { color: tc.textSecondary }]}>AUTO-BACKUP</Text>
+
         <TouchableOpacity
-          style={styles.uploadBtn}
+          style={[styles.syncBtn, { borderColor: tc.primary }]}
           activeOpacity={0.8}
           onPress={() => { if (isSyncing) stopSync(); else startSync(); }}
         >
-          <Ionicons name={isSyncing ? 'pause' : 'rocket'} size={20} color="#fff" />
-          <Text style={styles.uploadBtnText}>
-            {isSyncing ? 'Pause Upload' : pendingCount > 0 ? `Upload ${pendingCount} Files` : 'Upload New Files'}
+          <Ionicons name={isSyncing ? 'pause' : 'sync'} size={20} color={tc.primary} />
+          <Text style={[styles.syncBtnText, { color: tc.primary }]}>
+            {isSyncing ? 'Pauziraj Sync' : pendingCount > 0 ? `Sync ${pendingCount} fajlova` : 'Sve je sinhronizovano'}
           </Text>
         </TouchableOpacity>
 
-        {/* Active uploads */}
+        {/* Sync progress */}
         {isSyncing && (
           <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-            <View style={styles.progressItem}>
-              <View style={styles.progressRow}>
-                <Text style={styles.progressName}>Syncing photos...</Text>
-                <TouchableOpacity style={styles.cancelBtn} onPress={stopSync}>
-                  <Ionicons name="close" size={12} color="#fff" />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, styles.progressGreen, { width: `${syncProgress}%` }]} />
-              </View>
-              <Text style={styles.progressText}>{Math.round(syncProgress)}% - Uploading...</Text>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${syncProgress}%` }]} />
             </View>
+            <Text style={[styles.progressText, { color: tc.textMuted }]}>{Math.round(syncProgress)}% syncing...</Text>
           </View>
         )}
 
-        {/* Pending count */}
-        {!isSyncing && pendingCount > 0 && (
+        {/* Status */}
+        {!isSyncing && !uploading && (
           <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-            <View style={styles.pendingRow}>
-              <View style={styles.pendingIcon}>
-                <Ionicons name="time" size={20} color={colors.accent} />
+            <View style={styles.statusRow}>
+              <View style={[styles.statusIcon, { backgroundColor: pendingCount > 0 ? '#fff7ed' : '#dcfce7' }]}>
+                <Ionicons
+                  name={pendingCount > 0 ? 'time' : 'checkmark-circle'}
+                  size={20}
+                  color={pendingCount > 0 ? colors.accent : colors.success}
+                />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.pendingTitle}>{pendingCount} fajlova ceka upload</Text>
-                <Text style={styles.pendingSubtitle}>Pritisnite Upload da pocnete</Text>
+                <Text style={[styles.pendingTitle, { color: tc.text }]}>
+                  {pendingCount > 0 ? `${pendingCount} fajlova ceka sync` : 'Sve je sinhronizovano'}
+                </Text>
+                <Text style={[styles.pendingSubtitle, { color: tc.textMuted }]}>
+                  {pendingCount > 0 ? 'Pokrenite sync za upload' : 'Vasi fajlovi su azurni u cloudu'}
+                </Text>
               </View>
             </View>
-          </View>
-        )}
-
-        {/* Status when nothing to do */}
-        {!isSyncing && pendingCount === 0 && (
-          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-            <View style={styles.pendingRow}>
-              <View style={[styles.pendingIcon, { backgroundColor: '#dcfce7' }]}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.pendingTitle}>Sve je sinhronizovano</Text>
-                <Text style={styles.pendingSubtitle}>Vasi fajlovi su azurni u cloudu</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Recent Transfers */}
-        <Text style={styles.sectionTitle}>Recent Transfers</Text>
-
-        {recentTransfers.length === 0 ? (
-          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-            <View style={{ alignItems: 'center', padding: 20 }}>
-              <Ionicons name="swap-vertical-outline" size={36} color={colors.textMuted} />
-              <Text style={[styles.pendingSubtitle, { marginTop: 8 }]}>Istorija transfera ce se pojaviti ovde</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.transferGrid}>
-            {recentTransfers.map(t => (
-              <View key={t.id} style={[styles.transferCard, t.color === 'blue' ? styles.transferBlue : styles.transferOrange]}>
-                <Ionicons name="checkmark-circle" size={16} color={colors.success} style={{ position: 'absolute', top: 8, right: 8 }} />
-                <Text style={styles.transferName}>{t.name}</Text>
-                <Text style={styles.transferMeta}>{t.time}</Text>
-              </View>
-            ))}
           </View>
         )}
       </ScrollView>
@@ -119,42 +202,37 @@ export default function UploadScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8, paddingBottom: 24, alignItems: 'center' },
+  safe: { flex: 1 },
+  headerBg: { paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8, paddingBottom: 24, alignItems: 'center' },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 20, ...fonts.extrabold, color: '#fff' },
   headerSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  uploadBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: colors.accent, marginHorizontal: 12, marginTop: -12,
-    borderRadius: radius.lg, paddingVertical: 16,
-    shadowColor: colors.accent, shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+  pickSection: {
+    flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginTop: -12,
   },
-  uploadBtnText: { color: '#fff', fontSize: 15, ...fonts.bold },
+  pickBtn: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4,
+    borderRadius: radius.lg, paddingVertical: 20,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+  },
+  pickBtnTitle: { color: '#fff', fontSize: 14, ...fonts.bold },
+  pickBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 9, ...fonts.medium },
+  sectionTitle: { fontSize: 11, ...fonts.bold, letterSpacing: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 6 },
+  syncBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginHorizontal: 12, borderWidth: 1.5, borderRadius: radius.lg, paddingVertical: 14,
+  },
+  syncBtnText: { fontSize: 14, ...fonts.bold },
   card: {
-    backgroundColor: '#fff', borderRadius: radius.lg, marginHorizontal: 12, marginTop: 12,
+    borderRadius: radius.lg, marginHorizontal: 12, marginTop: 12,
     padding: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
   },
-  progressItem: { paddingVertical: 4 },
-  progressRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  progressName: { fontSize: 12, ...fonts.semibold, color: colors.text },
-  progressBar: { height: 6, backgroundColor: colors.bgInput, borderRadius: 3, marginVertical: 6, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 3 },
-  progressGreen: { backgroundColor: colors.success },
-  progressText: { fontSize: 10, color: colors.textMuted },
-  cancelBtn: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: colors.error, alignItems: 'center', justifyContent: 'center',
-  },
-  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  pendingIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#fff7ed', alignItems: 'center', justifyContent: 'center' },
-  pendingTitle: { fontSize: 13, ...fonts.semibold, color: colors.text },
-  pendingSubtitle: { fontSize: 11, color: colors.textMuted, marginTop: 1 },
-  sectionTitle: { fontSize: 12, ...fonts.bold, color: colors.textSecondary, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
-  transferGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, paddingTop: 4 },
-  transferCard: { width: '48%', borderRadius: radius.md, padding: 12 },
-  transferBlue: { backgroundColor: '#e0f2fe' },
-  transferOrange: { backgroundColor: '#ffedd5' },
-  transferName: { fontSize: 11, ...fonts.bold, color: colors.text },
-  transferMeta: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  progressItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  progressBar: { height: 6, backgroundColor: '#f1f5f9', borderRadius: 3, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 3, backgroundColor: '#22c55e' },
+  progressText: { fontSize: 10, marginTop: 4 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  statusIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  pendingTitle: { fontSize: 13, ...fonts.semibold },
+  pendingSubtitle: { fontSize: 11, marginTop: 1 },
 });
