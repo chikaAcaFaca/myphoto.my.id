@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
+import { STORAGE_TIERS } from '@myphoto/shared';
 import { useAuth } from '@/lib/auth-context';
 import { getUserTier } from '@/lib/meme-limits';
 import { colors, radius, fonts } from '@/lib/theme';
@@ -22,28 +22,8 @@ export default function PricingScreen() {
   const [billing, setBilling] = useState<BillingPeriod>('yearly');
   const currentTier = getUserTier(appUser?.storageLimit || 0);
 
-  const getPrice = (tier: typeof STORAGE_TIERS[0]) => {
-    if (tier.priceMonthly === 0) return 'Besplatno';
-    if (billing === 'yearly') {
-      return `€${(tier.priceYearly / 12).toFixed(2)}/mes`;
-    }
-    return `€${tier.priceMonthly.toFixed(2)}/mes`;
-  };
-
-  const getYearlyTotal = (tier: typeof STORAGE_TIERS[0]) => {
-    if (billing !== 'yearly' || tier.priceMonthly === 0) return null;
-    return `€${tier.priceYearly.toFixed(2)}/god`;
-  };
-
-  const getSavings = (tier: typeof STORAGE_TIERS[0]) => {
-    if (billing !== 'yearly' || tier.priceMonthly === 0) return null;
-    const monthlyTotal = tier.priceMonthly * 12;
-    const savings = Math.round((1 - tier.priceYearly / monthlyTotal) * 100);
-    return savings > 0 ? `-${savings}%` : null;
-  };
-
   const handleSelectPlan = useCallback((tier: typeof STORAGE_TIERS[0]) => {
-    if (tier.tier === 0) return; // Already free
+    if (tier.tier === 0) return;
     Linking.openURL(`${API_URL}/checkout?tier=${tier.tier}&period=${billing}`);
   }, [billing]);
 
@@ -58,9 +38,9 @@ export default function PricingScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        {/* Billing toggle */}
-        <View style={styles.billingRow}>
+      {/* STICKY billing toggle — stays above scroll */}
+      <View style={[styles.stickyBar, { backgroundColor: tc.bg, borderBottomColor: tc.border }]}>
+        <View style={[styles.billingRow, { backgroundColor: tc.bgInput }]}>
           <TouchableOpacity
             style={[styles.billingBtn, billing === 'monthly' && { backgroundColor: tc.primary }]}
             onPress={() => setBilling('monthly')}
@@ -71,34 +51,39 @@ export default function PricingScreen() {
             style={[styles.billingBtn, billing === 'yearly' && { backgroundColor: tc.primary }]}
             onPress={() => setBilling('yearly')}
           >
-            <Text style={[styles.billingText, billing === 'yearly' && { color: '#fff' }]}>
-              Godisnje
-            </Text>
-            <View style={styles.savingsBadge}>
-              <Text style={styles.savingsText}>2 mes. free</Text>
+            <Text style={[styles.billingText, billing === 'yearly' && { color: '#fff' }]}>Godisnje</Text>
+            <View style={styles.freeBadge}>
+              <Text style={styles.freeText}>2 mes. free</Text>
             </View>
           </TouchableOpacity>
         </View>
+      </View>
 
+      <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingTop: 8 }}>
         {/* Trust badges */}
         <View style={styles.trustRow}>
           <View style={[styles.trustBadge, { backgroundColor: '#dcfce7' }]}>
             <Ionicons name="shield-checkmark" size={12} color="#16a34a" />
-            <Text style={[styles.trustText, { color: '#16a34a' }]}>Ne koristimo slike za AI</Text>
+            <Text style={[styles.trustText, { color: '#16a34a' }]}>Bez AI treninga</Text>
           </View>
           <View style={[styles.trustBadge, { backgroundColor: '#dbeafe' }]}>
             <Ionicons name="server" size={12} color="#2563eb" />
             <Text style={[styles.trustText, { color: '#2563eb' }]}>EU Serveri</Text>
           </View>
+          <View style={[styles.trustBadge, { backgroundColor: '#f3e8ff' }]}>
+            <Ionicons name="lock-closed" size={12} color="#7c3aed" />
+            <Text style={[styles.trustText, { color: '#7c3aed' }]}>GDPR</Text>
+          </View>
         </View>
 
-        {/* Tier cards */}
+        {/* Tier cards — each shows BOTH prices */}
         {STORAGE_TIERS.map((tier) => {
           const isCurrent = tier.tier === currentTier.tier;
           const isPopular = tier.isPopular;
-          const savings = getSavings(tier);
-          const yearlyTotal = getYearlyTotal(tier);
           const isFree = tier.priceMonthly === 0;
+          const monthlyPrice = tier.priceMonthly;
+          const yearlyMonthly = tier.priceYearly / 12;
+          const savings = isFree ? 0 : Math.round((1 - yearlyMonthly / monthlyPrice) * 100);
 
           return (
             <View
@@ -110,10 +95,9 @@ export default function PricingScreen() {
                 isCurrent && { borderColor: '#22c55e', borderWidth: 2 },
               ]}
             >
-              {/* Badges */}
               {isPopular && !isCurrent && (
                 <View style={[styles.badge, { backgroundColor: '#fbbf24' }]}>
-                  <Text style={styles.badgeText}>NAJPOPULARNIJI</Text>
+                  <Text style={[styles.badgeText, { color: '#92400e' }]}>NAJPOPULARNIJI</Text>
                 </View>
               )}
               {isCurrent && (
@@ -122,42 +106,63 @@ export default function PricingScreen() {
                 </View>
               )}
 
-              <View style={styles.tierRow}>
-                {/* Left: name + storage */}
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.tierName, { color: tc.text }]}>{tier.name}</Text>
-                  <Text style={[styles.tierStorage, { color: tc.textSecondary }]}>{tier.storageDisplay}</Text>
-                  <View style={styles.memeInfo}>
-                    <Ionicons name="sparkles" size={11} color="#8b5cf6" />
-                    <Text style={styles.memeInfoText}>
-                      {tier.memesPerDay > 0
-                        ? `${tier.memesPerDay} AI/dan · ${isFree ? '0 rucno' : 'neogr. rucno'}`
-                        : `${tier.memesPerDay} AI · 0 rucno`}
+              {/* Tier info */}
+              <View style={styles.tierTop}>
+                <Text style={[styles.tierName, { color: tc.text }]}>{tier.name}</Text>
+                <Text style={[styles.tierStorage, { color: tc.text }]}>{tier.storageDisplay}</Text>
+              </View>
+
+              {/* Meme limits */}
+              <View style={styles.memeRow}>
+                <Ionicons name="sparkles" size={12} color="#8b5cf6" />
+                <Text style={styles.memeText}>
+                  {tier.memesPerDay > 0 ? `${tier.memesPerDay} AI/dan` : '0 AI'} · {isFree ? '0 rucno' : 'neogr. rucno'} · {tier.memesPerMonth}/mes
+                </Text>
+              </View>
+
+              {/* BOTH prices side by side */}
+              {isFree ? (
+                <View style={styles.priceSection}>
+                  <Text style={[styles.priceMain, { color: tc.text }]}>Besplatno</Text>
+                </View>
+              ) : (
+                <View style={styles.priceSection}>
+                  {/* Monthly price */}
+                  <View style={[styles.priceBox, billing === 'monthly' && styles.priceBoxActive]}>
+                    <Text style={[styles.priceLabel, { color: tc.textMuted }]}>Mesecno</Text>
+                    <Text style={[styles.priceAmount, { color: billing === 'monthly' ? tc.primary : tc.text }]}>
+                      €{monthlyPrice.toFixed(2)}
                     </Text>
+                    <Text style={[styles.priceSub, { color: tc.textMuted }]}>/mes</Text>
+                  </View>
+
+                  {/* Yearly price */}
+                  <View style={[styles.priceBox, billing === 'yearly' && styles.priceBoxActive]}>
+                    <Text style={[styles.priceLabel, { color: tc.textMuted }]}>Godisnje</Text>
+                    <Text style={[styles.priceAmount, { color: billing === 'yearly' ? '#16a34a' : tc.text }]}>
+                      €{yearlyMonthly.toFixed(2)}
+                    </Text>
+                    <Text style={[styles.priceSub, { color: tc.textMuted }]}>/mes</Text>
+                    {savings > 0 && (
+                      <View style={styles.savingsPill}>
+                        <Text style={styles.savingsPillText}>-{savings}%</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
+              )}
 
-                {/* Right: price + button */}
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={[styles.tierPrice, { color: tc.text }]}>{getPrice(tier)}</Text>
-                  {yearlyTotal && (
-                    <Text style={[styles.tierYearly, { color: tc.textMuted }]}>{yearlyTotal}</Text>
-                  )}
-                  {savings && (
-                    <View style={[styles.savingsPill, { backgroundColor: '#dcfce7' }]}>
-                      <Text style={styles.savingsPillText}>{savings}</Text>
-                    </View>
-                  )}
-                  {!isCurrent && !isFree && (
-                    <TouchableOpacity
-                      style={[styles.selectBtn, isPopular && { backgroundColor: tc.primary }]}
-                      onPress={() => handleSelectPlan(tier)}
-                    >
-                      <Text style={[styles.selectBtnText, isPopular && { color: '#fff' }]}>Izaberi</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
+              {/* Select button */}
+              {!isCurrent && !isFree && (
+                <TouchableOpacity
+                  style={[styles.selectBtn, isPopular && { backgroundColor: tc.primary, borderColor: tc.primary }]}
+                  onPress={() => handleSelectPlan(tier)}
+                >
+                  <Text style={[styles.selectBtnText, isPopular && { color: '#fff' }]}>
+                    Izaberi {tier.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           );
         })}
@@ -170,6 +175,7 @@ export default function PricingScreen() {
             'AI pretraga i auto-tagging',
             'Original kvalitet, bez kompresije',
             'Deljenje albuma i foldera',
+            'Meme Kreator i MemeWall',
             'EU serveri, GDPR zastita',
             'Otkažite bilo kada',
           ].map((f, i) => (
@@ -192,43 +198,53 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
+  stickyBar: {
+    paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1,
+  },
   billingRow: {
-    flexDirection: 'row', marginHorizontal: 16, marginTop: 16, marginBottom: 8,
-    backgroundColor: '#f1f5f9', borderRadius: radius.md, padding: 4,
+    flexDirection: 'row', borderRadius: radius.md, padding: 4,
   },
   billingBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     paddingVertical: 10, borderRadius: radius.sm,
   },
   billingText: { fontSize: 13, ...fonts.bold, color: colors.textSecondary },
-  savingsBadge: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  savingsText: { fontSize: 9, ...fonts.bold, color: '#16a34a' },
-  trustRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 12 },
-  trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
-  trustText: { fontSize: 10, ...fonts.semibold },
+  freeBadge: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  freeText: { fontSize: 9, ...fonts.bold, color: '#16a34a' },
+  trustRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 12, paddingHorizontal: 16 },
+  trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
+  trustText: { fontSize: 9, ...fonts.semibold },
   tierCard: {
     marginHorizontal: 16, marginBottom: 10, borderRadius: radius.lg, borderWidth: 1,
     padding: 16, position: 'relative',
   },
   badge: {
     position: 'absolute', top: -10, left: 16, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 3,
+    paddingHorizontal: 10, paddingVertical: 3, zIndex: 1,
   },
   badgeText: { fontSize: 9, ...fonts.bold, color: '#fff' },
-  tierRow: { flexDirection: 'row', alignItems: 'center' },
+  tierTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   tierName: { fontSize: 16, ...fonts.bold },
-  tierStorage: { fontSize: 22, ...fonts.extrabold, marginTop: 2 },
-  memeInfo: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  memeInfoText: { fontSize: 10, ...fonts.medium, color: '#8b5cf6' },
-  tierPrice: { fontSize: 18, ...fonts.bold },
-  tierYearly: { fontSize: 11, marginTop: 2 },
-  savingsPill: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginTop: 4 },
-  savingsPillText: { fontSize: 10, ...fonts.bold, color: '#16a34a' },
-  selectBtn: {
-    marginTop: 8, borderRadius: radius.sm, paddingHorizontal: 20, paddingVertical: 8,
-    borderWidth: 1, borderColor: colors.primary,
+  tierStorage: { fontSize: 20, ...fonts.extrabold },
+  memeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, marginBottom: 10 },
+  memeText: { fontSize: 10, ...fonts.medium, color: '#8b5cf6' },
+  priceSection: { flexDirection: 'row', gap: 10 },
+  priceMain: { fontSize: 22, ...fonts.extrabold },
+  priceBox: {
+    flex: 1, alignItems: 'center', borderRadius: radius.md, paddingVertical: 10,
+    borderWidth: 1, borderColor: '#e2e8f0',
   },
-  selectBtnText: { fontSize: 12, ...fonts.bold, color: colors.primary },
+  priceBoxActive: { borderColor: '#3b82f6', borderWidth: 2, backgroundColor: '#eff6ff' },
+  priceLabel: { fontSize: 9, ...fonts.bold, letterSpacing: 0.5, marginBottom: 2 },
+  priceAmount: { fontSize: 20, ...fonts.extrabold },
+  priceSub: { fontSize: 10, ...fonts.medium },
+  savingsPill: { backgroundColor: '#dcfce7', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginTop: 4 },
+  savingsPillText: { fontSize: 9, ...fonts.bold, color: '#16a34a' },
+  selectBtn: {
+    marginTop: 12, borderRadius: radius.md, paddingVertical: 12,
+    borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center',
+  },
+  selectBtnText: { fontSize: 13, ...fonts.bold, color: colors.primary },
   featuresCard: {
     marginHorizontal: 16, marginTop: 8, borderRadius: radius.lg, padding: 16,
   },
