@@ -88,7 +88,7 @@ export default function MemeCreatorScreen() {
     if (!limitCheck.allowed) {
       Alert.alert('Nadogradite plan', limitCheck.reason, [
         { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => require('expo-linking').openURL('https://myphotomy.space/pricing') },
+        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -133,7 +133,7 @@ export default function MemeCreatorScreen() {
     if (!limitCheck.allowed) {
       Alert.alert('Nadogradite plan', limitCheck.reason, [
         { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => require('expo-linking').openURL('https://myphotomy.space/pricing') },
+        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -181,7 +181,7 @@ export default function MemeCreatorScreen() {
     if (!limitCheck.allowed) {
       Alert.alert('Nadogradite plan', limitCheck.reason, [
         { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => require('expo-linking').openURL('https://myphotomy.space/pricing') },
+        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
       ]);
       return;
     }

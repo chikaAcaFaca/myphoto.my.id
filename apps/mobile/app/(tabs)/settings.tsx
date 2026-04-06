@@ -83,7 +83,7 @@ export default function SettingsScreen() {
           <View style={styles.storageBar}>
             <View style={[styles.storageFill, { width: `${Math.min(storagePercent, 100)}%` }]} />
           </View>
-          <TouchableOpacity style={styles.upgradeBtn} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.upgradeBtn} activeOpacity={0.8} onPress={() => router.push('/pricing')}>
             <Ionicons name="arrow-up-circle" size={16} color="#fff" />
             <Text style={styles.upgradeBtnText}>Upgrade Storage</Text>
           </TouchableOpacity>
