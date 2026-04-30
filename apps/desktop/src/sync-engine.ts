@@ -149,7 +149,7 @@ export class SyncEngine {
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json() as { id?: string; folderId?: string };
         const folderId = data.id || data.folderId;
         if (folderId) {
           this.syncDB.folders[relativePath] = folderId;
@@ -206,11 +206,11 @@ export class SyncEngine {
       });
 
       if (!urlRes.ok) {
-        const err = await urlRes.json().catch(() => ({}));
+        const err = await urlRes.json().catch(() => ({ error: '' })) as { error?: string };
         throw new Error(err.error || `Upload URL failed: ${urlRes.status}`);
       }
 
-      const { uploadUrl, fileId, s3Key } = await urlRes.json();
+      const { uploadUrl, fileId, s3Key } = await urlRes.json() as { uploadUrl: string; fileId: string; s3Key: string };
 
       // 2. Upload file to S3
       const fileBuffer = fs.readFileSync(filePath);

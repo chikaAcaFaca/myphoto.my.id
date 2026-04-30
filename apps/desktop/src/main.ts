@@ -52,7 +52,7 @@ function createWindow() {
 function createTray() {
   const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
   const fallbackIcon = path.join(__dirname, '..', 'assets', 'icon.png');
-  let trayIcon: nativeImage;
+  let trayIcon: Electron.NativeImage;
 
   if (fs.existsSync(iconPath)) {
     trayIcon = nativeImage.createFromPath(iconPath);
@@ -219,15 +219,15 @@ ipcMain.handle('login', async (_event, email: string, password: string) => {
     });
 
     if (!response.ok) {
-      const err = await response.json();
-      return { success: false, error: err.error || 'Login failed' };
+      const errData = await response.json() as { error?: string };
+      return { success: false, error: errData.error || 'Login failed' };
     }
 
-    const data = await response.json();
+    const data = await response.json() as { token: string };
     store.set('apiToken', data.token);
     return { success: true, token: data.token };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Connection failed' };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Connection failed' };
   }
 });
 
