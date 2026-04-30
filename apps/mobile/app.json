@@ -76,8 +76,7 @@
           }
         }
       ],
-      "expo-web-browser",
-      "react-native-reanimated/plugin"
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
