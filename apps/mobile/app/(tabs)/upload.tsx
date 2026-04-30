@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useSync } from '@/lib/sync-context';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
@@ -13,16 +14,87 @@ import { useTheme } from '@/lib/theme-context';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
+interface PickedFile {
+  uri: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}
+
 export default function UploadScreen() {
   const { colors: tc } = useTheme();
-  const { isSyncing, syncProgress, pendingCount, startSync, stopSync } = useSync();
+  const {
+    isSyncing, syncProgress, pendingCount, startSync, stopSync,
+    folderSyncSettings, folderSyncPending, isFolderSyncing, folderSyncProgress, startFolderSync,
+  } = useSync();
   const { getToken } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
+
+  const uploadFile = async (file: PickedFile, token: string): Promise<boolean> => {
+    try {
+      // 1. Get presigned URL via disk-files
+      const urlRes = await fetch(`${API_URL}/api/disk-files`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          mimeType: file.mimeType,
+          size: file.size,
+          folderId: 'root',
+        }),
+      });
+
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({}));
+        console.log('Presigned URL error:', err.error || urlRes.status);
+        return false;
+      }
+
+      const { uploadUrl, fileId, s3Key } = await urlRes.json();
+
+      // 2. Upload to S3
+      const uploadResult = await FileSystem.uploadAsync(uploadUrl, file.uri, {
+        httpMethod: 'PUT',
+        headers: { 'Content-Type': file.mimeType },
+      });
+
+      if (uploadResult.status !== 200) {
+        console.log('S3 upload failed:', uploadResult.status);
+        return false;
+      }
+
+      // 3. Confirm upload
+      const confirmRes = await fetch(`${API_URL}/api/disk-files`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileId,
+          s3Key,
+          filename: file.name,
+          mimeType: file.mimeType,
+          size: file.size,
+          folderId: 'root',
+        }),
+      });
+
+      return confirmRes.ok;
+    } catch (e) {
+      console.log('Upload error for file:', file.name, e);
+      return false;
+    }
+  };
 
   const pickAndUpload = useCallback(async (type: 'photos' | 'videos' | 'files') => {
     try {
-      let assets: { uri: string; name?: string; mimeType?: string }[] = [];
+      const picked: PickedFile[] = [];
 
       if (type === 'files') {
         const result = await DocumentPicker.getDocumentAsync({
@@ -30,7 +102,15 @@ export default function UploadScreen() {
           type: '*/*',
         });
         if (!result.canceled && result.assets) {
-          assets = result.assets.map(a => ({ uri: a.uri, name: a.name, mimeType: a.mimeType || undefined }));
+          for (const a of result.assets) {
+            const info = await FileSystem.getInfoAsync(a.uri);
+            picked.push({
+              uri: a.uri,
+              name: a.name,
+              mimeType: a.mimeType || 'application/octet-stream',
+              size: (info as any).size || 0,
+            });
+          }
         }
       } else {
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -40,50 +120,43 @@ export default function UploadScreen() {
           selectionLimit: 50,
         });
         if (!result.canceled && result.assets) {
-          assets = result.assets.map(a => ({
-            uri: a.uri,
-            name: a.fileName || `${type}_${Date.now()}.${a.uri.split('.').pop()}`,
-            mimeType: a.mimeType || undefined,
-          }));
+          for (const a of result.assets) {
+            const info = await FileSystem.getInfoAsync(a.uri);
+            picked.push({
+              uri: a.uri,
+              name: a.fileName || `${type}_${Date.now()}.${a.uri.split('.').pop()}`,
+              mimeType: a.mimeType || (type === 'videos' ? 'video/mp4' : 'image/jpeg'),
+              size: (info as any).size || 0,
+            });
+          }
         }
       }
 
-      if (assets.length === 0) return;
+      if (picked.length === 0) return;
 
       setUploading(true);
       setUploadCount(0);
+      setUploadTotal(picked.length);
       const token = await getToken();
+      if (!token) {
+        Alert.alert('Greska', 'Niste ulogovani.');
+        setUploading(false);
+        return;
+      }
+
       let success = 0;
 
-      for (const asset of assets) {
-        try {
-          const formData = new FormData();
-          formData.append('file', {
-            uri: asset.uri,
-            name: asset.name || `file_${Date.now()}`,
-            type: asset.mimeType || 'application/octet-stream',
-          } as any);
-
-          const res = await fetch(`${API_URL}/api/upload`, {
-            method: 'POST',
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: formData,
-          });
-
-          if (res.ok) {
-            success++;
-            setUploadCount(success);
-          }
-        } catch (e) {
-          console.log('Upload error for file:', asset.name, e);
+      for (const file of picked) {
+        const ok = await uploadFile(file, token);
+        if (ok) {
+          success++;
+          setUploadCount(success);
         }
       }
 
       Alert.alert(
         'Upload zavrsen',
-        `${success}/${assets.length} fajlova uspesno uploadovano.`
+        `${success}/${picked.length} fajlova uspesno uploadovano.`
       );
     } catch (e) {
       console.log('Pick error:', e);
@@ -143,9 +216,12 @@ export default function UploadScreen() {
           <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
             <View style={styles.progressItem}>
               <ActivityIndicator size="small" color={tc.primary} />
-              <Text style={[styles.pendingTitle, { marginLeft: 10 }]}>
-                Uploadovano {uploadCount} fajlova...
+              <Text style={[styles.pendingTitle, { marginLeft: 10, color: tc.text }]}>
+                Uploadovano {uploadCount}/{uploadTotal} fajlova...
               </Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View style={[styles.progressFill, { width: `${uploadTotal > 0 ? (uploadCount / uploadTotal) * 100 : 0}%` }]} />
             </View>
           </View>
         )}
@@ -172,6 +248,38 @@ export default function UploadScreen() {
             </View>
             <Text style={[styles.progressText, { color: tc.textMuted }]}>{Math.round(syncProgress)}% syncing...</Text>
           </View>
+        )}
+
+        {/* MySpace Folder Sync */}
+        {folderSyncSettings.enabled && folderSyncSettings.folders.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, { color: tc.textSecondary }]}>MYSPACE FOLDER SYNC</Text>
+
+            <TouchableOpacity
+              style={[styles.syncBtn, { borderColor: '#8b5cf6' }]}
+              activeOpacity={0.8}
+              onPress={() => { if (!isFolderSyncing) startFolderSync(); }}
+              disabled={isFolderSyncing}
+            >
+              <Ionicons name={isFolderSyncing ? 'hourglass' : 'folder-open'} size={20} color="#8b5cf6" />
+              <Text style={[styles.syncBtnText, { color: '#8b5cf6' }]}>
+                {isFolderSyncing
+                  ? 'Sync u toku...'
+                  : folderSyncPending > 0
+                    ? `Sync ${folderSyncPending} fajlova u MySpace`
+                    : 'MySpace folderi azurni'}
+              </Text>
+            </TouchableOpacity>
+
+            {isFolderSyncing && (
+              <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${folderSyncProgress}%`, backgroundColor: '#8b5cf6' }]} />
+                </View>
+                <Text style={[styles.progressText, { color: tc.textMuted }]}>{Math.round(folderSyncProgress)}% MySpace sync...</Text>
+              </View>
+            )}
+          </>
         )}
 
         {/* Status */}
@@ -228,7 +336,7 @@ const styles = StyleSheet.create({
     padding: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
   },
   progressItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  progressBar: { height: 6, backgroundColor: '#f1f5f9', borderRadius: 3, overflow: 'hidden' },
+  progressBar: { height: 6, backgroundColor: '#f1f5f9', borderRadius: 3, overflow: 'hidden', marginTop: 8 },
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: '#22c55e' },
   progressText: { fontSize: 10, marginTop: 4 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },

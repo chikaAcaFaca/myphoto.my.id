@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
+import { downloadToDevice, type CloudFile } from '@/lib/cloud-download';
 import type { DiskFolder, DiskFile } from '@myphoto/shared';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -88,15 +89,47 @@ export default function MySpaceScreen() {
     </TouchableOpacity>
   );
 
+  const handleFilePress = async (file: DiskFile) => {
+    Alert.alert(file.name, formatBytes(file.size), [
+      { text: 'Otkazi', style: 'cancel' },
+      {
+        text: 'Preuzmi na uredjaj',
+        onPress: async () => {
+          try {
+            const token = await getToken();
+            if (!token) return;
+            const cloudFile: CloudFile = {
+              id: file.id,
+              name: file.name,
+              s3Key: file.s3Key,
+              mimeType: file.mimeType,
+              size: file.size,
+              type: file.mimeType.startsWith('image/') ? 'image' : file.mimeType.startsWith('video/') ? 'video' : 'document',
+            };
+            const result = await downloadToDevice(cloudFile, token);
+            if (result.success) {
+              Alert.alert('Preuzeto', `${file.name} je sacuvan na uredjaj.`);
+            } else {
+              Alert.alert('Greska', result.error || 'Preuzimanje nije uspelo.');
+            }
+          } catch (e) {
+            Alert.alert('Greska', 'Mrezna greska.');
+          }
+        },
+      },
+    ]);
+  };
+
   const renderFile = (file: DiskFile) => (
-    <TouchableOpacity key={file.id} style={[styles.folderItem, { backgroundColor: tc.bgCard }]}>
+    <TouchableOpacity key={file.id} style={[styles.folderItem, { backgroundColor: tc.bgCard }]} onPress={() => handleFilePress(file)}>
       <View style={[styles.folderIcon, { backgroundColor: '#f1f5f9' }]}>
         <Ionicons name={getFileIcon(file.mimeType) as any} size={20} color={colors.primary} />
       </View>
       <View style={styles.folderInfo}>
-        <Text style={styles.folderName} numberOfLines={1}>{file.name}</Text>
-        <Text style={styles.folderMeta}>{formatBytes(file.size)}</Text>
+        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{file.name}</Text>
+        <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{formatBytes(file.size)}</Text>
       </View>
+      <Ionicons name="download-outline" size={18} color={tc.textMuted} />
     </TouchableOpacity>
   );
 

@@ -13,8 +13,12 @@ import { processUnindexedPhotos, getAiStatus, type AiProcessingStatus } from '@/
 export default function SettingsScreen() {
   const { user, appUser, signOut } = useAuth();
   const { isDark, mode, setMode } = useTheme();
-  const { settings, updateSettings, deviceAlbums, isLoadingAlbums, refreshDeviceAlbums } = useSync();
+  const {
+    settings, updateSettings, deviceAlbums, isLoadingAlbums, refreshDeviceAlbums,
+    folderSyncSettings, folderSyncPending, addSyncFolder, removeSyncFolder, toggleFolderSync,
+  } = useSync();
   const [isFolderSectionOpen, setIsFolderSectionOpen] = useState(false);
+  const [isSyncFolderSectionOpen, setIsSyncFolderSectionOpen] = useState(false);
   const [aiStatus, setAiStatus] = useState<AiProcessingStatus | null>(null);
   const [aiProcessing, setAiProcessing] = useState(false);
 
@@ -159,6 +163,58 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* MySpace Folder Sync */}
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>MYSPACE FOLDER SYNC</Text>
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>Sync Foldere u Cloud</Text>
+            <Switch
+              value={folderSyncSettings.enabled}
+              onValueChange={(v) => toggleFolderSync(v)}
+              trackColor={{ false: '#cbd5e1', true: colors.success }}
+              thumbColor="#fff"
+            />
+          </View>
+          <TouchableOpacity
+            style={[styles.settingRow, { borderBottomWidth: folderSyncSettings.folders.length > 0 ? 1 : 0 }]}
+            onPress={() => setIsSyncFolderSectionOpen(!isSyncFolderSectionOpen)}
+          >
+            <Text style={[styles.settingText, { color: themeColors.text }]}>Sync Folderi</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={styles.settingValue}>
+                {folderSyncSettings.folders.length === 0 ? 'Nijedan' : `${folderSyncSettings.folders.length}`}
+              </Text>
+              <Ionicons name={isSyncFolderSectionOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={colors.primary} />
+            </View>
+          </TouchableOpacity>
+
+          {isSyncFolderSectionOpen && (
+            <View style={{ paddingHorizontal: 4, paddingBottom: 4 }}>
+              {folderSyncSettings.folders.map(folder => (
+                <View key={folder.uri} style={styles.folderRow}>
+                  <Ionicons name="folder" size={18} color={colors.primary} />
+                  <Text style={[styles.folderName, { color: themeColors.text }]} numberOfLines={1}>{folder.name}</Text>
+                  <TouchableOpacity onPress={() => removeSyncFolder(folder.uri)}>
+                    <Ionicons name="close-circle" size={20} color={colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity
+                style={[styles.folderRow, { justifyContent: 'center', gap: 6, paddingVertical: 12 }]}
+                onPress={() => addSyncFolder()}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                <Text style={[styles.settingValue, { fontSize: 13 }]}>Dodaj folder</Text>
+              </TouchableOpacity>
+              {folderSyncPending > 0 && (
+                <Text style={{ fontSize: 11, color: themeColors.textMuted, paddingHorizontal: 4, paddingBottom: 4 }}>
+                  {folderSyncPending} fajlova ceka sync u MySpace
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+
         {/* Creative */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
           <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>KREATIVNI ALATI</Text>
@@ -246,6 +302,30 @@ export default function SettingsScreen() {
               )}
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Devices & Family */}
+        <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>UREDJAJI I PORODICA</Text>
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/devices')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="phone-portrait-outline" size={18} color={themeColors.text} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Moji uredjaji</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => router.push('/family')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="people-outline" size={18} color={themeColors.text} />
+              <Text style={[styles.settingText, { color: themeColors.text }]}>Porodica</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontSize: 11, color: themeColors.textMuted }}>
+                {appUser?.familyId ? 'Aktivna' : 'Nije kreirana'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* App */}

@@ -9,6 +9,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { useAuth } from './auth-context';
 import { generateFileId, getFileExtension, getFileType } from '@myphoto/shared';
+import {
+  type FolderSyncSettings,
+  type FolderSyncState,
+  type SyncFolder,
+  loadFolderSyncSettings,
+  saveFolderSyncSettings,
+  loadFolderSyncState,
+  saveFolderSyncState,
+  findUnsyncedFiles,
+  uploadFileToMySpace,
+  pickFolder,
+} from './folder-sync';
 
 const BACKGROUND_SYNC_TASK = 'MYPHOTO_BACKGROUND_SYNC';
 const SYNC_STATE_KEY = '@myphoto/sync_state';
@@ -38,10 +50,18 @@ async function tryClaimBackupBonus(token: string, apiUrl: string): Promise<void>
   }
 }
 
+interface FailedUpload {
+  assetId: string;
+  attempts: number;
+  lastAttempt: number;
+  error?: string;
+}
+
 interface SyncState {
   pendingUploads: string[]; // Asset IDs
   uploadedAssets: string[]; // Asset IDs already uploaded
   lastSyncTime: number | null;
+  failedUploads: FailedUpload[]; // Failed uploads for retry
 }
 
 interface SyncSettings {
@@ -59,17 +79,29 @@ export interface DeviceAlbum {
 }
 
 interface SyncContextType {
+  // Photo sync
   isSyncing: boolean;
   syncProgress: number;
   pendingCount: number;
+  failedCount: number;
   settings: SyncSettings;
   deviceAlbums: DeviceAlbum[];
   isLoadingAlbums: boolean;
   startSync: () => Promise<void>;
   stopSync: () => void;
+  retryFailed: () => Promise<void>;
   updateSettings: (settings: Partial<SyncSettings>) => Promise<void>;
   getQueuedPhotos: () => Promise<MediaLibrary.Asset[]>;
   refreshDeviceAlbums: () => Promise<void>;
+  // Folder sync (MySpace)
+  folderSyncSettings: FolderSyncSettings;
+  folderSyncPending: number;
+  isFolderSyncing: boolean;
+  folderSyncProgress: number;
+  addSyncFolder: () => Promise<SyncFolder | null>;
+  removeSyncFolder: (uri: string) => Promise<void>;
+  toggleFolderSync: (enabled: boolean) => Promise<void>;
+  startFolderSync: () => Promise<void>;
 }
 
 const defaultSettings: SyncSettings = {
@@ -79,6 +111,21 @@ const defaultSettings: SyncSettings = {
   uploadQuality: 'original',
   backupFolders: [],
 };
+
+const MAX_RETRY_ATTEMPTS = 5;
+const BASE_RETRY_DELAY_MS = 2000; // 2s, 4s, 8s, 16s, 32s
+
+function getRetryDelay(attempt: number): number {
+  return Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, attempt), 60000);
+}
+
+function shouldRetry(failed: FailedUpload): boolean {
+  if (failed.attempts >= MAX_RETRY_ATTEMPTS) return false;
+  const delay = getRetryDelay(failed.attempts);
+  return Date.now() - failed.lastAttempt >= delay;
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
@@ -321,26 +368,43 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
     // Upload photos (limit to 10 per background run to stay within time limits)
     const batch = newPhotos.slice(0, 10);
     const uploaded: string[] = [];
+    const newFailed: FailedUpload[] = [...(syncState.failedUploads || [])];
 
     for (const asset of batch) {
       const success = await backgroundUploadAsset(asset, token, apiUrl);
       if (success) {
         uploaded.push(asset.id);
+      } else {
+        // Track failure for retry, but don't duplicate
+        const existing = newFailed.find(f => f.assetId === asset.id);
+        if (existing) {
+          existing.attempts++;
+          existing.lastAttempt = Date.now();
+        } else {
+          newFailed.push({ assetId: asset.id, attempts: 1, lastAttempt: Date.now() });
+        }
       }
     }
 
+    // Clean up expired retries
+    const activeFailed = newFailed.filter(f => f.attempts < 5);
+
     // Update sync state
-    if (uploaded.length > 0) {
+    const hasChanges = uploaded.length > 0 || activeFailed.length !== (syncState.failedUploads || []).length;
+    if (hasChanges) {
       // Try to claim backup bonus after first successful upload
-      await tryClaimBackupBonus(token, apiUrl);
+      if (uploaded.length > 0) {
+        await tryClaimBackupBonus(token, apiUrl);
+      }
 
       const newState: SyncState = {
         ...syncState,
         uploadedAssets: [...syncState.uploadedAssets, ...uploaded],
+        failedUploads: activeFailed,
         lastSyncTime: Date.now(),
       };
       await saveSyncState(newState);
-      console.log(`Background sync: uploaded ${uploaded.length} photos`);
+      console.log(`Background sync: uploaded ${uploaded.length}, failed ${activeFailed.length}`);
       return BackgroundFetch.BackgroundFetchResult.NewData;
     }
 
@@ -367,6 +431,7 @@ async function loadSyncState(): Promise<SyncState> {
     pendingUploads: [],
     uploadedAssets: [],
     lastSyncTime: null,
+    failedUploads: [],
   };
 }
 
@@ -406,10 +471,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     pendingUploads: [],
     uploadedAssets: [],
     lastSyncTime: null,
+    failedUploads: [],
   });
+  const [syncCancelled, setSyncCancelled] = useState(false);
   const [settings, setSettings] = useState<SyncSettings>(defaultSettings);
   const [deviceAlbums, setDeviceAlbums] = useState<DeviceAlbum[]>([]);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
+  // Folder sync state
+  const [folderSyncSettings, setFolderSyncSettings] = useState<FolderSyncSettings>({ enabled: false, folders: [] });
+  const [folderSyncState, setFolderSyncState] = useState<FolderSyncState>({ syncedFiles: {}, lastSyncTime: null });
+  const [folderSyncPending, setFolderSyncPending] = useState(0);
+  const [isFolderSyncing, setIsFolderSyncing] = useState(false);
+  const [folderSyncProgress, setFolderSyncProgress] = useState(0);
 
   // Load device albums from MediaLibrary
   const refreshDeviceAlbums = useCallback(async () => {
@@ -449,7 +522,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const loadedSettings = await loadSyncSettings();
       setSyncState(loadedState);
       setSettings(loadedSettings);
+      // Load folder sync settings
+      const fsSettings = await loadFolderSyncSettings();
+      const fsState = await loadFolderSyncState();
+      setFolderSyncSettings(fsSettings);
+      setFolderSyncState(fsState);
       await refreshDeviceAlbums();
+      // Count pending folder files
+      if (fsSettings.enabled && fsSettings.folders.length > 0) {
+        findUnsyncedFiles(fsSettings.folders, fsState)
+          .then(files => setFolderSyncPending(files.length))
+          .catch(() => {});
+      }
     })();
   }, []);
 
@@ -588,22 +672,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Block upload on cellular if roaming is not allowed
-    if (
-      networkState.type === Network.NetworkStateType.CELLULAR &&
-      !settings.allowRoaming
-    ) {
-      console.log('Cellular connection - roaming upload disabled');
-      // Note: Full roaming detection requires native carrier API
-      // This serves as a user-controlled safety toggle
-    }
-
     setIsSyncing(true);
     setSyncProgress(0);
+    setSyncCancelled(false);
 
     try {
       const newPhotos = await findNewPhotos();
-      const total = newPhotos.length;
+      // Also gather retryable failed uploads
+      const retryable = syncState.failedUploads.filter(shouldRetry);
+      const retryAssetIds = new Set(retryable.map(f => f.assetId));
+
+      const total = newPhotos.length + retryable.length;
 
       if (total === 0) {
         console.log('No new photos to sync');
@@ -611,25 +690,93 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      console.log(`Syncing ${total} photos...`);
+      console.log(`Syncing ${newPhotos.length} new + ${retryable.length} retry = ${total} photos...`);
 
       const newUploaded: string[] = [];
+      const newFailed: FailedUpload[] = [...syncState.failedUploads.filter(f => !retryAssetIds.has(f.assetId))];
+      let processed = 0;
 
-      for (let i = 0; i < newPhotos.length; i++) {
-        const asset = newPhotos[i];
+      // Upload new photos
+      for (const asset of newPhotos) {
+        if (syncCancelled) break;
+
         const success = await uploadAsset(asset);
+        processed++;
 
         if (success) {
           newUploaded.push(asset.id);
+        } else {
+          // Track failure for retry
+          newFailed.push({
+            assetId: asset.id,
+            attempts: 1,
+            lastAttempt: Date.now(),
+            error: 'Upload failed',
+          });
         }
 
-        setSyncProgress(((i + 1) / total) * 100);
+        setSyncProgress((processed / total) * 100);
       }
+
+      // Retry previously failed uploads
+      for (const failed of retryable) {
+        if (syncCancelled) break;
+
+        try {
+          // Fetch the asset from MediaLibrary by ID
+          const assets = await MediaLibrary.getAssetsAsync({
+            first: 1,
+            // Filter to find specific asset - scan recent ones
+          });
+          // Try to find the asset
+          let asset: MediaLibrary.Asset | null = null;
+          const allAssets = await MediaLibrary.getAssetsAsync({ first: 5000, mediaType: ['photo', 'video'] });
+          asset = allAssets.assets.find(a => a.id === failed.assetId) || null;
+
+          if (!asset) {
+            // Asset may have been deleted from device, remove from retry queue
+            processed++;
+            setSyncProgress((processed / total) * 100);
+            continue;
+          }
+
+          // Wait with exponential backoff before retrying
+          const delay = getRetryDelay(failed.attempts);
+          if (delay > 0) await sleep(Math.min(delay, 5000)); // Cap wait at 5s during manual sync
+
+          const success = await uploadAsset(asset);
+          processed++;
+
+          if (success) {
+            newUploaded.push(asset.id);
+          } else {
+            newFailed.push({
+              assetId: failed.assetId,
+              attempts: failed.attempts + 1,
+              lastAttempt: Date.now(),
+              error: 'Retry failed',
+            });
+          }
+        } catch {
+          newFailed.push({
+            ...failed,
+            attempts: failed.attempts + 1,
+            lastAttempt: Date.now(),
+          });
+          processed++;
+        }
+
+        setSyncProgress((processed / total) * 100);
+      }
+
+      // Clean up: remove failed entries that exceeded max retries
+      const activeFailed = newFailed.filter(f => f.attempts < MAX_RETRY_ATTEMPTS);
 
       // Update sync state
       const newState: SyncState = {
         ...syncState,
         uploadedAssets: [...syncState.uploadedAssets, ...newUploaded],
+        failedUploads: activeFailed,
         lastSyncTime: Date.now(),
       };
       setSyncState(newState);
@@ -644,19 +791,35 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      console.log(`Sync complete. Uploaded ${newUploaded.length} photos.`);
+      console.log(`Sync complete. Uploaded ${newUploaded.length}, failed ${activeFailed.length}.`);
     } catch (error) {
       console.error('Sync error:', error);
     } finally {
       setIsSyncing(false);
       setSyncProgress(0);
     }
-  }, [isSyncing, user, settings, syncState]);
+  }, [isSyncing, user, settings, syncState, syncCancelled]);
 
   const stopSync = useCallback(() => {
+    setSyncCancelled(true);
     setIsSyncing(false);
     setSyncProgress(0);
   }, []);
+
+  const retryFailed = useCallback(async () => {
+    if (isSyncing || !user) return;
+    // Clear retry counters so all failed uploads get retried
+    const resetFailed = syncState.failedUploads.map(f => ({
+      ...f,
+      attempts: 0,
+      lastAttempt: 0,
+    }));
+    const newState = { ...syncState, failedUploads: resetFailed };
+    setSyncState(newState);
+    await saveSyncState(newState);
+    // Now start sync which will pick up the retryable items
+    await startSync();
+  }, [isSyncing, user, syncState, startSync]);
 
   const updateSettings = useCallback(async (newSettings: Partial<SyncSettings>) => {
     const updated = { ...settings, ...newSettings };
@@ -667,6 +830,123 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const getQueuedPhotos = useCallback(async () => {
     return findNewPhotos();
   }, [syncState]);
+
+  // ---- Folder Sync Methods ----
+
+  const addSyncFolder = useCallback(async (): Promise<SyncFolder | null> => {
+    const folder = await pickFolder();
+    if (!folder) return null;
+
+    // Don't add duplicates
+    const existing = folderSyncSettings.folders.find(f => f.uri === folder.uri);
+    if (existing) return existing;
+
+    const updated: FolderSyncSettings = {
+      ...folderSyncSettings,
+      enabled: true,
+      folders: [...folderSyncSettings.folders, folder],
+    };
+    setFolderSyncSettings(updated);
+    await saveFolderSyncSettings(updated);
+
+    // Refresh pending count
+    findUnsyncedFiles(updated.folders, folderSyncState)
+      .then(files => setFolderSyncPending(files.length))
+      .catch(() => {});
+
+    return folder;
+  }, [folderSyncSettings, folderSyncState]);
+
+  const removeSyncFolder = useCallback(async (uri: string) => {
+    const updated: FolderSyncSettings = {
+      ...folderSyncSettings,
+      folders: folderSyncSettings.folders.filter(f => f.uri !== uri),
+    };
+    if (updated.folders.length === 0) updated.enabled = false;
+    setFolderSyncSettings(updated);
+    await saveFolderSyncSettings(updated);
+  }, [folderSyncSettings]);
+
+  const toggleFolderSync = useCallback(async (enabled: boolean) => {
+    const updated = { ...folderSyncSettings, enabled };
+    setFolderSyncSettings(updated);
+    await saveFolderSyncSettings(updated);
+  }, [folderSyncSettings]);
+
+  const startFolderSync = useCallback(async () => {
+    if (isFolderSyncing || !user) return;
+    if (!folderSyncSettings.enabled || folderSyncSettings.folders.length === 0) return;
+
+    // Check network
+    const networkState = await Network.getNetworkStateAsync();
+    if (!networkState.isConnected) return;
+    if (settings.syncMode === 'wifi_only' && networkState.type !== Network.NetworkStateType.WIFI) return;
+
+    setIsFolderSyncing(true);
+    setFolderSyncProgress(0);
+
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+      if (!apiUrl) throw new Error('No API URL');
+
+      const unsynced = await findUnsyncedFiles(folderSyncSettings.folders, folderSyncState);
+      const total = unsynced.length;
+
+      if (total === 0) {
+        console.log('Folder sync: everything up to date');
+        setIsFolderSyncing(false);
+        setFolderSyncPending(0);
+        return;
+      }
+
+      console.log(`Folder sync: uploading ${total} files...`);
+
+      const folderIdCache = new Map<string, string>();
+      const updatedSyncedFiles = { ...folderSyncState.syncedFiles };
+      let successCount = 0;
+
+      for (let i = 0; i < unsynced.length; i++) {
+        if (syncCancelled) break;
+
+        const file = unsynced[i];
+        const result = await uploadFileToMySpace(file, token, apiUrl, folderIdCache);
+
+        if (result.success && result.fileId) {
+          updatedSyncedFiles[file.relativePath] = {
+            uri: file.uri,
+            remoteFolderId: result.folderId || 'root',
+            remoteFileId: result.fileId,
+            size: file.size,
+            modTime: file.modTime,
+            syncedAt: Date.now(),
+          };
+          successCount++;
+        }
+
+        setFolderSyncProgress(((i + 1) / total) * 100);
+      }
+
+      // Save updated state
+      const newFsState: FolderSyncState = {
+        syncedFiles: updatedSyncedFiles,
+        lastSyncTime: Date.now(),
+      };
+      setFolderSyncState(newFsState);
+      await saveFolderSyncState(newFsState);
+      setFolderSyncPending(total - successCount);
+
+      console.log(`Folder sync complete: ${successCount}/${total} files uploaded.`);
+    } catch (error) {
+      console.error('Folder sync error:', error);
+    } finally {
+      setIsFolderSyncing(false);
+      setFolderSyncProgress(0);
+    }
+  }, [isFolderSyncing, user, folderSyncSettings, folderSyncState, settings, syncCancelled]);
+
+  // ---- Photo pending count ----
 
   // pendingCount reflects actual unuploaded photos (computed on last sync run)
   const [pendingCount, setPendingCount] = useState(0);
@@ -684,14 +964,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         isSyncing,
         syncProgress,
         pendingCount,
+        failedCount: syncState.failedUploads.length,
         settings,
         deviceAlbums,
         isLoadingAlbums,
         startSync,
         stopSync,
+        retryFailed,
         updateSettings,
         getQueuedPhotos,
         refreshDeviceAlbums,
+        // Folder sync
+        folderSyncSettings,
+        folderSyncPending,
+        isFolderSyncing,
+        folderSyncProgress,
+        addSyncFolder,
+        removeSyncFolder,
+        toggleFolderSync,
+        startFolderSync,
       }}
     >
       {children}

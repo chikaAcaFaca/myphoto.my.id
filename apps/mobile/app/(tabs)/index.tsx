@@ -7,11 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
-import { apiClient, apiFetch } from '@/lib/api';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
-import { formatBytes } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -19,10 +17,16 @@ const GAP = 2;
 const CELL = (width - GAP * (COL + 1)) / COL;
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
+// Extended type with presigned URLs from GET /api/files
+interface PhotoItem extends FileMetadata {
+  smallThumbUrl?: string;
+  thumbnailUrl?: string;
+}
+
 export default function MyPhotoScreen() {
   const { colors: tc } = useTheme();
   const { getToken } = useAuth();
-  const [photos, setPhotos] = useState<FileMetadata[]>([]);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<'cloud' | 'device'>('cloud');
@@ -40,7 +44,7 @@ export default function MyPhotoScreen() {
       );
       if (!res.ok) return;
       const data = await res.json();
-      const files = data.files || data.items || [];
+      const files: PhotoItem[] = data.files || [];
 
       if (refresh || pageNum === 1) {
         setPhotos(files);
@@ -72,11 +76,7 @@ export default function MyPhotoScreen() {
     }
   };
 
-  const getThumbnailUrl = (photo: FileMetadata) => {
-    return `${API_URL}/api/thumbnail/${photo.id}?size=small`;
-  };
-
-  const renderPhoto = ({ item }: { item: FileMetadata }) => (
+  const renderPhoto = ({ item }: { item: PhotoItem }) => (
     <TouchableOpacity
       style={styles.cell}
       activeOpacity={0.8}
@@ -84,7 +84,7 @@ export default function MyPhotoScreen() {
       onPress={() => router.push({ pathname: '/photo-viewer', params: { id: item.id, name: item.name, type: item.type, isFavorite: item.isFavorite ? '1' : '0' } })}
     >
       <Image
-        source={{ uri: getThumbnailUrl(item), headers: {} }}
+        source={{ uri: item.smallThumbUrl || item.thumbnailUrl }}
         style={styles.cellImage}
         resizeMode="cover"
       />

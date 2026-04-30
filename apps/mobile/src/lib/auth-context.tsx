@@ -22,6 +22,7 @@ import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User as AppUser } from '@myphoto/shared';
+import { registerDevice } from './device-registry';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -110,6 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } catch (fetchErr) {
               console.error('Error fetching user data:', fetchErr);
             }
+
+            // Register device (fire-and-forget)
+            registerDevice(token).catch(() => {});
           } else {
             await SecureStore.deleteItemAsync('auth_token');
             setAppUser(null);
