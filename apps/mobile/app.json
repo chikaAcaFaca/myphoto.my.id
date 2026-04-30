@@ -71,7 +71,8 @@
         {
           "android": {
             "usesCleartextTraffic": false,
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "newArchEnabled": false
           }
         }
       ],
