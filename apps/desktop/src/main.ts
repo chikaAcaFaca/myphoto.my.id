@@ -27,8 +27,9 @@ function createWindow() {
     maximizable: false,
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
     show: false,
   });
@@ -49,15 +50,25 @@ function createWindow() {
 }
 
 function createTray() {
-  // Create a simple tray icon (16x16 blue square as placeholder)
   const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
+  const fallbackIcon = path.join(__dirname, '..', 'assets', 'icon.png');
   let trayIcon: nativeImage;
 
   if (fs.existsSync(iconPath)) {
     trayIcon = nativeImage.createFromPath(iconPath);
+  } else if (fs.existsSync(fallbackIcon)) {
+    trayIcon = nativeImage.createFromPath(fallbackIcon).resize({ width: 16, height: 16 });
   } else {
-    // Generate a simple icon programmatically
-    trayIcon = nativeImage.createEmpty();
+    // Generate a 16x16 blue icon programmatically (PNG header + solid blue)
+    const size = 16;
+    const buffer = Buffer.alloc(size * size * 4);
+    for (let i = 0; i < size * size; i++) {
+      buffer[i * 4] = 59;     // R
+      buffer[i * 4 + 1] = 130; // G
+      buffer[i * 4 + 2] = 246; // B
+      buffer[i * 4 + 3] = 255; // A
+    }
+    trayIcon = nativeImage.createFromBuffer(buffer, { width: size, height: size });
   }
 
   tray = new Tray(trayIcon);

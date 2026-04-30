@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <title>MyPhoto Sync</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #1a1a2e;
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      padding: 24px 20px;
+      text-align: center;
+    }
+    .header h1 { font-size: 20px; font-weight: 700; }
+    .header p { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #e5e7eb;
+      background: white;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: #6b7280;
+      transition: all 0.2s;
+    }
+    .tab.active { color: #6366f1; border-bottom-color: #6366f1; }
+    .tab:hover { color: #4f46e5; }
+
+    .panel { display: none; padding: 20px; overflow-y: auto; max-height: 420px; }
+    .panel.active { display: block; }
+
+    /* Login panel */
+    .login-form { max-width: 320px; margin: 0 auto; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .form-group input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .btn-primary { background: #6366f1; color: white; }
+    .btn-primary:hover { background: #4f46e5; }
+    .btn-secondary { background: white; color: #374151; border: 1px solid #d1d5db; }
+    .btn-secondary:hover { background: #f3f4f6; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:hover { background: #dc2626; }
+
+    /* Settings */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .setting-label { font-size: 13px; font-weight: 500; }
+    .setting-desc { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+    .folder-path {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .folder-path input {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 12px;
+      background: #f9fafb;
+    }
+    .folder-path button { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+
+    /* Toggle switch */
+    .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0;
+      background: #d1d5db; border-radius: 12px;
+      cursor: pointer; transition: 0.3s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute; left: 2px; top: 2px;
+      width: 20px; height: 20px;
+      background: white; border-radius: 50%;
+      transition: 0.3s;
+    }
+    .toggle input:checked + .toggle-slider { background: #6366f1; }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+    /* Activity log */
+    .log-container {
+      background: #1a1a2e;
+      color: #a5b4fc;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 11px;
+      height: 340px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    .log-entry { padding: 1px 0; }
+    .log-entry.error { color: #fca5a5; }
+    .log-entry.success { color: #86efac; }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat-value { font-size: 24px; font-weight: 700; color: #6366f1; }
+    .stat-label { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-badge.connected { background: #dcfce7; color: #16a34a; }
+    .status-badge.disconnected { background: #fee2e2; color: #dc2626; }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-dot.green { background: #16a34a; }
+    .status-dot.red { background: #dc2626; }
+
+    .error-msg {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 8px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>☁️ MyPhoto Sync</h1>
+    <p>Automatska sinhronizacija fajlova</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="status" onclick="switchTab('status')">Status</div>
+    <div class="tab" data-tab="settings" onclick="switchTab('settings')">Podešavanja</div>
+    <div class="tab" data-tab="log" onclick="switchTab('log')">Aktivnost</div>
+  </div>
+
+  <!-- Status panel -->
+  <div id="panel-status" class="panel active">
+    <div id="login-section">
+      <div class="login-form">
+        <p style="text-align:center;margin-bottom:16px;font-size:13px;color:#6b7280;">
+          Prijavite se na svoj MyPhoto nalog
+        </p>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="vas@email.com">
+        </div>
+        <div class="form-group">
+          <label>Lozinka</label>
+          <input type="password" id="login-password" placeholder="••••••••">
+        </div>
+        <div class="error-msg" id="login-error"></div>
+        <button class="btn btn-primary" onclick="login()" id="login-btn">Prijavi se</button>
+      </div>
+    </div>
+
+    <div id="status-section" style="display:none;">
+      <div style="text-align:center;margin-bottom:16px;">
+        <span class="status-badge connected" id="conn-badge">
+          <span class="status-dot green"></span>
+          Povezano
+        </span>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-watched">0</div>
+          <div class="stat-label">Praćenih fajlova</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-synced">0</div>
+          <div class="stat-label">Sinhronizovano</div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-bottom:16px;">
+        <p style="font-size:12px;color:#9ca3af;" id="last-sync-text">Poslednja sinhronizacija: —</p>
+      </div>
+
+      <button class="btn btn-secondary" onclick="forceSync()" style="margin-bottom:8px;">
+        🔄 Potpuna sinhronizacija
+      </button>
+      <button class="btn btn-secondary" onclick="openFolder()">
+        📁 Otvori sync folder
+      </button>
+    </div>
+  </div>
+
+  <!-- Settings panel -->
+  <div id="panel-settings" class="panel">
+    <div class="form-group">
+      <label>Folder za sinhronizaciju</label>
+      <div class="folder-path">
+        <input type="text" id="sync-folder" readonly placeholder="Izaberite folder...">
+        <button class="btn btn-secondary" onclick="selectFolder()" style="width:auto;">Izaberi</button>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Automatska sinhronizacija</div>
+        <div class="setting-desc">Prati promene i šalje fajlove automatski</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="sync-enabled" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Pokreni sa Windowsom</div>
+        <div class="setting-desc">Automatski pokreni pri pokretanju računara</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="start-on-boot" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Obaveštenja</div>
+        <div class="setting-desc">Prikaži obaveštenja o sinhronizaciji</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="show-notifications" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="saveSettings()">Sačuvaj podešavanja</button>
+    </div>
+
+    <div style="margin-top:12px;">
+      <button class="btn btn-danger" onclick="logout()" style="font-size:12px;padding:8px;">
+        Odjavi se
+      </button>
+    </div>
+  </div>
+
+  <!-- Log panel -->
+  <div id="panel-log" class="panel">
+    <div class="log-container" id="log-container">
+      <div class="log-entry">Čekanje na pokretanje...</div>
+    </div>
+  </div>
+
+  <script>
+    const api = window.api;
+
+    // Tab switching
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+      document.getElementById(`panel-${tab}`).classList.add('active');
+    }
+
+    // Load config on start
+    async function loadConfig() {
+      const config = await api.getConfig();
+
+      document.getElementById('sync-folder').value = config.syncFolder || '';
+      document.getElementById('sync-enabled').checked = config.syncEnabled;
+      document.getElementById('start-on-boot').checked = config.startOnBoot;
+      document.getElementById('show-notifications').checked = config.showNotifications;
+
+      if (config.apiToken) {
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('status-section').style.display = 'block';
+        updateStats();
+      }
+    }
+
+    // Login
+    async function login() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error');
+      const btnEl = document.getElementById('login-btn');
+
+      if (!email || !password) {
+        errorEl.textContent = 'Unesite email i lozinku';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      btnEl.textContent = 'Prijavljivanje...';
+      btnEl.disabled = true;
+      errorEl.style.display = 'none';
+
+      const result = await api.login(email, password);
+
+      if (result.success) {
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('status-section').style.display = 'block';
+        const config = await api.getConfig();
+        if (!config.syncFolder) {
+          switchTab('settings');
+          selectFolder();
+        }
+      } else {
+        errorEl.textContent = result.error;
+        errorEl.style.display = 'block';
+      }
+
+      btnEl.textContent = 'Prijavi se';
+      btnEl.disabled = false;
+    }
+
+    // Logout
+    async function logout() {
+      await api.saveConfig({ apiToken: '' });
+      document.getElementById('login-section').style.display = 'block';
+      document.getElementById('status-section').style.display = 'none';
+      switchTab('status');
+    }
+
+    // Select folder
+    async function selectFolder() {
+      const folder = await api.selectFolder();
+      if (folder) {
+        document.getElementById('sync-folder').value = folder;
+      }
+    }
+
+    // Save settings
+    async function saveSettings() {
+      await api.saveConfig({
+        syncFolder: document.getElementById('sync-folder').value,
+        syncEnabled: document.getElementById('sync-enabled').checked,
+        startOnBoot: document.getElementById('start-on-boot').checked,
+        showNotifications: document.getElementById('show-notifications').checked,
+      });
+      alert('Podešavanja sačuvana!');
+    }
+
+    // Force sync
+    async function forceSync() {
+      await api.forceSync();
+    }
+
+    // Open folder — handled by main process now
+    function openFolder() {
+      const folder = document.getElementById('sync-folder').value;
+      if (folder) alert('Folder: ' + folder);
+    }
+
+    // Update stats periodically
+    async function updateStats() {
+      const stats = await api.getSyncStats();
+      document.getElementById('stat-watched').textContent = stats.filesWatched;
+      document.getElementById('stat-synced').textContent = stats.filesSynced;
+      if (stats.lastSync) {
+        document.getElementById('last-sync-text').textContent =
+          'Poslednja sinhronizacija: ' + new Date(stats.lastSync).toLocaleTimeString('sr-Latn');
+      }
+    }
+    setInterval(updateStats, 3000);
+
+    // Log messages from main process
+    const logContainer = document.getElementById('log-container');
+    api.onLog((msg) => {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry' + (msg.includes('✗') ? ' error' : msg.includes('✓') ? ' success' : '');
+      entry.textContent = msg;
+      logContainer.appendChild(entry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+      while (logContainer.children.length > 200) {
+        logContainer.removeChild(logContainer.firstChild);
+      }
+    });
+
+    // Init
+    loadConfig();
+  </script>
+</body>
+</html>

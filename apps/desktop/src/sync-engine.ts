@@ -57,14 +57,25 @@ interface SyncDB {
   folders: Record<string, string>; // relative path → remote folder ID
 }
 
+const MAX_RETRIES = 5;
+const BASE_RETRY_DELAY = 2000;
+
+function retryDelay(attempt: number): number {
+  return Math.min(BASE_RETRY_DELAY * Math.pow(2, attempt), 60000);
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export class SyncEngine {
   private watcher: chokidar.FSWatcher | null = null;
   private options: SyncEngineOptions;
   private stats: SyncStats = { filesWatched: 0, filesSynced: 0, lastSync: null, errors: [] };
   private syncDB: SyncDB = { files: {}, folders: {} };
   private uploadQueue: string[] = [];
+  private retryQueue: Map<string, number> = new Map(); // filePath → attempt count
   private isProcessing = false;
   private syncDBPath: string;
+  private retryTimer: NodeJS.Timeout | null = null;
 
   constructor(options: SyncEngineOptions) {
     this.options = options;
@@ -270,12 +281,40 @@ export class SyncEngine {
       const basename = path.basename(filePath);
       if (basename === SYNC_DB_FILE || basename.startsWith('.')) continue;
 
-      await this.uploadFile(filePath);
+      const success = await this.uploadFile(filePath);
+      if (!success) {
+        // Schedule retry with exponential backoff
+        const attempts = this.retryQueue.get(filePath) || 0;
+        if (attempts < MAX_RETRIES) {
+          this.retryQueue.set(filePath, attempts + 1);
+          const delay = retryDelay(attempts);
+          this.log(`Will retry "${path.basename(filePath)}" in ${delay / 1000}s (attempt ${attempts + 1}/${MAX_RETRIES})`);
+          this.scheduleRetry(filePath, delay);
+        } else {
+          this.log(`✗ Gave up on "${path.basename(filePath)}" after ${MAX_RETRIES} attempts`);
+          this.retryQueue.delete(filePath);
+        }
+      } else {
+        // Clear retry count on success
+        this.retryQueue.delete(filePath);
+      }
     }
 
     this.stats.lastSync = Date.now();
     this.isProcessing = false;
-    this.options.onStatus('idle');
+    this.options.onStatus(this.retryQueue.size > 0 ? 'error' : 'idle');
+  }
+
+  private scheduleRetry(filePath: string, delay: number): void {
+    setTimeout(() => {
+      if (!this.watcher) return; // Stopped
+      if (!fs.existsSync(filePath)) {
+        this.retryQueue.delete(filePath);
+        return;
+      }
+      this.uploadQueue.push(filePath);
+      this.processQueue();
+    }, delay);
   }
 
   /**
@@ -329,7 +368,12 @@ export class SyncEngine {
     this.watcher?.close();
     this.watcher = null;
     this.uploadQueue = [];
+    this.retryQueue.clear();
     this.isProcessing = false;
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
     this.log('Sync stopped');
   }
 
