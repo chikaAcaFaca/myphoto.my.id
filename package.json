@@ -16,9 +16,6 @@
     "web": "pnpm --filter web dev",
     "mobile": "pnpm --filter mobile start"
   },
-  "dependencies": {
-    "react-native-reanimated": "~3.16.0"
-  },
   "devDependencies": {
     "prettier": "^3.2.5",
     "turbo": "^2.0.0",
