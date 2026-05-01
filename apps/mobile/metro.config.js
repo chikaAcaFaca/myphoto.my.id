@@ -22,7 +22,6 @@ config.resolver.disableHierarchicalLookup = false;
 
 config.resolver.extraNodeModules = {
   crypto: path.resolve(projectRoot, 'shims/crypto.js'),
-  'react-native-reanimated': path.resolve(projectRoot, 'shims/react-native-reanimated.js'),
 };
 
 // Force React 19 from mobile's node_modules (root has React 18 for web)
