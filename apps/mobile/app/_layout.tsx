@@ -1,8 +1,8 @@
 // Polyfill crypto.getRandomValues for React Native (must be first import)
 import 'react-native-get-random-values';
 
-import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useEffect, useState, Component, type ErrorInfo, type ReactNode } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,6 +16,34 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 const queryClient = new QueryClient();
 
 const ONBOARDING_COMPLETE_KEY = '@myphoto/onboarding_complete';
+
+// Error Boundary to catch crashes and show error on screen
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('App crash:', error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>MyPhoto Crash Report</Text>
+          <ScrollView style={styles.errorScroll}>
+            <Text style={styles.errorText}>{this.state.error.message}</Text>
+            <Text style={styles.errorStack}>{this.state.error.stack}</Text>
+          </ScrollView>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function RootNavigator() {
   const { user, isLoading } = useAuth();
@@ -60,10 +88,6 @@ function RootNavigator() {
     );
   }
 
-  // SyncProvider must always wrap Slot for authenticated users because
-  // Expo Router v6 eagerly renders all tab screens including Settings/Upload
-  // which use useSync(). Without this, they crash with "useSync must be used
-  // within a SyncProvider".
   return (
     <SyncProvider>
       <Slot />
@@ -73,13 +97,15 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <RootNavigator />
-        </AuthProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <RootNavigator />
+          </AuthProvider>
+        </QueryClientProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -89,5 +115,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+  },
+  errorContainer: {
+    flex: 1,
+    backgroundColor: '#1a1a2e',
+    padding: 20,
+    paddingTop: 60,
+  },
+  errorTitle: {
+    color: '#ef4444',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  errorScroll: {
+    flex: 1,
+  },
+  errorText: {
+    color: '#fbbf24',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  errorStack: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontFamily: 'monospace',
   },
 });
