@@ -153,15 +153,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     const auth = authRef.current || getFirebaseAuth();
     try {
-      const clientId = Platform.OS === 'android'
-        ? GOOGLE_ANDROID_CLIENT_ID
-        : GOOGLE_WEB_CLIENT_ID;
+      // Always use Web Client ID for OAuth flow (Android Client ID is for native Google Sign-In SDK)
+      const clientId = GOOGLE_WEB_CLIENT_ID;
 
       if (!clientId) {
         throw new Error('Google Client ID not configured');
       }
 
-      const redirectUri = AuthSession.makeRedirectUri({ scheme: 'myphoto' });
+      // Use Expo auth proxy for standalone builds
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: 'myphoto',
+        preferLocalhost: false,
+        projectNameForProxy: 'myphoto',
+      });
 
       const discovery = {
         authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
