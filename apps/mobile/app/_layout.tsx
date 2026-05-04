@@ -55,11 +55,12 @@ function RootNavigator() {
   const router = useRouter();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
+  // Re-read onboarding status whenever user or route changes
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY).then((val) => {
       setOnboardingDone(val === 'true');
     });
-  }, [user]);
+  }, [user, segments]);
 
   useEffect(() => {
     if (isLoading || onboardingDone === null) return;
