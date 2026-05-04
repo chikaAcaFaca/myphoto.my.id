@@ -160,12 +160,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('Google Client ID not configured');
       }
 
-      // Use Expo auth proxy for standalone builds
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: 'myphoto',
-        preferLocalhost: false,
-        projectNameForProxy: 'myphoto',
-      });
+      // Use hardcoded Expo auth proxy URI for standalone builds
+      const redirectUri = 'https://auth.expo.io/@chikaaca/myphoto';
 
       const discovery = {
         authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
