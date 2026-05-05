@@ -498,14 +498,24 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         includeSmartAlbums: true,
       });
 
-      const albumList: DeviceAlbum[] = albums
-        .filter((a) => a.assetCount > 0)
-        .sort((a, b) => b.assetCount - a.assetCount)
-        .map((a) => ({
-          id: a.id,
-          title: a.title,
-          assetCount: a.assetCount,
-        }));
+      // Deduplicate albums by title (same name from different sources)
+      const albumMap = new Map<string, DeviceAlbum>();
+      for (const a of albums) {
+        if (a.assetCount === 0) continue;
+        const existing = albumMap.get(a.title);
+        if (existing) {
+          existing.assetCount += a.assetCount;
+        } else {
+          albumMap.set(a.title, {
+            id: a.id,
+            title: a.title,
+            assetCount: a.assetCount,
+          });
+        }
+      }
+
+      const albumList = Array.from(albumMap.values())
+        .sort((a, b) => b.assetCount - a.assetCount);
 
       setDeviceAlbums(albumList);
     } catch (error) {
@@ -696,27 +706,45 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const newFailed: FailedUpload[] = [...syncState.failedUploads.filter(f => !retryAssetIds.has(f.assetId))];
       let processed = 0;
 
-      // Upload new photos
-      for (const asset of newPhotos) {
-        if (syncCancelled) break;
+      // Multi-thread upload: 4 concurrent workers
+      const CONCURRENT = 4;
+      const queue = [...newPhotos];
 
-        const success = await uploadAsset(asset);
-        processed++;
+      const worker = async () => {
+        while (queue.length > 0 && !syncCancelled) {
+          const asset = queue.shift();
+          if (!asset) break;
 
-        if (success) {
-          newUploaded.push(asset.id);
-        } else {
-          // Track failure for retry
-          newFailed.push({
-            assetId: asset.id,
-            attempts: 1,
-            lastAttempt: Date.now(),
-            error: 'Upload failed',
-          });
+          const success = await uploadAsset(asset);
+          processed++;
+
+          if (success) {
+            newUploaded.push(asset.id);
+          } else {
+            newFailed.push({
+              assetId: asset.id,
+              attempts: 1,
+              lastAttempt: Date.now(),
+              error: 'Upload failed',
+            });
+          }
+
+          setSyncProgress((processed / total) * 100);
+
+          // Save progress every 10 uploads so MyPhoto tab can refresh
+          if (newUploaded.length % 10 === 0 && newUploaded.length > 0) {
+            const progressState: SyncState = {
+              ...syncState,
+              uploadedAssets: [...syncState.uploadedAssets, ...newUploaded],
+              failedUploads: newFailed,
+              lastSyncTime: Date.now(),
+            };
+            await saveSyncState(progressState);
+          }
         }
+      };
 
-        setSyncProgress((processed / total) * 100);
-      }
+      await Promise.all(Array(CONCURRENT).fill(null).map(() => worker()));
 
       // Retry previously failed uploads
       for (const failed of retryable) {

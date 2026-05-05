@@ -5,8 +5,9 @@ import { extractText } from './on-device-ocr';
 import { scorePhotoQuality } from './on-device-quality';
 import { upsertLocalPhoto, isIndexed, getIndexedCount } from './local-search-index';
 
-const BATCH_SIZE = 5;
-const DELAY_BETWEEN_MS = 200;
+const BATCH_SIZE = 10;
+const DELAY_BETWEEN_MS = 500;
+const MAX_PHOTOS_PER_RUN = 500; // Process max 500 per session to save battery
 
 export interface AiProcessingStatus {
   totalOnDevice: number;
@@ -30,11 +31,11 @@ export async function processUnindexedPhotos(
     return 0;
   }
 
-  // Get recent photos from device
+  // Get photos from device — up to MAX_PHOTOS_PER_RUN per session
   const { assets } = await MediaLibrary.getAssetsAsync({
     mediaType: ['photo'],
     sortBy: [MediaLibrary.SortBy.creationTime],
-    first: 200,
+    first: MAX_PHOTOS_PER_RUN,
   });
 
   // Filter out already indexed

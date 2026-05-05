@@ -112,9 +112,26 @@ export default function UploadScreen() {
             });
           }
         }
+      } else if (type === 'videos') {
+        // Use DocumentPicker for videos — more reliable on Android
+        const result = await DocumentPicker.getDocumentAsync({
+          multiple: true,
+          type: 'video/*',
+        });
+        if (!result.canceled && result.assets) {
+          for (const a of result.assets) {
+            const info = await FileSystem.getInfoAsync(a.uri);
+            picked.push({
+              uri: a.uri,
+              name: a.name,
+              mimeType: a.mimeType || 'video/mp4',
+              size: (info as any).size || 0,
+            });
+          }
+        }
       } else {
         const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: type === 'videos' ? ['videos'] : ['images'],
+          mediaTypes: ['images'],
           allowsMultipleSelection: true,
           quality: 1,
           selectionLimit: 50,

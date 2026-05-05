@@ -476,6 +476,25 @@ export default function MemeCreatorScreen() {
               </TouchableOpacity>
             )}
 
+            {/* Share on social media */}
+            {mediaUri && (topText || bottomText) && (
+              <TouchableOpacity
+                style={[styles.publishBtn, { backgroundColor: '#3b82f6', marginTop: 8 }]}
+                onPress={async () => {
+                  try {
+                    const caption = [topText, bottomText].filter(Boolean).join(' ');
+                    await Share.share({
+                      message: `${caption}\n\nNapravljeno u MyPhoto 📸\nhttps://myphotomy.space`,
+                      url: mediaUri.startsWith('file') ? mediaUri : undefined,
+                    });
+                  } catch {}
+                }}
+              >
+                <Ionicons name="share-social" size={18} color="#fff" />
+                <Text style={styles.publishText}>Podeli na mrežama</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Pick different media */}
             {mediaUri && (
               <View style={styles.changeRow}>

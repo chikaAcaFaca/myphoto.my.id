@@ -44,8 +44,14 @@ export default function OnboardingScreen() {
   const handleEnableBackup = async () => {
     setIsLoading(true);
     try {
-      await updateSettings({ autoBackup: true, syncMode: 'wifi_only' });
-      // Start first sync immediately
+      // Auto-select Camera folder by default + enable backup
+      const defaultFolders = ['Camera', 'DCIM'];
+      await updateSettings({
+        autoBackup: true,
+        syncMode: 'wifi_only',
+        backupFolders: [], // empty = all folders (Camera included)
+      });
+      // Start first sync immediately in background
       startSync();
       setStep('done');
     } finally {

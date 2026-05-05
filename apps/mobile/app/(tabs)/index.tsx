@@ -1,97 +1,182 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  RefreshControl, Image, Dimensions,
+  RefreshControl, Image, Dimensions, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as MediaLibrary from 'expo-media-library';
 import { useAuth } from '@/lib/auth-context';
+import { useSync } from '@/lib/sync-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
-import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
 const GAP = 2;
 const CELL = (width - GAP * (COL + 1)) / COL;
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
+const PAGE_SIZE = 100;
 
-// Extended type with presigned URLs from GET /api/files
-interface PhotoItem extends FileMetadata {
-  smallThumbUrl?: string;
-  thumbnailUrl?: string;
+interface LocalPhoto {
+  id: string;
+  uri: string;
+  mediaType: 'photo' | 'video';
+  creationTime: number;
+  duration: number;
+  filename: string;
+  isUploaded: boolean;
 }
 
 export default function MyPhotoScreen() {
   const { colors: tc } = useTheme();
   const { getToken } = useAuth();
-  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const { isSyncing, syncProgress, pendingCount } = useSync();
+  const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [tab, setTab] = useState<'cloud' | 'device'>('cloud');
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [uploadedIds, setUploadedIds] = useState<Set<string>>(new Set());
+  const endCursorRef = useRef<string | undefined>(undefined);
+  const appState = useRef(AppState.currentState);
 
-  const fetchPhotos = useCallback(async (pageNum = 1, refresh = false) => {
+  // Load uploaded asset IDs from AsyncStorage (sync state)
+  const loadUploadedIds = useCallback(async () => {
     try {
-      const token = await getToken();
-      if (!token) return;
-
-      const res = await fetch(
-        `${API_URL}/api/files?type=image&isTrashed=false&isArchived=false&page=${pageNum}&pageSize=60`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) return;
-      const data = await res.json();
-      const files: PhotoItem[] = data.files || [];
-
-      if (refresh || pageNum === 1) {
-        setPhotos(files);
-      } else {
-        setPhotos(prev => [...prev, ...files]);
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const data = await AsyncStorage.getItem('@myphoto/sync_state');
+      if (data) {
+        const state = JSON.parse(data);
+        setUploadedIds(new Set(state.uploadedAssets || []));
       }
-      setHasMore(data.hasMore ?? files.length >= 60);
-      setPage(pageNum);
+    } catch {}
+  }, []);
+
+  // Load local photos from device MediaLibrary
+  const loadLocalPhotos = useCallback(async (reset = false) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setLoading(false);
+        return;
+      }
+
+      const cursor = reset ? undefined : endCursorRef.current;
+
+      const result = await MediaLibrary.getAssetsAsync({
+        mediaType: ['photo', 'video'],
+        sortBy: [MediaLibrary.SortBy.creationTime],
+        first: PAGE_SIZE,
+        after: cursor,
+      });
+
+      const newPhotos: LocalPhoto[] = result.assets.map(asset => ({
+        id: asset.id,
+        uri: asset.uri,
+        mediaType: asset.mediaType === 'video' ? 'video' : 'photo',
+        creationTime: asset.creationTime,
+        duration: asset.duration,
+        filename: asset.filename,
+        isUploaded: uploadedIds.has(asset.id),
+      }));
+
+      if (reset) {
+        setPhotos(newPhotos);
+      } else {
+        setPhotos(prev => [...prev, ...newPhotos]);
+      }
+
+      setHasMore(result.hasNextPage);
+      endCursorRef.current = result.endCursor;
     } catch (e) {
-      console.error('Error fetching photos:', e);
+      console.error('Error loading photos:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [getToken]);
+  }, [uploadedIds]);
 
+  // Initial load
   useEffect(() => {
-    fetchPhotos(1);
-  }, [fetchPhotos]);
+    loadUploadedIds().then(() => loadLocalPhotos(true));
+  }, []);
+
+  // Refresh uploaded IDs when sync progresses
+  useEffect(() => {
+    loadUploadedIds();
+  }, [syncProgress, isSyncing]);
+
+  // Update uploaded status when IDs change
+  useEffect(() => {
+    if (uploadedIds.size > 0) {
+      setPhotos(prev => prev.map(p => ({
+        ...p,
+        isUploaded: uploadedIds.has(p.id),
+      })));
+    }
+  }, [uploadedIds]);
+
+  // Refresh when app comes to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (appState.current.match(/inactive|background/) && nextState === 'active') {
+        loadUploadedIds();
+      }
+      appState.current = nextState;
+    });
+    return () => sub.remove();
+  }, [loadUploadedIds]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchPhotos(1, true);
+    endCursorRef.current = undefined;
+    loadUploadedIds().then(() => loadLocalPhotos(true));
   };
 
   const loadMore = () => {
     if (hasMore && !loading) {
-      fetchPhotos(page + 1);
+      loadLocalPhotos(false);
     }
   };
 
-  const renderPhoto = ({ item }: { item: PhotoItem }) => (
+  const uploadedCount = photos.filter(p => p.isUploaded).length;
+
+  const renderPhoto = ({ item }: { item: LocalPhoto }) => (
     <TouchableOpacity
       style={styles.cell}
       activeOpacity={0.8}
       delayPressIn={100}
-      onPress={() => router.push({ pathname: '/photo-viewer', params: { id: item.id, name: item.name, type: item.type, isFavorite: item.isFavorite ? '1' : '0' } })}
+      onPress={() => router.push({
+        pathname: '/photo-viewer',
+        params: {
+          id: item.id,
+          name: item.filename,
+          type: item.mediaType === 'video' ? 'video' : 'image',
+          isFavorite: '0',
+          localUri: item.uri,
+        },
+      })}
     >
       <Image
-        source={{ uri: item.smallThumbUrl || item.thumbnailUrl }}
+        source={{ uri: item.uri }}
         style={styles.cellImage}
         resizeMode="cover"
       />
-      {item.type === 'video' && (
+
+      {/* Cloud status badge */}
+      <View style={[styles.cloudBadge, item.isUploaded ? styles.cloudBadgeUploaded : styles.cloudBadgePending]}>
+        <Ionicons
+          name={item.isUploaded ? 'checkmark' : 'cloud-upload-outline'}
+          size={10}
+          color="#fff"
+        />
+      </View>
+
+      {/* Video duration badge */}
+      {item.mediaType === 'video' && (
         <View style={styles.videoBadge}>
           <Ionicons name="play" size={10} color="#fff" />
-          {item.duration && (
+          {item.duration > 0 && (
             <Text style={styles.duration}>
               {Math.floor(item.duration / 60)}:{String(Math.floor(item.duration % 60)).padStart(2, '0')}
             </Text>
@@ -104,54 +189,63 @@ export default function MyPhotoScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerLeft}>
-              <Ionicons name="cloud" size={22} color="#fff" />
-              <Text style={styles.headerTitle}>MyPhoto</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
-              <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
-            </TouchableOpacity>
+      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            <Ionicons name="cloud" size={22} color="#fff" />
+            <Text style={styles.headerTitle}>MyPhoto</Text>
           </View>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
+            <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Sync bar */}
-      {photos.length > 0 && (
-        <View style={styles.syncBar}>
-          <View style={styles.syncDot} />
-          <Text style={styles.syncText}>{photos.length} slika u cloudu</Text>
+      {/* Sync status bar */}
+      {(isSyncing || pendingCount > 0) && (
+        <View style={[styles.syncBar, { backgroundColor: isSyncing ? colors.primary : colors.accent }]}>
+          {isSyncing ? (
+            <>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.syncText}>
+                Sinhronizacija... {Math.round(syncProgress)}%
+              </Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="cloud-upload-outline" size={14} color="#fff" />
+              <Text style={styles.syncText}>
+                {pendingCount} fajlova čeka upload
+              </Text>
+            </>
+          )}
+          <Text style={styles.syncCount}>
+            ☁️ {uploadedCount}/{photos.length}
+          </Text>
         </View>
       )}
 
-      {/* Toggle */}
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[styles.toggleTab, tab === 'cloud' && styles.toggleTabActive]}
-          onPress={() => setTab('cloud')}
-        >
-          <Text style={[styles.toggleText, tab === 'cloud' && styles.toggleTextActive]}>Cloud</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleTab, tab === 'device' && styles.toggleTabActive]}
-          onPress={() => setTab('device')}
-        >
-          <Text style={[styles.toggleText, tab === 'device' && styles.toggleTextActive]}>Device</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Photo count */}
+      {!isSyncing && pendingCount === 0 && photos.length > 0 && (
+        <View style={[styles.syncBar, { backgroundColor: '#22c55e' }]}>
+          <Ionicons name="checkmark-circle" size={14} color="#fff" />
+          <Text style={styles.syncText}>{photos.length} slika na uređaju · {uploadedCount} u cloudu</Text>
+        </View>
+      )}
 
       {/* Photo Grid */}
       {loading && photos.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.emptySubtext, { color: tc.textMuted, marginTop: 12 }]}>Učitavanje slika...</Text>
         </View>
       ) : photos.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="images-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Nema slika</Text>
-          <Text style={styles.emptySubtext}>Vase slike ce se pojaviti ovde nakon sync-a</Text>
+          <Ionicons name="images-outline" size={64} color={tc.textMuted} />
+          <Text style={[styles.emptyText, { color: tc.text }]}>Nema slika</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>
+            Dozvolite pristup slikama u Settings
+          </Text>
         </View>
       ) : (
         <FlatList
@@ -164,6 +258,10 @@ export default function MyPhotoScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={30}
+          windowSize={10}
+          initialNumToRender={30}
         />
       )}
     </SafeAreaView>
@@ -172,31 +270,29 @@ export default function MyPhotoScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { overflow: 'hidden' },
   headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   syncBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.accent, marginHorizontal: 12, marginTop: 8,
-    borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 14,
+    marginHorizontal: 12, marginTop: 8,
+    borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 14,
   },
-  syncDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#fff' },
-  syncText: { color: '#fff', fontSize: 11, ...fonts.semibold },
-  toggleContainer: {
-    flexDirection: 'row', marginHorizontal: 12, marginVertical: 10,
-    backgroundColor: colors.bgInput, borderRadius: radius.md, padding: 3,
-  },
-  toggleTab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10 },
-  toggleTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  toggleText: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary },
-  toggleTextActive: { color: colors.primary },
+  syncText: { color: '#fff', fontSize: 11, ...fonts.semibold, flex: 1 },
+  syncCount: { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
   row: { gap: GAP, paddingHorizontal: 1 },
   cell: { width: CELL, height: CELL, marginBottom: GAP, backgroundColor: colors.bgInput, borderRadius: 2 },
   cellImage: { width: '100%', height: '100%', borderRadius: 2 },
+  cloudBadge: {
+    position: 'absolute', top: 4, right: 4,
+    width: 18, height: 18, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cloudBadgeUploaded: { backgroundColor: 'rgba(34,197,94,0.85)' },
+  cloudBadgePending: { backgroundColor: 'rgba(0,0,0,0.4)' },
   videoBadge: {
-    position: 'absolute', bottom: 4, right: 4, flexDirection: 'row', alignItems: 'center', gap: 2,
+    position: 'absolute', bottom: 4, left: 4, flexDirection: 'row', alignItems: 'center', gap: 2,
     backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1,
   },
   duration: { color: '#fff', fontSize: 9, ...fonts.semibold },
