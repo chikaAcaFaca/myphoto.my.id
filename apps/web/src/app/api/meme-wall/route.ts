@@ -77,9 +77,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Meme must have text' }, { status: 400 });
     }
 
-    // Get user info for author name
+    // Get user info and check meme limits
     const userDoc = await db.collection('users').doc(userId).get();
-    const authorName = userDoc.data()?.displayName || 'Anonymous';
+    const userData = userDoc.data();
+    const authorName = userData?.displayName || 'Anonymous';
+    const storageLimit = userData?.storageLimit || 0;
+    const isFreeUser = storageLimit <= 1.5 * 1024 * 1024 * 1024; // ~1.5GB = free tier
+
+    // Free users: max 20 memes per month
+    if (isFreeUser) {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+
+      const monthlyMemes = await db.collection('memes')
+        .where('authorId', '==', userId)
+        .where('createdAt', '>=', monthStart)
+        .count()
+        .get();
+
+      const count = monthlyMemes.data().count;
+      if (count >= 20) {
+        return NextResponse.json({
+          error: 'Dostigli ste mesečni limit od 20 besplatnih memova. Nadogradite plan za neograničeno memova!',
+        }, { status: 403 });
+      }
+    }
 
     const now = new Date();
     const memeId = generateFileId();
