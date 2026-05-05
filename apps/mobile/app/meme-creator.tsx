@@ -223,8 +223,18 @@ export default function MemeCreatorScreen() {
         }),
       });
       if (res.ok) {
+        const responseData = await res.json();
+        const shareUrl = `${API_URL}${responseData.shareUrl || '/meme-wall'}`;
         Alert.alert('Objavljeno!', 'Tvoj meme je sada na MemeWall-u!', [
           { text: 'Pogledaj', onPress: () => router.push('/meme-wall') },
+          {
+            text: 'Podeli',
+            onPress: () => {
+              Share.share({
+                message: `${captionText}\n\nNapravljeno u MyPhoto 📸\n${shareUrl}`,
+              });
+            },
+          },
           { text: 'OK' },
         ]);
       } else {
