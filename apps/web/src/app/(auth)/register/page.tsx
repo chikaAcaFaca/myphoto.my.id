@@ -50,6 +50,22 @@ function RegisterContent() {
     try {
       const token = await getIdToken();
       if (!token) return;
+
+      // Check if this is a meme referral (ref=meme_xxxxx)
+      if (referralCode.startsWith('meme_')) {
+        const memeId = referralCode.replace('meme_', '');
+        await fetch('/api/meme-wall/referral', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ memeId }),
+        });
+        return;
+      }
+
+      // Standard referral
       await fetch('/api/referral/claim', {
         method: 'POST',
         headers: {

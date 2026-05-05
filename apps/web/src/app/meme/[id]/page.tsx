@@ -117,7 +117,7 @@ export default async function MemePage({ params }: MemePageProps) {
             Besplatna registracija. Napravi meme, podeli na MemeWall-u, osvoji lajkove!
           </p>
           <a
-            href="/register"
+            href={`/register?ref=meme_${meme.id}`}
             style={{
               display: 'inline-block',
               backgroundColor: '#fff',

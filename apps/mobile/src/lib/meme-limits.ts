@@ -84,15 +84,23 @@ export async function checkMemeLimit(storageLimit: number, isAiGenerated: boolea
   const tier = getUserTier(storageLimit);
   const isFree = tier.tier === 0;
 
-  // Manual memes: Free = 0, Paid = unlimited
+  // Manual memes: Free = 20/month, Paid = unlimited
   if (!isAiGenerated) {
     if (isFree) {
-      return {
-        allowed: false,
-        reason: 'Kreiranje memova je dostupno samo za plaćene planove. Nadogradite na Mini plan (€0.69/mes) za neograničeno memova!',
-        remainingDaily: 0,
-        remainingMonthly: 0,
-      };
+      let usage = await getUsage();
+      usage = resetIfNeeded(usage);
+      await saveUsage(usage);
+      const FREE_MONTHLY_LIMIT = 20;
+      const remaining = Math.max(0, FREE_MONTHLY_LIMIT - usage.monthly);
+      if (usage.monthly >= FREE_MONTHLY_LIMIT) {
+        return {
+          allowed: false,
+          reason: `Dostigli ste mesečni limit od ${FREE_MONTHLY_LIMIT} besplatnih memova. Nadogradite na Mini plan (€0.69/mes) za neograničeno memova!`,
+          remainingDaily: 0,
+          remainingMonthly: 0,
+        };
+      }
+      return { allowed: true, reason: '', remainingDaily: Infinity, remainingMonthly: remaining };
     }
     return { allowed: true, reason: '', remainingDaily: Infinity, remainingMonthly: Infinity };
   }
