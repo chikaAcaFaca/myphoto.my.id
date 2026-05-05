@@ -26,6 +26,8 @@ import {
   Crown,
   X,
   Gift,
+  Palette,
+  Flame,
 } from 'lucide-react';
 import { useUIStore, useAuthStore } from '@/lib/stores';
 import { useStorage, usePWA, useIsMobile, useReferralStats } from '@/lib/hooks';
@@ -40,6 +42,11 @@ const mainNav = [
   { name: 'Arhiva', href: '/archive', icon: Archive },
   { name: 'Uspomene', href: '/memories', icon: Clock },
   { name: 'MySpace', href: '/myspace', icon: HardDrive },
+];
+
+const creativeNav = [
+  { name: 'Meme Creator', href: '/meme-creator', icon: Palette },
+  { name: 'MemeWall', href: '/meme-wall', icon: Flame },
 ];
 
 const secondaryNav = [
@@ -152,6 +159,20 @@ export function Sidebar() {
 
           <div className="space-y-1">
             {secondaryNav.map((item) => (
+              <NavItem
+                key={item.name}
+                item={item}
+                isActive={pathname === item.href}
+                isCollapsed={isCollapsed}
+              />
+            ))}
+          </div>
+
+          <div className="my-4 h-px bg-gray-200 dark:bg-gray-700" />
+
+          {/* Creative tools */}
+          <div className="space-y-1">
+            {creativeNav.map((item) => (
               <NavItem
                 key={item.name}
                 item={item}

@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Search, Settings, CloudUpload } from 'lucide-react';
+import { Home, Search, Settings, CloudUpload, Flame } from 'lucide-react';
 import { useUIStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
 
@@ -72,6 +72,31 @@ export function MobileBottomNav() {
           className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/30 transition-transform active:scale-95"
         >
           <CloudUpload className="h-7 w-7" />
+        </button>
+
+        {/* MemeWall */}
+        <button
+          onClick={() => router.push('/meme-wall')}
+          className="flex flex-col items-center gap-1"
+        >
+          <Flame
+            className={cn(
+              'h-6 w-6',
+              pathname === '/meme-wall' || pathname === '/meme-creator'
+                ? 'text-orange-500'
+                : 'text-gray-400'
+            )}
+          />
+          <span
+            className={cn(
+              'text-[10px] font-medium',
+              pathname === '/meme-wall' || pathname === '/meme-creator'
+                ? 'text-orange-500'
+                : 'text-gray-400'
+            )}
+          >
+            Meme
+          </span>
         </button>
 
         {/* Settings */}
