@@ -367,9 +367,9 @@ export default function MemeCreatorScreen() {
                     <Text style={styles.mediaTypeBadgeText}>{mediaType === 'video' ? 'VIDEO' : 'GIF'}</Text>
                   </View>
                 )}
-                {/* Watermark */}
+                {/* Watermark - always visible branding */}
                 <Text style={styles.watermark}>
-                  @{user?.displayName || 'user'} • myphotomy.space
+                  myphotomy.space
                 </Text>
               </View>
             ) : null}
@@ -543,8 +543,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 4,
   },
   watermark: {
-    position: 'absolute', bottom: 4, right: 6,
-    color: 'rgba(255,255,255,0.5)', fontSize: 9, ...fonts.medium,
+    position: 'absolute', bottom: 6, right: 8,
+    color: '#fff', fontSize: 11, ...fonts.bold,
+    textShadowColor: '#000', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3,
+    letterSpacing: 0.5,
   },
   pickImage: {
     width: width - 24, aspectRatio: 1, borderRadius: radius.lg,
