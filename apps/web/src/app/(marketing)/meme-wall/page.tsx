@@ -22,7 +22,7 @@ export default function MemeWallPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  const createMemeLink = user ? '/photos' : '/register';
+  const createMemeLink = user ? '/meme-wall' : '/login?redirect=/meme-wall';
 
   const fetchMemes = useCallback(async (pageNum: number) => {
     try {
