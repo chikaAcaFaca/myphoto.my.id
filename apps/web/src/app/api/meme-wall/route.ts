@@ -14,12 +14,22 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '30', 10), 100);
     const offset = (page - 1) * pageSize;
 
-    const snapshot = await db.collection('memes')
-      .where('isPublic', '==', true)
-      .orderBy('createdAt', 'desc')
-      .offset(offset)
-      .limit(pageSize + 1)
-      .get();
+    let snapshot;
+    try {
+      snapshot = await db.collection('memes')
+        .where('isPublic', '==', true)
+        .orderBy('createdAt', 'desc')
+        .offset(offset)
+        .limit(pageSize + 1)
+        .get();
+    } catch (e: any) {
+      // Collection might not exist yet or index not ready
+      if (e.code === 9 || e.message?.includes('index')) {
+        return NextResponse.json({ memes: [], hasMore: false, page });
+      }
+      // If collection doesn't exist, return empty
+      return NextResponse.json({ memes: [], hasMore: false, page });
+    }
 
     const hasMore = snapshot.docs.length > pageSize;
     const memes = await Promise.all(

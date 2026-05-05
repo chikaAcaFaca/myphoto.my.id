@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useAuthStore } from '@/lib/stores';
 
 interface Meme {
   id: string;
@@ -15,10 +16,13 @@ interface Meme {
 }
 
 export default function MemeWallPage() {
+  const { user } = useAuthStore();
   const [memes, setMemes] = useState<Meme[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  const createMemeLink = user ? '/photos' : '/register';
 
   const fetchMemes = useCallback(async (pageNum: number) => {
     try {
@@ -82,7 +86,7 @@ export default function MemeWallPage() {
           </p>
           <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
             <Link
-              href="/register"
+              href={createMemeLink}
               style={{
                 backgroundColor: '#fff', color: '#f97316', fontWeight: 700,
                 padding: '10px 24px', borderRadius: 10, textDecoration: 'none',
@@ -115,7 +119,7 @@ export default function MemeWallPage() {
             <h2 style={{ fontSize: 24, marginBottom: 8 }}>MemeWall je prazan!</h2>
             <p style={{ color: '#64748b', marginBottom: 24 }}>Budi prvi koji ce objaviti meme.</p>
             <Link
-              href="/register"
+              href={createMemeLink}
               style={{
                 backgroundColor: '#f97316', color: '#fff', fontWeight: 700,
                 padding: '12px 32px', borderRadius: 10, textDecoration: 'none',
@@ -212,7 +216,7 @@ export default function MemeWallPage() {
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           <Link
-            href="/register"
+            href={createMemeLink}
             style={{
               backgroundColor: '#0ea5e9', color: '#fff', fontWeight: 700,
               padding: '10px 24px', borderRadius: 10, textDecoration: 'none',
