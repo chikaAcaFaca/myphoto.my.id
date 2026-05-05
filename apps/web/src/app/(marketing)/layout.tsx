@@ -1,11 +1,15 @@
 import Link from 'next/link';
 import { Cloud } from 'lucide-react';
+import { cookies } from 'next/headers';
 
-export default function MarketingLayout({
+export default async function MarketingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Check if user has auth cookie to show correct nav buttons
+  const cookieStore = await cookies();
+  const isLoggedIn = cookieStore.has('__session') || cookieStore.has('auth_token');
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
       {/* Navbar */}
@@ -34,21 +38,38 @@ export default function MarketingLayout({
             <Link href="/pricing" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
               Cene
             </Link>
+            <Link href="/meme-wall" className="text-sm font-medium text-orange-500 hover:text-orange-600">
+              🔥 MemeWall
+            </Link>
+            <Link href="/download" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+              Download
+            </Link>
             <Link href="/blog" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
               Blog
             </Link>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-              Prijava
-            </Link>
-            <Link
-              href="/register"
-              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-            >
-              Besplatan nalog
-            </Link>
+            {isLoggedIn ? (
+              <Link
+                href="/photos"
+                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+              >
+                Otvori App
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                  Prijava
+                </Link>
+                <Link
+                  href="/register"
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                >
+                  Besplatan nalog
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       </header>
@@ -67,6 +88,8 @@ export default function MarketingLayout({
                 <li><Link href="/features/private-storage" className="hover:text-primary-600">Privatni Storage</Link></li>
                 <li><Link href="/features/photo-sharing" className="hover:text-primary-600">Deljenje Slika</Link></li>
                 <li><Link href="/pricing" className="hover:text-primary-600">Cene</Link></li>
+                <li><Link href="/download" className="hover:text-primary-600">Download</Link></li>
+                <li><Link href="/meme-wall" className="hover:text-primary-600">MemeWall</Link></li>
               </ul>
             </div>
             <div>
@@ -93,7 +116,7 @@ export default function MarketingLayout({
             </div>
           </div>
           <div className="mt-8 border-t border-gray-200 pt-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-            © {new Date().getFullYear()} MyPhoto (myphotomy.space) — Privatni cloud za vaše slike. EU serveri, GDPR zaštita.
+            © {new Date().getFullYear()} MyPhoto (myphotomy.space) — NASRM Kapetan Bogdan Studio. EU serveri, GDPR zaštita.
           </div>
         </div>
       </footer>
