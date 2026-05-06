@@ -213,17 +213,43 @@ export default function MemeCreatorScreen() {
         },
         body: JSON.stringify({
           fileId: id || null,
-          mediaUri: mediaUri.startsWith('http') ? null : mediaUri,
           mediaType,
           caption: captionText,
           topText,
           bottomText,
           template: template.id,
           fontSize: fontSize.size,
+          imageData: !!mediaUri,
         }),
       });
       if (res.ok) {
         const responseData = await res.json();
+
+        // Upload the meme image to S3 if we got an upload URL
+        if (responseData.uploadUrl && mediaUri) {
+          try {
+            if (mediaUri.startsWith('file://') || mediaUri.startsWith('/')) {
+              await FileSystem.uploadAsync(responseData.uploadUrl, mediaUri, {
+                httpMethod: 'PUT',
+                headers: { 'Content-Type': 'image/jpeg' },
+                uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+              });
+            } else if (mediaUri.startsWith('http')) {
+              // Download first then upload
+              const tmpPath = `${FileSystem.cacheDirectory}meme_upload_${Date.now()}.jpg`;
+              const dl = await FileSystem.downloadAsync(mediaUri, tmpPath);
+              await FileSystem.uploadAsync(responseData.uploadUrl, dl.uri, {
+                httpMethod: 'PUT',
+                headers: { 'Content-Type': 'image/jpeg' },
+                uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+              });
+              await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+            }
+          } catch (uploadErr) {
+            console.warn('Meme image upload failed:', uploadErr);
+          }
+        }
+
         const shareUrl = `${API_URL}${responseData.shareUrl || '/meme-wall'}`;
         Alert.alert('Objavljeno!', 'Tvoj meme je sada na MemeWall-u!', [
           { text: 'Pogledaj', onPress: () => router.push('/meme-wall') },
@@ -238,7 +264,8 @@ export default function MemeCreatorScreen() {
           { text: 'OK' },
         ]);
       } else {
-        Alert.alert('Greska', 'Objavljivanje nije uspelo. Pokusajte ponovo.');
+        const errData = await res.json().catch(() => null);
+        Alert.alert('Greska', errData?.error || 'Objavljivanje nije uspelo. Pokusajte ponovo.');
       }
     } catch (e) {
       Alert.alert('Greska', 'Objavljivanje nije uspelo.');

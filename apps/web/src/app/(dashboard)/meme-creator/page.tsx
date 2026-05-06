@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 
 export default function MemeCreatorPage() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState<string>('');
@@ -15,6 +16,24 @@ export default function MemeCreatorPage() {
   const [bottomText, setBottomText] = useState('');
   const [publishing, setPublishing] = useState(false);
   const [saved, setSaved] = useState(false);
+  const sourceFileId = searchParams.get('fileId') || null;
+
+  // Load image from photoUrl or fileId query param (when coming from photo viewer)
+  useEffect(() => {
+    const photoUrl = searchParams.get('photoUrl');
+    if (photoUrl && !imageUrl) {
+      setImageUrl(decodeURIComponent(photoUrl));
+    }
+  }, [searchParams, imageUrl]);
+
+  // Fallback: if fileId but no photoUrl, fetch via thumbnail
+  useEffect(() => {
+    const fileId = searchParams.get('fileId');
+    const photoUrl = searchParams.get('photoUrl');
+    if (fileId && !photoUrl && !imageUrl) {
+      setImageUrl(`/api/thumbnail/${fileId}`);
+    }
+  }, [searchParams, imageUrl]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -121,6 +140,8 @@ export default function MemeCreatorPage() {
           bottomText,
           template: 'classic',
           mediaType: 'image',
+          imageData: !!imageUrl,
+          ...(sourceFileId ? { fileId: sourceFileId } : {}),
         }),
       });
 
@@ -142,7 +163,8 @@ export default function MemeCreatorPage() {
         alert('Meme objavljen na MemeWall!');
         router.push('/meme-wall');
       } else {
-        alert('Objavljivanje nije uspelo.');
+        const errData = await res.json().catch(() => null);
+        alert(errData?.error || 'Objavljivanje nije uspelo.');
       }
     } catch {
       alert('Greska pri objavljivanju.');

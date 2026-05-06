@@ -301,6 +301,16 @@ export default function PhotoViewerScreen() {
               <Text style={[styles.actionText, { color: colors.accent }]}>Kreiraj</Text>
             </TouchableOpacity>
 
+            {type !== 'video' && (
+              <TouchableOpacity style={styles.action} onPress={() => router.push({
+                pathname: '/meme-creator',
+                params: { id: id!, name: name || 'Photo' },
+              })}>
+                <Ionicons name="flame-outline" size={22} color="#f97316" />
+                <Text style={[styles.actionText, { color: '#f97316' }]}>Meme</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity style={styles.action} onPress={handleToggleFavorite} disabled={togglingFav}>
               {togglingFav ? (
                 <ActivityIndicator size="small" color="#fff" />

@@ -86,21 +86,26 @@ export async function POST(request: NextRequest) {
 
     // Free users: max 20 memes per month
     if (isFreeUser) {
-      const monthStart = new Date();
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
+      try {
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
 
-      const monthlyMemes = await db.collection('memes')
-        .where('authorId', '==', userId)
-        .where('createdAt', '>=', monthStart)
-        .count()
-        .get();
+        const monthlyMemes = await db.collection('memes')
+          .where('authorId', '==', userId)
+          .where('createdAt', '>=', monthStart)
+          .count()
+          .get();
 
-      const count = monthlyMemes.data().count;
-      if (count >= 20) {
-        return NextResponse.json({
-          error: 'Dostigli ste mesečni limit od 20 besplatnih memova. Nadogradite plan za neograničeno memova!',
-        }, { status: 403 });
+        const count = monthlyMemes.data().count;
+        if (count >= 20) {
+          return NextResponse.json({
+            error: 'Dostigli ste mesečni limit od 20 besplatnih memova. Nadogradite plan za neograničeno memova!',
+          }, { status: 403 });
+        }
+      } catch (e: any) {
+        // Index might not be ready yet — allow the request through
+        console.warn('Meme count query failed (allowing):', e.message);
       }
     }
 
@@ -134,8 +139,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If meme image is uploaded as base64
-    if (imageData) {
+    // Generate upload URL if client will upload a meme image
+    if (imageData && !memeData.s3Key) {
       const s3Key = `memes/${userId}/${memeId}.jpg`;
       const { url } = await generateUploadUrl(s3Key, 'image/jpeg', 5 * 1024 * 1024);
       memeData.s3Key = s3Key;

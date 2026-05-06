@@ -24,8 +24,10 @@ import {
   Eraser,
   Crop,
   HardDrive,
+  Flame,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { FileMetadata } from '@myphoto/shared';
 import { formatDate, formatBytes } from '@myphoto/shared';
 import { useUIStore } from '@/lib/stores';
@@ -734,6 +736,7 @@ function LightboxToolbar({
   isMobile: boolean;
 }) {
   const { addNotification } = useUIStore();
+  const router = useRouter();
   const { mutate: getDownloadUrl } = useGetDownloadUrl();
   const { mutate: updateFile } = useUpdateFile();
   const { mutate: deleteFile } = useDeleteFile();
@@ -871,6 +874,24 @@ function LightboxToolbar({
           label="Ukloni pozadinu"
           onClick={() => {
             window.open(`/tools/remove-bg?fileId=${file.id}`, '_blank');
+          }}
+        />
+      )}
+      {file.type !== 'video' && (
+        <ToolbarButton
+          icon={<Flame className="h-5 w-5 text-orange-400" />}
+          label="Napravi meme"
+          onClick={() => {
+            getDownloadUrl(file.s3Key, {
+              onSuccess: (url: string) => {
+                router.push(`/meme-creator?fileId=${file.id}&photoUrl=${encodeURIComponent(url)}`);
+                onClose();
+              },
+              onError: () => {
+                router.push(`/meme-creator?fileId=${file.id}`);
+                onClose();
+              },
+            });
           }}
         />
       )}
