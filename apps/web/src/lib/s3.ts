@@ -26,13 +26,13 @@ const BUCKET_NAME = process.env.WASABI_BUCKET || 'mycamerabackup-prod';
 export async function generateUploadUrl(
   key: string,
   contentType: string,
-  contentLength: number
+  contentLength?: number
 ): Promise<{ url: string; expiresAt: Date }> {
   const command = new PutObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
     ContentType: contentType,
-    ContentLength: contentLength,
+    ...(contentLength ? { ContentLength: contentLength } : {}),
   });
 
   const url = await getSignedUrl(s3Client, command, {

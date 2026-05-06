@@ -140,11 +140,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate upload URL if client will upload a meme image
+    let uploadUrl: string | null = null;
     if (imageData && !memeData.s3Key) {
       const s3Key = `memes/${userId}/${memeId}.jpg`;
-      const { url } = await generateUploadUrl(s3Key, 'image/jpeg', 5 * 1024 * 1024);
+      const { url } = await generateUploadUrl(s3Key, 'image/jpeg');
       memeData.s3Key = s3Key;
-      memeData.uploadUrl = url;
+      uploadUrl = url;
     }
 
     await db.collection('memes').doc(memeId).set(memeData);
@@ -152,7 +153,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       id: memeId,
       shareUrl: `/meme/${memeId}`,
-      uploadUrl: memeData.uploadUrl || null,
+      uploadUrl,
     });
   } catch (error) {
     console.error('MemeWall POST error:', error);
