@@ -1,4 +1,3 @@
-import FaceDetection, { FaceDetectorContourMode, FaceDetectorLandmarkMode, FaceDetectorPerformanceMode } from '@react-native-ml-kit/face-detection';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 export interface LocalFaceData {
@@ -17,6 +16,21 @@ export interface LocalFaceData {
  */
 export async function detectFacesLocal(localUri: string): Promise<LocalFaceData[]> {
   try {
+    let FaceDetection: any;
+    let FaceDetectorPerformanceMode: any;
+    let FaceDetectorLandmarkMode: any;
+    let FaceDetectorContourMode: any;
+    try {
+      const mod = await import('@react-native-ml-kit/face-detection');
+      FaceDetection = mod.default;
+      FaceDetectorPerformanceMode = mod.FaceDetectorPerformanceMode;
+      FaceDetectorLandmarkMode = mod.FaceDetectorLandmarkMode;
+      FaceDetectorContourMode = mod.FaceDetectorContourMode;
+    } catch {
+      console.log('ML Kit face-detection not available');
+      return [];
+    }
+
     // Resize for faster processing
     const resized = await ImageManipulator.manipulateAsync(
       localUri,
@@ -30,7 +44,7 @@ export async function detectFacesLocal(localUri: string): Promise<LocalFaceData[
       contourMode: FaceDetectorContourMode.NONE,
     });
 
-    return faces.map((face) => ({
+    return faces.map((face: any) => ({
       x: face.frame.left,
       y: face.frame.top,
       width: face.frame.width,

@@ -1,4 +1,3 @@
-import ImageLabeling from '@react-native-ml-kit/image-labeling';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 export interface LocalLabel {
@@ -13,6 +12,14 @@ export interface LocalLabel {
  */
 export async function classifyImage(localUri: string): Promise<LocalLabel[]> {
   try {
+    let ImageLabeling: any;
+    try {
+      ImageLabeling = (await import('@react-native-ml-kit/image-labeling')).default;
+    } catch {
+      console.log('ML Kit image-labeling not available');
+      return [];
+    }
+
     // Resize for faster ML processing
     const resized = await ImageManipulator.manipulateAsync(
       localUri,
@@ -23,9 +30,9 @@ export async function classifyImage(localUri: string): Promise<LocalLabel[]> {
     const result = await ImageLabeling.label(resized.uri);
 
     return result
-      .filter((item) => item.confidence >= 0.5)
+      .filter((item: any) => item.confidence >= 0.5)
       .slice(0, 10)
-      .map((item) => ({
+      .map((item: any) => ({
         label: item.text,
         confidence: item.confidence,
       }));

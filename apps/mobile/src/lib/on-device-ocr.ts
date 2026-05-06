@@ -1,4 +1,3 @@
-import TextRecognition from '@react-native-ml-kit/text-recognition';
 import * as ImageManipulator from 'expo-image-manipulator';
 
 export interface OcrResult {
@@ -12,6 +11,14 @@ export interface OcrResult {
  */
 export async function extractText(localUri: string): Promise<OcrResult> {
   try {
+    let TextRecognition: any;
+    try {
+      TextRecognition = (await import('@react-native-ml-kit/text-recognition')).default;
+    } catch {
+      console.log('ML Kit text-recognition not available');
+      return { text: '', blockCount: 0 };
+    }
+
     const resized = await ImageManipulator.manipulateAsync(
       localUri,
       [{ resize: { width: 1024 } }],
