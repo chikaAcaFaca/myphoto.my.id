@@ -23,12 +23,17 @@ export async function GET(request: NextRequest) {
         .limit(pageSize + 1)
         .get();
     } catch (e: any) {
-      // Collection might not exist yet or index not ready
-      if (e.code === 9 || e.message?.includes('index')) {
+      console.error('MemeWall query failed:', e.code, e.message);
+      // Fallback: try without ordering (no composite index needed)
+      try {
+        snapshot = await db.collection('memes')
+          .where('isPublic', '==', true)
+          .limit(pageSize + 1)
+          .get();
+      } catch (e2: any) {
+        console.error('MemeWall fallback query failed:', e2.message);
         return NextResponse.json({ memes: [], hasMore: false, page });
       }
-      // If collection doesn't exist, return empty
-      return NextResponse.json({ memes: [], hasMore: false, page });
     }
 
     const hasMore = snapshot.docs.length > pageSize;
