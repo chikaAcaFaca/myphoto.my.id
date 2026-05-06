@@ -125,7 +125,7 @@ export default function MemeWallPage() {
                 padding: '12px 32px', borderRadius: 10, textDecoration: 'none',
               }}
             >
-              Registruj se i napravi meme
+              {user ? 'Napravi meme' : 'Prijavi se i napravi meme'}
             </Link>
           </div>
         ) : (
