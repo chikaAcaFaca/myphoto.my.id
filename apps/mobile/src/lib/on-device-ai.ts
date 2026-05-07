@@ -1,45 +1,14 @@
-import * as ImageManipulator from 'expo-image-manipulator';
-
 export interface LocalLabel {
   label: string;
   confidence: number;
 }
 
 /**
- * Classify an image using Google ML Kit on-device image labeling.
- * Returns top labels with confidence > 0.5.
- * Resizes image to max 640px for faster processing.
+ * Classify an image using on-device ML.
+ * Currently disabled — ML Kit native modules not available in Expo managed workflow.
  */
-export async function classifyImage(localUri: string): Promise<LocalLabel[]> {
-  try {
-    let ImageLabeling: any;
-    try {
-      ImageLabeling = (await import('@react-native-ml-kit/image-labeling')).default;
-    } catch {
-      console.log('ML Kit image-labeling not available');
-      return [];
-    }
-
-    // Resize for faster ML processing
-    const resized = await ImageManipulator.manipulateAsync(
-      localUri,
-      [{ resize: { width: 640 } }],
-      { format: ImageManipulator.SaveFormat.JPEG, compress: 0.8 }
-    );
-
-    const result = await ImageLabeling.label(resized.uri);
-
-    return result
-      .filter((item: any) => item.confidence >= 0.5)
-      .slice(0, 10)
-      .map((item: any) => ({
-        label: item.text,
-        confidence: item.confidence,
-      }));
-  } catch (error) {
-    console.log('ML Kit labeling error:', error);
-    return [];
-  }
+export async function classifyImage(_localUri: string): Promise<LocalLabel[]> {
+  return [];
 }
 
 /**
