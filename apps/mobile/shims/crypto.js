@@ -7,6 +7,6 @@ module.exports = {
     if (globalThis.crypto && globalThis.crypto.getRandomValues) {
       globalThis.crypto.getRandomValues(bytes);
     }
-    return Buffer.from(bytes);
+    return bytes;
   },
 };

@@ -321,9 +321,13 @@ async function backgroundFindNewPhotos(
   return allAssets.filter((a) => !syncState.uploadedAssets.includes(a.id));
 }
 
-// Register background task (wrapped in try-catch to prevent crash on init)
-try {
-TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
+// Register background task — deferred to avoid crash if native module not ready
+let _bgTaskRegistered = false;
+function ensureBackgroundTaskRegistered() {
+  if (_bgTaskRegistered) return;
+  _bgTaskRegistered = true;
+  try {
+    TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
   try {
     console.log('Background sync task running...');
     const settings = await loadSyncSettings();
@@ -413,9 +417,10 @@ TaskManager.defineTask(BACKGROUND_SYNC_TASK, async () => {
     console.error('Background sync error:', error);
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
-});
-} catch (e) {
-  console.warn('Failed to register background task:', e);
+  });
+  } catch (e) {
+    console.warn('Failed to register background task:', e);
+  }
 }
 
 async function loadSyncState(): Promise<SyncState> {
@@ -559,6 +564,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const registerBackgroundFetch = async () => {
     try {
+      ensureBackgroundTaskRegistered();
       await BackgroundFetch.registerTaskAsync(BACKGROUND_SYNC_TASK, {
         minimumInterval: 15 * 60, // 15 minutes
         stopOnTerminate: false,
