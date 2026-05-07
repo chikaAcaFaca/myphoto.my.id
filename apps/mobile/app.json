@@ -76,7 +76,8 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-reanimated"
     ],
     "experiments": {
       "typedRoutes": true

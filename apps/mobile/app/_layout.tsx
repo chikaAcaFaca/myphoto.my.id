@@ -1,10 +1,6 @@
 // Polyfill crypto.getRandomValues for React Native (must be first import)
 import 'react-native-get-random-values';
 
-// Disable native screens to avoid reanimated native module dependency
-import { enableScreens } from 'react-native-screens';
-enableScreens(false);
-
 import React, { useEffect, useState, Component, type ErrorInfo, type ReactNode } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
