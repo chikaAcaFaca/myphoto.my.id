@@ -212,9 +212,39 @@ const moduleExports = {
   scrollTo,
   // Reduce motion
   ReduceMotion: { System: 0, Always: 1, Never: 2 },
+  useReducedMotion: function () { return false; },
+  // Shared transition (react-native-screens v4)
+  SharedTransition: {
+    custom: function () { return { registerTransition: function () {} }; },
+    defaultTransitionType: function () { return {}; },
+    progressAnimation: function () { return { registerTransition: function () {} }; },
+  },
+  SharedTransitionType: { ANIMATION: 0, PROGRESS_ANIMATION: 1 },
+  ReducedMotionConfig: { System: 0, Always: 1, Never: 2 },
+  // Sensors
+  SensorType: { ROTATION: 1, ACCELEROMETER: 2, GYROSCOPE: 3, GRAVITY: 4, MAGNETIC_FIELD: 5 },
+  useAnimatedSensor: function () { return { sensor: { value: { x: 0, y: 0, z: 0 } } }; },
+  // Keyboard
+  useAnimatedKeyboard: function () { return { state: { value: 0 }, height: { value: 0 } }; },
+  KeyboardState: { UNKNOWN: 0, OPENING: 1, OPEN: 2, CLOSING: 3, CLOSED: 4 },
+  // Gesture handler interop
+  useAnimatedGestureHandler: function () { return {}; },
+  useAnimatedReaction: function () {},
+  // Additional hooks needed by screens
+  useFrameCallback: function () {},
+  useScrollViewOffset: function () { return { value: 0 }; },
+  useAnimatedScrollHandler: function () { return function () {}; },
+  // enteringAnimation / exitingAnimation
+  EntryExitTransition: noopLayoutFn,
+  combineTransition: function () { return noopLayoutFn; },
   // Status
-  isConfigured: () => true,
-  getViewProp: () => Promise.resolve(undefined),
+  isConfigured: function () { return true; },
+  getViewProp: function () { return Promise.resolve(undefined); },
+  // Make sure default export also has all hooks
+  makeMutable: function (init) { return { value: init }; },
+  enableLayoutAnimations: function () {},
+  configureLayoutAnimationBatch: function () {},
+  isSharedValue: function () { return false; },
 };
 
 module.exports = moduleExports;
