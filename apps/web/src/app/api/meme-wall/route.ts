@@ -134,19 +134,21 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    // If meme has a source photo from MyPhoto
+    // If meme has a source photo from MyPhoto, remember the link (used for
+    // attribution / "made from photo X"), but don't reuse the source s3Key
+    // as the meme image — the client will upload the rendered meme (with
+    // top/bottom text baked in) below.
     if (fileId) {
       const fileDoc = await db.collection('files').doc(fileId).get();
       if (fileDoc.exists && fileDoc.data()?.userId === userId) {
-        const fileData = fileDoc.data()!;
-        memeData.s3Key = fileData.s3Key;
         memeData.sourceFileId = fileId;
       }
     }
 
-    // Generate upload URL if client will upload a meme image
+    // Generate upload URL for the rendered meme. The client renders the meme
+    // via canvas (image + topText + bottomText) and PUTs the blob here.
     let uploadUrl: string | null = null;
-    if (imageData && !memeData.s3Key) {
+    if (imageData) {
       const s3Key = `memes/${userId}/${memeId}.jpg`;
       const { url } = await generateUploadUrl(s3Key, 'image/jpeg');
       memeData.s3Key = s3Key;
