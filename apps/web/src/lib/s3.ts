@@ -19,6 +19,10 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.WASABI_SECRET_ACCESS_KEY!,
   },
   forcePathStyle: true,
+  // AWS SDK v3.729+ adds x-amz-checksum-* to presigned URLs by default; Wasabi
+  // rejects them, so PUTs silently 403 and GETs return NoSuchKey. Opt out.
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
 const BUCKET_NAME = process.env.WASABI_BUCKET || 'mycamerabackup-prod';
