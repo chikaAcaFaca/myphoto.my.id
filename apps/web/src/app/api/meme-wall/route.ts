@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { generateUploadUrl, generateDownloadUrl } from '@/lib/s3';
+import { generateUploadUrl, generateDownloadUrl, getObjectBuffer, putObjectBuffer } from '@/lib/s3';
+import { renderMeme } from '@/lib/meme-render';
 import { generateFileId } from '@myphoto/shared';
 
 export const dynamic = 'force-dynamic';
@@ -134,24 +135,45 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    // If meme has a source photo from MyPhoto, remember the link (used for
-    // attribution / "made from photo X"), but don't reuse the source s3Key
-    // as the meme image — the client will upload the rendered meme (with
-    // top/bottom text baked in) below.
+    // Resolve source photo (if user is making a meme from an existing MyPhoto
+    // file). We need its s3Key both for attribution and for server-side
+    // rendering — for clients that can't bake the text into the image (mobile).
+    let sourceS3Key: string | null = null;
     if (fileId) {
       const fileDoc = await db.collection('files').doc(fileId).get();
       if (fileDoc.exists && fileDoc.data()?.userId === userId) {
         memeData.sourceFileId = fileId;
+        sourceS3Key = fileDoc.data()!.s3Key || null;
       }
     }
 
-    // Generate upload URL for the rendered meme. The client renders the meme
-    // via canvas (image + topText + bottomText) and PUTs the blob here.
     let uploadUrl: string | null = null;
-    if (imageData) {
-      const s3Key = `memes/${userId}/${memeId}.jpg`;
-      const { url } = await generateUploadUrl(s3Key, 'image/jpeg');
-      memeData.s3Key = s3Key;
+    const memeKey = `memes/${userId}/${memeId}.jpg`;
+
+    if (sourceS3Key && (topText || bottomText)) {
+      // Server-side render: fetch the source photo, bake the meme text in, and
+      // upload the result. Mobile relies on this because it can't render text
+      // into the image client-side.
+      try {
+        const source = await getObjectBuffer(sourceS3Key);
+        const rendered = await renderMeme(source, topText || '', bottomText || '');
+        await putObjectBuffer(memeKey, rendered, 'image/jpeg');
+        memeData.s3Key = memeKey;
+      } catch (e: any) {
+        console.error('Server-side meme render failed:', e?.message || e);
+        // Fall through to the upload-URL flow so the client can still upload
+        // the rendered version (e.g. web canvas-rendered).
+        if (imageData) {
+          const { url } = await generateUploadUrl(memeKey, 'image/jpeg');
+          memeData.s3Key = memeKey;
+          uploadUrl = url;
+        }
+      }
+    } else if (imageData) {
+      // No source photo on S3 — generate an upload URL and let the client PUT
+      // the rendered meme (the web canvas path).
+      const { url } = await generateUploadUrl(memeKey, 'image/jpeg');
+      memeData.s3Key = memeKey;
       uploadUrl = url;
     }
 

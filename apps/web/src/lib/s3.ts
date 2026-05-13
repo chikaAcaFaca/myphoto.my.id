@@ -160,4 +160,21 @@ export async function getObject(key: string): Promise<{ body: ReadableStream; co
   };
 }
 
+export async function getObjectBuffer(key: string): Promise<Buffer> {
+  const command = new GetObjectCommand({ Bucket: BUCKET_NAME, Key: key });
+  const response = await s3Client.send(command);
+  const chunks: Buffer[] = [];
+  for await (const chunk of response.Body as AsyncIterable<Buffer>) chunks.push(chunk);
+  return Buffer.concat(chunks);
+}
+
+export async function putObjectBuffer(key: string, body: Buffer, contentType: string): Promise<void> {
+  await s3Client.send(new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+  }));
+}
+
 export { s3Client, BUCKET_NAME };
