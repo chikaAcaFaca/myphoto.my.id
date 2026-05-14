@@ -111,6 +111,14 @@ export default function MySpacePage() {
   const [renameValue, setRenameValue] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  // Per-file upload status so the user sees which file (X of Y) is uploading
+  // and its individual progress, not just an overall bar.
+  const [uploadStatus, setUploadStatus] = useState<{
+    current: number;
+    total: number;
+    fileName: string;
+    fileProgress: number;
+  } | null>(null);
   const [previewFile, setPreviewFile] = useState<DiskFile | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -571,7 +579,12 @@ export default function MySpacePage() {
   };
 
   // Upload a single file to a target folder
-  const uploadSingleFile = async (file: File, targetFolderId: string, token: string) => {
+  const uploadSingleFile = async (
+    file: File,
+    targetFolderId: string,
+    token: string,
+    onProgress?: (loaded: number, total: number) => void
+  ) => {
     // 1. Get presigned URL
     let urlRes;
     try {
@@ -594,20 +607,24 @@ export default function MySpacePage() {
     }
     const { uploadUrl, fileId, s3Key } = await urlRes.json();
 
-    // 2. Upload to S3
-    let s3Res;
-    try {
-      s3Res = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      });
-    } catch (e: any) {
-      throw new Error(`Upload na cloud nije uspeo: ${e.message}`);
-    }
-    if (!s3Res.ok) {
-      throw new Error(`Cloud storage greška: ${s3Res.status} ${s3Res.statusText}`);
-    }
+    // 2. Upload to S3 via XHR — fetch() can't report upload progress, so a
+    // large file (e.g. a 200 MB APK) would show 0% the whole time. XHR's
+    // upload.onprogress gives real byte-level progress.
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress?.(e.loaded, e.total);
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error(`Cloud storage greška: ${xhr.status} ${xhr.statusText}`));
+      };
+      xhr.onerror = () => reject(new Error('Upload na cloud nije uspeo (mrežna greška)'));
+      xhr.onabort = () => reject(new Error('Upload otkazan'));
+      xhr.send(file);
+    });
 
     // 3. Confirm upload
     let confirmRes;
@@ -655,6 +672,7 @@ export default function MySpacePage() {
     setUploadProgress(0);
     const total = filesWithPaths.length;
     let completed = 0;
+    setUploadStatus({ current: 1, total, fileName: filesWithPaths[0]?.file.name || '', fileProgress: 0 });
 
     try {
       const token = await getIdToken() as string;
@@ -682,8 +700,18 @@ export default function MySpacePage() {
           }
         }
 
-        // Upload file into the correct folder
-        await uploadSingleFile(file, parentId, token);
+        // Show which file is uploading before it starts.
+        setUploadStatus({ current: completed + 1, total, fileName: file.name, fileProgress: 0 });
+
+        // Upload file into the correct folder, tracking byte-level progress.
+        await uploadSingleFile(file, parentId, token, (loaded, fileTotal) => {
+          const fileProgress = fileTotal > 0 ? Math.round((loaded / fileTotal) * 100) : 0;
+          setUploadStatus((s) => (s ? { ...s, fileProgress } : s));
+          // Overall = completed files + the fraction of the current file.
+          const overall = Math.round(((completed + (fileTotal > 0 ? loaded / fileTotal : 0)) / total) * 100);
+          setUploadProgress(overall);
+        });
+
         completed++;
         setUploadProgress(Math.round((completed / total) * 100));
       }
@@ -699,6 +727,7 @@ export default function MySpacePage() {
     } finally {
       setUploading(false);
       setUploadProgress(0);
+      setUploadStatus(null);
     }
   };
 
@@ -1022,16 +1051,36 @@ export default function MySpacePage() {
       {/* Upload progress */}
       {uploading && (
         <div className="rounded-lg border border-primary-200 bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
-          <div className="mb-1 flex justify-between text-sm">
-            <span>Uploading...</span>
-            <span>{uploadProgress}%</span>
+          <div className="mb-1 flex justify-between gap-2 text-sm">
+            <span className="truncate">
+              {uploadStatus
+                ? `Fajl ${uploadStatus.current}/${uploadStatus.total}: ${uploadStatus.fileName}`
+                : 'Pripremam upload...'}
+            </span>
+            <span className="shrink-0 font-medium">{uploadProgress}%</span>
           </div>
+          {/* Overall progress across all files */}
           <div className="h-1.5 overflow-hidden rounded-full bg-primary-200 dark:bg-primary-800">
             <div
               className="h-full rounded-full bg-primary-500 transition-all"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
+          {/* Current file's own progress */}
+          {uploadStatus && (
+            <>
+              <div className="mb-1 mt-2 flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>Trenutni fajl</span>
+                <span>{uploadStatus.fileProgress}%</span>
+              </div>
+              <div className="h-1 overflow-hidden rounded-full bg-primary-200/60 dark:bg-primary-800/60">
+                <div
+                  className="h-full rounded-full bg-primary-400 transition-all"
+                  style={{ width: `${uploadStatus.fileProgress}%` }}
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
 
