@@ -1,7 +1,9 @@
 import { Metadata } from 'next';
+import Link from 'next/link';
 import { db } from '@/lib/firebase-admin';
 import { generateDownloadUrl } from '@/lib/s3';
 import { initAdmin } from '@/lib/firebase-admin';
+import MemeSocial from './meme-social';
 
 interface MemePageProps {
   params: Promise<{ id: string }>;
@@ -23,9 +25,12 @@ async function getMeme(id: string) {
     bottomText: data.bottomText || '',
     imageUrl,
     authorName: data.authorName || 'Anonymous',
+    authorId: data.authorId || '',
     likes: data.likes || 0,
+    dislikes: data.dislikes || 0,
     shares: data.shares || 0,
     views: data.views || 0,
+    commentCount: data.commentCount || 0,
   };
 }
 
@@ -94,13 +99,27 @@ export default async function MemePage({ params }: MemePageProps) {
         {/* Caption */}
         <p style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{meme.caption}</p>
 
-        {/* Author & stats */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>
-          <span>@{meme.authorName}</span>
-          <span>❤️ {meme.likes}</span>
-          <span>🔗 {meme.shares}</span>
+        {/* Author & view count */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>
+          {meme.authorId ? (
+            <Link href={`/user/${meme.authorId}`} style={{ color: '#f97316', textDecoration: 'none', fontWeight: 600 }}>
+              @{meme.authorName}
+            </Link>
+          ) : (
+            <span>@{meme.authorName}</span>
+          )}
           <span>👁️ {meme.views}</span>
         </div>
+
+        {/* Reactions, share, comments (client-side) */}
+        <MemeSocial
+          memeId={meme.id}
+          caption={meme.caption}
+          initialLikes={meme.likes}
+          initialDislikes={meme.dislikes}
+          initialShares={meme.shares}
+          initialCommentCount={meme.commentCount}
+        />
 
         {/* CTA */}
         <div style={{

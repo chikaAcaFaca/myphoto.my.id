@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 
@@ -10,18 +11,24 @@ interface Meme {
   caption: string;
   imageUrl: string;
   authorName: string;
+  authorId: string;
   likes: number;
+  dislikes: number;
   shares: number;
   views: number;
+  commentCount: number;
   createdAt: string | null;
+  userReaction: 'like' | 'dislike' | null;
 }
 
 export default function MemeWallPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const [memes, setMemes] = useState<Meme[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [reactingId, setReactingId] = useState<string | null>(null);
 
   // Inline meme creator state
   const [showCreator, setShowCreator] = useState(false);
@@ -33,7 +40,13 @@ export default function MemeWallPage() {
 
   const fetchMemes = useCallback(async (pageNum: number) => {
     try {
-      const res = await fetch(`/api/meme-wall?page=${pageNum}&pageSize=30`);
+      // Auth is optional here — when signed in we pass a token so the API
+      // can tell us which memes the viewer has already reacted to.
+      const headers: Record<string, string> = {};
+      const token = await getIdToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch(`/api/meme-wall?page=${pageNum}&pageSize=30`, { headers });
       if (!res.ok) return;
       const data = await res.json();
       if (pageNum === 1) {
@@ -52,7 +65,7 @@ export default function MemeWallPage() {
 
   useEffect(() => {
     fetchMemes(1);
-  }, [fetchMemes]);
+  }, [fetchMemes, user]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -179,22 +192,73 @@ export default function MemeWallPage() {
 
   const handleShare = async (meme: Meme) => {
     const url = `${window.location.origin}/meme/${meme.id}`;
-    if (navigator.share) {
-      await navigator.share({
-        title: meme.caption,
-        text: `${meme.caption} — Napravljeno u MyPhoto`,
-        url,
-      });
-    } else {
-      await navigator.clipboard.writeText(url);
-      alert('Link kopiran!');
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: meme.caption,
+          text: `${meme.caption} — Napravljeno u MyPhoto`,
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        alert('Link kopiran!');
+      }
+    } catch {
+      // User cancelled the share sheet — don't count it.
+      return;
     }
+    // Optimistic bump, then register the share.
+    setMemes(prev => prev.map(m => m.id === meme.id ? { ...m, shares: m.shares + 1 } : m));
     fetch(`/api/meme-wall/${meme.id}`, { method: 'POST' }).catch(() => {});
   };
 
-  const handleLike = async (meme: Meme) => {
-    setMemes(prev => prev.map(m => m.id === meme.id ? { ...m, likes: m.likes + 1 } : m));
-    fetch(`/api/meme-wall/${meme.id}`, { method: 'POST' }).catch(() => {});
+  const handleReact = async (meme: Meme, type: 'like' | 'dislike') => {
+    if (!user) {
+      router.push('/login?redirect=/meme-wall');
+      return;
+    }
+    if (reactingId === meme.id) return;
+    setReactingId(meme.id);
+
+    // Optimistic update: mirror the API's toggle/switch semantics locally.
+    const prevReaction = meme.userReaction;
+    const nextReaction = prevReaction === type ? null : type;
+    setMemes(prev => prev.map(m => {
+      if (m.id !== meme.id) return m;
+      let { likes, dislikes } = m;
+      if (prevReaction === 'like') likes -= 1;
+      if (prevReaction === 'dislike') dislikes -= 1;
+      if (nextReaction === 'like') likes += 1;
+      if (nextReaction === 'dislike') dislikes += 1;
+      return { ...m, likes: Math.max(0, likes), dislikes: Math.max(0, dislikes), userReaction: nextReaction };
+    }));
+
+    try {
+      const token = await getIdToken();
+      if (!token) {
+        router.push('/login?redirect=/meme-wall');
+        return;
+      }
+      const res = await fetch(`/api/meme-wall/${meme.id}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ type }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Reconcile with the server's authoritative counts.
+        setMemes(prev => prev.map(m => m.id === meme.id
+          ? { ...m, likes: data.likes, dislikes: data.dislikes, userReaction: data.userReaction }
+          : m));
+      } else {
+        // Roll back on failure.
+        setMemes(prev => prev.map(m => m.id === meme.id ? meme : m));
+      }
+    } catch {
+      setMemes(prev => prev.map(m => m.id === meme.id ? meme : m));
+    } finally {
+      setReactingId(null);
+    }
   };
 
   return (
@@ -419,31 +483,74 @@ export default function MemeWallPage() {
                     </Link>
                   )}
                   <div style={{ padding: 14 }}>
-                    <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, lineHeight: 1.4 }}>
-                      {meme.caption}
-                    </p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Link href={`/meme/${meme.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, lineHeight: 1.4 }}>
+                        {meme.caption}
+                      </p>
+                    </Link>
+                    {meme.authorId ? (
+                      <Link
+                        href={`/user/${meme.authorId}`}
+                        style={{ color: '#f97316', fontSize: 12, textDecoration: 'none', fontWeight: 600 }}
+                      >
+                        @{meme.authorName}
+                      </Link>
+                    ) : (
                       <span style={{ color: '#64748b', fontSize: 12 }}>@{meme.authorName}</span>
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <button
-                          onClick={() => handleLike(meme)}
-                          style={{
-                            background: 'none', border: 'none', color: '#94a3b8',
-                            cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4,
-                          }}
-                        >
-                          ❤️ {meme.likes}
-                        </button>
-                        <button
-                          onClick={() => handleShare(meme)}
-                          style={{
-                            background: 'none', border: 'none', color: '#94a3b8',
-                            cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4,
-                          }}
-                        >
-                          🔗 {meme.shares}
-                        </button>
-                      </div>
+                    )}
+                    <div style={{
+                      display: 'flex', gap: 6, marginTop: 10, alignItems: 'center',
+                      borderTop: '1px solid #334155', paddingTop: 10,
+                    }}>
+                      <button
+                        onClick={() => handleReact(meme, 'like')}
+                        disabled={reactingId === meme.id}
+                        title={user ? 'Sviđa mi se' : 'Prijavi se da reaguješ'}
+                        style={{
+                          background: 'none', border: 'none',
+                          color: meme.userReaction === 'like' ? '#f97316' : '#94a3b8',
+                          fontWeight: meme.userReaction === 'like' ? 700 : 400,
+                          cursor: reactingId === meme.id ? 'wait' : 'pointer',
+                          fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px',
+                        }}
+                      >
+                        👍 {meme.likes}
+                      </button>
+                      <button
+                        onClick={() => handleReact(meme, 'dislike')}
+                        disabled={reactingId === meme.id}
+                        title={user ? 'Ne sviđa mi se' : 'Prijavi se da reaguješ'}
+                        style={{
+                          background: 'none', border: 'none',
+                          color: meme.userReaction === 'dislike' ? '#f97316' : '#94a3b8',
+                          fontWeight: meme.userReaction === 'dislike' ? 700 : 400,
+                          cursor: reactingId === meme.id ? 'wait' : 'pointer',
+                          fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px',
+                        }}
+                      >
+                        👎 {meme.dislikes}
+                      </button>
+                      <Link
+                        href={`/meme/${meme.id}#comments`}
+                        title="Komentari"
+                        style={{
+                          color: '#94a3b8', fontSize: 13, textDecoration: 'none',
+                          display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px',
+                        }}
+                      >
+                        💬 {meme.commentCount}
+                      </Link>
+                      <button
+                        onClick={() => handleShare(meme)}
+                        title="Podeli"
+                        style={{
+                          background: 'none', border: 'none', color: '#94a3b8',
+                          cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center',
+                          gap: 4, padding: '2px 4px', marginLeft: 'auto',
+                        }}
+                      >
+                        🔗 {meme.shares}
+                      </button>
                     </div>
                   </div>
                 </div>
