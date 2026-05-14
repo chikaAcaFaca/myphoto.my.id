@@ -100,6 +100,26 @@ function getClientIp(request: NextRequest): string {
   return '127.0.0.1';
 }
 
+/**
+ * Resolve the caller's user id from a Bearer token if one is present and valid.
+ * Unlike verifyAuthWithRateLimit this never fails the request — it returns null
+ * for anonymous callers. Use on public routes that optionally personalise the
+ * response for signed-in users (e.g. the meme wall returns the viewer's
+ * like/dislike state).
+ */
+export async function getOptionalUserId(request: NextRequest): Promise<string | null> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  try {
+    initAdmin();
+    const token = authHeader.split('Bearer ')[1];
+    const decodedToken = await getAuth().verifyIdToken(token);
+    return decodedToken.uid;
+  } catch {
+    return null;
+  }
+}
+
 export interface IpRateLimitResult {
   success: true;
   rateLimitResult: RateLimitResult;

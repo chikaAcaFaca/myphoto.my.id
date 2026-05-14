@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
-import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { generateUploadUrl, generateDownloadUrl, getObjectBuffer, putObjectBuffer } from '@/lib/s3';
-import { renderMeme } from '@/lib/meme-render';
+import { verifyAuthWithRateLimit, getOptionalUserId } from '@/lib/auth-utils';
+import { generateUploadUrl, generateDownloadUrl } from '@/lib/s3';
 import { generateFileId } from '@myphoto/shared';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/meme-wall — public listing of memes (no auth required)
+// GET /api/meme-wall — public listing of memes, newest first (LIFO).
+// Auth is optional: when a valid token is supplied we also return the
+// caller's like/dislike state for each meme.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -15,49 +16,75 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '30', 10), 100);
     const offset = (page - 1) * pageSize;
 
-    let snapshot;
+    let docs: FirebaseFirestore.QueryDocumentSnapshot[];
     try {
-      snapshot = await db.collection('memes')
+      const snapshot = await db.collection('memes')
         .where('isPublic', '==', true)
         .orderBy('createdAt', 'desc')
         .offset(offset)
         .limit(pageSize + 1)
         .get();
+      docs = snapshot.docs;
     } catch (e: any) {
-      console.error('MemeWall query failed:', e.code, e.message);
-      // Fallback: try without ordering (no composite index needed)
+      console.error('MemeWall query failed, using unordered fallback:', e.code, e.message);
+      // Fallback when the composite index is missing: pull a wider slice and
+      // sort/paginate in memory so the wall is still newest-first (LIFO).
       try {
-        snapshot = await db.collection('memes')
+        const snapshot = await db.collection('memes')
           .where('isPublic', '==', true)
-          .limit(pageSize + 1)
+          .limit(500)
           .get();
+        const sorted = snapshot.docs.sort((a, b) => {
+          const ta = a.data().createdAt?.toMillis?.() ?? 0;
+          const tb = b.data().createdAt?.toMillis?.() ?? 0;
+          return tb - ta;
+        });
+        docs = sorted.slice(offset, offset + pageSize + 1);
       } catch (e2: any) {
         console.error('MemeWall fallback query failed:', e2.message);
         return NextResponse.json({ memes: [], hasMore: false, page });
       }
     }
 
-    const hasMore = snapshot.docs.length > pageSize;
+    const hasMore = docs.length > pageSize;
+    const pageDocs = docs.slice(0, pageSize);
+
+    // Optional auth — used only to surface the caller's reaction state.
+    const viewerId = await getOptionalUserId(request);
+
     const memes = await Promise.all(
-      snapshot.docs.slice(0, pageSize).map(async (doc) => {
+      pageDocs.map(async (doc) => {
         const data = doc.data();
         let imageUrl = data.imageUrl || '';
         if (data.s3Key && !imageUrl) {
           try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
         }
+
+        let userReaction: 'like' | 'dislike' | null = null;
+        if (viewerId) {
+          try {
+            const reactionDoc = await doc.ref.collection('reactions').doc(viewerId).get();
+            if (reactionDoc.exists) userReaction = reactionDoc.data()!.type;
+          } catch {}
+        }
+
         return {
           id: doc.id,
           caption: data.caption || '',
           topText: data.topText || '',
           bottomText: data.bottomText || '',
           imageUrl,
+          mediaType: data.mediaType || 'image',
           authorName: data.authorName || 'Anonymous',
           authorId: data.authorId,
           likes: data.likes || 0,
+          dislikes: data.dislikes || 0,
           shares: data.shares || 0,
           views: data.views || 0,
+          commentCount: data.commentCount || 0,
           template: data.template || 'classic',
           createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+          userReaction,
         };
       })
     );
@@ -69,7 +96,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/meme-wall — publish a meme (auth required)
+// POST /api/meme-wall — publish a meme (auth required).
+// The meme image (with top/bottom text already baked in) is rendered on the
+// client — web via <canvas>, mobile via react-native-view-shot — and PUT to
+// the returned uploadUrl. The server never renders the image.
 export async function POST(request: NextRequest) {
   try {
     const authResult = await verifyAuthWithRateLimit(request, 'api');
@@ -129,49 +159,26 @@ export async function POST(request: NextRequest) {
       mediaType: mediaType || 'image',
       isPublic: true,
       likes: 0,
+      dislikes: 0,
       shares: 0,
       views: 0,
+      commentCount: 0,
       createdAt: now,
       updatedAt: now,
     };
 
-    // Resolve source photo (if user is making a meme from an existing MyPhoto
-    // file). We need its s3Key both for attribution and for server-side
-    // rendering — for clients that can't bake the text into the image (mobile).
-    let sourceS3Key: string | null = null;
+    // Keep a link back to the source MyPhoto file for attribution, if any.
     if (fileId) {
       const fileDoc = await db.collection('files').doc(fileId).get();
       if (fileDoc.exists && fileDoc.data()?.userId === userId) {
         memeData.sourceFileId = fileId;
-        sourceS3Key = fileDoc.data()!.s3Key || null;
       }
     }
 
+    // The client always renders the meme (text baked in) and uploads it here.
     let uploadUrl: string | null = null;
-    const memeKey = `memes/${userId}/${memeId}.jpg`;
-
-    if (sourceS3Key && (topText || bottomText)) {
-      // Server-side render: fetch the source photo, bake the meme text in, and
-      // upload the result. Mobile relies on this because it can't render text
-      // into the image client-side.
-      try {
-        const source = await getObjectBuffer(sourceS3Key);
-        const rendered = await renderMeme(source, topText || '', bottomText || '');
-        await putObjectBuffer(memeKey, rendered, 'image/jpeg');
-        memeData.s3Key = memeKey;
-      } catch (e: any) {
-        console.error('Server-side meme render failed:', e?.message || e);
-        // Fall through to the upload-URL flow so the client can still upload
-        // the rendered version (e.g. web canvas-rendered).
-        if (imageData) {
-          const { url } = await generateUploadUrl(memeKey, 'image/jpeg');
-          memeData.s3Key = memeKey;
-          uploadUrl = url;
-        }
-      }
-    } else if (imageData) {
-      // No source photo on S3 — generate an upload URL and let the client PUT
-      // the rendered meme (the web canvas path).
+    if (imageData) {
+      const memeKey = `memes/${userId}/${memeId}.jpg`;
       const { url } = await generateUploadUrl(memeKey, 'image/jpeg');
       memeData.s3Key = memeKey;
       uploadUrl = url;
