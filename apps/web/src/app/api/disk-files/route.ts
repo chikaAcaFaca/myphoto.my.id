@@ -300,7 +300,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Confirm upload (original behavior)
-    const { fileId, s3Key, filename, mimeType, size, folderId = 'root' } = body;
+    const { fileId, s3Key, filename, mimeType, size, folderId = 'root', takenAt } = body;
 
     if (!fileId || !s3Key || !filename) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -312,6 +312,14 @@ export async function PATCH(request: NextRequest) {
     const isMediaFile = PHOTO_MIME_PREFIXES.some((prefix) => resolvedMimeType.startsWith(prefix));
 
     const now = new Date();
+    // The client may send takenAt (epoch ms) — the media's real capture date
+    // from device metadata. Use it as createdAt so a year-old photo backed up
+    // today still sorts under its actual date instead of "now". updatedAt
+    // stays the backup time. Guard against junk / far-future values.
+    const takenMs = typeof takenAt === 'number' && Number.isFinite(takenAt) ? takenAt : null;
+    const capturedAt =
+      takenMs && takenMs > 0 && takenMs <= Date.now() + 86400000 ? new Date(takenMs) : now;
+
     const diskFileData: Record<string, any> = {
       userId,
       name: finalName,
@@ -320,7 +328,7 @@ export async function PATCH(request: NextRequest) {
       size: size || 0,
       folderId,
       isTrashed: false,
-      createdAt: now,
+      createdAt: capturedAt,
       updatedAt: now,
     };
 
@@ -347,7 +355,8 @@ export async function PATCH(request: NextRequest) {
         isTrashed: false,
         diskFileId: fileId,
         diskFolderId: folderId,
-        createdAt: now,
+        takenAt: capturedAt,
+        createdAt: capturedAt,
         updatedAt: now,
       });
     }
