@@ -57,15 +57,34 @@ export default function DownloadPage() {
             <li>✓ Deljenje slika</li>
           </ul>
           <a
-            href="/downloads/MyPhoto.apk"
+            href="/api/download/android"
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-700"
           >
             ⬇️ Preuzmi APK
           </a>
           <p className="mt-2 text-xs text-gray-400">
-            Android 8.0+ ·{' '}
+            Android 8.0+ · ~200 MB ·{' '}
             <span className="text-green-600">Uskoro na Google Play</span>
           </p>
+
+          {/* Install instructions — APK is sideloaded, not from Play Store */}
+          <details className="mt-4 text-left text-xs text-gray-600">
+            <summary className="cursor-pointer text-green-700 hover:underline">
+              Kako da instalirate APK?
+            </summary>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Tapnite <strong>Preuzmi APK</strong> i sačekajte da se preuzme.</li>
+              <li>Otvorite preuzeti fajl iz notifikacija ili foldera <em>Downloads</em>.</li>
+              <li>Android će tražiti dozvolu za <strong>Instaliranje nepoznatih aplikacija</strong>{' '}
+                — uključite je za ovaj browser/file manager pa se vratite.</li>
+              <li>Tapnite <strong>Instaliraj</strong>. Aplikacija će se pojaviti na home screen-u.</li>
+              <li>Po prvom pokretanju odobrite pristup fotografijama da bi backup radio.</li>
+            </ol>
+            <p className="mt-2 text-gray-500">
+              APK je naša zvanična build, isti koji ide u Play Store. Potpisivanje i bezbednost su
+              standardni Android sideload.
+            </p>
+          </details>
         </div>
 
         {/* Web / PWA */}

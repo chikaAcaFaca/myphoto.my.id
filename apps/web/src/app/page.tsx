@@ -171,6 +171,22 @@ export default function HomePage() {
   const pricingSectionRef = useRef<HTMLDivElement>(null);
   const testimonialRef = useRef<HTMLDivElement>(null);
 
+  // Surface the APK download as a top banner when an Android visitor lands
+  // on the home page. Hidden once they dismiss it (per session) so it doesn't
+  // nag returning users.
+  const [showAndroidBanner, setShowAndroidBanner] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const ua = navigator.userAgent || '';
+    const isAndroid = /Android/i.test(ua) && !/wv\)/.test(ua); // exclude in-app webviews
+    const dismissed = sessionStorage.getItem('myphoto-android-banner-dismissed') === '1';
+    if (isAndroid && !dismissed) setShowAndroidBanner(true);
+  }, []);
+  const dismissAndroidBanner = () => {
+    sessionStorage.setItem('myphoto-android-banner-dismissed', '1');
+    setShowAndroidBanner(false);
+  };
+
   useEffect(() => {
     if (!isLoading && user) {
       router.push('/photos');
@@ -230,6 +246,32 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800">
+      {/* ───── Android download banner ───── */}
+      {showAndroidBanner && (
+        <div className="sticky top-0 z-50 flex items-center justify-between gap-3 bg-green-600 px-4 py-2 text-white shadow">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-base">📱</span>
+            <span>
+              <span className="font-semibold">Android aplikacija je tu.</span>{' '}
+              <a href="/api/download/android" className="underline underline-offset-2">
+                Preuzmi APK
+              </a>{' '}
+              ·{' '}
+              <Link href="/download" className="underline underline-offset-2">
+                Uputstvo za instalaciju
+              </Link>
+            </span>
+          </div>
+          <button
+            onClick={dismissAndroidBanner}
+            aria-label="Zatvori"
+            className="rounded-md px-2 py-1 text-white/90 hover:bg-white/15"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* ───── Header ───── */}
       <header className="container mx-auto px-4 py-6">
         <nav className="flex items-center justify-between">
