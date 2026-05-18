@@ -172,7 +172,12 @@ function PricingContent() {
             const isRecommended = recommendation?.recommendedTier.tier === tier.tier;
             const savings = getSavingsPercent(tier);
             const isFree = tier.tier === 0;
-            const showSavings = billingCycle !== 'monthly' && !isFree;
+            // Yearly-only tiers (e.g. MyDisk Lite 3.99€/god) ignore the
+            // monthly toggle entirely — the card shows the annual price
+            // as a flat number so the "0.33€/mes" optical illusion
+            // doesn't undersell the SKU.
+            const isYearlyOnly = !!tier.yearlyOnly;
+            const showSavings = billingCycle !== 'monthly' && !isFree && !isYearlyOnly;
 
             return (
               <div
@@ -205,6 +210,18 @@ function PricingContent() {
                     <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
                       Besplatno
                     </p>
+                  ) : isYearlyOnly ? (
+                    <div>
+                      <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
+                        €{tier.priceYearly.toFixed(2)}
+                        <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                          /god
+                        </span>
+                      </p>
+                      <p className={cn('mt-0.5 text-xs', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                        Samo godišnja pretplata
+                      </p>
+                    </div>
                   ) : showSavings ? (
                     <div>
                       <p className={cn('text-base line-through', isPopular ? 'text-primary-200' : 'text-gray-400')}>
@@ -241,13 +258,15 @@ function PricingContent() {
                 )}>
                   {tier.storageDisplay}
                 </p>
-                <p className={cn(
-                  'mb-2 flex items-center gap-1 text-xs font-medium',
-                  isPopular ? 'text-primary-200' : 'text-purple-600 dark:text-purple-400'
-                )}>
-                  <Sparkles className="h-3 w-3" />
-                  {tier.memesPerDay} memova/dan · {tier.memesPerMonth}/mes
-                </p>
+                {tier.memesPerDay > 0 && (
+                  <p className={cn(
+                    'mb-2 flex items-center gap-1 text-xs font-medium',
+                    isPopular ? 'text-primary-200' : 'text-purple-600 dark:text-purple-400'
+                  )}>
+                    <Sparkles className="h-3 w-3" />
+                    {tier.memesPerDay} memova/dan · {tier.memesPerMonth}/mes
+                  </p>
+                )}
 
                 {!isFree && monthlyEquiv <= 3.50 && (
                   <p className={cn(
@@ -274,7 +293,11 @@ function PricingContent() {
                 </ul>
 
                 <Link
-                  href={isFree ? registerUrl : `/checkout?tier=${tier.tier}&period=${billingCycle}${refParam}`}
+                  href={
+                    isFree
+                      ? registerUrl
+                      : `/checkout?tier=${tier.tier}&period=${isYearlyOnly ? 'yearly' : billingCycle}${refParam}`
+                  }
                   className={cn(
                     'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
                     isPopular

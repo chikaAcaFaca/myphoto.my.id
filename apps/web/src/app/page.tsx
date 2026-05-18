@@ -30,7 +30,10 @@ import { cn } from '@/lib/utils';
 import { motion, useInView, useMotionValue, useTransform, animate } from 'framer-motion';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/landing/animated-section';
 
-const HERO_TIERS = STORAGE_TIERS.slice(0, 3);
+// Hero cards: skip the yearly-only storage-only tier (MyDisk Lite) — it
+// has its own messaging on the full /pricing page and breaks the
+// monthly-vs-yearly toggle pattern on the homepage.
+const HERO_TIERS = STORAGE_TIERS.filter((t) => !t.yearlyOnly).slice(0, 3);
 
 // ── Animated Counter ──────────────────────────────────────────────
 function AnimatedCounter({ target, duration = 2, suffix = '' }: { target: number; duration?: number; suffix?: string }) {

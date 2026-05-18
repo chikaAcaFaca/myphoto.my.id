@@ -318,6 +318,11 @@ export interface StorageTier {
   isPopular?: boolean;
   memesPerDay: number;
   memesPerMonth: number;
+  /** MyPhoto auto-backup is part of the default bundle; the storage-only
+   *  MyDisk Lite tier sets this false to gate the photo-backup feature. */
+  hasPhotoBackup?: boolean;
+  /** Set when this tier is sold yearly-only — UI hides the monthly toggle. */
+  yearlyOnly?: boolean;
 }
 
 // Memory/Suggestion Types

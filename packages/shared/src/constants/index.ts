@@ -52,7 +52,21 @@ export const ALL_FEATURES = [
   'Bez AI treninga na vašim slikama',
 ];
 
-// Storage Tiers — all tiers include all features, only storage differs
+// MyDisk Lite is the only paid tier without MyPhoto auto-backup — the
+// feature list reflects that and the missing line is replaced with an
+// explicit "no auto-backup" note so the pricing card is honest.
+export const MYDISK_LITE_FEATURES = [
+  'Samo MySpace storage — bez MyPhoto auto-backupa',
+  'MySpace cloud storage za fajlove',
+  'Deljenje albuma i foldera',
+  'Desktop sync aplikacija',
+  'Web, Android & iOS pristup',
+  'EU serveri, GDPR zaštita',
+];
+
+// Storage Tiers. Most tiers bundle the full feature set and just scale
+// storage; MyDisk Lite (tier 1) is the exception — it's storage-only, no
+// MyPhoto auto-backup, sold yearly-only as an entry "cloud disk" SKU.
 export const STORAGE_TIERS: StorageTier[] = [
   {
     tier: 0,
@@ -64,11 +78,27 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     memesPerDay: 2,
     memesPerMonth: 50,
   },
   {
     tier: 1,
+    name: 'MyDisk Lite',
+    storageBytes: 24 * BYTES_PER_GB,
+    storageDisplay: '24 GB',
+    priceMonthly: 0,
+    priceYearly: 3.99,
+    paddleMonthlyId: '',
+    paddleYearlyId: '',
+    features: MYDISK_LITE_FEATURES,
+    hasPhotoBackup: false,
+    yearlyOnly: true,
+    memesPerDay: 0,
+    memesPerMonth: 0,
+  },
+  {
+    tier: 2,
     name: 'Mini',
     storageBytes: 32 * BYTES_PER_GB,
     storageDisplay: '32 GB',
@@ -77,11 +107,12 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     memesPerDay: 5,
     memesPerMonth: 150,
   },
   {
-    tier: 2,
+    tier: 3,
     name: 'Basic',
     storageBytes: 64 * BYTES_PER_GB,
     storageDisplay: '64 GB',
@@ -90,11 +121,12 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     memesPerDay: 8,
     memesPerMonth: 250,
   },
   {
-    tier: 3,
+    tier: 4,
     name: 'Starter',
     storageBytes: 150 * BYTES_PER_GB,
     storageDisplay: '150 GB',
@@ -103,12 +135,13 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     isPopular: true,
     memesPerDay: 11,
     memesPerMonth: 350,
   },
   {
-    tier: 4,
+    tier: 5,
     name: 'Plus',
     storageBytes: 250 * BYTES_PER_GB,
     storageDisplay: '250 GB',
@@ -117,11 +150,12 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     memesPerDay: 14,
     memesPerMonth: 450,
   },
   {
-    tier: 5,
+    tier: 6,
     name: 'Pro',
     storageBytes: 500 * BYTES_PER_GB,
     storageDisplay: '500 GB',
@@ -130,11 +164,12 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     memesPerDay: 17,
     memesPerMonth: 550,
   },
   {
-    tier: 6,
+    tier: 7,
     name: 'Pro+',
     storageBytes: 750 * BYTES_PER_GB,
     storageDisplay: '750 GB',
@@ -143,11 +178,12 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     memesPerDay: 22,
     memesPerMonth: 700,
   },
   {
-    tier: 7,
+    tier: 8,
     name: 'Max',
     storageBytes: 1 * BYTES_PER_TB,
     storageDisplay: '1 TB',
@@ -156,11 +192,12 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     memesPerDay: 28,
     memesPerMonth: 850,
   },
   {
-    tier: 8,
+    tier: 9,
     name: 'Ultra',
     storageBytes: 2 * BYTES_PER_TB,
     storageDisplay: '2 TB',
@@ -169,6 +206,7 @@ export const STORAGE_TIERS: StorageTier[] = [
     paddleMonthlyId: '',
     paddleYearlyId: '',
     features: ALL_FEATURES,
+    hasPhotoBackup: true,
     memesPerDay: 40,
     memesPerMonth: 1200,
   },
