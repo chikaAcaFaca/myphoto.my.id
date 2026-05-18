@@ -4,6 +4,7 @@ import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { generateUploadUrl, copyObject, configureBucketCors } from '@/lib/s3';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { processImageAI } from '@/lib/ai-processing';
+import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
 
 // MIME types that should be cross-indexed in MyPhoto gallery
 const PHOTO_MIME_PREFIXES = ['image/', 'video/'];
@@ -367,6 +368,14 @@ export async function PATCH(request: NextRequest) {
     await db.collection('users').doc(userId).update({
       storageUsed: (await db.collection('users').doc(userId).get()).data()?.storageUsed + (size || 0),
     });
+
+    // If this file lives under any shared folder (direct or ancestor), bump
+    // every viewer's quota by the same size — keeps the "shared content
+    // counts against guest's storage" accounting live as the owner uploads.
+    // Fire-and-forget: failures here must not block the upload response.
+    applyDeltaToSharedAncestors(folderId, userId, size || 0).catch((err) =>
+      console.error('Share fan-out failed (upload):', err)
+    );
 
     // Trigger AI processing asynchronously for images/videos (fire-and-forget)
     if (isMediaFile && photoFileId) {

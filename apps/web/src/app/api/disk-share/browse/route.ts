@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, auth } from '@/lib/firebase-admin';
+import { calculateFolderTotalSize } from '@/lib/shared-folder-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -168,30 +169,67 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Record that a user has accessed this share (creates entry in diskShareAccess)
+// Record that a user has accessed this share (creates entry in diskShareAccess).
+// On the very first access we also charge the viewer's storage quota by the
+// size of the shared content — folder share charges the recursive total of
+// non-trashed files in the tree; file share charges the file's size. This
+// powers the upsell flow ("you're out of room, upgrade to see the rest").
 async function recordShareAccess(shareToken: string, viewerUserId: string, shareData: any) {
   const accessId = `${shareToken}_${viewerUserId}`;
   const existingAccess = await db.collection('diskShareAccess').doc(accessId).get();
 
-  if (!existingAccess.exists) {
-    await db.collection('diskShareAccess').doc(accessId).set({
-      shareToken,
-      viewerUserId,
-      ownerUserId: shareData.userId,
-      type: shareData.type,
-      itemName: shareData.itemName,
-      permission: shareData.permission,
-      folderId: shareData.folderId || null,
-      diskFileId: shareData.diskFileId || null,
-      accessedAt: FieldValue.serverTimestamp(),
-    });
-  } else {
-    // Update last accessed
-    await db.collection('diskShareAccess').doc(accessId).update({
+  if (existingAccess.exists) {
+    // Re-visits just bump lastAccessedAt; we don't re-charge a viewer that
+    // has already been charged (idempotent), and we don't refund a viewer
+    // whose access was revoked (isActive=false stays sticky).
+    await existingAccess.ref.update({
       lastAccessedAt: FieldValue.serverTimestamp(),
       permission: shareData.permission,
       itemName: shareData.itemName,
     });
+    return;
+  }
+
+  // Compute the bytes to charge. Folder share = recursive sum; file share
+  // = single file's size from the diskFiles doc (the share record itself
+  // also caches `size` for file shares but read it fresh in case the owner
+  // replaced the underlying file).
+  let chargedBytes = 0;
+  try {
+    if (shareData.type === 'folder' && shareData.folderId) {
+      chargedBytes = await calculateFolderTotalSize(shareData.folderId, shareData.userId);
+    } else if (shareData.type === 'file' && shareData.diskFileId) {
+      const fileDoc = await db.collection('diskFiles').doc(shareData.diskFileId).get();
+      if (fileDoc.exists && !fileDoc.data()?.isTrashed) {
+        chargedBytes = fileDoc.data()?.size || 0;
+      }
+    }
+  } catch (e) {
+    console.error('recordShareAccess: size calc failed', { shareToken, viewerUserId, e });
+  }
+
+  await db.collection('diskShareAccess').doc(accessId).set({
+    shareToken,
+    viewerUserId,
+    ownerUserId: shareData.userId,
+    type: shareData.type,
+    itemName: shareData.itemName,
+    permission: shareData.permission,
+    folderId: shareData.folderId || null,
+    diskFileId: shareData.diskFileId || null,
+    chargedBytes,
+    isActive: true,
+    accessedAt: FieldValue.serverTimestamp(),
+  });
+
+  if (chargedBytes > 0) {
+    try {
+      await db.collection('users').doc(viewerUserId).update({
+        storageUsed: FieldValue.increment(chargedBytes),
+      });
+    } catch (e) {
+      console.error('recordShareAccess: storageUsed increment failed', { viewerUserId, e });
+    }
   }
 }
 

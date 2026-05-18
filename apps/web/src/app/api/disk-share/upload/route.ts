@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { generateUploadUrl } from '@/lib/s3';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
+import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,6 +125,13 @@ export async function PATCH(request: NextRequest) {
     await db.collection('users').doc(ownerId).update({
       storageUsed: currentUsed + (size || 0),
     });
+
+    // Fan out the upload's size to every viewer of any share that covers
+    // this folder. By definition this share's viewers are charged, but
+    // there may be other shares higher up the tree that also need bumping.
+    applyDeltaToSharedAncestors(targetFolderId, ownerId, size || 0).catch((err) =>
+      console.error('Share fan-out failed (guest upload):', err)
+    );
 
     return NextResponse.json({ success: true, fileId });
   } catch (error) {

@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { generateShareToken } from '@myphoto/shared';
+import { refundAllViewersOnRevoke } from '@/lib/shared-folder-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -186,6 +187,13 @@ export async function DELETE(request: NextRequest) {
     if (!shareDoc.exists || shareDoc.data()?.userId !== userId) {
       return NextResponse.json({ error: 'Share not found' }, { status: 404 });
     }
+
+    // Refund every viewer that was charged for this share before we mark
+    // the link inactive — once isActive=false, browse-route stops creating
+    // new access docs, so this is the natural moment to settle the books.
+    // refundAllViewersOnRevoke is idempotent: it skips access docs already
+    // marked inactive, so re-running it after a partial failure is safe.
+    await refundAllViewersOnRevoke(token);
 
     await shareDoc.ref.update({ isActive: false });
     return NextResponse.json({ success: true });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { deleteObject } from '@/lib/s3';
+import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,6 +118,10 @@ export async function DELETE(request: NextRequest) {
 
     const collection = type === 'folder' ? 'folders' : 'diskFiles';
     let totalFreed = 0;
+    // Track per-folder freed bytes so we can fan out the negative delta to
+    // any shares covering each folder. Files that lived in different
+    // folders of a multi-id purge can each touch a different share tree.
+    const freedByFolder = new Map<string, number>();
 
     for (const id of ids) {
       const docRef = db.collection(collection).doc(id);
@@ -124,12 +129,15 @@ export async function DELETE(request: NextRequest) {
       if (!doc.exists || doc.data()?.userId !== userId) continue;
 
       if (type === 'file') {
-        // Delete from S3
-        const s3Key = doc.data()?.s3Key;
+        const data = doc.data() || {};
+        const s3Key = data.s3Key;
         if (s3Key) {
           try { await deleteObject(s3Key); } catch {}
         }
-        totalFreed += doc.data()?.size || 0;
+        const bytes = data.size || 0;
+        const folderId = data.folderId || 'root';
+        totalFreed += bytes;
+        freedByFolder.set(folderId, (freedByFolder.get(folderId) || 0) + bytes);
         await docRef.delete();
       } else {
         // Delete folder and all its files from S3
@@ -138,11 +146,14 @@ export async function DELETE(request: NextRequest) {
           .where('folderId', '==', id)
           .get();
         for (const fileDoc of filesSnap.docs) {
-          const s3Key = fileDoc.data().s3Key;
+          const data = fileDoc.data();
+          const s3Key = data.s3Key;
           if (s3Key) {
             try { await deleteObject(s3Key); } catch {}
           }
-          totalFreed += fileDoc.data().size || 0;
+          const bytes = data.size || 0;
+          totalFreed += bytes;
+          freedByFolder.set(id, (freedByFolder.get(id) || 0) + bytes);
           await fileDoc.ref.delete();
         }
         await docRef.delete();
@@ -156,6 +167,17 @@ export async function DELETE(request: NextRequest) {
       await db.collection('users').doc(userId).update({
         storageUsed: Math.max(0, currentUsed - totalFreed),
       });
+    }
+
+    // Fan out negative deltas to viewers of any share covering each folder
+    // that lost bytes. Fire-and-forget — viewers stay over-quota briefly if
+    // this fails; a manual reconcile job can fix drift later.
+    for (const [folderId, bytes] of freedByFolder) {
+      if (bytes > 0) {
+        applyDeltaToSharedAncestors(folderId, userId, -bytes).catch((err) =>
+          console.error('Share fan-out failed (purge):', err)
+        );
+      }
     }
 
     return NextResponse.json({ success: true });
