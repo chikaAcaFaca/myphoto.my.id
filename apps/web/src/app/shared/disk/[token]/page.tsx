@@ -36,12 +36,21 @@ interface SharedFile {
   mimeType: string;
   size: number;
   createdAt: string;
+  locked?: boolean;
 }
 
 interface SharedFolder {
   id: string;
   name: string;
   createdAt: string;
+}
+
+interface ViewerQuota {
+  viewerLimit: number;
+  viewerUsed: number;
+  shareCharged: number;
+  freeForShare: number;
+  overQuota: boolean;
 }
 
 interface BrowseData {
@@ -58,6 +67,8 @@ interface BrowseData {
   folders?: SharedFolder[];
   files?: SharedFile[];
   file?: SharedFile;
+  quota?: ViewerQuota | null;
+  lockedFileIds?: string[];
 }
 
 const getFileIcon = (mimeType: string) => {
@@ -106,6 +117,10 @@ export default function SharedDiskPage() {
   const [previewFile, setPreviewFile] = useState<SharedFile | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  // Plan section 2.4 — surfaced when the viewer doesn't have room for the
+  // whole share. Either the top banner click or a click on a locked file
+  // opens this; locked files also short-circuit handlePreview/handleDownload.
+  const [showUpsell, setShowUpsell] = useState(false);
 
   const fetchData = useCallback(async (folderId?: string) => {
     setLoading(true);
@@ -164,6 +179,12 @@ export default function SharedDiskPage() {
       const res = await fetch(`/api/disk-share/download?token=${token}&fileId=${fileId}`, {
         headers: { Authorization: `Bearer ${idToken}` },
       });
+      if (res.status === 402) {
+        // Server says this file is past the viewer's quota slice — open
+        // the upsell instead of erroring out.
+        setShowUpsell(true);
+        return;
+      }
       if (!res.ok) throw new Error('Download failed');
       const { downloadUrl } = await res.json();
       const a = document.createElement('a');
@@ -180,6 +201,10 @@ export default function SharedDiskPage() {
   };
 
   const handlePreview = async (file: SharedFile) => {
+    if (file.locked) {
+      setShowUpsell(true);
+      return;
+    }
     const mime = file.mimeType;
     const previewable = mime.startsWith('image/') || mime.startsWith('video/') ||
       mime.startsWith('audio/') || mime === 'application/pdf' || mime.startsWith('text/');
@@ -575,6 +600,30 @@ export default function SharedDiskPage() {
         {/* Folder view */}
         {isFolder && (
           <>
+            {/* Upsell banner — viewer is over their quota for this share */}
+            {data.quota?.overQuota && (data.lockedFileIds?.length ?? 0) > 0 && (
+              <button
+                onClick={() => setShowUpsell(true)}
+                className="mb-3 flex w-full items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left transition-shadow hover:shadow dark:border-amber-800 dark:bg-amber-900/20"
+              >
+                <Lock className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                    Premali prostor za sve fajlove iz ovog deljenja
+                  </p>
+                  <p className="mt-0.5 text-xs text-amber-800 dark:text-amber-300/90">
+                    Vidi{'š '}
+                    {formatSize(data.quota.freeForShare)} od ukupno{' '}
+                    {formatSize(data.quota.shareCharged)}. Preostalo {data.lockedFileIds!.length}{' '}
+                    fajl(ova) zaključano — nadogradi plan ili pozovi prijatelje za dodatni prostor.
+                  </p>
+                </div>
+                <span className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white">
+                  Nadogradi
+                </span>
+              </button>
+            )}
+
             {/* Breadcrumbs */}
             <div className="mb-3 flex items-center gap-1 text-sm">
               <button
@@ -647,32 +696,55 @@ export default function SharedDiskPage() {
               {/* Files */}
               {data.files?.map((file) => {
                 const Icon = getFileIcon(file.mimeType);
+                const isLocked = !!file.locked;
                 return (
                   <div
                     key={file.id}
-                    className="grid grid-cols-[1fr_100px_140px_80px] gap-2 border-b border-gray-100 px-4 py-2.5 text-sm hover:bg-blue-50 dark:border-gray-800 dark:hover:bg-blue-900/10"
+                    className={`grid grid-cols-[1fr_100px_140px_80px] gap-2 border-b border-gray-100 px-4 py-2.5 text-sm dark:border-gray-800 ${
+                      isLocked
+                        ? 'bg-amber-50/40 hover:bg-amber-50 dark:bg-amber-900/10 dark:hover:bg-amber-900/20'
+                        : 'hover:bg-blue-50 dark:hover:bg-blue-900/10'
+                    }`}
                   >
                     <span
                       className="flex cursor-pointer items-center gap-3 truncate"
                       onClick={() => handlePreview(file)}
                     >
-                      <Icon className="h-5 w-5 flex-shrink-0 text-gray-400" />
-                      <span className="truncate">{file.name}</span>
+                      <Icon className={`h-5 w-5 flex-shrink-0 ${isLocked ? 'text-amber-500' : 'text-gray-400'}`} />
+                      <span className={`truncate ${isLocked ? 'select-none text-gray-400 blur-[2px]' : ''}`}>
+                        {file.name}
+                      </span>
+                      {isLocked && (
+                        <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          <Lock className="h-3 w-3" />
+                          Zaključano
+                        </span>
+                      )}
                     </span>
                     <span className="text-gray-500">{formatSize(file.size)}</span>
                     <span className="text-gray-500">{formatDate(file.createdAt)}</span>
-                    <button
-                      onClick={() => handleDownload(file.id, file.name)}
-                      disabled={downloading === file.id}
-                      className="flex items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700"
-                      title="Preuzmi"
-                    >
-                      {downloading === file.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                    </button>
+                    {isLocked ? (
+                      <button
+                        onClick={() => setShowUpsell(true)}
+                        className="flex items-center justify-center rounded p-1 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                        title="Nadogradi plan da otključaš"
+                      >
+                        <Lock className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleDownload(file.id, file.name)}
+                        disabled={downloading === file.id}
+                        className="flex items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700"
+                        title="Preuzmi"
+                      >
+                        {downloading === file.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -707,6 +779,79 @@ export default function SharedDiskPage() {
           </>
         )}
       </div>
+
+      {/* Upsell modal — plan section 2.4. Triggered by the banner or by
+          clicking a locked file. Two paths to unlock: pay (Pricing page)
+          or earn (referral). Referral CTA links to /settings/referral
+          for signed-in viewers; everyone else still gets the pricing
+          path. */}
+      {showUpsell && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setShowUpsell(false)}
+        >
+          <div
+            className="relative w-full max-w-md overflow-hidden rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowUpsell(false)}
+              className="absolute right-3 top-3 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label="Zatvori"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="mb-4 inline-flex rounded-full bg-amber-100 p-3 dark:bg-amber-900/30">
+              <Lock className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+            </div>
+
+            <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">
+              Otključajte sve fajlove iz ovog deljenja
+            </h2>
+
+            <p className="mb-5 text-sm text-gray-600 dark:text-gray-300">
+              Ovaj deljeni{' '}
+              {data.type === 'folder' ? 'folder' : 'fajl'} zauzima{' '}
+              <strong>{formatSize(data.quota?.shareCharged || 0)}</strong>, a vi imate slobodno{' '}
+              <strong>{formatSize(data.quota?.freeForShare || 0)}</strong>. Sve preko toga je
+              sakriveno dok ne dobijete više prostora.
+            </p>
+
+            <div className="space-y-3">
+              <Link
+                href="/pricing"
+                className="flex w-full items-center justify-between rounded-xl bg-primary-500 px-4 py-3 text-left text-white shadow-md transition-all hover:bg-primary-600"
+              >
+                <div>
+                  <p className="text-sm font-bold">Nadogradi plan</p>
+                  <p className="text-xs text-primary-100">
+                    64 GB od 0.99 €/mes — vidiš sve odmah
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5" />
+              </Link>
+
+              <Link
+                href={user ? '/settings' : `/register?redirect=/shared/disk/${token}`}
+                className="flex w-full items-center justify-between rounded-xl border-2 border-green-200 bg-green-50 px-4 py-3 text-left text-green-900 transition-colors hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200 dark:hover:bg-green-900/30"
+              >
+                <div>
+                  <p className="text-sm font-bold">Pozovi prijatelje — besplatno</p>
+                  <p className="text-xs text-green-700 dark:text-green-300/90">
+                    +512 MB po pozvanom (do 7.5 GB ekstra)
+                  </p>
+                </div>
+                <Gift className="h-5 w-5" />
+              </Link>
+            </div>
+
+            <p className="mt-4 text-center text-xs text-gray-400">
+              Vlasnik deljenja nije ograničen — naknada važi samo za goste.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* File Preview Modal */}
       {previewFile && (

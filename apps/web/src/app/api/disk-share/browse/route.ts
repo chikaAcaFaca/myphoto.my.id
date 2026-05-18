@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db, auth } from '@/lib/firebase-admin';
-import { calculateFolderTotalSize } from '@/lib/shared-folder-quota';
+import {
+  calculateFolderTotalSize,
+  computeLockedFileIds,
+  computeViewerQuotaForShare,
+  listShareTreeFiles,
+  type ViewerShareQuota,
+} from '@/lib/shared-folder-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,18 +81,32 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'File not found' }, { status: 404 });
       }
       const fileData = fileDoc.data()!;
+      const fileSize = fileData.size || 0;
+
+      // For a single-file share, "locked" simply means the viewer can't
+      // fit this file in their remaining quota. Folder-tree locking
+      // doesn't apply.
+      let quota: ViewerShareQuota | null = null;
+      let locked = false;
+      if (viewerUserId !== ownerId) {
+        quota = await computeViewerQuotaForShare(token, fileSize, viewerUserId);
+        if (quota && quota.freeForShare < fileSize) locked = true;
+      }
+
       return NextResponse.json({
         requiresAuth: false,
         type: 'file',
         permission: shareData.permission,
         itemName: shareData.itemName,
         ownerUserId: ownerId,
+        quota,
         file: {
           id: fileDoc.id,
           name: fileData.name,
           mimeType: fileData.mimeType,
-          size: fileData.size,
+          size: fileSize,
           createdAt: fileData.createdAt?.toDate?.()?.toISOString() || fileData.createdAt,
+          locked,
         },
       });
     }
@@ -127,19 +147,37 @@ export async function GET(request: NextRequest) {
       .where('folderId', '==', browseFolderId)
       .get();
 
-    const files = filesSnap.docs
+    const rawFiles = filesSnap.docs
       .filter((doc) => !doc.data().isTrashed)
       .map((doc) => {
         const d = doc.data();
         return {
           id: doc.id,
-          name: d.name,
-          mimeType: d.mimeType,
-          size: d.size,
+          name: d.name as string,
+          mimeType: d.mimeType as string,
+          size: (d.size as number) || 0,
           createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Quota gating (plan section 2.4) — figure out which files in the
+    // entire share tree the viewer can afford with their remaining quota.
+    // The lock set is computed across the whole tree so navigating into a
+    // subfolder doesn't reset the budget; we then just flag each file in
+    // the current page that's in the locked set.
+    let quota: ViewerShareQuota | null = null;
+    let lockedFileIds: Set<string> = new Set();
+    if (viewerUserId !== ownerId) {
+      const shareTotal = await calculateFolderTotalSize(sharedRootFolderId, ownerId);
+      quota = await computeViewerQuotaForShare(token, shareTotal, viewerUserId);
+      if (quota && quota.overQuota) {
+        const treeFiles = await listShareTreeFiles(sharedRootFolderId, ownerId);
+        lockedFileIds = computeLockedFileIds(treeFiles, quota.freeForShare);
+      }
+    }
+
+    const files = rawFiles.map((f) => ({ ...f, locked: lockedFileIds.has(f.id) }));
 
     // Build breadcrumbs from sharedRootFolderId to browseFolderId
     const breadcrumbs = await buildBreadcrumbs(browseFolderId, sharedRootFolderId, ownerId);
@@ -162,6 +200,8 @@ export async function GET(request: NextRequest) {
       breadcrumbs,
       folders,
       files,
+      quota,
+      lockedFileIds: Array.from(lockedFileIds),
     });
   } catch (error) {
     console.error('Disk share browse error:', error);

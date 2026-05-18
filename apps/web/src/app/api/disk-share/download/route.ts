@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/lib/firebase-admin';
 import { generateDownloadUrl } from '@/lib/s3';
+import {
+  calculateFolderTotalSize,
+  computeLockedFileIds,
+  computeViewerQuotaForShare,
+  listShareTreeFiles,
+} from '@/lib/shared-folder-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +67,34 @@ export async function GET(request: NextRequest) {
       const isInSharedFolder = await verifyFileInFolder(fileId, shareData.folderId, ownerId);
       if (!isInSharedFolder) {
         return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+      }
+    }
+
+    // Quota gate (plan 2.4): if the viewer is not the owner and the file
+    // falls outside their affordable slice of this share, deny with a
+    // structured "upgrade required" payload so the client can render the
+    // upsell sheet instead of a generic error. The owner is never gated
+    // on their own files.
+    if (viewerUserId !== ownerId) {
+      let shareTotal = fileData.size || 0;
+      if (shareData.type === 'folder') {
+        shareTotal = await calculateFolderTotalSize(shareData.folderId, ownerId);
+      }
+      const quota = await computeViewerQuotaForShare(token, shareTotal, viewerUserId);
+      if (quota && quota.overQuota) {
+        let isLocked = false;
+        if (shareData.type === 'file') {
+          isLocked = quota.freeForShare < (fileData.size || 0);
+        } else {
+          const tree = await listShareTreeFiles(shareData.folderId, ownerId);
+          isLocked = computeLockedFileIds(tree, quota.freeForShare).has(fileId);
+        }
+        if (isLocked) {
+          return NextResponse.json(
+            { error: 'quota_locked', upgradeRequired: true, quota },
+            { status: 402 }
+          );
+        }
       }
     }
 
