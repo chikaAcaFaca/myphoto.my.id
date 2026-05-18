@@ -8,12 +8,60 @@ const store = new Store({
   defaults: {
     syncFolder: '',
     apiToken: '',
+    refreshToken: '',
+    // Wall-clock ms at which the current apiToken stops being valid.
+    // We refresh ~5 min before this to avoid 401s in-flight.
+    tokenExpiresAt: 0,
     serverUrl: 'https://myphotomy.space',
     syncEnabled: true,
     startOnBoot: true,
     showNotifications: true,
   },
 });
+
+// Refresh the Firebase ID token via /api/auth/refresh when it's within
+// the safety window of expiry. Returns the (possibly refreshed) token,
+// or empty string if the refresh fails — caller should treat that as
+// "user must re-login in the browser".
+const TOKEN_REFRESH_SAFETY_MS = 5 * 60 * 1000;
+async function getValidToken(): Promise<string> {
+  const serverUrl = store.get('serverUrl') as string;
+  const refreshToken = store.get('refreshToken') as string;
+  const expiresAt = store.get('tokenExpiresAt') as number;
+  const current = store.get('apiToken') as string;
+
+  if (current && Date.now() < expiresAt - TOKEN_REFRESH_SAFETY_MS) {
+    return current;
+  }
+  if (!refreshToken) return current || '';
+
+  try {
+    const res = await fetch(`${serverUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) {
+      // Refresh tokens can be revoked when the user resets their password
+      // or signs out everywhere. Clear our copy so the renderer routes
+      // them back to the login screen on next interaction.
+      console.error('Token refresh failed with status', res.status);
+      store.set('apiToken', '');
+      store.set('refreshToken', '');
+      store.set('tokenExpiresAt', 0);
+      return '';
+    }
+    const data = (await res.json()) as { token: string; refreshToken: string; expiresIn: number };
+    const newExpiresAt = Date.now() + (data.expiresIn || 3600) * 1000;
+    store.set('apiToken', data.token);
+    store.set('refreshToken', data.refreshToken);
+    store.set('tokenExpiresAt', newExpiresAt);
+    return data.token;
+  } catch (e) {
+    console.error('Token refresh error:', e);
+    return current || '';
+  }
+}
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -139,10 +187,10 @@ function updateTrayMenu(status: 'idle' | 'syncing' | 'error' | 'paused') {
   tray?.setToolTip(`MyPhoto Sync — ${statusLabels[status]}`);
 }
 
-function initSyncEngine() {
+async function initSyncEngine() {
   const syncFolder = store.get('syncFolder') as string;
-  const apiToken = store.get('apiToken') as string;
   const serverUrl = store.get('serverUrl') as string;
+  const apiToken = await getValidToken();
 
   if (!syncFolder || !apiToken) return;
 
@@ -153,7 +201,10 @@ function initSyncEngine() {
 
   syncEngine = new SyncEngine({
     syncFolder,
+    // Pass the refresh callback so the engine can ask for a fresh token
+    // mid-flight instead of failing once the cached one expires.
     apiToken,
+    getToken: getValidToken,
     serverUrl,
     onStatus: (status) => updateTrayMenu(status),
     onNotification: (title, message) => {
@@ -199,7 +250,7 @@ ipcMain.handle('save-config', (_event, config: Record<string, unknown>) => {
 
   // Restart sync engine with new config
   syncEngine?.stop();
-  initSyncEngine();
+  initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
 
   // Auto-start on boot
   app.setLoginItemSettings({
@@ -219,12 +270,21 @@ ipcMain.handle('login', async (_event, email: string, password: string) => {
     });
 
     if (!response.ok) {
-      const errData = await response.json() as { error?: string };
+      const errData = (await response.json()) as { error?: string };
       return { success: false, error: errData.error || 'Login failed' };
     }
 
-    const data = await response.json() as { token: string };
+    const data = (await response.json()) as {
+      token: string;
+      refreshToken: string;
+      expiresIn: number;
+    };
+    // Persist the full token bundle so the sync engine can keep going
+    // past the 1h ID-token expiry without forcing the user back through
+    // a manual re-login.
     store.set('apiToken', data.token);
+    store.set('refreshToken', data.refreshToken || '');
+    store.set('tokenExpiresAt', Date.now() + (data.expiresIn || 3600) * 1000);
     return { success: true, token: data.token };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Connection failed' };
@@ -243,7 +303,7 @@ ipcMain.handle('force-sync', () => {
 app.whenReady().then(() => {
   createWindow();
   createTray();
-  initSyncEngine();
+  initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
 });
 
 app.on('window-all-closed', (e: Event) => {

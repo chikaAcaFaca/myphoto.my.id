@@ -26,7 +26,9 @@ import {
   Copy,
   Users,
   Share2,
+  Lock,
 } from 'lucide-react';
+import { getIdToken } from '@/lib/firebase';
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { useStorage, usePWA, useReferralStats } from '@/lib/hooks';
 import { updateUserSettings } from '@/lib/firebase';
@@ -83,6 +85,45 @@ export default function SettingsPage() {
     navigator.clipboard.writeText(text);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  // Password setter — required by Google-OAuth users who want to log in
+  // on desktop / CLI / older mobile builds where Firebase popup auth
+  // isn't an option.
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswordCard, setShowPasswordCard] = useState(false);
+  const [settingPassword, setSettingPassword] = useState(false);
+  const handleSetPassword = async () => {
+    if (newPassword.length < 8) {
+      addNotification({ type: 'error', title: 'Lozinka prekratka', message: 'Najmanje 8 karaktera.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      addNotification({ type: 'error', title: 'Lozinke se ne poklapaju' });
+      return;
+    }
+    setSettingPassword(true);
+    try {
+      const token = await getIdToken();
+      const res = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Greška');
+      }
+      addNotification({ type: 'success', title: 'Šifra postavljena', message: 'Sada možeš da se prijaviš email + šifrom na desktop i mobile.' });
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordCard(false);
+    } catch (e) {
+      addNotification({ type: 'error', title: 'Greška', message: e instanceof Error ? e.message : 'Nepoznata greška' });
+    } finally {
+      setSettingPassword(false);
+    }
   };
 
   const sections: { id: SettingsSection; label: string; icon: any }[] = [
@@ -200,6 +241,65 @@ export default function SettingsPage() {
                         }
                       />
                     )}
+
+                    {/* Set / change password — needed so Google-OAuth
+                        users can log into the desktop and other clients
+                        that don't support browser-based sign-in. */}
+                    <div className="pt-4">
+                      {!showPasswordCard ? (
+                        <button
+                          onClick={() => setShowPasswordCard(true)}
+                          className="flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                        >
+                          <Lock className="h-4 w-4" />
+                          Postavi / promeni šifru za desktop
+                        </button>
+                      ) : (
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                          <div className="mb-3 flex items-start gap-2">
+                            <Lock className="mt-0.5 h-4 w-4 text-primary-500" />
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
+                              Šifra ti treba samo za prijavu na desktop / starije mobilne klijente. Web koristi tvoj Google nalog kao pre.
+                            </div>
+                          </div>
+                          <input
+                            type="password"
+                            placeholder="Nova šifra (min 8 karaktera)"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+                            autoComplete="new-password"
+                          />
+                          <input
+                            type="password"
+                            placeholder="Potvrdi šifru"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+                            autoComplete="new-password"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={handleSetPassword}
+                              disabled={settingPassword || !newPassword || !confirmPassword}
+                              className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:opacity-50"
+                            >
+                              {settingPassword ? 'Snimanje…' : 'Sačuvaj šifru'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowPasswordCard(false);
+                                setNewPassword('');
+                                setConfirmPassword('');
+                              }}
+                              className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-600"
+                            >
+                              Otkaži
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Sign out */}
                     <div className="pt-4">

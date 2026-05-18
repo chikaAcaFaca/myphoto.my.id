@@ -6,6 +6,10 @@ import * as crypto from 'crypto';
 interface SyncEngineOptions {
   syncFolder: string;
   apiToken: string;
+  /** Resolves a fresh API token, refreshing in-band if the cached one
+   *  is near expiry. The engine should call this before each HTTP
+   *  request rather than reusing the constructor-time apiToken. */
+  getToken?: () => Promise<string>;
   serverUrl: string;
   onStatus: (status: 'idle' | 'syncing' | 'error' | 'paused') => void;
   onNotification: (title: string, message: string) => void;
@@ -117,6 +121,22 @@ export class SyncEngine {
     });
   }
 
+  // Resolve the current API token, refreshing through the host's
+  // getToken() callback if one was provided. Falls back to the static
+  // apiToken from construction time so legacy callers (no getToken)
+  // keep working.
+  private async authToken(): Promise<string> {
+    if (this.options.getToken) {
+      try {
+        const t = await this.options.getToken();
+        if (t) return t;
+      } catch (err) {
+        this.log(`Token refresh failed: ${err}`);
+      }
+    }
+    return this.options.apiToken;
+  }
+
   /**
    * Ensure a folder exists on MySpace, creating it recursively if needed.
    * Returns the remote folder ID.
@@ -136,10 +156,11 @@ export class SyncEngine {
     const folderName = path.basename(relativePath);
 
     try {
+      const token = await this.authToken();
       const res = await fetch(`${this.options.serverUrl}/api/folders`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.options.apiToken}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -191,10 +212,11 @@ export class SyncEngine {
 
       // 1. Get pre-signed upload URL from disk-files endpoint
       // This endpoint auto-creates MyPhoto record for images/videos
+      const token = await this.authToken();
       const urlRes = await fetch(`${this.options.serverUrl}/api/disk-files`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.options.apiToken}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -225,10 +247,14 @@ export class SyncEngine {
       }
 
       // 3. Confirm upload (creates disk file + photo record for images + AI processing)
+      // Re-resolve the token in case the previous step took long enough
+      // to need a refresh — cheap when nothing changed, lifesaver for
+      // big uploads that cross the 1h boundary mid-flight.
+      const confirmToken = await this.authToken();
       const confirmRes = await fetch(`${this.options.serverUrl}/api/disk-files`, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${this.options.apiToken}`,
+          'Authorization': `Bearer ${confirmToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
