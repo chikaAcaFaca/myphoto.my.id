@@ -314,7 +314,13 @@
   </div>
 
   <script>
-    const api = window.api;
+    // The renderer's local handle to the contextBridge-exposed object.
+    // Named "desktopApi" rather than the more natural "api" because in
+    // some Electron / DevTools runtime configs a bare "api" identifier
+    // collides with an environment-injected binding and the script
+    // explodes with "Identifier 'api' has already been declared",
+    // taking every onclick handler down with it.
+    const desktopApi = window.api;
 
     // Tab switching
     function switchTab(tab) {
@@ -326,7 +332,7 @@
 
     // Load config on start
     async function loadConfig() {
-      const config = await api.getConfig();
+      const config = await desktopApi.getConfig();
 
       document.getElementById('sync-folder').value = config.syncFolder || '';
       document.getElementById('sync-enabled').checked = config.syncEnabled;
@@ -357,12 +363,12 @@
       btnEl.disabled = true;
       errorEl.style.display = 'none';
 
-      const result = await api.login(email, password);
+      const result = await desktopApi.login(email, password);
 
       if (result.success) {
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('status-section').style.display = 'block';
-        const config = await api.getConfig();
+        const config = await desktopApi.getConfig();
         if (!config.syncFolder) {
           switchTab('settings');
           selectFolder();
@@ -378,7 +384,7 @@
 
     // Logout
     async function logout() {
-      await api.saveConfig({ apiToken: '' });
+      await desktopApi.saveConfig({ apiToken: '' });
       document.getElementById('login-section').style.display = 'block';
       document.getElementById('status-section').style.display = 'none';
       switchTab('status');
@@ -386,7 +392,7 @@
 
     // Select folder
     async function selectFolder() {
-      const folder = await api.selectFolder();
+      const folder = await desktopApi.selectFolder();
       if (folder) {
         document.getElementById('sync-folder').value = folder;
       }
@@ -394,7 +400,7 @@
 
     // Save settings
     async function saveSettings() {
-      await api.saveConfig({
+      await desktopApi.saveConfig({
         syncFolder: document.getElementById('sync-folder').value,
         syncEnabled: document.getElementById('sync-enabled').checked,
         startOnBoot: document.getElementById('start-on-boot').checked,
@@ -405,7 +411,7 @@
 
     // Force sync
     async function forceSync() {
-      await api.forceSync();
+      await desktopApi.forceSync();
     }
 
     // Open folder — handled by main process now
@@ -416,7 +422,7 @@
 
     // Update stats periodically
     async function updateStats() {
-      const stats = await api.getSyncStats();
+      const stats = await desktopApi.getSyncStats();
       document.getElementById('stat-watched').textContent = stats.filesWatched;
       document.getElementById('stat-synced').textContent = stats.filesSynced;
       if (stats.lastSync) {
@@ -428,7 +434,7 @@
 
     // Log messages from main process
     const logContainer = document.getElementById('log-container');
-    api.onLog((msg) => {
+    desktopApi.onLog((msg) => {
       const entry = document.createElement('div');
       entry.className = 'log-entry' + (msg.includes('✗') ? ' error' : msg.includes('✓') ? ' success' : '');
       entry.textContent = msg;

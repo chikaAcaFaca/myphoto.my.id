@@ -84,6 +84,11 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '..', 'assets', 'index.html'));
 
+  // Temporary debug aid — open DevTools so renderer-side errors are
+  // visible while we're stabilising the login flow. Remove before
+  // shipping a packaged build.
+  mainWindow.webContents.openDevTools({ mode: 'detach' });
+
   mainWindow.on('close', (e) => {
     e.preventDefault();
     mainWindow?.hide();

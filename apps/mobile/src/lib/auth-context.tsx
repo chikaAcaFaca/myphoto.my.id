@@ -18,7 +18,7 @@ import {
   type Auth,
 } from 'firebase/auth';
 import * as SecureStore from 'expo-secure-store';
-import * as AuthSession from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User as AppUser } from '@myphoto/shared';
@@ -150,48 +150,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
   };
 
-  const signInWithGoogle = useCallback(async () => {
+  // Modern Google sign-in via expo-auth-session's Google provider. This
+  // replaces the previous hand-rolled AuthRequest that targeted the
+  // deprecated https://auth.expo.io/@<owner>/<slug> proxy — Expo removed
+  // that endpoint in SDK 50, so the old code's redirect URI was rejected
+  // by Google and the flow silently dead-ended. The provider hook here
+  // picks the right redirect per platform (myphoto:// scheme on
+  // standalone Android, native package binding when the android client
+  // id is registered, web proxy in Expo Go).
+  const [, googleResponse, promptGoogle] = Google.useAuthRequest({
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID || undefined,
+    webClientId: GOOGLE_WEB_CLIENT_ID || undefined,
+    scopes: ['openid', 'profile', 'email'],
+  });
+
+  // The provider's promptAsync resolves with a "response" we also get
+  // pushed through this state. Wire any success token back into Firebase
+  // here so the auth-state listener picks it up just like an email login.
+  const pendingGoogleResolver = useRef<{ resolve: () => void; reject: (e: Error) => void } | null>(null);
+  useEffect(() => {
+    if (!googleResponse) return;
     const auth = authRef.current || getFirebaseAuth();
-    try {
-      // Always use Web Client ID for OAuth flow (Android Client ID is for native Google Sign-In SDK)
-      const clientId = GOOGLE_WEB_CLIENT_ID;
-
-      if (!clientId) {
-        throw new Error('Google Client ID not configured');
+    if (googleResponse.type === 'success') {
+      const idToken = googleResponse.params?.id_token || (googleResponse as any).authentication?.idToken;
+      if (!idToken) {
+        pendingGoogleResolver.current?.reject(new Error('Google nije vratio ID token'));
+        pendingGoogleResolver.current = null;
+        return;
       }
-
-      // Use hardcoded Expo auth proxy URI for standalone builds
-      const redirectUri = 'https://auth.expo.io/@chikaaca/myphoto';
-
-      const discovery = {
-        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-        tokenEndpoint: 'https://oauth2.googleapis.com/token',
-      };
-
-      const request = new AuthSession.AuthRequest({
-        clientId,
-        redirectUri,
-        scopes: ['openid', 'profile', 'email'],
-        responseType: AuthSession.ResponseType.IdToken,
-        usePKCE: false,
-        extraParams: {
-          nonce: Math.random().toString(36).substring(2),
-        },
-      });
-
-      const result = await request.promptAsync(discovery);
-
-      if (result.type === 'success' && result.params.id_token) {
-        const credential = GoogleAuthProvider.credential(result.params.id_token);
-        await signInWithCredential(auth, credential);
-      } else if (result.type !== 'cancel') {
-        throw new Error('Google sign-in failed');
-      }
-    } catch (error: any) {
-      console.error('Google Sign-In error:', error);
-      throw error;
+      const credential = GoogleAuthProvider.credential(idToken);
+      signInWithCredential(auth, credential)
+        .then(() => pendingGoogleResolver.current?.resolve())
+        .catch((e) => pendingGoogleResolver.current?.reject(e))
+        .finally(() => { pendingGoogleResolver.current = null; });
+    } else if (googleResponse.type === 'error') {
+      pendingGoogleResolver.current?.reject(new Error(googleResponse.error?.message || 'Google sign-in error'));
+      pendingGoogleResolver.current = null;
+    } else if (googleResponse.type === 'cancel' || googleResponse.type === 'dismiss') {
+      // Treat cancel as a no-op resolve so the caller's UI returns to
+      // idle without surfacing an error toast.
+      pendingGoogleResolver.current?.resolve();
+      pendingGoogleResolver.current = null;
     }
-  }, []);
+  }, [googleResponse]);
+
+  const signInWithGoogle = useCallback(async () => {
+    if (!GOOGLE_WEB_CLIENT_ID && !GOOGLE_ANDROID_CLIENT_ID) {
+      throw new Error('Google Client ID nije konfigurisan u .env');
+    }
+    if (!promptGoogle) {
+      throw new Error('Google auth nije spreman — pokušaj ponovo za par sekundi.');
+    }
+    // Wrap promptAsync + the response effect in a single promise so
+    // callers (login.tsx, register.tsx) can await sign-in completion
+    // exactly like the email path.
+    return new Promise<void>((resolve, reject) => {
+      pendingGoogleResolver.current = { resolve, reject };
+      promptGoogle().catch((e) => {
+        pendingGoogleResolver.current = null;
+        reject(e instanceof Error ? e : new Error(String(e)));
+      });
+    });
+  }, [promptGoogle]);
 
   const getToken = async (): Promise<string | null> => {
     if (user) {
