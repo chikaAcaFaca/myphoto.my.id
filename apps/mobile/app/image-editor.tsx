@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert,
   ActivityIndicator, Platform, ScrollView,
@@ -18,27 +18,60 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 type FilterType = 'original' | 'bright' | 'contrast' | 'warm' | 'cool' | 'bw';
 
-const FILTERS: { key: FilterType; label: string; icon: string }[] = [
+// Filters are wired but the underlying color-grading isn't shipped yet —
+// expo-image-manipulator only does resize/rotate/crop, so adding a real
+// brightness/contrast pipeline needs a separate dependency (Skia, GL, or
+// a server pass). Until then we keep the Original button working and the
+// rest mark themselves as "Uskoro" instead of throwing.
+const FILTERS: { key: FilterType; label: string; icon: string; comingSoon?: boolean }[] = [
   { key: 'original', label: 'Original', icon: 'image-outline' },
-  { key: 'bright', label: 'Svetlo', icon: 'sunny-outline' },
-  { key: 'contrast', label: 'Kontrast', icon: 'contrast-outline' },
-  { key: 'warm', label: 'Toplo', icon: 'flame-outline' },
-  { key: 'cool', label: 'Hladno', icon: 'snow-outline' },
-  { key: 'bw', label: 'C/B', icon: 'moon-outline' },
+  { key: 'bright', label: 'Svetlo', icon: 'sunny-outline', comingSoon: true },
+  { key: 'contrast', label: 'Kontrast', icon: 'contrast-outline', comingSoon: true },
+  { key: 'warm', label: 'Toplo', icon: 'flame-outline', comingSoon: true },
+  { key: 'cool', label: 'Hladno', icon: 'snow-outline', comingSoon: true },
+  { key: 'bw', label: 'C/B', icon: 'moon-outline', comingSoon: true },
 ];
 
 export default function ImageEditorScreen() {
   const { colors: tc } = useTheme();
   const { id, name, uri: sourceUri } = useLocalSearchParams<{ id: string; name: string; uri?: string }>();
   const { getToken } = useAuth();
-  const [currentUri, setCurrentUri] = useState<string>(
-    sourceUri || `${API_URL}/api/stream/${id}`
-  );
-  const [originalUri] = useState<string>(sourceUri || `${API_URL}/api/stream/${id}`);
+  // Image is loaded via a presigned S3 URL fetched on mount — the
+  // /api/stream/[id] endpoint authenticates via session cookie which
+  // mobile (Bearer-token-only) can't satisfy, so dropping it directly
+  // into expo-image's source results in a black frame.
+  const [currentUri, setCurrentUri] = useState<string>(sourceUri || '');
+  const [originalUri, setOriginalUri] = useState<string>(sourceUri || '');
+  const [imageLoading, setImageLoading] = useState<boolean>(!sourceUri);
   const [activeFilter, setActiveFilter] = useState<FilterType>('original');
   const [processing, setProcessing] = useState(false);
   const [removingBg, setRemovingBg] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (sourceUri || !id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setImageLoading(true);
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/api/files/${id}/download-url`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { downloadUrl } = await res.json();
+        if (cancelled) return;
+        setCurrentUri(downloadUrl);
+        setOriginalUri(downloadUrl);
+      } catch (e) {
+        console.error('Editor image load error:', e);
+        if (!cancelled) Alert.alert('Greska', 'Nije moguce ucitati sliku za izmenu.');
+      } finally {
+        if (!cancelled) setImageLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id, sourceUri, getToken]);
 
   const applyFilter = useCallback(async (filter: FilterType) => {
     if (filter === 'original') {
@@ -46,64 +79,11 @@ export default function ImageEditorScreen() {
       setActiveFilter('original');
       return;
     }
-
-    setProcessing(true);
-    try {
-      // Download original first if it's a remote URL
-      let localUri = originalUri;
-      if (originalUri.startsWith('http')) {
-        const token = await getToken();
-        const urlRes = await fetch(`${API_URL}/api/files/${id}/download-url`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (urlRes.ok) {
-          const { downloadUrl } = await urlRes.json();
-          const download = await FileSystem.downloadAsync(
-            downloadUrl,
-            `${FileSystem.cacheDirectory}edit_${id}.jpg`
-          );
-          localUri = download.uri;
-        }
-      }
-
-      let actions: ImageManipulator.Action[] = [];
-
-      switch (filter) {
-        case 'bright':
-          // Simulate brightness by slightly overexposing
-          actions = [{ resize: { width: 1200 } }];
-          break;
-        case 'contrast':
-          actions = [{ resize: { width: 1200 } }];
-          break;
-        case 'warm':
-          actions = [{ resize: { width: 1200 } }];
-          break;
-        case 'cool':
-          actions = [{ resize: { width: 1200 } }];
-          break;
-        case 'bw':
-          actions = [{ resize: { width: 1200 } }];
-          break;
-      }
-
-      const result = await ImageManipulator.manipulateAsync(
-        localUri,
-        actions,
-        {
-          format: ImageManipulator.SaveFormat.JPEG,
-          compress: filter === 'bw' ? 0.7 : 0.9,
-        }
-      );
-      setCurrentUri(result.uri);
-      setActiveFilter(filter);
-    } catch (e) {
-      console.log('Filter error:', e);
-      Alert.alert('Greska', 'Nije moguce primeniti filter.');
-    } finally {
-      setProcessing(false);
-    }
-  }, [originalUri, id, getToken]);
+    // Until real color filters land, the non-Original buttons just
+    // surface a friendly notice rather than running the no-op pipeline
+    // that previously left users staring at the same image.
+    Alert.alert('Uskoro', 'Filteri za boje su u izradi i biće dostupni u sledećoj verziji aplikacije.');
+  }, [originalUri]);
 
   const handleRemoveBg = useCallback(async () => {
     setRemovingBg(true);
@@ -114,20 +94,25 @@ export default function ImageEditorScreen() {
         return;
       }
 
-      // Call server-side remove-bg API
+      // Call server-side remove-bg API. The endpoint currently returns 501
+      // with a structured "u izradi" message — we surface that to the user
+      // as an informative "Uskoro" alert rather than a generic error.
       const res = await fetch(`${API_URL}/api/files/${id}/remove-bg`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      const data = await res.json().catch(() => ({} as Record<string, unknown>));
+
       if (res.ok) {
-        const data = await res.json();
-        if (data.resultUrl) {
+        if (typeof data?.resultUrl === 'string') {
           setCurrentUri(data.resultUrl);
           Alert.alert('Uspeh', 'Pozadina je uklonjena!');
         } else {
           Alert.alert('Info', 'Uklanjanje pozadine je u toku. Proverite ponovo za minut.');
         }
+      } else if (res.status === 501) {
+        Alert.alert('Uskoro', (data?.message as string) || 'Uklanjanje pozadine je u izradi.');
       } else {
         Alert.alert('Greska', 'Uklanjanje pozadine nije uspelo. Pokusajte ponovo.');
       }
@@ -187,20 +172,26 @@ export default function ImageEditorScreen() {
 
       {/* Image preview */}
       <View style={styles.imageContainer}>
-        {processing || removingBg ? (
+        {processing || removingBg || imageLoading ? (
           <View style={styles.processingOverlay}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.processingText}>
-              {removingBg ? 'Uklanjam pozadinu...' : 'Primenjujem filter...'}
+              {imageLoading
+                ? 'Učitavam sliku...'
+                : removingBg
+                  ? 'Uklanjam pozadinu...'
+                  : 'Primenjujem filter...'}
             </Text>
           </View>
         ) : null}
-        <Image
-          source={{ uri: currentUri }}
-          style={styles.image}
-          contentFit="contain"
-          transition={200}
-        />
+        {currentUri ? (
+          <Image
+            source={{ uri: currentUri }}
+            style={styles.image}
+            contentFit="contain"
+            transition={200}
+          />
+        ) : null}
       </View>
 
       {/* Tools */}
@@ -227,6 +218,7 @@ export default function ImageEditorScreen() {
               style={[
                 styles.filterBtn,
                 activeFilter === f.key && { borderColor: colors.primary, borderWidth: 2 },
+                f.comingSoon && { opacity: 0.55 },
               ]}
               onPress={() => applyFilter(f.key)}
               disabled={processing}
@@ -239,6 +231,9 @@ export default function ImageEditorScreen() {
               <Text style={[styles.filterLabel, activeFilter === f.key && { color: colors.primary }]}>
                 {f.label}
               </Text>
+              {f.comingSoon && (
+                <Text style={{ fontSize: 8, color: tc.textMuted, marginTop: 1 }}>uskoro</Text>
+              )}
             </TouchableOpacity>
           ))}
         </ScrollView>

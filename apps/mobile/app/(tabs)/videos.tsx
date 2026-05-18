@@ -93,7 +93,21 @@ export default function VideosScreen() {
   const displayVideos = filter === 'cloud' ? cloudVideos : filter === 'device' ? [] : cloudVideos; // device uses separate list
 
   const renderVideo = ({ item }: { item: FileMetadata }) => (
-    <TouchableOpacity style={[styles.videoCard, { backgroundColor: tc.bgCard }]} activeOpacity={0.7} delayPressIn={100}>
+    <TouchableOpacity
+      style={[styles.videoCard, { backgroundColor: tc.bgCard }]}
+      activeOpacity={0.7}
+      delayPressIn={100}
+      onPress={() => router.push({
+        pathname: '/photo-viewer',
+        params: {
+          id: item.id,
+          name: item.name,
+          type: 'video',
+          isFavorite: item.isFavorite ? '1' : '0',
+          isArchived: item.isArchived ? '1' : '0',
+        },
+      })}
+    >
       <View style={styles.videoThumb}>
         {item.thumbnailKey ? (
           <Image

@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Share, Platform, Modal, ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { Video, ResizeMode } from 'expo-av';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system';
@@ -24,7 +25,7 @@ export default function PhotoViewerScreen() {
   }>();
   const isTrashed = trashedParam === '1';
   const { colors: tc } = useTheme();
-  const { getToken } = useAuth();
+  const { getToken, appUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isFavorite, setIsFavorite] = useState(favParam === '1');
@@ -33,8 +34,33 @@ export default function PhotoViewerScreen() {
   const [showInfo, setShowInfo] = useState(false);
   const [fileInfo, setFileInfo] = useState<FileMetadata | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(false);
+  // Fetched on mount so the renderer doesn't fight /api/stream's session-
+  // cookie auth — mobile can't satisfy that, so we use a presigned S3 URL.
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(true);
+  const isVideo = type === 'video';
 
-  const imageUrl = `${API_URL}/api/stream/${id}`;
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setMediaLoading(true);
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/api/files/${id}/download-url`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { downloadUrl } = await res.json();
+        if (!cancelled) setMediaUrl(downloadUrl);
+      } catch (e) {
+        console.error('Media load error:', e);
+      } finally {
+        if (!cancelled) setMediaLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id, getToken]);
 
   const handleSaveToDevice = async () => {
     try {
@@ -49,14 +75,10 @@ export default function PhotoViewerScreen() {
       const ext = name?.split('.').pop() || 'jpg';
       const localUri = `${FileSystem.cacheDirectory}download_${id}.${ext}`;
 
-      const download = await FileSystem.downloadAsync(
-        `${API_URL}/api/files/${id}/download-url`,
-        localUri,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
-
-      // The download-url endpoint returns JSON with the actual URL
-      // We need to fetch the actual file
+      // Single fetch: ask the API for a presigned S3 URL, then download
+      // the bytes from S3 directly. The earlier implementation double-
+      // dipped (downloadAsync to the JSON endpoint, then again to the
+      // real URL) which saved JSON to disk before the real download.
       const urlRes = await fetch(`${API_URL}/api/files/${id}/download-url`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -88,13 +110,23 @@ export default function PhotoViewerScreen() {
         body: JSON.stringify({ fileId: id, permission: 'read' }),
       });
 
+      // Append the sharer's referral code so a recipient who signs up via
+      // the link credits this user with +512MB. The server's /api/share
+      // already issues a token; we just decorate the URL with ?ref=CODE.
+      const refCode = appUser?.referralCode;
+      const refSuffix = refCode ? `?ref=${encodeURIComponent(refCode)}` : '';
+
       if (res.ok) {
         const data = await res.json();
-        const shareUrl = `${API_URL}${data.shareUrl}`;
-        await Share.share({ message: `${name}\n${shareUrl}`, url: shareUrl });
+        const shareUrl = `${API_URL}${data.shareUrl}${refSuffix}`;
+        await Share.share({
+          message: `${name}\n${shareUrl}${refCode ? `\n\nDobij +1GB besplatno kad se registruješ preko ovog linka.` : ''}`,
+          url: shareUrl,
+        });
       } else {
-        // Fallback: share direct link
-        await Share.share({ message: `${name} - ${API_URL}/api/stream/${id}` });
+        // Fallback: share direct stream URL plus referral hint.
+        const fallback = `${API_URL}/api/stream/${id}${refSuffix}`;
+        await Share.share({ message: `${name} - ${fallback}` });
       }
     } catch (e) {
       console.error('Share error:', e);
@@ -174,13 +206,15 @@ export default function PhotoViewerScreen() {
   const handleRestore = async () => {
     try {
       const token = await getToken();
-      await fetch(`${API_URL}/api/files/${id}/restore`, {
+      const res = await fetch(`${API_URL}/api/files/${id}/restore`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       Alert.alert('Vraceno', 'Fajl je vracen iz korpe.');
       router.back();
     } catch (e) {
+      console.error('Restore error:', e);
       Alert.alert('Greska', 'Nije moguce vratiti fajl.');
     }
   };
@@ -192,12 +226,14 @@ export default function PhotoViewerScreen() {
         text: 'Obrisi zauvek', style: 'destructive', onPress: async () => {
           try {
             const token = await getToken();
-            await fetch(`${API_URL}/api/files/${id}/permanent-delete`, {
+            const res = await fetch(`${API_URL}/api/files/${id}/permanent-delete`, {
               method: 'POST',
               headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             router.back();
           } catch (e) {
+            console.error('Permanent delete error:', e);
             Alert.alert('Greska', 'Brisanje nije uspelo.');
           }
         },
@@ -206,23 +242,29 @@ export default function PhotoViewerScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Obrisati?', `Da li zelite da obrisete ${name}?`, [
+    Alert.alert('Premestiti u korpu?', `${name} će biti vraćeno u korpu (30 dana pre trajnog brisanja).`, [
       { text: 'Otkazi', style: 'cancel' },
       {
-        text: 'Obrisi', style: 'destructive', onPress: async () => {
+        text: 'Premesti', style: 'destructive', onPress: async () => {
           try {
             const token = await getToken();
-            await fetch(`${API_URL}/api/files/delete`, {
-              method: 'POST',
+            // Soft-delete: PATCH isTrashed=true via the per-file endpoint
+            // (the older /api/files/delete is a hard-delete used by trash
+            // emptying — the kanta button on a normal photo should be
+            // recoverable).
+            const res = await fetch(`${API_URL}/api/files/${id}`, {
+              method: 'PATCH',
               headers: {
                 'Content-Type': 'application/json',
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
               },
-              body: JSON.stringify({ fileIds: [id] }),
+              body: JSON.stringify({ isTrashed: true }),
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             router.back();
           } catch (e) {
-            Alert.alert('Greska', 'Brisanje nije uspelo.');
+            console.error('Delete error:', e);
+            Alert.alert('Greska', 'Premestanje u korpu nije uspelo.');
           }
         }
       },
@@ -242,14 +284,29 @@ export default function PhotoViewerScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Image */}
+      {/* Media (image or video) */}
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.image}
-          contentFit="contain"
-          transition={200}
-        />
+        {mediaLoading ? (
+          <ActivityIndicator size="large" color="#fff" />
+        ) : !mediaUrl ? (
+          <Text style={{ color: '#fff' }}>Nije moguće učitati fajl.</Text>
+        ) : isVideo ? (
+          <Video
+            source={{ uri: mediaUrl }}
+            style={styles.image}
+            useNativeControls
+            resizeMode={ResizeMode.CONTAIN}
+            shouldPlay
+            isLooping={false}
+          />
+        ) : (
+          <Image
+            source={{ uri: mediaUrl }}
+            style={styles.image}
+            contentFit="contain"
+            transition={200}
+          />
+        )}
       </View>
 
       {/* Bottom action bar */}
@@ -293,13 +350,8 @@ export default function PhotoViewerScreen() {
               <Text style={styles.actionText}>Uredi</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.action} onPress={() => router.push({
-              pathname: '/creative-hub',
-              params: { id: id!, name: name || 'Photo' },
-            })}>
-              <Ionicons name="color-wand-outline" size={22} color={colors.accent} />
-              <Text style={[styles.actionText, { color: colors.accent }]}>Kreiraj</Text>
-            </TouchableOpacity>
+            {/* "Kreiraj" (creative hub) intentionally hidden — feature
+                still in development, see deferred follow-up. */}
 
             {type !== 'video' && (
               <TouchableOpacity style={styles.action} onPress={() => router.push({
