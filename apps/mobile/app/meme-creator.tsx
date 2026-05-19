@@ -232,25 +232,44 @@ export default function MemeCreatorScreen() {
       if (res.ok) {
         const responseData = await res.json();
 
-        // Upload the meme image to S3 if we got an upload URL
+        // Upload the meme image to S3 if we got an upload URL. Three
+        // URI shapes show up here:
+        //   - file:// or absolute path → upload directly
+        //   - http(s):// → download to cache then upload
+        //   - content:// (Android MediaLibrary device photos) → resolve
+        //     to file:// via MediaLibrary first, otherwise the upload
+        //     silently no-ops and the published meme has no image.
         if (responseData.uploadUrl && mediaUri) {
           try {
-            if (mediaUri.startsWith('file://') || mediaUri.startsWith('/')) {
-              await FileSystem.uploadAsync(responseData.uploadUrl, mediaUri, {
-                httpMethod: 'PUT',
-                headers: { 'Content-Type': 'image/jpeg' },
-                uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-              });
-            } else if (mediaUri.startsWith('http')) {
-              // Download first then upload
+            let uploadSource = mediaUri;
+            let tmpPathToCleanup: string | null = null;
+
+            if (uploadSource.startsWith('content://')) {
+              if (id) {
+                const info = await MediaLibrary.getAssetInfoAsync(id);
+                if (info?.localUri) uploadSource = info.localUri;
+              }
+            }
+
+            if (uploadSource.startsWith('http')) {
               const tmpPath = `${FileSystem.cacheDirectory}meme_upload_${Date.now()}.jpg`;
-              const dl = await FileSystem.downloadAsync(mediaUri, tmpPath);
-              await FileSystem.uploadAsync(responseData.uploadUrl, dl.uri, {
+              const dl = await FileSystem.downloadAsync(uploadSource, tmpPath);
+              uploadSource = dl.uri;
+              tmpPathToCleanup = tmpPath;
+            }
+
+            if (uploadSource.startsWith('file://') || uploadSource.startsWith('/')) {
+              await FileSystem.uploadAsync(responseData.uploadUrl, uploadSource, {
                 httpMethod: 'PUT',
                 headers: { 'Content-Type': 'image/jpeg' },
                 uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
               });
-              await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+            } else {
+              console.warn('Meme upload skipped — unsupported URI scheme:', uploadSource);
+            }
+
+            if (tmpPathToCleanup) {
+              await FileSystem.deleteAsync(tmpPathToCleanup, { idempotent: true });
             }
           } catch (uploadErr) {
             console.warn('Meme image upload failed:', uploadErr);

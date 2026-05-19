@@ -113,6 +113,14 @@ export default function ImageEditorScreen() {
         }
       } else if (res.status === 501) {
         Alert.alert('Uskoro', (data?.message as string) || 'Uklanjanje pozadine je u izradi.');
+      } else if (res.status === 404) {
+        // Device-only photo — has no cloud record for the server to
+        // process. Tell the user to wait for auto-backup instead of
+        // surfacing a generic error that suggests retrying will help.
+        Alert.alert(
+          'Backup potreban',
+          'Slika još nije sačuvana u cloud-u. Sačekaj da se backup završi pa pokušaj ponovo (vidi sync trake na MyPhoto tabu).'
+        );
       } else {
         Alert.alert('Greska', 'Uklanjanje pozadine nije uspelo. Pokusajte ponovo.');
       }
