@@ -20,10 +20,19 @@ const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function PhotoViewerScreen() {
-  const { id, name, type, isFavorite: favParam, isTrashed: trashedParam, isArchived: archivedParam } = useLocalSearchParams<{
-    id: string; name: string; type: string; isFavorite?: string; isTrashed?: string; isArchived?: string;
+  const params = useLocalSearchParams<{
+    id: string; name: string; type: string; isFavorite?: string; isTrashed?: string;
+    isArchived?: string; localUri?: string; isUploaded?: string;
   }>();
+  const { id, name, type, isFavorite: favParam, isTrashed: trashedParam,
+    isArchived: archivedParam, localUri, isUploaded } = params;
   const isTrashed = trashedParam === '1';
+  // Home gallery shows device photos by passing `localUri`. If the item
+  // hasn't also been backed up to the cloud (`isUploaded !== '1'`), the
+  // server has nothing under this id — every /api/files/{id} call
+  // would 404. We detect that and switch to a local-only mode that
+  // displays the photo from disk and hides cloud-only actions.
+  const isLocalOnly = !!localUri && isUploaded !== '1';
   const { colors: tc } = useTheme();
   const { getToken, appUser } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -34,14 +43,24 @@ export default function PhotoViewerScreen() {
   const [showInfo, setShowInfo] = useState(false);
   const [fileInfo, setFileInfo] = useState<FileMetadata | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(false);
-  // Fetched on mount so the renderer doesn't fight /api/stream's session-
-  // cookie auth — mobile can't satisfy that, so we use a presigned S3 URL.
-  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
-  const [mediaLoading, setMediaLoading] = useState(true);
+  // For cloud-backed media we fetch a presigned S3 URL; /api/stream/[id]
+  // authenticates by session cookie which mobile (Bearer-only) can't
+  // satisfy. For local-only media we just point the renderer at the
+  // device URI and skip the API round-trip entirely.
+  const [mediaUrl, setMediaUrl] = useState<string | null>(localUri || null);
+  const [mediaLoading, setMediaLoading] = useState(!localUri);
   const isVideo = type === 'video';
 
   useEffect(() => {
     if (!id) return;
+    // Local-only photos already have their URI in mediaUrl, no fetch
+    // needed. Calling /api/files/{deviceId}/download-url would 404 and
+    // surface a confusing "Nije moguće učitati fajl" toast.
+    if (isLocalOnly) {
+      setMediaUrl(localUri || null);
+      setMediaLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -60,7 +79,7 @@ export default function PhotoViewerScreen() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id, getToken]);
+  }, [id, getToken, isLocalOnly, localUri]);
 
   const handleSaveToDevice = async () => {
     try {
@@ -134,6 +153,10 @@ export default function PhotoViewerScreen() {
   };
 
   const handleToggleFavorite = async () => {
+    if (isLocalOnly) {
+      Alert.alert('Backup potreban', 'Sliku prvo treba uploadovati na cloud da bi bila omiljena. Backup se pokreće automatski u pozadini.');
+      return;
+    }
     try {
       setTogglingFav(true);
       const newVal = !isFavorite;
@@ -162,6 +185,19 @@ export default function PhotoViewerScreen() {
   const handleShowInfo = async () => {
     setShowInfo(true);
     if (fileInfo) return; // already loaded
+    // For local-only photos the cloud endpoint would 404 — fall back
+    // to whatever we can derive from the URL params instead of showing
+    // an empty modal with "Nije moguće učitati detalje".
+    if (isLocalOnly) {
+      setFileInfo({
+        id: id!,
+        name: name || '',
+        type: type === 'video' ? 'video' : 'image',
+        size: 0,
+        mimeType: type === 'video' ? 'video/mp4' : 'image/jpeg',
+      } as unknown as FileMetadata);
+      return;
+    }
     try {
       setLoadingInfo(true);
       const token = await getToken();
@@ -363,33 +399,42 @@ export default function PhotoViewerScreen() {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity style={styles.action} onPress={handleToggleFavorite} disabled={togglingFav}>
-              {togglingFav ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons
-                  name={isFavorite ? 'heart' : 'heart-outline'}
-                  size={22}
-                  color={isFavorite ? colors.accent : '#fff'}
-                />
-              )}
-              <Text style={[styles.actionText, isFavorite && { color: colors.accent }]}>Omiljeno</Text>
-            </TouchableOpacity>
+            {/* Cloud-only actions are hidden for local-only photos.
+                Favorite/archive/delete need a cloud record; Info has a
+                graceful fallback so we keep it visible. */}
+            {!isLocalOnly && (
+              <TouchableOpacity style={styles.action} onPress={handleToggleFavorite} disabled={togglingFav}>
+                {togglingFav ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons
+                    name={isFavorite ? 'heart' : 'heart-outline'}
+                    size={22}
+                    color={isFavorite ? colors.accent : '#fff'}
+                  />
+                )}
+                <Text style={[styles.actionText, isFavorite && { color: colors.accent }]}>Omiljeno</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={styles.action} onPress={handleShowInfo}>
               <Ionicons name="information-circle-outline" size={22} color="#fff" />
               <Text style={styles.actionText}>Info</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.action} onPress={handleToggleArchive}>
-              <Ionicons name={isArchived ? 'arrow-undo-outline' : 'archive-outline'} size={22} color="#fff" />
-              <Text style={styles.actionText}>{isArchived ? 'Vrati' : 'Arhiva'}</Text>
-            </TouchableOpacity>
+            {!isLocalOnly && (
+              <TouchableOpacity style={styles.action} onPress={handleToggleArchive}>
+                <Ionicons name={isArchived ? 'arrow-undo-outline' : 'archive-outline'} size={22} color="#fff" />
+                <Text style={styles.actionText}>{isArchived ? 'Vrati' : 'Arhiva'}</Text>
+              </TouchableOpacity>
+            )}
 
-            <TouchableOpacity style={styles.action} onPress={handleDelete}>
-              <Ionicons name="trash-outline" size={22} color="#f87171" />
-              <Text style={[styles.actionText, { color: '#f87171' }]}>Delete</Text>
-            </TouchableOpacity>
+            {!isLocalOnly && (
+              <TouchableOpacity style={styles.action} onPress={handleDelete}>
+                <Ionicons name="trash-outline" size={22} color="#f87171" />
+                <Text style={[styles.actionText, { color: '#f87171' }]}>Delete</Text>
+              </TouchableOpacity>
+            )}
           </>
         )}
       </View>

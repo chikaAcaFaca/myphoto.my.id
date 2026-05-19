@@ -154,6 +154,10 @@ export default function MyPhotoScreen() {
           type: item.mediaType === 'video' ? 'video' : 'image',
           isFavorite: '0',
           localUri: item.uri,
+          // Tells the viewer whether the device id also has a cloud
+          // record — without this it can't tell device-only photos
+          // from backed-up ones and every cloud API call 404s.
+          isUploaded: item.isUploaded ? '1' : '0',
         },
       })}
     >
