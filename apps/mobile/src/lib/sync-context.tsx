@@ -562,6 +562,31 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     };
   }, [settings.autoBackup, user]);
 
+  // Foreground auto-backup kicker. Background fetch is unreliable on
+  // Android — the system frequently never wakes the task, especially
+  // during the first few app sessions. To get device photos into the
+  // cloud reliably we also run startSync() once the user is signed in,
+  // settings are loaded, and we haven't already started syncing. This
+  // is fire-and-forget; startSync() guards against double-runs and
+  // skips when the network policy says so.
+  const autoBackupKickedRef = useRef(false);
+  useEffect(() => {
+    if (!user) {
+      autoBackupKickedRef.current = false;
+      return;
+    }
+    if (autoBackupKickedRef.current) return;
+    if (!settings.autoBackup || settings.syncMode === 'manual') return;
+    autoBackupKickedRef.current = true;
+    // Give MediaLibrary permissions a moment to settle on first launch
+    // — kicking the sync immediately on mount sometimes fires before
+    // the permission prompt finishes and findNewPhotos returns [].
+    const t = setTimeout(() => {
+      startSync().catch((e) => console.warn('Auto-backup startSync failed:', e));
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [user, settings.autoBackup, settings.syncMode]);
+
   const registerBackgroundFetch = async () => {
     try {
       ensureBackgroundTaskRegistered();

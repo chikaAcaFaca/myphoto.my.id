@@ -35,11 +35,18 @@ const FONT_SIZES = [
 
 export default function MemeCreatorScreen() {
   const { colors: tc } = useTheme();
-  const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
+  const { id, name, uri: sourceUri, isUploaded } = useLocalSearchParams<{
+    id?: string; name?: string; uri?: string; isUploaded?: string;
+  }>();
   const { user, appUser, getToken } = useAuth();
 
+  // Prefer the URI passed in from the viewer (works for device-only
+  // photos too) and fall back to the cloud thumbnail. The previous
+  // version always hit /api/thumbnail/{deviceId} which 404s for
+  // photos that haven't been backed up yet, so the meme creator
+  // landed empty and forced the user to pick from album again.
   const [mediaUri, setMediaUri] = useState<string | null>(
-    id ? `${API_URL}/api/thumbnail/${id}?size=large` : null
+    sourceUri || (id && isUploaded === '1' ? `${API_URL}/api/thumbnail/${id}?size=large` : null)
   );
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'gif'>('image');
   const [topText, setTopText] = useState('');

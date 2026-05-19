@@ -56,10 +56,28 @@ export default function PhotoViewerScreen() {
     // Local-only photos already have their URI in mediaUrl, no fetch
     // needed. Calling /api/files/{deviceId}/download-url would 404 and
     // surface a confusing "Nije moguće učitati fajl" toast.
+    //
+    // Android MediaLibrary returns content:// URIs that expo-av's Video
+    // can't play; resolve them to file:// via getAssetInfoAsync so the
+    // native player gets something it understands.
     if (isLocalOnly) {
-      setMediaUrl(localUri || null);
-      setMediaLoading(false);
-      return;
+      let cancelled = false;
+      (async () => {
+        let resolved = localUri || null;
+        if (isVideo && resolved && resolved.startsWith('content://') && id) {
+          try {
+            const info = await MediaLibrary.getAssetInfoAsync(id);
+            if (info?.localUri) resolved = info.localUri;
+          } catch (e) {
+            console.warn('Failed to resolve content URI:', e);
+          }
+        }
+        if (!cancelled) {
+          setMediaUrl(resolved);
+          setMediaLoading(false);
+        }
+      })();
+      return () => { cancelled = true; };
     }
     let cancelled = false;
     (async () => {
@@ -90,9 +108,16 @@ export default function PhotoViewerScreen() {
         return;
       }
 
+      // Local-only photos are already in the device gallery — saving
+      // them again would duplicate. Tell the user instead of erroring.
+      if (isLocalOnly) {
+        Alert.alert('Već sačuvano', 'Slika je već u tvojoj galeriji na telefonu.');
+        return;
+      }
+
       const token = await getToken();
       const ext = name?.split('.').pop() || 'jpg';
-      const localUri = `${FileSystem.cacheDirectory}download_${id}.${ext}`;
+      const cacheUri = `${FileSystem.cacheDirectory}download_${id}.${ext}`;
 
       // Single fetch: ask the API for a presigned S3 URL, then download
       // the bytes from S3 directly. The earlier implementation double-
@@ -104,7 +129,7 @@ export default function PhotoViewerScreen() {
       if (!urlRes.ok) throw new Error('Failed to get download URL');
       const { downloadUrl } = await urlRes.json();
 
-      const fileDownload = await FileSystem.downloadAsync(downloadUrl, localUri);
+      const fileDownload = await FileSystem.downloadAsync(downloadUrl, cacheUri);
 
       await MediaLibrary.saveToLibraryAsync(fileDownload.uri);
       Alert.alert('Sacuvano', 'Fajl je sacuvan u galeriju.');
@@ -380,7 +405,15 @@ export default function PhotoViewerScreen() {
 
             <TouchableOpacity style={styles.action} onPress={() => router.push({
               pathname: '/image-editor',
-              params: { id: id!, name: name || 'Photo' },
+              // Pass localUri + isUploaded along so the editor knows to
+              // skip the cloud download for device-only photos — same
+              // pattern as the viewer above.
+              params: {
+                id: id!,
+                name: name || 'Photo',
+                ...(localUri ? { uri: mediaUrl || localUri } : {}),
+                isUploaded: isUploaded || '0',
+              },
             })}>
               <Ionicons name="brush-outline" size={22} color="#fff" />
               <Text style={styles.actionText}>Uredi</Text>
@@ -392,7 +425,12 @@ export default function PhotoViewerScreen() {
             {type !== 'video' && (
               <TouchableOpacity style={styles.action} onPress={() => router.push({
                 pathname: '/meme-creator',
-                params: { id: id!, name: name || 'Photo' },
+                params: {
+                  id: id!,
+                  name: name || 'Photo',
+                  ...(localUri ? { uri: mediaUrl || localUri } : {}),
+                  isUploaded: isUploaded || '0',
+                },
               })}>
                 <Ionicons name="flame-outline" size={22} color="#f97316" />
                 <Text style={[styles.actionText, { color: '#f97316' }]}>Meme</Text>
