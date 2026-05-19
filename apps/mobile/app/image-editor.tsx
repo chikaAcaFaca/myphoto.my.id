@@ -10,6 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import { useAuth } from '@/lib/auth-context';
+import { removeBackground } from '@/lib/remove-bg';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 
@@ -85,52 +86,40 @@ export default function ImageEditorScreen() {
     Alert.alert('Uskoro', 'Filteri za boje su u izradi i biće dostupni u sledećoj verziji aplikacije.');
   }, [originalUri]);
 
+  // Surfaced underneath the "Ukloni pozadinu" button while the local
+  // ONNX pipeline runs (model download + inference). Empty string
+  // means "no extra status to show".
+  const [bgStatus, setBgStatus] = useState<string>('');
+
   const handleRemoveBg = useCallback(async () => {
+    if (!currentUri) {
+      Alert.alert('Greska', 'Slika nije učitana.');
+      return;
+    }
     setRemovingBg(true);
+    setBgStatus('');
     try {
-      const token = await getToken();
-      if (!token) {
-        Alert.alert('Greska', 'Morate biti prijavljeni.');
-        return;
-      }
-
-      // Call server-side remove-bg API. The endpoint currently returns 501
-      // with a structured "u izradi" message — we surface that to the user
-      // as an informative "Uskoro" alert rather than a generic error.
-      const res = await fetch(`${API_URL}/api/files/${id}/remove-bg`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+      // Run the model on-device — no server round-trip, works offline
+      // after the first download. The local pipeline handles content://
+      // URIs too because expo-image-manipulator resizes it to a JPEG
+      // cache file before we touch pixels.
+      const outUri = await removeBackground(currentUri, (msg, pct) => {
+        setBgStatus(typeof pct === 'number' ? `${msg} ${pct}%` : msg);
       });
-
-      const data = await res.json().catch(() => ({} as Record<string, unknown>));
-
-      if (res.ok) {
-        if (typeof data?.resultUrl === 'string') {
-          setCurrentUri(data.resultUrl);
-          Alert.alert('Uspeh', 'Pozadina je uklonjena!');
-        } else {
-          Alert.alert('Info', 'Uklanjanje pozadine je u toku. Proverite ponovo za minut.');
-        }
-      } else if (res.status === 501) {
-        Alert.alert('Uskoro', (data?.message as string) || 'Uklanjanje pozadine je u izradi.');
-      } else if (res.status === 404) {
-        // Device-only photo — has no cloud record for the server to
-        // process. Tell the user to wait for auto-backup instead of
-        // surfacing a generic error that suggests retrying will help.
-        Alert.alert(
-          'Backup potreban',
-          'Slika još nije sačuvana u cloud-u. Sačekaj da se backup završi pa pokušaj ponovo (vidi sync trake na MyPhoto tabu).'
-        );
-      } else {
-        Alert.alert('Greska', 'Uklanjanje pozadine nije uspelo. Pokusajte ponovo.');
-      }
+      setCurrentUri(outUri);
+      Alert.alert('Uspeh', 'Pozadina je uklonjena! Sačuvaj sliku da je zadržiš.');
     } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Nepoznata greška';
       console.log('Remove bg error:', e);
-      Alert.alert('Greska', 'Nije moguce ukloniti pozadinu.');
+      Alert.alert(
+        'Greška',
+        `Uklanjanje pozadine nije uspelo.\n\n${msg}\n\nProveri internet (prvi put se skida AI model, ~22 MB).`
+      );
     } finally {
       setRemovingBg(false);
+      setBgStatus('');
     }
-  }, [id, getToken]);
+  }, [currentUri]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -187,7 +176,7 @@ export default function ImageEditorScreen() {
               {imageLoading
                 ? 'Učitavam sliku...'
                 : removingBg
-                  ? 'Uklanjam pozadinu...'
+                  ? (bgStatus || 'Uklanjam pozadinu...')
                   : 'Primenjujem filter...'}
             </Text>
           </View>
