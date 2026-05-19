@@ -15,7 +15,7 @@
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:878912856774:android:f2f5e547834b44bb856dc7",
         "EXPO_PUBLIC_API_URL": "https://myphotomy.space",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878912856774-3l92pfqtqv3hv0u19dkmddofmb49i93i.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-6jvadru9ovjubeohp8gamdiirt4evon9.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-3uocsshtugv0bpteubt50a8iiv2d70it.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -32,7 +32,7 @@
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:878912856774:android:f2f5e547834b44bb856dc7",
         "EXPO_PUBLIC_API_URL": "https://myphotomy.space",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878912856774-3l92pfqtqv3hv0u19dkmddofmb49i93i.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-6jvadru9ovjubeohp8gamdiirt4evon9.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-3uocsshtugv0bpteubt50a8iiv2d70it.apps.googleusercontent.com"
       },
       "node": "20.19.0"
     },
@@ -49,7 +49,7 @@
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:878912856774:android:f2f5e547834b44bb856dc7",
         "EXPO_PUBLIC_API_URL": "https://myphotomy.space",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878912856774-3l92pfqtqv3hv0u19dkmddofmb49i93i.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-6jvadru9ovjubeohp8gamdiirt4evon9.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "878912856774-3uocsshtugv0bpteubt50a8iiv2d70it.apps.googleusercontent.com"
       }
     }
   },
