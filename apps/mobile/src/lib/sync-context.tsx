@@ -105,7 +105,11 @@ interface SyncContextType {
 }
 
 const defaultSettings: SyncSettings = {
-  syncMode: 'wifi_only',
+  // Default to WiFi + Mobile so a fresh install actually uploads on
+  // the first session — testers on mobile data were seeing nothing
+  // happen because the previous "wifi_only" default silently bailed
+  // out of startSync before the syncing UI flipped on.
+  syncMode: 'wifi_and_mobile',
   autoBackup: true,
   allowRoaming: false,
   uploadQuality: 'original',

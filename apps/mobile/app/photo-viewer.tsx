@@ -56,28 +56,33 @@ export default function PhotoViewerScreen() {
     // Local-only photos already have their URI in mediaUrl, no fetch
     // needed. Calling /api/files/{deviceId}/download-url would 404 and
     // surface a confusing "Nije moguće učitati fajl" toast.
-    //
-    // Android MediaLibrary returns content:// URIs that expo-av's Video
-    // can't play; resolve them to file:// via getAssetInfoAsync so the
-    // native player gets something it understands.
     if (isLocalOnly) {
-      let cancelled = false;
-      (async () => {
-        let resolved = localUri || null;
-        if (isVideo && resolved && resolved.startsWith('content://') && id) {
+      // Fast path: render whatever URI we got from the gallery
+      // immediately so the user sees the photo while we (maybe)
+      // upgrade content:// to file:// in the background. Without
+      // this, a slow getAssetInfoAsync call left the user staring
+      // at a spinner even though we already had a perfectly good
+      // URI to show.
+      setMediaUrl(localUri || null);
+      setMediaLoading(false);
+
+      // For Android content:// URIs we *also* try to resolve a
+      // file:// path because expo-av's Video can't play content://
+      // schemes. The fast-path render above remains in place for
+      // images (which expo-image handles fine).
+      if (localUri && localUri.startsWith('content://')) {
+        let cancelled = false;
+        (async () => {
           try {
             const info = await MediaLibrary.getAssetInfoAsync(id);
-            if (info?.localUri) resolved = info.localUri;
+            if (!cancelled && info?.localUri) setMediaUrl(info.localUri);
           } catch (e) {
             console.warn('Failed to resolve content URI:', e);
           }
-        }
-        if (!cancelled) {
-          setMediaUrl(resolved);
-          setMediaLoading(false);
-        }
-      })();
-      return () => { cancelled = true; };
+        })();
+        return () => { cancelled = true; };
+      }
+      return;
     }
     let cancelled = false;
     (async () => {

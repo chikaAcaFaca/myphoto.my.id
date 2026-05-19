@@ -31,7 +31,7 @@ interface LocalPhoto {
 export default function MyPhotoScreen() {
   const { colors: tc } = useTheme();
   const { getToken } = useAuth();
-  const { isSyncing, syncProgress, pendingCount } = useSync();
+  const { isSyncing, syncProgress, pendingCount, startSync, settings } = useSync();
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -199,9 +199,26 @@ export default function MyPhotoScreen() {
             <Ionicons name="cloud" size={22} color="#fff" />
             <Text style={styles.headerTitle}>MyPhoto</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
-            <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
-          </TouchableOpacity>
+          {/* Manual "Sync now" button — gives the user explicit
+              control when auto-backup hasn't kicked in yet (typically
+              the first session after install before the device
+              settles into the foreground autoBackup useEffect). */}
+          <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => startSync().catch((e) => console.warn('Manual sync error:', e))}
+              disabled={isSyncing}
+              style={{ opacity: isSyncing ? 0.5 : 1 }}
+            >
+              <Ionicons
+                name={isSyncing ? 'cloud-upload' : 'refresh'}
+                size={22}
+                color="rgba(255,255,255,0.9)"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
+              <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
