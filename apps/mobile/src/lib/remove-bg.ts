@@ -22,7 +22,31 @@
  * - jpeg-js is pure JS; we resize to MODEL_SIZE first so it never has
  *   to decode multi-megapixel images.
  */
-import { InferenceSession, Tensor } from 'onnxruntime-react-native';
+// Lazy native-module loading. If onnxruntime-react-native's native side
+// is missing (autolinking bug, missing ABI lib, version mismatch), the
+// top-level static import would throw immediately when the JS bundle
+// resolves this file. expo-router pulls in every route on startup, so
+// that turns into a splash-screen crash with no way to see the error.
+// Resolving the native module only at remove-bg call time isolates the
+// failure to the action that needs it, and we can show the user a real
+// error message instead.
+import type { InferenceSession, Tensor } from 'onnxruntime-react-native';
+type OrtModule = typeof import('onnxruntime-react-native');
+let _ort: OrtModule | null = null;
+let _ortError: Error | null = null;
+function loadOrt(): OrtModule {
+  if (_ort) return _ort;
+  if (_ortError) throw _ortError;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _ort = require('onnxruntime-react-native') as OrtModule;
+    return _ort;
+  } catch (e) {
+    _ortError = e instanceof Error ? e : new Error(String(e));
+    throw _ortError;
+  }
+}
+
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 // @ts-ignore — jpeg-js ships without types but is pure JS and works in RN.
@@ -85,7 +109,7 @@ async function loadSession(onProgress?: RemoveBgProgress): Promise<InferenceSess
   sessionPromise = (async () => {
     const path = await ensureModelDownloaded(onProgress);
     onProgress?.('Učitavam AI model...');
-    return InferenceSession.create(path);
+    return loadOrt().InferenceSession.create(path);
   })();
   // If load fails, drop the cached promise so the next call retries
   // cleanly instead of always returning the rejected one.
@@ -137,7 +161,7 @@ function buildInputTensor(rgba: Uint8Array, width: number, height: number): Tens
     out[size + i] = (g - MEAN[1]) / STD[1];
     out[2 * size + i] = (b - MEAN[2]) / STD[2];
   }
-  return new Tensor('float32', out, [1, 3, height, width]);
+  return new (loadOrt().Tensor)('float32', out, [1, 3, height, width]);
 }
 
 function applyMaskToRgba(rgba: Uint8Array, mask: Float32Array, pixelCount: number): Uint8Array {
