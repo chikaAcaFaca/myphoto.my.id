@@ -10,7 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import { useAuth } from '@/lib/auth-context';
-import { removeBackground } from '@/lib/remove-bg';
+import { removeBackground, RemoveBgNotImplemented } from '@/lib/remove-bg';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 
@@ -109,12 +109,13 @@ export default function ImageEditorScreen() {
       setCurrentUri(outUri);
       Alert.alert('Uspeh', 'Pozadina je uklonjena! Sačuvaj sliku da je zadržiš.');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Nepoznata greška';
-      console.log('Remove bg error:', e);
-      Alert.alert(
-        'Greška',
-        `Uklanjanje pozadine nije uspelo.\n\n${msg}\n\nProveri internet (prvi put se skida AI model, ~22 MB).`
-      );
+      if (e instanceof RemoveBgNotImplemented) {
+        Alert.alert('Uskoro', 'Uklanjanje pozadine je u izradi — vraćamo ga u sledećoj verziji.');
+      } else {
+        const msg = e instanceof Error ? e.message : 'Nepoznata greška';
+        console.log('Remove bg error:', e);
+        Alert.alert('Greška', `Uklanjanje pozadine nije uspelo.\n\n${msg}`);
+      }
     } finally {
       setRemovingBg(false);
       setBgStatus('');
