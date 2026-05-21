@@ -4,7 +4,7 @@
  * Scans user-selected device folders and syncs all files to MySpace,
  * preserving folder structure. Uses SAF (Storage Access Framework) on Android.
  */
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const FOLDER_SYNC_STATE_KEY = '@myphoto/folder_sync_state';

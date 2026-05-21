@@ -8,7 +8,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useAuth } from '@/lib/auth-context';
 import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { colors, radius, fonts } from '@/lib/theme';
