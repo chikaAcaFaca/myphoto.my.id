@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import Svg, { Defs, ClipPath, Circle, Rect, Path, Image as SvgImage } from 'react-native-svg';
-import { useAuth } from '@/lib/auth-context';
+import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 
@@ -37,7 +37,6 @@ const HEART_PATH = 'M50,90 C25,65 0,50 0,30 C0,13 13,0 30,0 C40,0 48,5 50,15 C52
 export default function StickerMakerScreen() {
   const { colors: tc } = useTheme();
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
-  const { getToken } = useAuth();
 
   const [imageUri, setImageUri] = useState<string | null>(
     id ? `${API_URL}/api/thumbnail/${id}?size=large` : null
@@ -63,29 +62,34 @@ export default function StickerMakerScreen() {
   }, []);
 
   const handleRemoveBg = useCallback(async () => {
-    if (!imageUri || !id) return;
+    if (!imageUri) return;
     setRemovingBg(true);
     try {
-      const token = await getToken();
-      const res = await fetch(`${API_URL}/api/files/${id}/remove-bg`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.resultUrl) {
-          setImageUri(data.resultUrl);
-          setBgRemoved(true);
-        }
-      } else {
-        Alert.alert('Info', 'Uklanjanje pozadine nije dostupno za ovu sliku.');
+      // On-device segmentation needs a local file. Server thumbnails and any
+      // other remote URIs are downloaded to cache first; picked images are
+      // already local.
+      let localUri = imageUri;
+      if (imageUri.startsWith('http')) {
+        const dl = await FileSystem.downloadAsync(
+          imageUri,
+          `${FileSystem.cacheDirectory}sticker_src_${id || Date.now()}.jpg`
+        );
+        localUri = dl.uri;
       }
+
+      const resultUri = await removeBackground(localUri);
+      setImageUri(resultUri);
+      setBgRemoved(true);
     } catch (e) {
-      Alert.alert('Greska', 'Uklanjanje pozadine nije uspelo.');
+      if (e instanceof NoSubjectError) {
+        Alert.alert('Nema subjekta', 'Nije pronađen jasan subjekt na slici. Pokušaj sa drugom slikom.');
+      } else {
+        Alert.alert('Greska', 'Uklanjanje pozadine nije uspelo.');
+      }
     } finally {
       setRemovingBg(false);
     }
-  }, [imageUri, id, getToken]);
+  }, [imageUri, id]);
 
   const handleSave = useCallback(async () => {
     if (!imageUri && shape !== 'text') return;
@@ -213,7 +217,7 @@ export default function StickerMakerScreen() {
         {/* Tools */}
         <View style={[styles.toolsCard, { backgroundColor: tc.bgCard }]}>
           {/* Remove BG */}
-          {imageUri && id && !bgRemoved && shape !== 'text' && (
+          {imageUri && !bgRemoved && shape !== 'text' && (
             <TouchableOpacity style={[styles.removeBgBtn, { backgroundColor: '#ec4899' }]} onPress={handleRemoveBg} disabled={removingBg}>
               {removingBg ? <ActivityIndicator size="small" color="#fff" /> : (
                 <Ionicons name="cut-outline" size={16} color="#fff" />

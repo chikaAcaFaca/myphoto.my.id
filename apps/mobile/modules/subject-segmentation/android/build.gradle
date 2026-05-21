@@ -1,0 +1,21 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'id.my.myphoto.subjectsegmentation'
+version = '0.1.0'
+
+android {
+  namespace "id.my.myphoto.subjectsegmentation"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  // ML Kit Subject Segmentation (Google Play Services variant — the model is
+  // downloaded on demand by Play Services, keeping the APK small).
+  implementation 'com.google.android.gms:play-services-mlkit-subject-segmentation:16.0.0-beta1'
+}

@@ -1,36 +1,29 @@
-/**
- * Background removal — currently a stub.
- *
- * The full on-device ONNX implementation (briaai/RMBG-1.4) lives in
- * remove-bg.onnx-impl.ts.bak. It was shelved because
- * onnxruntime-react-native crashed at app startup on SDK 54 / RN 0.81
- * (native System.loadLibrary("onnxruntimejsi") path) and added ~113 MB
- * to the APK. We removed the dependency to keep the app lean and
- * stable while we pick a different approach (server-side rembg or
- * ML Kit segmentation) — see the chat backlog.
- *
- * Until then removeBackground throws a typed NotImplemented error so
- * the editor can show a friendly "u izradi" message instead of a
- * cryptic failure.
- */
+import { requireNativeModule } from 'expo-modules-core';
 
-export type RemoveBgProgress = (msg: string, pct?: number) => void;
+type SubjectSegmentationNativeModule = {
+  // Returns a file:// URI to a PNG of the subject on a transparent background.
+  removeBackground(uri: string): Promise<string>;
+};
 
-export class RemoveBgNotImplemented extends Error {
+const SubjectSegmentation = requireNativeModule<SubjectSegmentationNativeModule>(
+  'SubjectSegmentation'
+);
+
+export class NoSubjectError extends Error {
   constructor() {
-    super('Uklanjanje pozadine je privremeno isključeno.');
-    this.name = 'RemoveBgNotImplemented';
+    super('No subject detected');
+    this.name = 'NoSubjectError';
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function removeBackground(
-  _imageUri: string,
-  _onProgress?: RemoveBgProgress
-): Promise<string> {
-  throw new RemoveBgNotImplemented();
-}
-
-export async function resetRemoveBgCache(): Promise<void> {
-  // No-op while stubbed.
+// Runs ML Kit Subject Segmentation on-device and returns a local file:// URI
+// pointing at a PNG with the background removed (transparent). Throws
+// NoSubjectError when the model finds no clear subject.
+export async function removeBackground(localUri: string): Promise<string> {
+  try {
+    return await SubjectSegmentation.removeBackground(localUri);
+  } catch (e: any) {
+    if (e?.code === 'NO_SUBJECT') throw new NoSubjectError();
+    throw e;
+  }
 }
