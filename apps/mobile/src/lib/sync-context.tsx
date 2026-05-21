@@ -92,6 +92,10 @@ interface SyncContextType {
   retryFailed: () => Promise<void>;
   updateSettings: (settings: Partial<SyncSettings>) => Promise<void>;
   getQueuedPhotos: () => Promise<MediaLibrary.Asset[]>;
+  // On-demand backup of a single device asset (used by the cloud gate so
+  // tools can protect the original before processing it). Resolves true
+  // once the photo is safely in the cloud.
+  uploadSingleAsset: (assetId: string) => Promise<boolean>;
   refreshDeviceAlbums: () => Promise<void>;
   // Folder sync (MySpace)
   folderSyncSettings: FolderSyncSettings;
@@ -884,6 +888,39 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     await startSync();
   }, [isSyncing, user, syncState, startSync]);
 
+  // Back up one specific device photo right now, on demand. Reuses the
+  // same dual-upload path as auto-backup, then records the asset as
+  // uploaded so the gallery badge and future gate checks reflect it.
+  const uploadSingleAsset = useCallback(async (assetId: string): Promise<boolean> => {
+    if (!user) return false;
+    // Already uploaded — nothing to do.
+    if (syncState.uploadedAssets.includes(assetId)) return true;
+    try {
+      const info = await MediaLibrary.getAssetInfoAsync(assetId);
+      if (!info) return false;
+      const ok = await uploadAsset(info as unknown as MediaLibrary.Asset);
+      if (ok) {
+        setSyncState(prev => {
+          if (prev.uploadedAssets.includes(assetId)) return prev;
+          const next: SyncState = {
+            ...prev,
+            uploadedAssets: [...prev.uploadedAssets, assetId],
+            lastSyncTime: Date.now(),
+          };
+          saveSyncState(next);
+          return next;
+        });
+        const token = await getToken();
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+        if (token && apiUrl) await tryClaimBackupBonus(token, apiUrl);
+      }
+      return ok;
+    } catch (error) {
+      console.error('uploadSingleAsset error:', error);
+      return false;
+    }
+  }, [user, syncState.uploadedAssets, getToken]);
+
   const updateSettings = useCallback(async (newSettings: Partial<SyncSettings>) => {
     const updated = { ...settings, ...newSettings };
     setSettings(updated);
@@ -1036,6 +1073,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         retryFailed,
         updateSettings,
         getQueuedPhotos,
+        uploadSingleAsset,
         refreshDeviceAlbums,
         // Folder sync
         folderSyncSettings,

@@ -11,6 +11,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import Svg, { Defs, ClipPath, Circle, Rect, Path, Image as SvgImage } from 'react-native-svg';
 import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
+import { useCloudGate } from '@/lib/cloud-gate';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 
@@ -37,6 +38,7 @@ const HEART_PATH = 'M50,90 C25,65 0,50 0,30 C0,13 13,0 30,0 C40,0 48,5 50,15 C52
 export default function StickerMakerScreen() {
   const { colors: tc } = useTheme();
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
+  const { ensureOnCloud } = useCloudGate();
 
   const [imageUri, setImageUri] = useState<string | null>(
     id ? `${API_URL}/api/thumbnail/${id}?size=large` : null
@@ -63,6 +65,14 @@ export default function StickerMakerScreen() {
 
   const handleRemoveBg = useCallback(async () => {
     if (!imageUri) return;
+
+    // Cloud gate. A server thumbnail (id-based) is already in the cloud; a
+    // freshly picked image has no cloud identity, so it passes through. The
+    // gate becomes meaningful here once stickers can target device-only
+    // gallery photos.
+    const ready = await ensureOnCloud({ isUploaded: imageUri.startsWith('http') });
+    if (!ready) return;
+
     setRemovingBg(true);
     try {
       // On-device segmentation needs a local file. Server thumbnails and any
@@ -89,7 +99,7 @@ export default function StickerMakerScreen() {
     } finally {
       setRemovingBg(false);
     }
-  }, [imageUri, id]);
+  }, [imageUri, id, ensureOnCloud]);
 
   const handleSave = useCallback(async () => {
     if (!imageUri && shape !== 'text') return;

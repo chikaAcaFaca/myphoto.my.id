@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { SyncProvider } from '@/lib/sync-context';
+import { CloudGateProvider } from '@/lib/cloud-gate';
 import { ThemeProvider } from '@/lib/theme-context';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -95,7 +96,9 @@ function RootNavigator() {
 
   return (
     <SyncProvider>
-      <Slot />
+      <CloudGateProvider>
+        <Slot />
+      </CloudGateProvider>
     </SyncProvider>
   );
 }

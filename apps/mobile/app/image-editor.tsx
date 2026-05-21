@@ -10,6 +10,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useAuth } from '@/lib/auth-context';
+import { useCloudGate } from '@/lib/cloud-gate';
 import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
@@ -35,8 +36,11 @@ const FILTERS: { key: FilterType; label: string; icon: string; comingSoon?: bool
 
 export default function ImageEditorScreen() {
   const { colors: tc } = useTheme();
-  const { id, name, uri: sourceUri } = useLocalSearchParams<{ id: string; name: string; uri?: string }>();
+  const { id, name, uri: sourceUri, isUploaded } = useLocalSearchParams<{
+    id: string; name: string; uri?: string; isUploaded?: string;
+  }>();
   const { getToken } = useAuth();
+  const { ensureOnCloud } = useCloudGate();
   // Image is loaded via a presigned S3 URL fetched on mount — the
   // /api/stream/[id] endpoint authenticates via session cookie which
   // mobile (Bearer-token-only) can't satisfy, so dropping it directly
@@ -88,6 +92,14 @@ export default function ImageEditorScreen() {
 
   const handleRemoveBg = useCallback(async () => {
     if (!currentUri) return;
+
+    // Cloud gate: we only process photos that are protected in the cloud. A
+    // photo opened by cloud id resolves to an http URL (already backed up);
+    // a device-only photo carries isUploaded='0' and gets backed up first.
+    const isOnCloud = isUploaded === '1' || currentUri.startsWith('http');
+    const ready = await ensureOnCloud({ assetId: id, isUploaded: isOnCloud });
+    if (!ready) return;
+
     setRemovingBg(true);
     try {
       // On-device segmentation needs a local file. Remote (presigned S3)
@@ -114,7 +126,7 @@ export default function ImageEditorScreen() {
     } finally {
       setRemovingBg(false);
     }
-  }, [currentUri, id]);
+  }, [currentUri, id, isUploaded, ensureOnCloud]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
