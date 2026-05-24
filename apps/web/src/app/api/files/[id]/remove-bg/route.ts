@@ -11,12 +11,13 @@ export const dynamic = 'force-dynamic';
 // inference) and is intentionally not bundled here.
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await verifyAuthWithRateLimit(request, 'api');
   if (!auth.success) return auth.response;
 
-  const doc = await db.collection('files').doc(params.id).get();
+  const { id } = await params;
+  const doc = await db.collection('files').doc(id).get();
   if (!doc.exists) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }

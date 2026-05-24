@@ -12,12 +12,13 @@ export const dynamic = 'force-dynamic';
 // screen can route its "delete forever" button to a stable URL.
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await verifyAuthWithRateLimit(request, 'api');
   if (!auth.success) return auth.response;
 
-  const ref = db.collection('files').doc(params.id);
+  const { id } = await params;
+  const ref = db.collection('files').doc(id);
   const doc = await ref.get();
   if (!doc.exists) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
@@ -45,5 +46,5 @@ export async function POST(
     });
   }
 
-  return NextResponse.json({ success: true, id: params.id, freed: sizeFreed });
+  return NextResponse.json({ success: true, id, freed: sizeFreed });
 }

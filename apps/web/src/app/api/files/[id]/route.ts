@@ -11,12 +11,13 @@ export const dynamic = 'force-dynamic';
 // second round-trip.
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await verifyAuthWithRateLimit(request, 'api');
   if (!auth.success) return auth.response;
 
-  const fileDoc = await db.collection('files').doc(params.id).get();
+  const { id } = await params;
+  const fileDoc = await db.collection('files').doc(id).get();
   if (!fileDoc.exists) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
@@ -57,7 +58,7 @@ const WRITABLE_FIELDS = new Set([
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await verifyAuthWithRateLimit(request, 'api');
   if (!auth.success) return auth.response;
@@ -71,7 +72,8 @@ export async function PATCH(
     return NextResponse.json({ error: 'No writable fields in body' }, { status: 400 });
   }
 
-  const fileRef = db.collection('files').doc(params.id);
+  const { id } = await params;
+  const fileRef = db.collection('files').doc(id);
   const fileDoc = await fileRef.get();
   if (!fileDoc.exists) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
@@ -90,5 +92,5 @@ export async function PATCH(
   update.updatedAt = now;
 
   await fileRef.update(update);
-  return NextResponse.json({ success: true, id: params.id });
+  return NextResponse.json({ success: true, id });
 }

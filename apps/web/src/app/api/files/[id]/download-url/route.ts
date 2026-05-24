@@ -11,12 +11,13 @@ export const dynamic = 'force-dynamic';
 // existing s3Key-based POST since the client doesn't have to know the key.
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await verifyAuthWithRateLimit(request, 'download');
   if (!auth.success) return auth.response;
 
-  const doc = await db.collection('files').doc(params.id).get();
+  const { id } = await params;
+  const doc = await db.collection('files').doc(id).get();
   if (!doc.exists) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }

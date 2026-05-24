@@ -5,15 +5,16 @@ import { Calendar, Clock, ArrowLeft } from 'lucide-react';
 import { blogPosts, getPostBySlug, getAllSlugs } from '../posts';
 
 interface Props {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export function generateStaticParams() {
   return getAllSlugs().map((slug) => ({ slug }));
 }
 
-export function generateMetadata({ params }: Props): Metadata {
-  const post = getPostBySlug(params.slug);
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
   if (!post) return { title: 'Post Not Found' };
 
   return {
@@ -181,8 +182,9 @@ function formatInline(text: string): React.ReactNode {
   return text;
 }
 
-export default function BlogPostPage({ params }: Props) {
-  const post = getPostBySlug(params.slug);
+export default async function BlogPostPage({ params }: Props) {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
   if (!post) notFound();
 
   const jsonLd = {

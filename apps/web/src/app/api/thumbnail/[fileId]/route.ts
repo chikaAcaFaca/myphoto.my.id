@@ -58,7 +58,7 @@ async function verifyAccess(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const rateLimitResult = await checkIpRateLimit(request, 'download');
@@ -66,7 +66,7 @@ export async function GET(
       return rateLimitResult.response;
     }
 
-    const { fileId } = params;
+    const { fileId } = await params;
     const url = new URL(request.url);
     const sizeParam = url.searchParams.get('size') as ThumbnailSize | null;
     const size: ThumbnailSize = sizeParam && SIZE_KEYS[sizeParam] ? sizeParam : 'medium';

@@ -66,7 +66,7 @@ async function verifyAccess(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const rateLimitResult = await checkIpRateLimit(request, 'download');
@@ -74,7 +74,7 @@ export async function GET(
       return rateLimitResult.response;
     }
 
-    const { fileId } = params;
+    const { fileId } = await params;
 
     const fileDoc = await db.collection('files').doc(fileId).get();
     if (!fileDoc.exists) {
@@ -108,7 +108,7 @@ export async function GET(
 
 export async function HEAD(
   request: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const rateLimitResult = await checkIpRateLimit(request, 'download');
@@ -116,7 +116,7 @@ export async function HEAD(
       return rateLimitResult.response;
     }
 
-    const { fileId } = params;
+    const { fileId } = await params;
     const fileDoc = await db.collection('files').doc(fileId).get();
     if (!fileDoc.exists) {
       return new NextResponse(null, { status: 404 });
