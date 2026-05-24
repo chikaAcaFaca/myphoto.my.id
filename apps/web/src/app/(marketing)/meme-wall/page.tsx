@@ -464,7 +464,8 @@ export default function MemeWallPage() {
               gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
               gap: 16,
             }}>
-              {memes.map(meme => (
+              {/* Guests get a 10-meme taster, then the registration gate below. */}
+              {(user ? memes : memes.slice(0, 10)).map(meme => (
                 <div
                   key={meme.id}
                   style={{
@@ -557,20 +558,59 @@ export default function MemeWallPage() {
               ))}
             </div>
 
-            {hasMore && (
-              <div style={{ textAlign: 'center', marginTop: 24 }}>
-                <button
-                  onClick={() => fetchMemes(page + 1)}
-                  style={{
-                    backgroundColor: '#334155', color: '#fff', border: 'none',
-                    padding: '12px 32px', borderRadius: 10, cursor: 'pointer',
-                    fontWeight: 600, fontSize: 14,
-                  }}
-                >
-                  Ucitaj vise
-                </button>
+            {user ? (
+              hasMore && (
+                <div style={{ textAlign: 'center', marginTop: 24 }}>
+                  <button
+                    onClick={() => fetchMemes(page + 1)}
+                    style={{
+                      backgroundColor: '#334155', color: '#fff', border: 'none',
+                      padding: '12px 32px', borderRadius: 10, cursor: 'pointer',
+                      fontWeight: 600, fontSize: 14,
+                    }}
+                  >
+                    Ucitaj vise
+                  </button>
+                </div>
+              )
+            ) : memes.length >= 10 ? (
+              /* Guest funnel — taster ends here, convert to register + app install. */
+              <div style={{
+                marginTop: 28,
+                background: 'linear-gradient(135deg, #f97316, #ec4899)',
+                borderRadius: 16, padding: '36px 24px', textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📱</div>
+                <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, color: '#fff' }}>
+                  Video si 10 najboljih!
+                </h3>
+                <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, marginBottom: 20, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
+                  Skini MyPhoto aplikaciju da vidiš sve memove, praviš svoje, lajkuješ i pratiš autore — sve na jednom mestu.
+                </p>
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <a
+                    href="https://play.google.com/store/apps/details?id=id.my.myphoto"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      backgroundColor: '#fff', color: '#0f172a', fontWeight: 800,
+                      padding: '12px 28px', borderRadius: 10, textDecoration: 'none', fontSize: 15,
+                    }}
+                  >
+                    📱 Skini aplikaciju
+                  </a>
+                  <Link
+                    href="/register"
+                    style={{
+                      backgroundColor: 'rgba(0,0,0,0.35)', color: '#fff', fontWeight: 700,
+                      padding: '12px 28px', borderRadius: 10, textDecoration: 'none', fontSize: 15,
+                    }}
+                  >
+                    Ili otvori na webu
+                  </Link>
+                </div>
               </div>
-            )}
+            ) : null}
           </>
         )}
       </div>

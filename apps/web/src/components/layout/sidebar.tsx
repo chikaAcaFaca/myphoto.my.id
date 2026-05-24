@@ -105,7 +105,7 @@ export function Sidebar() {
           <Link href="/photos" className="flex items-center">
             {isCollapsed ? (
               <NextImage
-                src="/logo.png"
+                src="/logo-icon.png"
                 alt="MyPhoto"
                 width={56}
                 height={56}

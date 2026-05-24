@@ -38,7 +38,7 @@ export default async function MarketingLayout({
             <Link href="/pricing" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
               Cene
             </Link>
-            <Link href="/meme-wall" className="text-sm font-medium text-orange-500 hover:text-orange-600">
+            <Link href="/meme-wall/start" className="text-sm font-medium text-orange-500 hover:text-orange-600">
               🔥 MemeWall
             </Link>
             <Link href="/download" className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
@@ -89,7 +89,7 @@ export default async function MarketingLayout({
                 <li><Link href="/features/photo-sharing" className="hover:text-primary-600">Deljenje Slika</Link></li>
                 <li><Link href="/pricing" className="hover:text-primary-600">Cene</Link></li>
                 <li><Link href="/download" className="hover:text-primary-600">Download</Link></li>
-                <li><Link href="/meme-wall" className="hover:text-primary-600">MemeWall</Link></li>
+                <li><Link href="/meme-wall/start" className="hover:text-primary-600">MemeWall</Link></li>
               </ul>
             </div>
             <div>

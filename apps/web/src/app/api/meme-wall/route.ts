@@ -61,10 +61,18 @@ export async function GET(request: NextRequest) {
         }
 
         let userReaction: 'like' | 'dislike' | null = null;
+        let userFavorited = false;
+        let userReposted = false;
         if (viewerId) {
           try {
-            const reactionDoc = await doc.ref.collection('reactions').doc(viewerId).get();
+            const [reactionDoc, favDoc, repostDoc] = await Promise.all([
+              doc.ref.collection('reactions').doc(viewerId).get(),
+              doc.ref.collection('favorites').doc(viewerId).get(),
+              doc.ref.collection('reposts').doc(viewerId).get(),
+            ]);
             if (reactionDoc.exists) userReaction = reactionDoc.data()!.type;
+            userFavorited = favDoc.exists;
+            userReposted = repostDoc.exists;
           } catch {}
         }
 
@@ -80,11 +88,15 @@ export async function GET(request: NextRequest) {
           likes: data.likes || 0,
           dislikes: data.dislikes || 0,
           shares: data.shares || 0,
+          favorites: data.favorites || 0,
+          reposts: data.reposts || 0,
           views: data.views || 0,
           commentCount: data.commentCount || 0,
           template: data.template || 'classic',
           createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
           userReaction,
+          userFavorited,
+          userReposted,
         };
       })
     );
