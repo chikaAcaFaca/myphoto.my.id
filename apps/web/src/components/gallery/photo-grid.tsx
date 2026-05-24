@@ -330,7 +330,13 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
   const localThumbUrl = localThumbnails.get(file.id);
-  const thumbnailUrl = `/api/thumbnail/${file.id}?size=small${retryCount > 0 ? `&r=${retryCount}` : ''}`;
+  // Prefer the presigned URL the file list already returns (served straight
+  // from S3/Wasabi — no Vercel function call per thumbnail). Only fall back to
+  // the /api/thumbnail function on retry, e.g. if a presigned URL expired.
+  const presignedThumb = (file as any).smallThumbUrl || (file as any).thumbnailUrl;
+  const thumbnailUrl = presignedThumb && retryCount === 0
+    ? presignedThumb
+    : `/api/thumbnail/${file.id}?size=small${retryCount > 0 ? `&r=${retryCount}` : ''}`;
   const isVideo = file.type === 'video';
 
   // Retry loading thumbnail after a delay (server may still be generating it)

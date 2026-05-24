@@ -494,7 +494,9 @@ function ZoomableImage({ file, onZoomChange }: { file: FileMetadata; onZoomChang
     isPanningRef.current = false;
   }, [scale]);
 
-  const thumbnailUrl = `/api/thumbnail/${file.id}?size=medium`;
+  // Use the presigned medium URL from the file list when present (direct S3, no
+  // Vercel function call); the function route is only the fallback.
+  const thumbnailUrl = (file as any).thumbnailUrl || `/api/thumbnail/${file.id}?size=medium`;
   const fullResUrl = `/api/thumbnail/${file.id}?size=large`;
 
   const isZoomed = scale > 1;
