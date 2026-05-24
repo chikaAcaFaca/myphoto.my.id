@@ -10,11 +10,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
+import { captureRef } from 'react-native-view-shot';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { checkMemeLimit, getMemeUsageStats } from '@/lib/meme-limits';
 import { moderateCaption } from '@/lib/ai-captions';
+import { saveToMySpace } from '@/lib/myspace-upload';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -54,6 +56,7 @@ export default function MemeCreatorScreen() {
   const [template, setTemplate] = useState(MEME_TEMPLATES[0]);
   const [fontSize, setFontSize] = useState(FONT_SIZES[1]);
   const [saving, setSaving] = useState(false);
+  const [savingSpace, setSavingSpace] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [memeStats, setMemeStats] = useState<{ daily: number; maxDaily: number; monthly: number; maxMonthly: number } | null>(null);
@@ -61,6 +64,24 @@ export default function MemeCreatorScreen() {
   const [imageOffsetX, setImageOffsetX] = useState(0);
   const [imageOffsetY, setImageOffsetY] = useState(0);
   const videoRef = useRef<Video>(null);
+  // The meme preview frame (image + text + watermark). We snapshot this with
+  // react-native-view-shot so the published/saved image has the text baked in
+  // — matching the web canvas pipeline, and producing a file:// URI that
+  // always uploads (device content:// URIs otherwise get skipped).
+  const memeFrameRef = useRef<View>(null);
+
+  // Capture the meme preview into a flat JPG file. Image memes only — for
+  // video/gif we keep the original media (a snapshot would freeze the frame).
+  const captureMeme = useCallback(async (): Promise<string | null> => {
+    if (mediaType !== 'image' || !memeFrameRef.current) return null;
+    try {
+      const uri = await captureRef(memeFrameRef, { format: 'jpg', quality: 0.92, result: 'tmpfile' });
+      return uri.startsWith('file') || uri.startsWith('/') ? (uri.startsWith('/') ? `file://${uri}` : uri) : uri;
+    } catch (e) {
+      console.warn('Meme capture failed:', e);
+      return null;
+    }
+  }, [mediaType]);
 
   // Load meme usage stats
   useEffect(() => {
@@ -155,7 +176,12 @@ export default function MemeCreatorScreen() {
       }
 
       let saveUri = mediaUri;
-      if (mediaUri.startsWith('http')) {
+      // Image memes: save the baked snapshot (text + watermark) so the file in
+      // the gallery is the actual meme, not the bare source photo.
+      const baked = await captureMeme();
+      if (baked) {
+        saveUri = baked;
+      } else if (mediaUri.startsWith('http')) {
         const token = await getToken();
         const urlRes = await fetch(`${API_URL}/api/files/${id}/download-url`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -174,7 +200,35 @@ export default function MemeCreatorScreen() {
     } finally {
       setSaving(false);
     }
-  }, [mediaUri, mediaType, id, getToken]);
+  }, [mediaUri, mediaType, id, getToken, captureMeme]);
+
+  // Save the meme into the user's MySpace cloud (personal space). Image memes
+  // save the baked snapshot (text + watermark); video keeps the source.
+  const handleSaveToSpace = useCallback(async () => {
+    if (!mediaUri) return;
+    setSavingSpace(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('Prijava', 'Prijavi se da bi sačuvao u svoj prostor.');
+        return;
+      }
+      const isVideo = mediaType === 'video';
+      const uploadUri = (await captureMeme()) || mediaUri;
+      const ok = await saveToMySpace({
+        uri: uploadUri,
+        filename: `meme-${Date.now()}.${isVideo ? 'mp4' : 'jpg'}`,
+        mimeType: isVideo ? 'video/mp4' : 'image/jpeg',
+        token,
+      });
+      Alert.alert(
+        ok ? 'Sačuvano' : 'Greška',
+        ok ? 'Meme je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo.',
+      );
+    } finally {
+      setSavingSpace(false);
+    }
+  }, [mediaUri, mediaType, getToken, captureMeme]);
 
   const handlePublish = useCallback(async () => {
     if (!mediaUri) return;
@@ -241,8 +295,14 @@ export default function MemeCreatorScreen() {
         //     silently no-ops and the published meme has no image.
         if (responseData.uploadUrl && mediaUri) {
           try {
-            let uploadSource = mediaUri;
-            let tmpPathToCleanup: string | null = null;
+            // For image memes, bake the text into a JPG snapshot first — this
+            // matches the web canvas output AND yields a file:// URI that
+            // uploads reliably (device content:// URIs were being skipped,
+            // leaving published memes with no image).
+            const baked = await captureMeme();
+
+            let uploadSource = baked || mediaUri;
+            let tmpPathToCleanup: string | null = baked;
 
             if (uploadSource.startsWith('content://')) {
               if (id) {
@@ -298,7 +358,7 @@ export default function MemeCreatorScreen() {
     } finally {
       setPublishing(false);
     }
-  }, [mediaUri, topText, bottomText, template, fontSize, mediaType, id, appUser?.storageLimit, getToken]);
+  }, [mediaUri, topText, bottomText, template, fontSize, mediaType, id, appUser?.storageLimit, getToken, captureMeme]);
 
   return (
     <KeyboardAvoidingView
@@ -315,6 +375,11 @@ export default function MemeCreatorScreen() {
           <View style={{ flexDirection: 'row', gap: 4 }}>
             <TouchableOpacity onPress={handleShare} style={styles.topBtn}>
               <Ionicons name="share-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleSaveToSpace} style={styles.topBtn} disabled={savingSpace}>
+              {savingSpace ? <ActivityIndicator size="small" color="#fff" /> : (
+                <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+              )}
             </TouchableOpacity>
             <TouchableOpacity onPress={handleSave} style={styles.topBtn} disabled={saving}>
               {saving ? <ActivityIndicator size="small" color="#fff" /> : (
@@ -360,7 +425,7 @@ export default function MemeCreatorScreen() {
           {/* Media preview with text overlay */}
           <View style={styles.previewContainer}>
             {mediaUri ? (
-              <View style={styles.memeFrame}>
+              <View ref={memeFrameRef} collapsable={false} style={styles.memeFrame}>
                 {mediaType === 'video' ? (
                   <TouchableOpacity activeOpacity={0.9} onPress={() => setIsPlaying(!isPlaying)}>
                     <Video
@@ -555,6 +620,22 @@ export default function MemeCreatorScreen() {
               >
                 <Ionicons name="share-social" size={18} color="#fff" />
                 <Text style={styles.publishText}>Podeli na mrežama</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Save the meme into the user's personal MySpace cloud */}
+            {mediaUri && (
+              <TouchableOpacity
+                style={[styles.publishBtn, { backgroundColor: tc.primary, marginTop: 8 }]}
+                onPress={handleSaveToSpace}
+                disabled={savingSpace}
+              >
+                {savingSpace ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+                )}
+                <Text style={styles.publishText}>Sačuvaj u moj prostor</Text>
               </TouchableOpacity>
             )}
 

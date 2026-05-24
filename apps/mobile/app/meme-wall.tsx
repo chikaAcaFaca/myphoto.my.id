@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  RefreshControl, Image, Dimensions, Share, Alert, ViewToken,
+  RefreshControl, Dimensions, Share, ViewToken,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image } from 'expo-image';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { MemeComments } from '@/components/MemeComments';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -22,245 +24,241 @@ interface MemePost {
   caption: string;
   authorId: string;
   authorName: string;
-  authorAvatar: string;
   likes: number;
   shares: number;
-  createdAt: string;
-  liked: boolean;
+  favorites: number;
+  reposts: number;
+  commentCount: number;
+  userReaction: 'like' | 'dislike' | null;
+  userFavorited: boolean;
+  userReposted: boolean;
+}
+
+// One vertical action on the TikTok-style right rail.
+function RailButton({ icon, color, count, label, onPress }: {
+  icon: string; color: string; count?: number; label?: string; onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.railBtn} onPress={onPress} activeOpacity={0.7}>
+      <Ionicons name={icon as any} size={32} color={color} />
+      {count !== undefined && <Text style={styles.railCount}>{count}</Text>}
+      {label && <Text style={styles.railCount}>{label}</Text>}
+    </TouchableOpacity>
+  );
 }
 
 export default function MemeWallScreen() {
   const { colors: tc } = useTheme();
+  const insets = useSafeAreaInsets();
   const { user, getToken } = useAuth();
   const [memes, setMemes] = useState<MemePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [visibleId, setVisibleId] = useState<string | null>(null);
+  const [commentMemeId, setCommentMemeId] = useState<string | null>(null);
+  const [pageH, setPageH] = useState(0);
 
-  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    const firstVideo = viewableItems.find(v => {
-      const item = v.item as MemePost;
-      return item.mediaType === 'video' && v.isViewable;
-    });
-    setVisibleId(firstVideo ? (firstVideo.item as MemePost).id : null);
-  }, []);
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const first = viewableItems.find(v => v.isViewable);
+    setVisibleId(first ? (first.item as MemePost).id : null);
+  }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
 
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
-
-  const fetchMemes = useCallback(async () => {
+  const fetchMemes = useCallback(async (pageNum: number, append = false) => {
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/api/meme-wall?pageSize=30`, {
+      const res = await fetch(`${API_URL}/api/meme-wall?page=${pageNum}&pageSize=20`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
         const data = await res.json();
-        setMemes(data.memes || data.items || []);
+        const list: MemePost[] = data.memes || data.items || [];
+        setHasMore(!!data.hasMore);
+        setMemes(prev => (append ? [...prev, ...list] : list));
       }
     } catch (e) {
       console.log('MemeWall fetch error:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   }, [getToken]);
 
-  useEffect(() => { fetchMemes(); }, [fetchMemes]);
+  useEffect(() => { fetchMemes(1); }, [fetchMemes]);
 
-  const onRefresh = () => { setRefreshing(true); fetchMemes(); };
+  const onRefresh = () => { setRefreshing(true); setPage(1); fetchMemes(1); };
 
-  const handleLike = useCallback(async (memeId: string) => {
-    setMemes(prev => prev.map(m =>
-      m.id === memeId
-        ? { ...m, liked: !m.liked, likes: m.liked ? m.likes - 1 : m.likes + 1 }
-        : m
-    ));
+  const loadMore = () => {
+    if (loadingMore || !hasMore || loading) return;
+    setLoadingMore(true);
+    const next = page + 1;
+    setPage(next);
+    fetchMemes(next, true);
+  };
+
+  // Optimistically patch one meme in state.
+  const patch = useCallback((id: string, fn: (m: MemePost) => MemePost) => {
+    setMemes(prev => prev.map(m => (m.id === id ? fn(m) : m)));
+  }, []);
+
+  const handleLike = useCallback(async (m: MemePost) => {
+    const wasLiked = m.userReaction === 'like';
+    patch(m.id, x => ({
+      ...x,
+      userReaction: wasLiked ? null : 'like',
+      likes: Math.max(0, x.likes + (wasLiked ? -1 : 1)),
+    }));
     try {
       const token = await getToken();
-      await fetch(`${API_URL}/api/meme-wall/${memeId}/like`, {
+      const res = await fetch(`${API_URL}/api/meme-wall/${m.id}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ type: 'like' }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        patch(m.id, x => ({ ...x, userReaction: d.userReaction, likes: d.likes }));
+      }
+    } catch {
+      patch(m.id, x => ({ ...x, userReaction: wasLiked ? 'like' : null, likes: m.likes }));
+    }
+  }, [getToken, patch]);
+
+  const handleFavorite = useCallback(async (m: MemePost) => {
+    const was = m.userFavorited;
+    patch(m.id, x => ({ ...x, userFavorited: !was, favorites: Math.max(0, x.favorites + (was ? -1 : 1)) }));
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/api/meme-wall/${m.id}/favorite`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-    } catch (e) {
-      // Rollback on error
-      setMemes(prev => prev.map(m =>
-        m.id === memeId
-          ? { ...m, liked: !m.liked, likes: m.liked ? m.likes - 1 : m.likes + 1 }
-          : m
-      ));
-    }
-  }, [getToken]);
-
-  const handleReport = useCallback(async (meme: MemePost) => {
-    Alert.alert(
-      'Prijavi meme',
-      'Zasto prijavljujete ovaj sadrzaj?',
-      [
-        { text: 'Odustani', style: 'cancel' },
-        { text: 'Uvredljiv sadrzaj', onPress: () => submitReport(meme.id, 'offensive') },
-        { text: 'Diskriminacija', onPress: () => submitReport(meme.id, 'discrimination') },
-        { text: 'Spam', onPress: () => submitReport(meme.id, 'spam') },
-        { text: 'Drugo', onPress: () => submitReport(meme.id, 'other') },
-      ]
-    );
-  }, []);
-
-  const submitReport = useCallback(async (memeId: string, reason: string) => {
-    try {
-      const token = await getToken();
-      await fetch(`${API_URL}/api/meme-wall/${memeId}/report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ reason }),
-      });
-      Alert.alert('Prijavljeno', 'Hvala. Pregledacemo sadrzaj u najkracem roku.');
+      if (res.ok) {
+        const d = await res.json();
+        patch(m.id, x => ({ ...x, userFavorited: d.favorited, favorites: d.favorites }));
+      }
     } catch {
-      Alert.alert('Greska', 'Prijava nije uspela. Pokusajte ponovo.');
+      patch(m.id, x => ({ ...x, userFavorited: was, favorites: m.favorites }));
     }
-  }, [getToken]);
+  }, [getToken, patch]);
 
-  const handleShare = useCallback(async (meme: MemePost) => {
-    await Share.share({
-      message: `${meme.caption}\n\nPogledaj jos mimova na MyPhoto!\nhttps://myphotomy.space/meme-wall/${meme.id}`,
-    });
-    // Track share
+  const handleRepost = useCallback(async (m: MemePost) => {
+    const was = m.userReposted;
+    patch(m.id, x => ({ ...x, userReposted: !was, reposts: Math.max(0, x.reposts + (was ? -1 : 1)) }));
     try {
       const token = await getToken();
-      await fetch(`${API_URL}/api/meme-wall/${meme.id}/share`, {
+      const res = await fetch(`${API_URL}/api/meme-wall/${m.id}/repost`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const d = await res.json();
+        patch(m.id, x => ({ ...x, userReposted: d.reposted, reposts: d.reposts }));
+      }
+    } catch {
+      patch(m.id, x => ({ ...x, userReposted: was, reposts: m.reposts }));
+    }
+  }, [getToken, patch]);
+
+  const handleShare = useCallback(async (m: MemePost) => {
+    try {
+      await Share.share({
+        message: `${m.caption}\n\nPogledaj još mimova na MyPhoto!\nhttps://myphotomy.space/meme/${m.id}`,
+      });
+      patch(m.id, x => ({ ...x, shares: x.shares + 1 }));
+      const token = await getToken();
+      await fetch(`${API_URL}/api/meme-wall/${m.id}`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
     } catch {}
-  }, [getToken]);
+  }, [getToken, patch]);
 
-  const renderMeme = ({ item }: { item: MemePost }) => (
-    <View style={[styles.memeCard, { backgroundColor: tc.bgCard }]}>
-      {/* Author row — tap opens creator profile */}
-      <TouchableOpacity
-        style={styles.authorRow}
-        onPress={() => router.push({ pathname: '/meme-profile', params: { userId: item.authorId, userName: item.authorName } })}
-      >
-        <View style={[styles.avatar, { backgroundColor: tc.primary }]}>
-          <Text style={styles.avatarText}>{(item.authorName || '?')[0].toUpperCase()}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.authorName, { color: tc.text }]}>@{item.authorName}</Text>
-          <Text style={{ fontSize: 10, color: tc.textMuted }}>
-            {new Date(item.createdAt).toLocaleDateString('sr-Latn')}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={tc.textMuted} />
-      </TouchableOpacity>
+  const openProfile = (m: MemePost) =>
+    router.push({ pathname: '/meme-profile', params: { userId: m.authorId, userName: m.authorName } });
 
-      {/* Meme media */}
+  const renderMeme = useCallback(({ item }: { item: MemePost }) => (
+    <View style={[styles.page, { height: pageH, width }]}>
       {item.mediaType === 'video' && item.videoUrl ? (
-        <View>
-          <Video
-            source={{ uri: item.videoUrl }}
-            style={styles.memeImage}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay={visibleId === item.id}
-            isLooping
-            isMuted={false}
-          />
-          <View style={styles.videoBadge}>
-            <Ionicons name="videocam" size={12} color="#fff" />
-          </View>
-        </View>
-      ) : (
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.memeImage}
-          contentFit="cover"
-          transition={200}
+        <Video
+          source={{ uri: item.videoUrl }}
+          style={StyleSheet.absoluteFill}
+          resizeMode={ResizeMode.CONTAIN}
+          shouldPlay={visibleId === item.id}
+          isLooping
+          isMuted={false}
         />
-      )}
-      {item.mediaType === 'gif' && (
-        <View style={styles.videoBadge}>
-          <Text style={{ color: '#fff', fontSize: 10, ...fonts.bold }}>GIF</Text>
-        </View>
+      ) : (
+        <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="contain" transition={150} />
       )}
 
-      {/* Caption */}
-      {item.caption ? (
-        <Text style={[styles.caption, { color: tc.text }]}>{item.caption}</Text>
-      ) : null}
-
-      {/* Actions */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => handleLike(item.id)}>
-          <Ionicons
-            name={item.liked ? 'heart' : 'heart-outline'}
-            size={22}
-            color={item.liked ? '#ef4444' : tc.textMuted}
-          />
-          <Text style={[styles.actionCount, { color: tc.textMuted }]}>{item.likes}</Text>
+      {/* Right action rail */}
+      <View style={[styles.rail, { bottom: insets.bottom + 90 }]}>
+        <TouchableOpacity style={styles.railBtn} onPress={() => openProfile(item)} activeOpacity={0.8}>
+          <View style={styles.railAvatar}>
+            <Text style={styles.railAvatarText}>{(item.authorName || '?')[0].toUpperCase()}</Text>
+          </View>
         </TouchableOpacity>
+        <RailButton
+          icon={item.userReaction === 'like' ? 'heart' : 'heart-outline'}
+          color={item.userReaction === 'like' ? '#ef4444' : '#fff'}
+          count={item.likes}
+          onPress={() => handleLike(item)}
+        />
+        <RailButton icon="chatbubble-outline" color="#fff" count={item.commentCount} onPress={() => setCommentMemeId(item.id)} />
+        <RailButton
+          icon={item.userFavorited ? 'bookmark' : 'bookmark-outline'}
+          color={item.userFavorited ? '#facc15' : '#fff'}
+          count={item.favorites}
+          onPress={() => handleFavorite(item)}
+        />
+        <RailButton
+          icon="repeat"
+          color={item.userReposted ? '#22c55e' : '#fff'}
+          count={item.reposts}
+          onPress={() => handleRepost(item)}
+        />
+        <RailButton icon="arrow-redo-outline" color="#fff" count={item.shares} onPress={() => handleShare(item)} />
+      </View>
 
-        <TouchableOpacity style={styles.actionBtn} onPress={() => handleShare(item)}>
-          <Ionicons name="share-outline" size={20} color={tc.textMuted} />
-          <Text style={[styles.actionCount, { color: tc.textMuted }]}>{item.shares}</Text>
+      {/* Bottom author + caption */}
+      <View style={[styles.bottomInfo, { bottom: insets.bottom + 24 }]}>
+        <TouchableOpacity onPress={() => openProfile(item)}>
+          <Text style={styles.authorHandle}>@{item.authorName}</Text>
         </TouchableOpacity>
-
-        <View style={{ flex: 1 }} />
-
-        <TouchableOpacity style={styles.actionBtn} onPress={() => handleReport(item)}>
-          <Ionicons name="flag-outline" size={18} color={tc.textMuted} />
-        </TouchableOpacity>
+        {item.caption ? <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text> : null}
       </View>
     </View>
-  );
+  ), [pageH, visibleId, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare]);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: '#f97316' }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Ionicons name="flame" size={20} color="#fff" />
-            <Text style={styles.headerTitle}>MemeWall</Text>
-          </View>
-          <TouchableOpacity onPress={() => router.push('/creative-hub')} style={styles.backBtn}>
-            <Ionicons name="add-circle-outline" size={24} color="#fff" />
-          </TouchableOpacity>
+    <View style={[styles.container, { backgroundColor: '#000' }]} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
+      {/* Floating header */}
+      <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
+        <View style={styles.headerCenter}>
+          <Ionicons name="flame" size={20} color="#fff" />
+          <Text style={styles.headerTitle}>MemeWall</Text>
         </View>
+        <TouchableOpacity onPress={() => router.push('/creative-hub')} style={styles.createBtn}>
+          <Ionicons name="add" size={24} color="#000" />
+        </TouchableOpacity>
       </View>
 
-      {/* CTA for non-logged-in users — funnel */}
-      {!user && !loading && (
-        <TouchableOpacity
-          style={styles.ctaBanner}
-          onPress={() => router.push('/register')}
-        >
-          <Ionicons name="sparkles" size={20} color="#fff" />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.ctaTitle}>Napravi svoj meme!</Text>
-            <Text style={styles.ctaSubtitle}>Registruj se besplatno i kreiraj neograniceno memova</Text>
-          </View>
-          <Ionicons name="arrow-forward" size={20} color="#fff" />
-        </TouchableOpacity>
-      )}
-
-      {loading ? (
+      {loading || pageH === 0 ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color="#fff" />
         </View>
       ) : memes.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="flame-outline" size={64} color={tc.textMuted} />
-          <Text style={[styles.emptyText, { color: tc.text }]}>MemeWall je prazan!</Text>
-          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>Budi prvi koji ce objaviti meme</Text>
-          <TouchableOpacity
-            style={[styles.createBtn, { backgroundColor: '#f97316' }]}
-            onPress={() => router.push('/creative-hub')}
-          >
+          <Ionicons name="flame-outline" size={64} color="#64748b" />
+          <Text style={styles.emptyText}>MemeWall je prazan!</Text>
+          <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/creative-hub')}>
             <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.createBtnText}>Napravi meme</Text>
+            <Text style={styles.emptyBtnText}>Napravi meme</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -268,64 +266,55 @@ export default function MemeWallScreen() {
           data={memes}
           renderItem={renderMeme}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          pagingEnabled
+          showsVerticalScrollIndicator={false}
+          getItemLayout={(_, index) => ({ length: pageH, offset: pageH * index, index })}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.6}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color="#fff" style={{ marginVertical: 16 }} /> : null}
         />
       )}
-    </SafeAreaView>
+
+      <MemeComments
+        memeId={commentMemeId}
+        visible={!!commentMemeId}
+        onClose={() => setCommentMemeId(null)}
+        onPosted={() => patch(commentMemeId!, x => ({ ...x, commentCount: (x.commentCount || 0) + 1 }))}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  ctaBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#f97316', marginHorizontal: 12, marginTop: 12,
-    borderRadius: radius.lg, padding: 16,
+  container: { flex: 1 },
+  header: {
+    position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingBottom: 10,
   },
-  ctaTitle: { color: '#fff', fontSize: 15, ...fonts.bold },
-  ctaSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 11, ...fonts.medium, marginTop: 2 },
-  headerBg: { paddingHorizontal: 16, paddingVertical: 12, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyText: { fontSize: 18, ...fonts.bold, marginTop: 12 },
-  emptySubtext: { fontSize: 13, textAlign: 'center', marginTop: 4 },
-  createBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderRadius: radius.md, paddingVertical: 12, paddingHorizontal: 20, marginTop: 16,
+  headerTitle: { fontSize: 20, ...fonts.extrabold, color: '#fff', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
+  createBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  emptyText: { fontSize: 18, ...fonts.bold, color: '#fff', marginTop: 8 },
+  emptyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f97316',
+    borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, marginTop: 8,
   },
-  createBtnText: { color: '#fff', fontSize: 14, ...fonts.bold },
-  // Meme card
-  memeCard: {
-    marginHorizontal: 8, borderRadius: radius.lg, overflow: 'hidden',
-    shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
+  emptyBtnText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  page: { backgroundColor: '#000', justifyContent: 'center' },
+  rail: { position: 'absolute', right: 10, alignItems: 'center', gap: 18 },
+  railBtn: { alignItems: 'center', gap: 3 },
+  railCount: { color: '#fff', fontSize: 12, ...fonts.bold, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 3 },
+  railAvatar: {
+    width: 46, height: 46, borderRadius: 23, backgroundColor: '#f97316',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff',
   },
-  authorRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 12, paddingBottom: 8,
-  },
-  avatar: {
-    width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-  },
-  avatarText: { color: '#fff', fontSize: 14, ...fonts.bold },
-  authorName: { fontSize: 13, ...fonts.bold },
-  memeImage: { width: '100%', aspectRatio: 1 },
-  caption: { fontSize: 13, ...fonts.medium, paddingHorizontal: 12, paddingTop: 10, lineHeight: 18 },
-  actionsRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    padding: 12, paddingTop: 8,
-  },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  actionCount: { fontSize: 12, ...fonts.semibold },
-  watermark: { fontSize: 10, color: colors.textMuted, ...fonts.medium },
-  videoBadge: {
-    position: 'absolute', top: 8, right: 8,
-    backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2,
-  },
+  railAvatarText: { color: '#fff', fontSize: 18, ...fonts.extrabold },
+  bottomInfo: { position: 'absolute', left: 14, right: 80 },
+  authorHandle: { color: '#fff', fontSize: 15, ...fonts.extrabold, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, marginBottom: 6 },
+  caption: { color: '#fff', fontSize: 14, ...fonts.medium, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, lineHeight: 19 },
 });

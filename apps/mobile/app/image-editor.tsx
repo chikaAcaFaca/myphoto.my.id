@@ -11,6 +11,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useAuth } from '@/lib/auth-context';
 import { useCloudGate } from '@/lib/cloud-gate';
+import { saveToMySpace } from '@/lib/myspace-upload';
 import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
@@ -52,6 +53,7 @@ export default function ImageEditorScreen() {
   const [processing, setProcessing] = useState(false);
   const [removingBg, setRemovingBg] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingSpace, setSavingSpace] = useState(false);
 
   useEffect(() => {
     if (sourceUri || !id) return;
@@ -157,6 +159,49 @@ export default function ImageEditorScreen() {
     }
   }, [currentUri, id]);
 
+  // Save the current image (e.g. the background-removed cutout) into the
+  // user's MySpace cloud — their personal space — not just the device gallery.
+  const handleSaveToSpace = useCallback(async () => {
+    if (!currentUri) return;
+    setSavingSpace(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('Prijava', 'Prijavi se da bi sačuvao u svoj prostor.');
+        return;
+      }
+      const isPng = currentUri.toLowerCase().includes('.png') || currentUri.includes('removebg');
+      const base = (name || 'slika').replace(/\.[^.]+$/, '');
+      const ok = await saveToMySpace({
+        uri: currentUri,
+        filename: `${base}-${Date.now()}.${isPng ? 'png' : 'jpg'}`,
+        mimeType: isPng ? 'image/png' : 'image/jpeg',
+        token,
+      });
+      Alert.alert(
+        ok ? 'Sačuvano' : 'Greška',
+        ok ? 'Slika je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo. Pokušaj ponovo.',
+      );
+    } finally {
+      setSavingSpace(false);
+    }
+  }, [currentUri, name, getToken]);
+
+  // Hand the current image (e.g. a freshly background-removed PNG) straight
+  // into the sticker / meme tools so the user doesn't have to re-pick it.
+  const goToSticker = useCallback(() => {
+    if (!currentUri) return;
+    router.push({ pathname: '/sticker-maker', params: { uri: currentUri, name: name || 'Slika' } });
+  }, [currentUri, name]);
+
+  const goToMeme = useCallback(() => {
+    if (!currentUri) return;
+    router.push({
+      pathname: '/meme-creator',
+      params: { uri: currentUri, name: name || 'Slika', ...(id ? { id } : {}), isUploaded: isUploaded || '0' },
+    });
+  }, [currentUri, name, id, isUploaded]);
+
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
       {/* Top bar */}
@@ -165,13 +210,22 @@ export default function ImageEditorScreen() {
           <Ionicons name="close" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.fileName} numberOfLines={1}>{name || 'Editor'}</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.topBtn}>
-          {saving ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Ionicons name="download-outline" size={22} color="#fff" />
-          )}
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity onPress={handleSaveToSpace} disabled={savingSpace} style={styles.topBtn}>
+            {savingSpace ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="cloud-upload-outline" size={22} color="#fff" />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.topBtn}>
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="download-outline" size={22} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Image preview */}
@@ -212,6 +266,40 @@ export default function ImageEditorScreen() {
             <Ionicons name="cut-outline" size={18} color="#fff" />
           )}
           <Text style={styles.removeBgText}>Ukloni pozadinu</Text>
+        </TouchableOpacity>
+
+        {/* Turn the current image straight into a sticker or meme */}
+        <View style={styles.makeRow}>
+          <TouchableOpacity
+            style={[styles.makeBtn, { backgroundColor: '#ec4899' }]}
+            onPress={goToSticker}
+            disabled={!currentUri || removingBg}
+          >
+            <Ionicons name="happy-outline" size={18} color="#fff" />
+            <Text style={styles.makeBtnText}>Napravi stiker</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.makeBtn, { backgroundColor: '#f97316' }]}
+            onPress={goToMeme}
+            disabled={!currentUri || removingBg}
+          >
+            <Ionicons name="flame-outline" size={18} color="#fff" />
+            <Text style={styles.makeBtnText}>Napravi meme</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Save to personal MySpace cloud */}
+        <TouchableOpacity
+          style={[styles.spaceBtn, { backgroundColor: colors.primary }]}
+          onPress={handleSaveToSpace}
+          disabled={!currentUri || savingSpace}
+        >
+          {savingSpace ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+          )}
+          <Text style={styles.makeBtnText}>Sačuvaj u moj prostor</Text>
         </TouchableOpacity>
 
         {/* Filters */}
@@ -272,6 +360,16 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, borderRadius: radius.md, paddingVertical: 12, marginBottom: 12,
   },
   removeBgText: { color: '#fff', fontSize: 13, ...fonts.bold },
+  makeRow: { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginBottom: 12 },
+  makeBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderRadius: radius.md, paddingVertical: 11,
+  },
+  makeBtnText: { color: '#fff', fontSize: 13, ...fonts.bold },
+  spaceBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginHorizontal: 16, marginBottom: 12, borderRadius: radius.md, paddingVertical: 11,
+  },
   filtersRow: { paddingHorizontal: 12, gap: 12 },
   filterBtn: {
     alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 14,

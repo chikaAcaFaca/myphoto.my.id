@@ -29,19 +29,29 @@ export default function MemeProfileScreen() {
   const { user, getToken } = useAuth();
   const [memes, setMemes] = useState<ProfileMeme[]>([]);
   const [loading, setLoading] = useState(true);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
   const isOwnProfile = user?.uid === userId;
   const isLoggedIn = !!user;
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchAll = async () => {
       try {
         const token = await getToken();
-        const res = await fetch(`${API_URL}/api/meme-wall/user/${userId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        const [memesRes, profileRes] = await Promise.all([
+          fetch(`${API_URL}/api/users/${userId}/memes?pageSize=60`, { headers }),
+          fetch(`${API_URL}/api/users/${userId}`, { headers }),
+        ]);
+        if (memesRes.ok) {
+          const data = await memesRes.json();
           setMemes(data.memes || []);
+        }
+        if (profileRes.ok) {
+          const p = await profileRes.json();
+          setFollowerCount(p.followerCount || 0);
+          setIsFollowing(!!p.isFollowing);
         }
       } catch (e) {
         console.log('Profile fetch error:', e);
@@ -49,12 +59,39 @@ export default function MemeProfileScreen() {
         setLoading(false);
       }
     };
-    fetchProfile();
+    fetchAll();
   }, [userId, getToken]);
+
+  const handleFollow = useCallback(async () => {
+    if (!isLoggedIn) { router.push('/register'); return; }
+    const was = isFollowing;
+    setIsFollowing(!was);
+    setFollowerCount(c => Math.max(0, c + (was ? -1 : 1)));
+    setFollowBusy(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_URL}/api/users/${userId}/follow`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setIsFollowing(!!d.isFollowing);
+      } else {
+        setIsFollowing(was);
+        setFollowerCount(c => Math.max(0, c + (was ? 1 : -1)));
+      }
+    } catch {
+      setIsFollowing(was);
+      setFollowerCount(c => Math.max(0, c + (was ? 1 : -1)));
+    } finally {
+      setFollowBusy(false);
+    }
+  }, [isLoggedIn, isFollowing, userId, getToken]);
 
   const handleShareProfile = useCallback(async () => {
     await Share.share({
-      message: `Pogledaj memove od @${userName} na MyPhoto!\nhttps://myphotomy.space/meme-wall/user/${userId}`,
+      message: `Pogledaj memove od @${userName} na MyPhoto!\nhttps://myphotomy.space/user/${userId}`,
     });
   }, [userId, userName]);
 
@@ -89,10 +126,10 @@ export default function MemeProfileScreen() {
         </View>
         <Text style={[styles.profileName, { color: tc.text }]}>@{userName}</Text>
         <Text style={[styles.profileStats, { color: tc.textMuted }]}>
-          {memes.length} memova · {memes.reduce((s, m) => s + m.likes, 0)} lajkova
+          {memes.length} memova · {memes.reduce((s, m) => s + m.likes, 0)} lajkova · {followerCount} pratilaca
         </Text>
 
-        {/* CTA — the funnel */}
+        {/* CTA / Follow */}
         {!isLoggedIn ? (
           <TouchableOpacity
             style={styles.ctaBtn}
@@ -103,11 +140,14 @@ export default function MemeProfileScreen() {
           </TouchableOpacity>
         ) : !isOwnProfile ? (
           <TouchableOpacity
-            style={[styles.ctaBtn, { backgroundColor: tc.primary }]}
-            onPress={() => router.push('/creative-hub')}
+            style={[styles.ctaBtn, isFollowing && { backgroundColor: tc.bgInput }]}
+            onPress={handleFollow}
+            disabled={followBusy}
           >
-            <Ionicons name="add-circle" size={18} color="#fff" />
-            <Text style={styles.ctaText}>Napravi svoj meme</Text>
+            <Ionicons name={isFollowing ? 'checkmark' : 'person-add'} size={18} color={isFollowing ? tc.text : '#fff'} />
+            <Text style={[styles.ctaText, isFollowing && { color: tc.text }]}>
+              {isFollowing ? 'Pratiš' : 'Zaprati'}
+            </Text>
           </TouchableOpacity>
         ) : null}
       </View>

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions,
   Alert, ActivityIndicator, Platform, ScrollView, TextInput,
@@ -10,8 +10,11 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system/legacy';
 import Svg, { Defs, ClipPath, Circle, Rect, Path, Image as SvgImage } from 'react-native-svg';
+import { captureRef } from 'react-native-view-shot';
 import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { useCloudGate } from '@/lib/cloud-gate';
+import { saveToMySpace } from '@/lib/myspace-upload';
+import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 
@@ -37,19 +40,38 @@ const HEART_PATH = 'M50,90 C25,65 0,50 0,30 C0,13 13,0 30,0 C40,0 48,5 50,15 C52
 
 export default function StickerMakerScreen() {
   const { colors: tc } = useTheme();
-  const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
+  const { id, name, uri: sourceUri } = useLocalSearchParams<{ id?: string; name?: string; uri?: string }>();
   const { ensureOnCloud } = useCloudGate();
+  const { getToken } = useAuth();
 
+  // A `uri` param means a tool handed us a ready image (e.g. a background-
+  // removed PNG from the editor) — use it directly. Otherwise fall back to the
+  // cloud thumbnail for an id-based open.
   const [imageUri, setImageUri] = useState<string | null>(
-    id ? `${API_URL}/api/thumbnail/${id}?size=large` : null
+    sourceUri || (id ? `${API_URL}/api/thumbnail/${id}?size=large` : null)
   );
   const [shape, setShape] = useState<StickerShape>('circle');
   const [borderColor, setBorderColor] = useState('#ffffff');
   const [removingBg, setRemovingBg] = useState(false);
   const [bgRemoved, setBgRemoved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingSpace, setSavingSpace] = useState(false);
   const [stickerText, setStickerText] = useState('');
   const [zoom, setZoom] = useState(1);
+  // Snapshot target — the styled sticker (shape + border, transparent around
+  // it) rather than the bare source image, so saved files are real stickers.
+  const stickerRef = useRef<View>(null);
+
+  const captureSticker = useCallback(async (): Promise<string | null> => {
+    if (!stickerRef.current) return null;
+    try {
+      const uri = await captureRef(stickerRef, { format: 'png', quality: 1, result: 'tmpfile' });
+      return uri.startsWith('/') ? `file://${uri}` : uri;
+    } catch (e) {
+      console.warn('Sticker capture failed:', e);
+      return null;
+    }
+  }, []);
 
   const pickImage = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -110,7 +132,9 @@ export default function StickerMakerScreen() {
         Alert.alert('Dozvola', 'Dozvolite pristup galeriji.');
         return;
       }
-      let saveUri = imageUri || '';
+      // Save the actual styled sticker (shape + border, transparent around it),
+      // not the bare source image. Fall back to the image if capture fails.
+      let saveUri = (await captureSticker()) || imageUri || '';
       if (saveUri.startsWith('http')) {
         const dl = await FileSystem.downloadAsync(saveUri, `${FileSystem.cacheDirectory}sticker_${Date.now()}.png`);
         saveUri = dl.uri;
@@ -124,7 +148,36 @@ export default function StickerMakerScreen() {
     } finally {
       setSaving(false);
     }
-  }, [imageUri, shape]);
+  }, [imageUri, shape, captureSticker]);
+
+  // Save the styled sticker into the user's MySpace cloud (personal space).
+  const handleSaveToSpace = useCallback(async () => {
+    setSavingSpace(true);
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('Prijava', 'Prijavi se da bi sačuvao u svoj prostor.');
+        return;
+      }
+      const captured = (await captureSticker()) || imageUri;
+      if (!captured) {
+        Alert.alert('Greška', 'Nema slike za čuvanje.');
+        return;
+      }
+      const ok = await saveToMySpace({
+        uri: captured,
+        filename: `stiker-${Date.now()}.png`,
+        mimeType: 'image/png',
+        token,
+      });
+      Alert.alert(
+        ok ? 'Sačuvano' : 'Greška',
+        ok ? 'Stiker je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo.',
+      );
+    } finally {
+      setSavingSpace(false);
+    }
+  }, [captureSticker, imageUri, getToken]);
 
   const renderStickerPreview = () => {
     if (shape === 'text') {
@@ -196,18 +249,27 @@ export default function StickerMakerScreen() {
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Stiker Kreator</Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.topBtn}>
-          {saving ? <ActivityIndicator size="small" color="#fff" /> : (
-            <Ionicons name="download-outline" size={20} color="#fff" />
-          )}
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity onPress={handleSaveToSpace} disabled={savingSpace} style={styles.topBtn}>
+            {savingSpace ? <ActivityIndicator size="small" color="#fff" /> : (
+              <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.topBtn}>
+            {saving ? <ActivityIndicator size="small" color="#fff" /> : (
+              <Ionicons name="download-outline" size={20} color="#fff" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 60 }}>
         {/* Preview */}
         <View style={styles.previewArea}>
           <View style={styles.checkerboard}>
-            {renderStickerPreview()}
+            <View ref={stickerRef} collapsable={false}>
+              {renderStickerPreview()}
+            </View>
           </View>
         </View>
 
@@ -233,6 +295,22 @@ export default function StickerMakerScreen() {
                 <Ionicons name="cut-outline" size={16} color="#fff" />
               )}
               <Text style={styles.removeBgText}>Ukloni pozadinu</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Save sticker into personal MySpace cloud */}
+          {imageUri && shape !== 'text' && (
+            <TouchableOpacity
+              style={[styles.removeBgBtn, { backgroundColor: tc.primary }]}
+              onPress={handleSaveToSpace}
+              disabled={savingSpace}
+            >
+              {savingSpace ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
+              )}
+              <Text style={styles.removeBgText}>Sačuvaj u moj prostor</Text>
             </TouchableOpacity>
           )}
 
