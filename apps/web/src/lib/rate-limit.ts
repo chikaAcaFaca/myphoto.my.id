@@ -7,12 +7,14 @@ import { NextResponse } from 'next/server';
 let redis: Redis | null = null;
 let _rateLimiters: RateLimiters | null = null;
 
-function getRedis(): Redis {
+function getRedis(): Redis | null {
   if (!redis) {
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-    });
+    const url = process.env.UPSTASH_REDIS_REST_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    // No Upstash configured → caller falls back to "allow" (fail open) rather
+    // than throwing. A missing rate-limiter must never 500 image/file routes.
+    if (!url || !token) return null;
+    redis = new Redis({ url, token });
   }
   return redis;
 }
@@ -24,9 +26,10 @@ interface RateLimiters {
   api: Ratelimit;
 }
 
-function getRateLimiters(): RateLimiters {
+function getRateLimiters(): RateLimiters | null {
   if (!_rateLimiters) {
     const r = getRedis();
+    if (!r) return null;
     _rateLimiters = {
       upload: new Ratelimit({
         redis: r,
@@ -70,15 +73,18 @@ export async function checkRateLimit(
   type: RateLimitType
 ): Promise<RateLimitResult> {
   const limiters = getRateLimiters();
-  const limiter = limiters[type];
-  const { success, limit, remaining, reset } = await limiter.limit(identifier);
-
-  return {
-    success,
-    limit,
-    remaining,
-    reset,
-  };
+  // Fail open when no rate limiter is configured — never block a request just
+  // because Upstash is missing/unreachable.
+  if (!limiters) {
+    return { success: true, limit: 0, remaining: 0, reset: 0 };
+  }
+  try {
+    const { success, limit, remaining, reset } = await limiters[type].limit(identifier);
+    return { success, limit, remaining, reset };
+  } catch (err) {
+    console.error('Rate limit check failed, allowing request:', err);
+    return { success: true, limit: 0, remaining: 0, reset: 0 };
+  }
 }
 
 /**
