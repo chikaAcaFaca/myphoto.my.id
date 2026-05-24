@@ -24,11 +24,11 @@ const nextConfig = {
       },
     ],
   },
+  serverExternalPackages: ['undici'],
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
     },
-    serverComponentsExternalPackages: ['undici'],
   },
   webpack: (config, { isServer }) => {
     // Exclude undici from client-side bundling
