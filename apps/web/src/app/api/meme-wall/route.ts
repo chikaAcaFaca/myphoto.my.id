@@ -187,11 +187,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // The client always renders the meme (text baked in) and uploads it here.
+    // The client uploads the rendered media here. Image memes are baked to JPG;
+    // video/gif memes upload the original media (text is overlaid at display
+    // time since we can't composite it into a video on-device).
     let uploadUrl: string | null = null;
     if (imageData) {
-      const memeKey = `memes/${userId}/${memeId}.jpg`;
-      const { url } = await generateUploadUrl(memeKey, 'image/jpeg');
+      const ext = mediaType === 'video' ? 'mp4' : mediaType === 'gif' ? 'gif' : 'jpg';
+      const contentType =
+        mediaType === 'video' ? 'video/mp4' : mediaType === 'gif' ? 'image/gif' : 'image/jpeg';
+      const memeKey = `memes/${userId}/${memeId}.${ext}`;
+      const { url } = await generateUploadUrl(memeKey, contentType);
       memeData.s3Key = memeKey;
       uploadUrl = url;
     }

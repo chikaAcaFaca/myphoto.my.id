@@ -19,9 +19,10 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 interface MemePost {
   id: string;
   imageUrl: string;
-  videoUrl?: string;
   mediaType: 'image' | 'video' | 'gif';
   caption: string;
+  topText: string;
+  bottomText: string;
   authorId: string;
   authorName: string;
   likes: number;
@@ -183,9 +184,9 @@ export default function MemeWallScreen() {
 
   const renderMeme = useCallback(({ item }: { item: MemePost }) => (
     <View style={[styles.page, { height: pageH, width }]}>
-      {item.mediaType === 'video' && item.videoUrl ? (
+      {item.mediaType === 'video' ? (
         <Video
-          source={{ uri: item.videoUrl }}
+          source={{ uri: item.imageUrl }}
           style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.CONTAIN}
           shouldPlay={visibleId === item.id}
@@ -195,6 +196,14 @@ export default function MemeWallScreen() {
       ) : (
         <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="contain" transition={150} />
       )}
+
+      {/* Video/gif memes aren't baked — overlay the meme text on top */}
+      {item.mediaType !== 'image' && (item.topText || item.bottomText) ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          {item.topText ? <Text style={[styles.memeText, styles.memeTop]} numberOfLines={3}>{item.topText.toUpperCase()}</Text> : null}
+          {item.bottomText ? <Text style={[styles.memeText, styles.memeBottom]} numberOfLines={3}>{item.bottomText.toUpperCase()}</Text> : null}
+        </View>
+      ) : null}
 
       {/* Right action rail */}
       <View style={[styles.rail, { bottom: insets.bottom + 90 }]}>
@@ -317,4 +326,11 @@ const styles = StyleSheet.create({
   bottomInfo: { position: 'absolute', left: 14, right: 80 },
   authorHandle: { color: '#fff', fontSize: 15, ...fonts.extrabold, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, marginBottom: 6 },
   caption: { color: '#fff', fontSize: 14, ...fonts.medium, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, lineHeight: 19 },
+  memeText: {
+    position: 'absolute', left: 12, right: 12, textAlign: 'center', color: '#fff',
+    fontSize: 28, ...fonts.extrabold, textShadowColor: '#000',
+    textShadowOffset: { width: 2, height: 2 }, textShadowRadius: 5,
+  },
+  memeTop: { top: '8%' },
+  memeBottom: { bottom: '24%' },
 });

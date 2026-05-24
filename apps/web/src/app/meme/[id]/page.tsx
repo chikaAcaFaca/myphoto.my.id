@@ -23,6 +23,7 @@ async function getMeme(id: string) {
     caption: data.caption || '',
     topText: data.topText || '',
     bottomText: data.bottomText || '',
+    mediaType: (data.mediaType || 'image') as 'image' | 'video' | 'gif',
     imageUrl,
     authorName: data.authorName || 'Anonymous',
     authorId: data.authorId || '',
@@ -85,14 +86,45 @@ export default async function MemePage({ params }: MemePageProps) {
           <span style={{ color: '#64748b', fontSize: 14 }}>MemeWall</span>
         </div>
 
-        {/* Meme image */}
+        {/* Meme media */}
         {meme.imageUrl && (
-          <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
-            <img
-              src={meme.imageUrl}
-              alt={meme.caption}
-              style={{ width: '100%', display: 'block' }}
-            />
+          <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
+            {meme.mediaType === 'video' ? (
+              <video
+                src={meme.imageUrl}
+                controls
+                loop
+                playsInline
+                style={{ width: '100%', display: 'block' }}
+              />
+            ) : (
+              <img
+                src={meme.imageUrl}
+                alt={meme.caption}
+                style={{ width: '100%', display: 'block' }}
+              />
+            )}
+            {/* Video/gif memes aren't baked — overlay the meme text */}
+            {meme.mediaType !== 'image' && (meme.topText || meme.bottomText) && (
+              <>
+                {meme.topText && (
+                  <span style={{
+                    position: 'absolute', top: 10, left: 0, right: 0, textAlign: 'center',
+                    color: '#fff', fontFamily: 'Impact, Arial Black, sans-serif', fontWeight: 900,
+                    fontSize: 32, textTransform: 'uppercase', padding: '0 8px',
+                    textShadow: '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000',
+                  }}>{meme.topText}</span>
+                )}
+                {meme.bottomText && (
+                  <span style={{
+                    position: 'absolute', bottom: 24, left: 0, right: 0, textAlign: 'center',
+                    color: '#fff', fontFamily: 'Impact, Arial Black, sans-serif', fontWeight: 900,
+                    fontSize: 32, textTransform: 'uppercase', padding: '0 8px',
+                    textShadow: '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000',
+                  }}>{meme.bottomText}</span>
+                )}
+              </>
+            )}
           </div>
         )}
 

@@ -298,8 +298,12 @@ export default function MemeCreatorScreen() {
             // For image memes, bake the text into a JPG snapshot first — this
             // matches the web canvas output AND yields a file:// URI that
             // uploads reliably (device content:// URIs were being skipped,
-            // leaving published memes with no image).
+            // leaving published memes with no image). Video/gif memes upload the
+            // original media (captureMeme returns null for them); text is
+            // overlaid at display time on the wall.
             const baked = await captureMeme();
+            const uploadMime =
+              mediaType === 'video' ? 'video/mp4' : mediaType === 'gif' ? 'image/gif' : 'image/jpeg';
 
             let uploadSource = baked || mediaUri;
             let tmpPathToCleanup: string | null = baked;
@@ -321,7 +325,7 @@ export default function MemeCreatorScreen() {
             if (uploadSource.startsWith('file://') || uploadSource.startsWith('/')) {
               await FileSystem.uploadAsync(responseData.uploadUrl, uploadSource, {
                 httpMethod: 'PUT',
-                headers: { 'Content-Type': 'image/jpeg' },
+                headers: { 'Content-Type': uploadMime },
                 uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
               });
             } else {

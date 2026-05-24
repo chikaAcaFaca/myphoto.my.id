@@ -10,6 +10,9 @@ interface Meme {
   id: string;
   caption: string;
   imageUrl: string;
+  mediaType?: 'image' | 'video' | 'gif';
+  topText?: string;
+  bottomText?: string;
   authorName: string;
   authorId: string;
   likes: number;
@@ -475,12 +478,44 @@ export default function MemeWallPage() {
                   }}
                 >
                   {meme.imageUrl && (
-                    <Link href={`/meme/${meme.id}`}>
-                      <img
-                        src={meme.imageUrl}
-                        alt={meme.caption}
-                        style={{ width: '100%', display: 'block', aspectRatio: '1', objectFit: 'cover' }}
-                      />
+                    <Link href={`/meme/${meme.id}`} style={{ position: 'relative', display: 'block' }}>
+                      {meme.mediaType === 'video' ? (
+                        <video
+                          src={meme.imageUrl}
+                          muted
+                          loop
+                          playsInline
+                          autoPlay
+                          style={{ width: '100%', display: 'block', aspectRatio: '1', objectFit: 'cover' }}
+                        />
+                      ) : (
+                        <img
+                          src={meme.imageUrl}
+                          alt={meme.caption}
+                          style={{ width: '100%', display: 'block', aspectRatio: '1', objectFit: 'cover' }}
+                        />
+                      )}
+                      {/* Video/gif memes aren't baked — overlay the meme text */}
+                      {meme.mediaType !== 'image' && (meme.topText || meme.bottomText) && (
+                        <>
+                          {meme.topText && (
+                            <span style={{
+                              position: 'absolute', top: 6, left: 0, right: 0, textAlign: 'center',
+                              color: '#fff', fontFamily: 'Impact, Arial Black, sans-serif', fontWeight: 900,
+                              fontSize: 20, textTransform: 'uppercase',
+                              textShadow: '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000',
+                            }}>{meme.topText}</span>
+                          )}
+                          {meme.bottomText && (
+                            <span style={{
+                              position: 'absolute', bottom: 6, left: 0, right: 0, textAlign: 'center',
+                              color: '#fff', fontFamily: 'Impact, Arial Black, sans-serif', fontWeight: 900,
+                              fontSize: 20, textTransform: 'uppercase',
+                              textShadow: '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000',
+                            }}>{meme.bottomText}</span>
+                          )}
+                        </>
+                      )}
                     </Link>
                   )}
                   <div style={{ padding: 14 }}>
