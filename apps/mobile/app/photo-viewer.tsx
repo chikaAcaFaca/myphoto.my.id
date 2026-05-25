@@ -58,20 +58,33 @@ export default function PhotoViewerScreen() {
     // needed. Calling /api/files/{deviceId}/download-url would 404 and
     // surface a confusing "Nije moguće učitati fajl" toast.
     if (isLocalOnly) {
-      // Fast path: render whatever URI we got from the gallery
-      // immediately so the user sees the photo while we (maybe)
-      // upgrade content:// to file:// in the background. Without
-      // this, a slow getAssetInfoAsync call left the user staring
-      // at a spinner even though we already had a perfectly good
-      // URI to show.
+      const needsResolve = !!localUri && localUri.startsWith('content://');
+
+      // expo-av's Video CANNOT play a content:// URI. For videos we therefore
+      // resolve the file:// path BEFORE rendering (showing a spinner) instead
+      // of mounting a player on content:// that silently never plays.
+      if (isVideo && needsResolve) {
+        setMediaLoading(true);
+        let cancelled = false;
+        (async () => {
+          try {
+            const info = await MediaLibrary.getAssetInfoAsync(id);
+            if (!cancelled) setMediaUrl(info?.localUri || localUri);
+          } catch (e) {
+            console.warn('Failed to resolve content URI:', e);
+            if (!cancelled) setMediaUrl(localUri || null);
+          } finally {
+            if (!cancelled) setMediaLoading(false);
+          }
+        })();
+        return () => { cancelled = true; };
+      }
+
+      // Images render immediately (expo-image handles content:// fine); we
+      // still upgrade content:// → file:// in the background.
       setMediaUrl(localUri || null);
       setMediaLoading(false);
-
-      // For Android content:// URIs we *also* try to resolve a
-      // file:// path because expo-av's Video can't play content://
-      // schemes. The fast-path render above remains in place for
-      // images (which expo-image handles fine).
-      if (localUri && localUri.startsWith('content://')) {
+      if (needsResolve) {
         let cancelled = false;
         (async () => {
           try {
