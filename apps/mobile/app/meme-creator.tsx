@@ -17,6 +17,7 @@ import { useTheme } from '@/lib/theme-context';
 import { checkMemeLimit, getMemeUsageStats } from '@/lib/meme-limits';
 import { moderateCaption } from '@/lib/ai-captions';
 import { saveToMySpace } from '@/lib/myspace-upload';
+import { ZoomPanView } from '@/components/ZoomPanView';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -26,6 +27,14 @@ const MEME_TEMPLATES = [
   { id: 'top-only', label: 'Gore', topPos: 0.05, bottomPos: null },
   { id: 'bottom-only', label: 'Dole', topPos: null, bottomPos: 0.75 },
   { id: 'center', label: 'Centar', topPos: 0.40, bottomPos: null },
+];
+
+// Meme frame orientation — lets landscape media (esp. video) use a wide frame
+// instead of being cropped into the default portrait box.
+const MEME_ASPECTS = [
+  { id: 'portrait', label: 'Portret', ratio: 4 / 5 },
+  { id: 'square', label: 'Kvadrat', ratio: 1 },
+  { id: 'landscape', label: 'Pejzaž', ratio: 16 / 9 },
 ];
 
 const FONT_SIZES = [
@@ -54,15 +63,13 @@ export default function MemeCreatorScreen() {
   const [topText, setTopText] = useState('');
   const [bottomText, setBottomText] = useState('');
   const [template, setTemplate] = useState(MEME_TEMPLATES[0]);
+  const [memeAspect, setMemeAspect] = useState(MEME_ASPECTS[0]);
   const [fontSize, setFontSize] = useState(FONT_SIZES[1]);
   const [saving, setSaving] = useState(false);
   const [savingSpace, setSavingSpace] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [memeStats, setMemeStats] = useState<{ daily: number; maxDaily: number; monthly: number; maxMonthly: number } | null>(null);
-  const [imageZoom, setImageZoom] = useState(1);
-  const [imageOffsetX, setImageOffsetX] = useState(0);
-  const [imageOffsetY, setImageOffsetY] = useState(0);
   const videoRef = useRef<Video>(null);
   // The meme preview frame (image + text + watermark). We snapshot this with
   // react-native-view-shot so the published/saved image has the text baked in
@@ -429,14 +436,14 @@ export default function MemeCreatorScreen() {
           {/* Media preview with text overlay */}
           <View style={styles.previewContainer}>
             {mediaUri ? (
-              <View ref={memeFrameRef} collapsable={false} style={styles.memeFrame}>
+              <View ref={memeFrameRef} collapsable={false} style={[styles.memeFrame, { aspectRatio: memeAspect.ratio }]}>
                 {mediaType === 'video' ? (
-                  <TouchableOpacity activeOpacity={0.9} onPress={() => setIsPlaying(!isPlaying)}>
+                  <TouchableOpacity activeOpacity={0.9} style={StyleSheet.absoluteFill} onPress={() => setIsPlaying(!isPlaying)}>
                     <Video
                       ref={videoRef}
                       source={{ uri: mediaUri }}
                       style={styles.memeImage}
-                      resizeMode={ResizeMode.COVER}
+                      resizeMode={ResizeMode.CONTAIN}
                       shouldPlay={isPlaying}
                       isLooping
                       isMuted={false}
@@ -448,17 +455,15 @@ export default function MemeCreatorScreen() {
                     )}
                   </TouchableOpacity>
                 ) : (
-                  <Image
-                    source={{ uri: mediaUri }}
-                    style={[styles.memeImage, {
-                      transform: [
-                        { scale: imageZoom },
-                        { translateX: imageOffsetX },
-                        { translateY: imageOffsetY },
-                      ],
-                    }]}
-                    contentFit="cover"
-                  />
+                  // Pinch-zoom + drag to position the image; contentFit "contain"
+                  // so nothing is force-cropped (zoom in to fill if you want).
+                  <ZoomPanView style={StyleSheet.absoluteFillObject}>
+                    <Image
+                      source={{ uri: mediaUri }}
+                      style={styles.memeImage}
+                      contentFit="contain"
+                    />
+                  </ZoomPanView>
                 )}
                 {/* Top text */}
                 {template.topPos !== null && topText ? (
@@ -521,6 +526,20 @@ export default function MemeCreatorScreen() {
               />
             </View>
 
+            {/* Orientation / aspect selector */}
+            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>ORIJENTACIJA</Text>
+            <View style={styles.optionRow}>
+              {MEME_ASPECTS.map((a) => (
+                <TouchableOpacity
+                  key={a.id}
+                  style={[styles.optionBtn, memeAspect.id === a.id && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
+                  onPress={() => setMemeAspect(a)}
+                >
+                  <Text style={[styles.optionText, memeAspect.id === a.id && { color: tc.primary }]}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
             {/* Template selector */}
             <Text style={[styles.controlLabel, { color: tc.textMuted }]}>RASPORED</Text>
             <View style={styles.optionRow}>
@@ -549,45 +568,11 @@ export default function MemeCreatorScreen() {
               ))}
             </View>
 
-            {/* Image zoom & pan */}
+            {/* Image positioning is now via gestures on the preview above. */}
             {mediaUri && mediaType === 'image' && (
-              <>
-                <Text style={[styles.controlLabel, { color: tc.textMuted }]}>SLIKA ZOOM I POZICIJA</Text>
-                <View style={styles.zoomControls}>
-                  <TouchableOpacity
-                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
-                    onPress={() => setImageZoom(Math.max(0.5, imageZoom - 0.1))}
-                  >
-                    <Ionicons name="remove" size={18} color={tc.text} />
-                  </TouchableOpacity>
-                  <Text style={[styles.zoomLabel, { color: tc.textMuted }]}>{Math.round(imageZoom * 100)}%</Text>
-                  <TouchableOpacity
-                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
-                    onPress={() => setImageZoom(Math.min(3, imageZoom + 0.1))}
-                  >
-                    <Ionicons name="add" size={18} color={tc.text} />
-                  </TouchableOpacity>
-                  <View style={{ width: 16 }} />
-                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetX(imageOffsetX - 10)}>
-                    <Ionicons name="arrow-back" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetY(imageOffsetY - 10)}>
-                    <Ionicons name="arrow-up" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetY(imageOffsetY + 10)}>
-                    <Ionicons name="arrow-down" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetX(imageOffsetX + 10)}>
-                    <Ionicons name="arrow-forward" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
-                    onPress={() => { setImageZoom(1); setImageOffsetX(0); setImageOffsetY(0); }}
-                  >
-                    <Ionicons name="refresh" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                </View>
-              </>
+              <Text style={[styles.controlLabel, { color: tc.textMuted, textAlign: 'center', marginTop: 6 }]}>
+                Uštipni sa 2 prsta za zum · prevuci da pomeriš sliku
+              </Text>
             )}
 
             {/* Publish to MemeWall */}

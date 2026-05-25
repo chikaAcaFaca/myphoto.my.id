@@ -10,7 +10,7 @@
  * onTransformChange reports the live {scale, translateX, translateY} so callers
  * (e.g. crop) can compute the visible region.
  */
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, PanResponder, View, type ViewStyle } from 'react-native';
 
 export interface ZoomPanTransform {
@@ -44,15 +44,13 @@ export function ZoomPanView({
   const start = useRef<ZoomPanTransform>({ scale: 1, translateX: 0, translateY: 0 });
   const pinchStartDist = useRef(0);
 
-  // Keep `cur` synced and notify callers.
-  useRef(
-    (() => {
-      scale.addListener(({ value }) => { cur.current.scale = value; onTransformChange?.({ ...cur.current }); });
-      translateX.addListener(({ value }) => { cur.current.translateX = value; });
-      translateY.addListener(({ value }) => { cur.current.translateY = value; });
-      return null;
-    })()
-  );
+  // Keep `cur` synced (and notify callers) via listeners added once.
+  useEffect(() => {
+    const s = scale.addListener(({ value }) => { cur.current.scale = value; onTransformChange?.({ ...cur.current }); });
+    const x = translateX.addListener(({ value }) => { cur.current.translateX = value; });
+    const y = translateY.addListener(({ value }) => { cur.current.translateY = value; });
+    return () => { scale.removeListener(s); translateX.removeListener(x); translateY.removeListener(y); };
+  }, [scale, translateX, translateY, onTransformChange]);
 
   const dist = (touches: { pageX: number; pageY: number }[]) =>
     Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY);
