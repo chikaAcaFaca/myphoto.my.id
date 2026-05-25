@@ -37,8 +37,8 @@ const FONT_SIZES = [
 
 export default function MemeCreatorScreen() {
   const { colors: tc } = useTheme();
-  const { id, name, uri: sourceUri, isUploaded } = useLocalSearchParams<{
-    id?: string; name?: string; uri?: string; isUploaded?: string;
+  const { id, name, uri: sourceUri, isUploaded, type } = useLocalSearchParams<{
+    id?: string; name?: string; uri?: string; isUploaded?: string; type?: string;
   }>();
   const { user, appUser, getToken } = useAuth();
 
@@ -50,7 +50,7 @@ export default function MemeCreatorScreen() {
   const [mediaUri, setMediaUri] = useState<string | null>(
     sourceUri || (id && isUploaded === '1' ? `${API_URL}/api/thumbnail/${id}?size=large` : null)
   );
-  const [mediaType, setMediaType] = useState<'image' | 'video' | 'gif'>('image');
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'gif'>(type === 'video' ? 'video' : 'image');
   const [topText, setTopText] = useState('');
   const [bottomText, setBottomText] = useState('');
   const [template, setTemplate] = useState(MEME_TEMPLATES[0]);

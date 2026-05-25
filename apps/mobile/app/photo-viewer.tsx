@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
+import { ZoomPanView } from '@/components/ZoomPanView';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -366,12 +367,14 @@ export default function PhotoViewerScreen() {
             isLooping={false}
           />
         ) : (
-          <Image
-            source={{ uri: mediaUrl }}
-            style={styles.image}
-            contentFit="contain"
-            transition={200}
-          />
+          <ZoomPanView style={styles.image}>
+            <Image
+              source={{ uri: mediaUrl }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+              transition={200}
+            />
+          </ZoomPanView>
         )}
       </View>
 
@@ -427,20 +430,22 @@ export default function PhotoViewerScreen() {
             {/* "Kreiraj" (creative hub) intentionally hidden — feature
                 still in development, see deferred follow-up. */}
 
-            {type !== 'video' && (
-              <TouchableOpacity style={styles.action} onPress={() => router.push({
-                pathname: '/meme-creator',
-                params: {
-                  id: id!,
-                  name: name || 'Photo',
-                  ...(localUri ? { uri: mediaUrl || localUri } : {}),
-                  isUploaded: isUploaded || '0',
-                },
-              })}>
-                <Ionicons name="flame-outline" size={22} color="#f97316" />
-                <Text style={[styles.actionText, { color: '#f97316' }]}>Meme</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={styles.action} onPress={() => router.push({
+              pathname: '/meme-creator',
+              params: {
+                id: id!,
+                name: name || 'Photo',
+                // Pass the playable media URL (image or video) + its type so the
+                // meme creator renders a <Video> for videos instead of a broken
+                // <Image>. Works for cloud (mediaUrl) and device (localUri).
+                ...((mediaUrl || localUri) ? { uri: mediaUrl || localUri } : {}),
+                isUploaded: isUploaded || '0',
+                type: type || 'image',
+              },
+            })}>
+              <Ionicons name="flame-outline" size={22} color="#f97316" />
+              <Text style={[styles.actionText, { color: '#f97316' }]}>Meme</Text>
+            </TouchableOpacity>
 
             {/* Cloud-only actions are hidden for local-only photos.
                 Favorite/archive/delete need a cloud record; Info has a
