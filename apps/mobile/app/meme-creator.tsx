@@ -46,8 +46,12 @@ const FONT_SIZES = [
 
 export default function MemeCreatorScreen() {
   const { colors: tc } = useTheme();
-  const { id, name, uri: sourceUri, isUploaded, type } = useLocalSearchParams<{
+  const { id, name, uri: sourceUri, isUploaded, type, remixOfId, remixOfAuthor } = useLocalSearchParams<{
     id?: string; name?: string; uri?: string; isUploaded?: string; type?: string;
+    // Set by the meme-wall Remix button. We forward remixOfId to the publish
+    // POST so the server can snapshot the original author for the attribution
+    // badge — original author stays credited, only the comment changes.
+    remixOfId?: string; remixOfAuthor?: string;
   }>();
   const { user, appUser, getToken } = useAuth();
 
@@ -288,6 +292,7 @@ export default function MemeCreatorScreen() {
           template: template.id,
           fontSize: fontSize.size,
           imageData: !!mediaUri,
+          ...(remixOfId ? { remixOfId } : {}),
         }),
       });
       if (res.ok) {
@@ -382,7 +387,9 @@ export default function MemeCreatorScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Meme Kreator</Text>
+          <Text style={styles.headerTitle}>
+            {remixOfId ? `Remix @${remixOfAuthor || '...'}` : 'Meme Kreator'}
+          </Text>
           <View style={{ flexDirection: 'row', gap: 4 }}>
             <TouchableOpacity onPress={handleShare} style={styles.topBtn}>
               <Ionicons name="share-outline" size={20} color="#fff" />

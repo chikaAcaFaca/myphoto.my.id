@@ -33,6 +33,10 @@ interface MemePost {
   userReaction: 'like' | 'dislike' | null;
   userFavorited: boolean;
   userReposted: boolean;
+  // Present when this meme was made by stripping someone else's caption and
+  // writing a new one. Original author stays credited via the "Remix od @X"
+  // badge so we don't hide attribution, only the comment.
+  remixOf?: { id: string; authorId: string; authorName: string } | null;
 }
 
 // One vertical action on the TikTok-style right rail.
@@ -200,6 +204,23 @@ export default function MemeWallScreen() {
   const openProfile = (m: MemePost) =>
     router.push({ pathname: '/meme-profile', params: { userId: m.authorId, userName: m.authorName } });
 
+  // Remix: open meme-creator with the same source media but empty captions —
+  // user types their own. We tag the new meme with remixOfId so the wall can
+  // credit the original author. Works for video / gif (overlay text — strips
+  // cleanly) and falls through for image memes where the old text is baked.
+  const handleRemix = useCallback((m: MemePost) => {
+    router.push({
+      pathname: '/meme-creator',
+      params: {
+        uri: m.imageUrl,
+        type: m.mediaType,
+        name: 'Remix',
+        remixOfId: m.id,
+        remixOfAuthor: m.authorName,
+      },
+    });
+  }, []);
+
   const renderMeme = useCallback(({ item }: { item: MemePost }) => (
     <View style={[styles.page, { height: pageH, width }]}>
       {item.mediaType === 'video' ? (
@@ -259,6 +280,12 @@ export default function MemeWallScreen() {
           onPress={() => handleRepost(item)}
         />
         <RailButton icon="arrow-redo-outline" color="#fff" count={item.shares} onPress={() => handleShare(item)} />
+        <RailButton
+          icon="refresh-outline"
+          color="#fff"
+          label="Remix"
+          onPress={() => handleRemix(item)}
+        />
       </View>
 
       {/* Bottom author + caption */}
@@ -266,10 +293,24 @@ export default function MemeWallScreen() {
         <TouchableOpacity onPress={() => openProfile(item)}>
           <Text style={styles.authorHandle}>@{item.authorName}</Text>
         </TouchableOpacity>
+        {/* Remix attribution — appears between handle + caption, makes it
+            clear "this meme rides on top of someone else's video". */}
+        {item.remixOf ? (
+          <TouchableOpacity
+            onPress={() => router.push({
+              pathname: '/meme-profile',
+              params: { userId: item.remixOf!.authorId, userName: item.remixOf!.authorName },
+            })}
+            style={styles.remixBadge}
+          >
+            <Ionicons name="refresh-outline" size={11} color="#fff" />
+            <Text style={styles.remixBadgeText}>Remix od @{item.remixOf.authorName}</Text>
+          </TouchableOpacity>
+        ) : null}
         {item.caption ? <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text> : null}
       </View>
     </View>
-  ), [pageH, visibleId, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare]);
+  ), [pageH, visibleId, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
@@ -353,6 +394,13 @@ const styles = StyleSheet.create({
   bottomInfo: { position: 'absolute', left: 14, right: 80 },
   authorHandle: { color: '#fff', fontSize: 15, ...fonts.extrabold, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, marginBottom: 6 },
   caption: { color: '#fff', fontSize: 14, ...fonts.medium, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, lineHeight: 19 },
+  remixBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    alignSelf: 'flex-start', marginBottom: 6,
+    paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 12,
+  },
+  remixBadgeText: { color: '#fff', fontSize: 11, ...fonts.semibold },
   memeText: {
     position: 'absolute', left: 12, right: 12, textAlign: 'center', color: '#fff',
     fontSize: 28, ...fonts.extrabold, textShadowColor: '#000',

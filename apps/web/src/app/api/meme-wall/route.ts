@@ -97,6 +97,10 @@ export async function GET(request: NextRequest) {
           userReaction,
           userFavorited,
           userReposted,
+          // Remix lineage — present when this meme was derived from another
+          // (user "stripped" the original caption and added their own). The
+          // wall surfaces this so the original author still gets credit.
+          remixOf: data.remixOf || null,
         };
       })
     );
@@ -119,7 +123,7 @@ export async function POST(request: NextRequest) {
     const { userId } = authResult;
 
     const body = await request.json();
-    const { caption, topText, bottomText, template, fontSize, mediaType, fileId, imageData } = body;
+    const { caption, topText, bottomText, template, fontSize, mediaType, fileId, imageData, remixOfId } = body;
 
     if (!caption && !topText && !bottomText) {
       return NextResponse.json({ error: 'Meme must have text' }, { status: 400 });
@@ -184,6 +188,28 @@ export async function POST(request: NextRequest) {
       const fileDoc = await db.collection('files').doc(fileId).get();
       if (fileDoc.exists && fileDoc.data()?.userId === userId) {
         memeData.sourceFileId = fileId;
+      }
+    }
+
+    // Remix lineage: when this meme is derived from another, snapshot the
+    // original author so the wall can credit them ("Remix od @X") even if
+    // the original is later deleted. Snapshot rather than join-on-render so
+    // GETs stay one-Firestore-read-per-meme.
+    if (remixOfId) {
+      try {
+        const origDoc = await db.collection('memes').doc(remixOfId).get();
+        if (origDoc.exists) {
+          const orig = origDoc.data()!;
+          memeData.remixOf = {
+            id: remixOfId,
+            authorId: orig.authorId,
+            authorName: orig.authorName || 'Anonymous',
+          };
+        }
+      } catch (e: any) {
+        // Bad remixOfId is non-fatal — the meme still publishes, just
+        // without the attribution badge.
+        console.warn('Remix lineage lookup failed:', e.message);
       }
     }
 
