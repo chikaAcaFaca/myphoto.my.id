@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { SyncProvider } from '@/lib/sync-context';
 import { CloudGateProvider } from '@/lib/cloud-gate';
 import { ThemeProvider } from '@/lib/theme-context';
+import { ShareIntentHandler } from '@/components/ShareIntentHandler';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -97,6 +98,9 @@ function RootNavigator() {
   return (
     <SyncProvider>
       <CloudGateProvider>
+        {/* Watch for incoming Android share intents (image/video) and upload
+            them into the user's MySpace once we're inside the auth-gated zone. */}
+        <ShareIntentHandler />
         <Slot />
       </CloudGateProvider>
     </SyncProvider>

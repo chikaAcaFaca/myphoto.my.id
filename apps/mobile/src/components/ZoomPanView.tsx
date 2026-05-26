@@ -68,10 +68,17 @@ export function ZoomPanView({
       // Don't claim the touch START — that lets taps, buttons and any parent
       // ScrollView keep working. We only take over on a real gesture below.
       onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
       // Claim a move only for a two-finger pinch, or one-finger drag once the
       // content is already zoomed in (so the parent ScrollView scrolls normally
       // at 1x).
       onMoveShouldSetPanResponder: (e) =>
+        e.nativeEvent.touches.length === 2 || cur.current.scale > 1.01,
+      // ALSO claim in the capture phase for those cases — without this, a
+      // parent ScrollView swallows the multi-touch / pan move before it ever
+      // reaches us. That's why pinch silently did nothing inside the sticker
+      // maker's ScrollView even though it worked in the photo viewer.
+      onMoveShouldSetPanResponderCapture: (e) =>
         e.nativeEvent.touches.length === 2 || cur.current.scale > 1.01,
       onPanResponderGrant: (e) => {
         start.current = { ...cur.current };
