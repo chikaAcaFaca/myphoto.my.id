@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  RefreshControl, Image, Dimensions, AppState,
+  RefreshControl, Image, Dimensions, AppState, type ViewToken,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -39,6 +40,48 @@ export default function MyPhotoScreen() {
   const [uploadedIds, setUploadedIds] = useState<Set<string>>(new Set());
   const endCursorRef = useRef<string | undefined>(undefined);
   const appState = useRef(AppState.currentState);
+
+  // Inline video auto-play: each visible video tile turns its static
+  // thumbnail into a muted, looped, low-friction "live preview" — same
+  // pattern as Photos / TikTok grids. Two pieces of state make it work
+  // without thrashing the AV pipeline:
+  //   - visibleVideoIds: which tiles are actually on-screen right now
+  //   - resolvedVideoUrisRef: cached file:// URIs (expo-av can't play
+  //     content:// on Android), filled lazily on first visibility
+  const [visibleVideoIds, setVisibleVideoIds] = useState<Set<string>>(new Set());
+  const resolvedVideoUrisRef = useRef<Map<string, string>>(new Map());
+  // Bump this to force a re-render once a content:// → file:// resolve
+  // lands (the map mutation alone wouldn't trigger React).
+  const [, setResolvedTick] = useState(0);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50, waitForInteraction: false }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const next = new Set<string>();
+    for (const v of viewableItems) {
+      if (!v.isViewable) continue;
+      const it = v.item as LocalPhoto;
+      if (it.mediaType === 'video') next.add(it.id);
+    }
+    setVisibleVideoIds(next);
+  }).current;
+
+  // Resolve file:// URIs for any newly-visible videos that don't have one
+  // cached yet. content:// (the default from MediaLibrary.getAssetsAsync)
+  // mounts on expo-av's Video but never plays — we have to go through
+  // getAssetInfoAsync to land at the file:// path the player understands.
+  useEffect(() => {
+    visibleVideoIds.forEach(async (id) => {
+      if (resolvedVideoUrisRef.current.has(id)) return;
+      try {
+        const info = await MediaLibrary.getAssetInfoAsync(id);
+        const file = info?.localUri || info?.uri;
+        if (file) {
+          resolvedVideoUrisRef.current.set(id, file);
+          setResolvedTick((t) => t + 1);
+        }
+      } catch { /* fall back to the static thumbnail */ }
+    });
+  }, [visibleVideoIds]);
 
   // Load uploaded asset IDs from AsyncStorage (sync state)
   const loadUploadedIds = useCallback(async () => {
@@ -141,54 +184,76 @@ export default function MyPhotoScreen() {
 
   const uploadedCount = photos.filter(p => p.isUploaded).length;
 
-  const renderPhoto = ({ item }: { item: LocalPhoto }) => (
-    <TouchableOpacity
-      style={styles.cell}
-      activeOpacity={0.8}
-      delayPressIn={100}
-      onPress={() => router.push({
-        pathname: '/photo-viewer',
-        params: {
-          id: item.id,
-          name: item.filename,
-          type: item.mediaType === 'video' ? 'video' : 'image',
-          isFavorite: '0',
-          localUri: item.uri,
-          // Tells the viewer whether the device id also has a cloud
-          // record — without this it can't tell device-only photos
-          // from backed-up ones and every cloud API call 404s.
-          isUploaded: item.isUploaded ? '1' : '0',
-        },
-      })}
-    >
-      <Image
-        source={{ uri: item.uri }}
-        style={styles.cellImage}
-        resizeMode="cover"
-      />
+  const renderPhoto = ({ item }: { item: LocalPhoto }) => {
+    const isVideo = item.mediaType === 'video';
+    const previewUri = isVideo ? resolvedVideoUrisRef.current.get(item.id) : undefined;
+    const shouldPreview = isVideo && visibleVideoIds.has(item.id) && !!previewUri;
 
-      {/* Cloud status badge */}
-      <View style={[styles.cloudBadge, item.isUploaded ? styles.cloudBadgeUploaded : styles.cloudBadgePending]}>
-        <Ionicons
-          name={item.isUploaded ? 'checkmark' : 'cloud-upload-outline'}
-          size={10}
-          color="#fff"
-        />
-      </View>
+    return (
+      <TouchableOpacity
+        style={styles.cell}
+        activeOpacity={0.8}
+        delayPressIn={100}
+        onPress={() => router.push({
+          pathname: '/photo-viewer',
+          params: {
+            id: item.id,
+            name: item.filename,
+            type: isVideo ? 'video' : 'image',
+            isFavorite: '0',
+            localUri: item.uri,
+            // Tells the viewer whether the device id also has a cloud
+            // record — without this it can't tell device-only photos
+            // from backed-up ones and every cloud API call 404s.
+            isUploaded: item.isUploaded ? '1' : '0',
+          },
+        })}
+      >
+        {shouldPreview ? (
+          // Muted, looped inline preview of the visible video — the cell
+          // reads as live video, not a still. Tapping still opens the
+          // full-screen viewer (with sound) via the TouchableOpacity above.
+          <Video
+            source={{ uri: previewUri! }}
+            style={styles.cellImage}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            isMuted
+            isLooping
+            useNativeControls={false}
+          />
+        ) : (
+          <Image
+            source={{ uri: item.uri }}
+            style={styles.cellImage}
+            resizeMode="cover"
+          />
+        )}
 
-      {/* Video duration badge */}
-      {item.mediaType === 'video' && (
-        <View style={styles.videoBadge}>
-          <Ionicons name="play" size={10} color="#fff" />
-          {item.duration > 0 && (
-            <Text style={styles.duration}>
-              {Math.floor(item.duration / 60)}:{String(Math.floor(item.duration % 60)).padStart(2, '0')}
-            </Text>
-          )}
+        {/* Cloud status badge */}
+        <View style={[styles.cloudBadge, item.isUploaded ? styles.cloudBadgeUploaded : styles.cloudBadgePending]}>
+          <Ionicons
+            name={item.isUploaded ? 'checkmark' : 'cloud-upload-outline'}
+            size={10}
+            color="#fff"
+          />
         </View>
-      )}
-    </TouchableOpacity>
-  );
+
+        {/* Video duration badge — keep this even while previewing so the
+            tile still reads as a video (and the duration is informative). */}
+        {isVideo && (
+          <View style={styles.videoBadge}>
+            <Ionicons name="play" size={10} color="#fff" />
+            {item.duration > 0 && (
+              <Text style={styles.duration}>
+                {Math.floor(item.duration / 60)}:{String(Math.floor(item.duration % 60)).padStart(2, '0')}
+              </Text>
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
@@ -283,6 +348,8 @@ export default function MyPhotoScreen() {
           maxToRenderPerBatch={30}
           windowSize={10}
           initialNumToRender={30}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
         />
       )}
     </SafeAreaView>
