@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert,
   ActivityIndicator, Platform, ScrollView,
+  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,6 +16,7 @@ import { saveToMySpace } from '@/lib/myspace-upload';
 import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { ZoomPanView, type ZoomPanTransform } from '@/components/ZoomPanView';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -54,6 +56,13 @@ export default function ImageEditorScreen() {
   const [removingBg, setRemovingBg] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingSpace, setSavingSpace] = useState(false);
+  const [cropping, setCropping] = useState(false);
+
+  // Track the live pinch/pan transform + image+container dims so "Iseci na
+  // ram" can compute the visible region in image-space and crop to it.
+  const transformRef = useRef<ZoomPanTransform>({ scale: 1, translateX: 0, translateY: 0 });
+  const [intrinsic, setIntrinsic] = useState<{ width: number; height: number } | null>(null);
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     if (sourceUri || !id) return;
@@ -79,6 +88,80 @@ export default function ImageEditorScreen() {
     })();
     return () => { cancelled = true; };
   }, [id, sourceUri, getToken]);
+
+  // Fetch intrinsic image dims whenever the current image changes —
+  // needed to map the visible viewport into image-space for the crop.
+  useEffect(() => {
+    if (!currentUri) { setIntrinsic(null); return; }
+    let cancelled = false;
+    RNImage.getSize(
+      currentUri,
+      (w, h) => { if (!cancelled) setIntrinsic({ width: w, height: h }); },
+      () => { if (!cancelled) setIntrinsic(null); }
+    );
+    return () => { cancelled = true; };
+  }, [currentUri]);
+
+  // Crop the image to whatever's currently inside the preview frame after
+  // pinch-zoom + pan. Math: with contentFit="contain", the image is laid
+  // out at displayedW × displayedH centered in the container; ZoomPanView
+  // then scales by `s` around that and translates by (tx, ty). We intersect
+  // the displayed rect with the container rect and convert the result back
+  // into the image's native pixel coords.
+  const handleCrop = useCallback(async () => {
+    if (!currentUri || !intrinsic || !containerSize) {
+      Alert.alert('Sačekaj', 'Slika se još učitava.');
+      return;
+    }
+    const { width: iw, height: ih } = intrinsic;
+    const { w: cw, h: ch } = containerSize;
+    const { scale: s, translateX: tx, translateY: ty } = transformRef.current;
+    const ratioFit = Math.min(cw / iw, ch / ih);
+    const dispW = iw * ratioFit * s;
+    const dispH = ih * ratioFit * s;
+    const dispX = (cw - dispW) / 2 + tx;
+    const dispY = (ch - dispH) / 2 + ty;
+    const visX1 = Math.max(0, dispX);
+    const visY1 = Math.max(0, dispY);
+    const visX2 = Math.min(cw, dispX + dispW);
+    const visY2 = Math.min(ch, dispY + dispH);
+    if (visX2 <= visX1 || visY2 <= visY1) {
+      Alert.alert('Greška', 'Pomeri sliku tako da je vidljiva u kadru, pa pokušaj opet.');
+      return;
+    }
+    const cropX = Math.round((visX1 - dispX) / (ratioFit * s));
+    const cropY = Math.round((visY1 - dispY) / (ratioFit * s));
+    const cropW = Math.round((visX2 - visX1) / (ratioFit * s));
+    const cropH = Math.round((visY2 - visY1) / (ratioFit * s));
+    // Edge clamp — float math can push us a pixel past the image bounds.
+    const finalX = Math.max(0, Math.min(cropX, iw - 1));
+    const finalY = Math.max(0, Math.min(cropY, ih - 1));
+    const finalW = Math.max(1, Math.min(cropW, iw - finalX));
+    const finalH = Math.max(1, Math.min(cropH, ih - finalY));
+
+    setCropping(true);
+    try {
+      let localUri = currentUri;
+      if (currentUri.startsWith('http')) {
+        const dl = await FileSystem.downloadAsync(
+          currentUri,
+          `${FileSystem.cacheDirectory}crop_src_${Date.now()}.jpg`
+        );
+        localUri = dl.uri;
+      }
+      const out = await ImageManipulator.manipulateAsync(
+        localUri,
+        [{ crop: { originX: finalX, originY: finalY, width: finalW, height: finalH } }],
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      setCurrentUri(out.uri);
+    } catch (e) {
+      console.warn('Crop error:', e);
+      Alert.alert('Greška', 'Sečenje nije uspelo. Pokušaj ponovo.');
+    } finally {
+      setCropping(false);
+    }
+  }, [currentUri, intrinsic, containerSize]);
 
   const applyFilter = useCallback(async (filter: FilterType) => {
     if (filter === 'original') {
@@ -229,8 +312,11 @@ export default function ImageEditorScreen() {
       </View>
 
       {/* Image preview */}
-      <View style={styles.imageContainer}>
-        {processing || removingBg || imageLoading ? (
+      <View
+        style={styles.imageContainer}
+        onLayout={(e) => setContainerSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      >
+        {processing || removingBg || imageLoading || cropping ? (
           <View style={styles.processingOverlay}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.processingText}>
@@ -238,22 +324,50 @@ export default function ImageEditorScreen() {
                 ? 'Učitavam sliku...'
                 : removingBg
                   ? 'Uklanjam pozadinu...'
-                  : 'Primenjujem filter...'}
+                  : cropping
+                    ? 'Sečem...'
+                    : 'Primenjujem filter...'}
             </Text>
           </View>
         ) : null}
         {currentUri ? (
-          <Image
-            source={{ uri: currentUri }}
-            style={styles.image}
-            contentFit="contain"
-            transition={200}
-          />
+          // Pinch to zoom + drag to pan. Remounting on uri change resets the
+          // transform so a freshly cropped / bg-removed image opens at 1×.
+          <ZoomPanView
+            key={currentUri}
+            style={StyleSheet.absoluteFillObject}
+            onTransformChange={(t) => { transformRef.current = t; }}
+          >
+            <Image
+              source={{ uri: currentUri }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+              transition={200}
+            />
+          </ZoomPanView>
         ) : null}
       </View>
 
       {/* Tools */}
       <View style={[styles.toolsContainer, { backgroundColor: tc.bgCard }]}>
+        <Text style={[styles.zoomHint, { color: tc.textMuted }]}>
+          Uštipni sa 2 prsta za zum · prevuci da pomeriš · pa „Iseci na ram"
+        </Text>
+
+        {/* Crop to the visible viewport after pinch/pan. */}
+        <TouchableOpacity
+          style={[styles.removeBgBtn, { backgroundColor: '#0ea5e9' }]}
+          onPress={handleCrop}
+          disabled={cropping || !currentUri || !intrinsic}
+        >
+          {cropping ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="crop-outline" size={18} color="#fff" />
+          )}
+          <Text style={styles.removeBgText}>Iseci na ram</Text>
+        </TouchableOpacity>
+
         {/* Remove Background button */}
         <TouchableOpacity
           style={[styles.removeBgBtn, { backgroundColor: colors.accent }]}
@@ -376,4 +490,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, borderWidth: 1, borderColor: 'transparent',
   },
   filterLabel: { fontSize: 10, ...fonts.medium, color: colors.textMuted },
+  zoomHint: { fontSize: 11, textAlign: 'center', marginHorizontal: 16, marginBottom: 8 },
 });

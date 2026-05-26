@@ -17,6 +17,7 @@ import { saveToMySpace } from '@/lib/myspace-upload';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { ZoomPanView } from '@/components/ZoomPanView';
 
 const { width } = Dimensions.get('window');
 const STICKER_SIZE = width - 80;
@@ -206,11 +207,15 @@ export default function StickerMakerScreen() {
       const br = shape === 'circle' ? s / 2 : 30;
       return (
         <View style={[styles.stickerFrame, { borderRadius: br, borderColor, borderWidth: 4 }]}>
-          <Image
-            source={{ uri: imageUri }}
-            style={[styles.stickerImage, { borderRadius: br - 4, transform: [{ scale: zoom }] }]}
-            contentFit="cover"
-          />
+          {/* Pinch-to-zoom + drag the subject inside the clipped frame. The
+              frame's overflow:hidden clips the image to the chosen shape. */}
+          <ZoomPanView style={StyleSheet.absoluteFillObject}>
+            <Image
+              source={{ uri: imageUri }}
+              style={[styles.stickerImage, { borderRadius: br - 4 }]}
+              contentFit="cover"
+            />
+          </ZoomPanView>
         </View>
       );
     }
@@ -273,8 +278,15 @@ export default function StickerMakerScreen() {
           </View>
         </View>
 
-        {/* Zoom control */}
-        {imageUri && shape !== 'text' && (
+        {/* Zoom controls. Circle/rounded use pinch-to-zoom (ZoomPanView)
+            so we just show a hint; star/heart still drive the SVG props
+            via the +/- buttons. */}
+        {imageUri && shape !== 'text' && (shape === 'circle' || shape === 'rounded') && (
+          <Text style={[styles.zoomHint, { color: tc.textMuted }]}>
+            Uštipni sa 2 prsta za zum · prevuci da pomeriš
+          </Text>
+        )}
+        {imageUri && (shape === 'star' || shape === 'heart') && (
           <View style={styles.zoomRow}>
             <TouchableOpacity onPress={() => setZoom(Math.max(0.5, zoom - 0.1))} style={styles.zoomBtn}>
               <Ionicons name="remove" size={20} color={tc.text} />
@@ -405,6 +417,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   zoomText: { fontSize: 14, ...fonts.bold, width: 50, textAlign: 'center' },
+  zoomHint: { fontSize: 11, textAlign: 'center', marginBottom: 8 },
   toolsCard: { width: width - 24, borderRadius: radius.lg, padding: 16, marginTop: 8 },
   removeBgBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

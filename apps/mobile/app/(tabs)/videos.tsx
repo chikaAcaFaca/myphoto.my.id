@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
   RefreshControl, Image, Dimensions,
+  type ViewToken,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -41,6 +43,42 @@ export default function VideosScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'device' | 'cloud'>('cloud');
+
+  // Auto-play the currently-visible video in the grid (muted, looped).
+  // Only ONE plays at a time — its presigned playback URL is fetched on
+  // demand and cached for 30 min so a quick scroll doesn't hammer the API.
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+  const urlCacheRef = useRef<Map<string, { url: string; expiry: number }>>(new Map());
+
+  useEffect(() => {
+    if (!activeVideoId) { setActiveVideoUrl(null); return; }
+    let cancelled = false;
+    (async () => {
+      const cached = urlCacheRef.current.get(activeVideoId);
+      if (cached && cached.expiry > Date.now()) { setActiveVideoUrl(cached.url); return; }
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const r = await fetch(`${API_URL}/api/files/${activeVideoId}/download-url`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) return;
+        const { downloadUrl } = await r.json();
+        if (cancelled) return;
+        urlCacheRef.current.set(activeVideoId, { url: downloadUrl, expiry: Date.now() + 30 * 60 * 1000 });
+        setActiveVideoUrl(downloadUrl);
+      } catch { /* silent — the tile falls back to its thumbnail */ }
+    })();
+    return () => { cancelled = true; };
+  }, [activeVideoId, getToken]);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    // Pick the top-most fully-viewable tile as the active player.
+    const first = viewableItems.find((v) => v.isViewable);
+    setActiveVideoId(((first?.item as FileMetadata | undefined)?.id) || null);
+  }).current;
 
   const fetchCloudVideos = useCallback(async () => {
     try {
@@ -109,7 +147,17 @@ export default function VideosScreen() {
       })}
     >
       <View style={styles.videoThumb}>
-        {item.thumbnailKey ? (
+        {item.id === activeVideoId && activeVideoUrl ? (
+          <Video
+            source={{ uri: activeVideoUrl }}
+            style={styles.thumbImage}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            isMuted
+            isLooping
+            useNativeControls={false}
+          />
+        ) : item.thumbnailKey ? (
           <Image
             source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=medium` }}
             style={styles.thumbImage}
@@ -120,9 +168,13 @@ export default function VideosScreen() {
             <Ionicons name="videocam" size={28} color={colors.textMuted} />
           </View>
         )}
-        <View style={styles.playBtn}>
-          <Ionicons name="play" size={18} color={colors.primary} />
-        </View>
+        {/* Hide the Play overlay on the auto-playing tile so the preview
+            reads as live video; show it on every other tile as before. */}
+        {item.id !== activeVideoId && (
+          <View style={styles.playBtn}>
+            <Ionicons name="play" size={18} color={colors.primary} />
+          </View>
+        )}
         <View style={styles.durationBadge}>
           <Text style={styles.durationText}>{formatDuration(item.duration)}</Text>
         </View>
@@ -173,6 +225,8 @@ export default function VideosScreen() {
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
         />
       )}
     </SafeAreaView>
