@@ -41,46 +41,54 @@ export default function MyPhotoScreen() {
   const endCursorRef = useRef<string | undefined>(undefined);
   const appState = useRef(AppState.currentState);
 
-  // Inline video auto-play: each visible video tile turns its static
-  // thumbnail into a muted, looped, low-friction "live preview" — same
-  // pattern as Photos / TikTok grids. Two pieces of state make it work
-  // without thrashing the AV pipeline:
-  //   - visibleVideoIds: which tiles are actually on-screen right now
-  //   - resolvedVideoUrisRef: cached file:// URIs (expo-av can't play
-  //     content:// on Android), filled lazily on first visibility
-  const [visibleVideoIds, setVisibleVideoIds] = useState<Set<string>>(new Set());
+  // Inline video auto-play in the home grid: previewing every visible video
+  // tile crashed the app under load (9 native MediaPlayer decoders + parallel
+  // upload I/O = OOM / native AV crash 5-10s into a sync). Two guards now:
+  //   1. MAX_ACTIVE_PREVIEWS caps simultaneous players — most Androids handle
+  //      2 video decoders comfortably; 9 was the cliff.
+  //   2. Autoplay pauses entirely during sync (isSyncing flag) — uploads and
+  //      decoders sharing the same I/O / memory budget is what tipped it.
+  const MAX_ACTIVE_PREVIEWS = 2;
+  const [visibleVideoIds, setVisibleVideoIds] = useState<string[]>([]);
   const resolvedVideoUrisRef = useRef<Map<string, string>>(new Map());
-  // Bump this to force a re-render once a content:// → file:// resolve
-  // lands (the map mutation alone wouldn't trigger React).
   const [, setResolvedTick] = useState(0);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50, waitForInteraction: false }).current;
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    const next = new Set<string>();
+    // Order-preserving so we can take the TOP N and stay deterministic as
+    // the user scrolls. (A Set lost ordering and we ended up picking
+    // arbitrary tiles to play.)
+    const ordered: string[] = [];
     for (const v of viewableItems) {
       if (!v.isViewable) continue;
       const it = v.item as LocalPhoto;
-      if (it.mediaType === 'video') next.add(it.id);
+      if (it.mediaType === 'video') ordered.push(it.id);
     }
-    setVisibleVideoIds(next);
+    setVisibleVideoIds(ordered.slice(0, MAX_ACTIVE_PREVIEWS));
   }).current;
 
-  // Resolve file:// URIs for any newly-visible videos that don't have one
-  // cached yet. content:// (the default from MediaLibrary.getAssetsAsync)
-  // mounts on expo-av's Video but never plays — we have to go through
-  // getAssetInfoAsync to land at the file:// path the player understands.
+  // Resolve file:// URIs for the (capped) visible-video set. content://
+  // (the default from MediaLibrary.getAssetsAsync) mounts on expo-av's
+  // Video but never plays — we have to go through getAssetInfoAsync.
+  // Serial (await loop) instead of fan-out so a fast scroll doesn't queue
+  // 50 parallel native IPCs.
   useEffect(() => {
-    visibleVideoIds.forEach(async (id) => {
-      if (resolvedVideoUrisRef.current.has(id)) return;
-      try {
-        const info = await MediaLibrary.getAssetInfoAsync(id);
-        const file = info?.localUri || info?.uri;
-        if (file) {
-          resolvedVideoUrisRef.current.set(id, file);
-          setResolvedTick((t) => t + 1);
-        }
-      } catch { /* fall back to the static thumbnail */ }
-    });
+    let cancelled = false;
+    (async () => {
+      for (const id of visibleVideoIds) {
+        if (cancelled) return;
+        if (resolvedVideoUrisRef.current.has(id)) continue;
+        try {
+          const info = await MediaLibrary.getAssetInfoAsync(id);
+          const file = info?.localUri || info?.uri;
+          if (file) {
+            resolvedVideoUrisRef.current.set(id, file);
+            if (!cancelled) setResolvedTick((t) => t + 1);
+          }
+        } catch { /* fall back to the static thumbnail */ }
+      }
+    })();
+    return () => { cancelled = true; };
   }, [visibleVideoIds]);
 
   // Load uploaded asset IDs from AsyncStorage (sync state)
@@ -187,7 +195,12 @@ export default function MyPhotoScreen() {
   const renderPhoto = ({ item }: { item: LocalPhoto }) => {
     const isVideo = item.mediaType === 'video';
     const previewUri = isVideo ? resolvedVideoUrisRef.current.get(item.id) : undefined;
-    const shouldPreview = isVideo && visibleVideoIds.has(item.id) && !!previewUri;
+    // Gate the inline player on three conditions: it's a video, it's in
+    // the (capped) visible slice, AND we have a playable file:// URI.
+    // Also bail out during sync — running decoders alongside upload I/O
+    // is what was crashing the app 5-10s after pressing Sync.
+    const shouldPreview =
+      isVideo && !isSyncing && visibleVideoIds.includes(item.id) && !!previewUri;
 
     return (
       <TouchableOpacity
