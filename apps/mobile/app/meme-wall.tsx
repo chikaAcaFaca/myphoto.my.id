@@ -66,7 +66,21 @@ export default function MemeWallScreen() {
     const first = viewableItems.find(v => v.isViewable);
     setVisibleId(first ? (first.item as MemePost).id : null);
   }).current;
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50, waitForInteraction: false }).current;
+
+  // Map<memeId, Video ref> so we can drive the *currently visible* player
+  // imperatively when shouldPlay alone isn't enough on a given device.
+  const videoRefs = useRef<Map<string, Video | null>>(new Map());
+
+  // Whenever the visible item changes, force-play it (and pause everything
+  // else). Without this, expo-av sometimes paints the first frame and idles.
+  useEffect(() => {
+    videoRefs.current.forEach((vid, id) => {
+      if (!vid) return;
+      if (id === visibleId) vid.playAsync().catch(() => {});
+      else vid.pauseAsync().catch(() => {});
+    });
+  }, [visibleId]);
 
   const fetchMemes = useCallback(async (pageNum: number, append = false) => {
     try {
@@ -79,6 +93,10 @@ export default function MemeWallScreen() {
         const list: MemePost[] = data.memes || data.items || [];
         setHasMore(!!data.hasMore);
         setMemes(prev => (append ? [...prev, ...list] : list));
+        // Prime visibleId so the first video meme starts playing immediately —
+        // onViewableItemsChanged doesn't always fire on first mount before
+        // the user scrolls, which left the player stuck on a still frame.
+        if (!append && list.length > 0) setVisibleId(prev => prev ?? list[0].id);
       }
     } catch (e) {
       console.log('MemeWall fetch error:', e);
@@ -186,12 +204,21 @@ export default function MemeWallScreen() {
     <View style={[styles.page, { height: pageH, width }]}>
       {item.mediaType === 'video' ? (
         <Video
+          // Callback ref stores per-item handles into videoRefs so the effect
+          // above can imperatively play/pause the right one as visibility
+          // shifts on the pager.
+          ref={(r) => { videoRefs.current.set(item.id, r); }}
           source={{ uri: item.imageUrl }}
           style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.CONTAIN}
           shouldPlay={visibleId === item.id}
           isLooping
           isMuted={false}
+          onLoad={() => {
+            if (visibleId === item.id) {
+              videoRefs.current.get(item.id)?.playAsync().catch(() => {});
+            }
+          }}
         />
       ) : (
         <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="contain" transition={150} />

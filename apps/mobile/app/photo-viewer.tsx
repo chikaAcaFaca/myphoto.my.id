@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert,
   ActivityIndicator, Share, Platform, Modal, ScrollView,
@@ -51,6 +51,7 @@ export default function PhotoViewerScreen() {
   const [mediaUrl, setMediaUrl] = useState<string | null>(localUri || null);
   const [mediaLoading, setMediaLoading] = useState(!localUri);
   const isVideo = type === 'video';
+  const videoRef = useRef<Video>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -371,13 +372,19 @@ export default function PhotoViewerScreen() {
         ) : !mediaUrl ? (
           <Text style={{ color: '#fff' }}>Nije moguće učitati fajl.</Text>
         ) : isVideo ? (
+          // shouldPlay alone has been flaky on some Android devices (the player
+          // loads the source, paints the first frame, then never actually
+          // starts). Calling playAsync explicitly in onLoad guarantees
+          // playback once the AV pipeline reports the source is ready.
           <Video
+            ref={videoRef}
             source={{ uri: mediaUrl }}
             style={styles.image}
             useNativeControls
             resizeMode={ResizeMode.CONTAIN}
             shouldPlay
             isLooping={false}
+            onLoad={() => { videoRef.current?.playAsync().catch(() => {}); }}
           />
         ) : (
           <ZoomPanView style={styles.image}>

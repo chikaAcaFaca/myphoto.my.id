@@ -447,6 +447,10 @@ export default function MemeCreatorScreen() {
                       shouldPlay={isPlaying}
                       isLooping
                       isMuted={false}
+                      // shouldPlay alone wasn't enough on some Androids — the
+                      // player painted the first frame and stalled. playAsync
+                      // in onLoad makes auto-start deterministic.
+                      onLoad={() => { if (isPlaying) videoRef.current?.playAsync().catch(() => {}); }}
                     />
                     {!isPlaying && (
                       <View style={styles.playOverlay}>

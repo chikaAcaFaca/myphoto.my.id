@@ -9,6 +9,22 @@ import React, { useEffect, useState, Component, type ErrorInfo, type ReactNode }
 import { View, Text, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
+
+// One-time audio session config so expo-av's <Video> auto-plays reliably.
+// Without `playsInSilentModeIOS` an iOS device on silent never starts the
+// player; on Android the session has to be set BEFORE the first Video mounts
+// or shouldPlay can be silently ignored. We fire-and-forget — failure here
+// only degrades audio behavior, never crashes.
+Audio.setAudioModeAsync({
+  allowsRecordingIOS: false,
+  interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+  interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+  playsInSilentModeIOS: true,
+  shouldDuckAndroid: true,
+  staysActiveInBackground: false,
+  playThroughEarpieceAndroid: false,
+}).catch(() => {});
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from '@/lib/auth-context';

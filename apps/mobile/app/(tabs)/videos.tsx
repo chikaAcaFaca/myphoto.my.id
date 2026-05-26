@@ -50,6 +50,8 @@ export default function VideosScreen() {
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
   const urlCacheRef = useRef<Map<string, { url: string; expiry: number }>>(new Map());
+  // Only one tile auto-plays at a time, so a single ref suffices.
+  const previewVideoRef = useRef<Video>(null);
 
   useEffect(() => {
     if (!activeVideoId) { setActiveVideoUrl(null); return; }
@@ -149,6 +151,7 @@ export default function VideosScreen() {
       <View style={styles.videoThumb}>
         {item.id === activeVideoId && activeVideoUrl ? (
           <Video
+            ref={previewVideoRef}
             source={{ uri: activeVideoUrl }}
             style={styles.thumbImage}
             resizeMode={ResizeMode.COVER}
@@ -156,6 +159,9 @@ export default function VideosScreen() {
             isMuted
             isLooping
             useNativeControls={false}
+            // Force playback once AV reports ready — some Android devices
+            // stall on the first frame even with shouldPlay set.
+            onLoad={() => { previewVideoRef.current?.playAsync().catch(() => {}); }}
           />
         ) : item.thumbnailKey ? (
           <Image
