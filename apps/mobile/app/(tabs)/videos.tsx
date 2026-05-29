@@ -55,6 +55,12 @@ export default function VideosScreen() {
 
   useEffect(() => {
     if (!activeVideoId) { setActiveVideoUrl(null); return; }
+    // /api/files now ships a presigned `playbackUrl` for every video in the
+    // list response, so the common case needs NO extra network call. We only
+    // fall back to the per-video download-url endpoint if it's missing (an
+    // older cached list, say). This is the main Vercel-invocation saver.
+    const fromList = (cloudVideos.find((v) => v.id === activeVideoId) as any)?.playbackUrl as string | undefined;
+    if (fromList) { setActiveVideoUrl(fromList); return; }
     let cancelled = false;
     (async () => {
       const cached = urlCacheRef.current.get(activeVideoId);
@@ -73,7 +79,7 @@ export default function VideosScreen() {
       } catch { /* silent — the tile falls back to its thumbnail */ }
     })();
     return () => { cancelled = true; };
-  }, [activeVideoId, getToken]);
+  }, [activeVideoId, getToken, cloudVideos]);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {

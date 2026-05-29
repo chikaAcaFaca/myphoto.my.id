@@ -3,7 +3,6 @@ import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
   RefreshControl, Image, Dimensions, AppState, type ViewToken,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -12,6 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useSync } from '@/lib/sync-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { VideoFlipbook } from '@/components/VideoFlipbook';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -41,14 +41,13 @@ export default function MyPhotoScreen() {
   const endCursorRef = useRef<string | undefined>(undefined);
   const appState = useRef(AppState.currentState);
 
-  // Inline video auto-play in the home grid: previewing every visible video
-  // tile crashed the app under load (9 native MediaPlayer decoders + parallel
-  // upload I/O = OOM / native AV crash 5-10s into a sync). Two guards now:
-  //   1. MAX_ACTIVE_PREVIEWS caps simultaneous players — most Androids handle
-  //      2 video decoders comfortably; 9 was the cliff.
-  //   2. Autoplay pauses entirely during sync (isSyncing flag) — uploads and
-  //      decoders sharing the same I/O / memory budget is what tipped it.
-  const MAX_ACTIVE_PREVIEWS = 2;
+  // Inline "moving picture" preview in the home grid. Real <Video> players
+  // here crashed the app (many live native decoders + upload I/O = OOM), so
+  // we now use VideoFlipbook — a few still frames cross-faded on a timer, with
+  // NO persistent decoder. That removes the crash entirely, so we no longer
+  // pause during sync and can afford a slightly larger visible set. The cap
+  // just bounds how many frame extractions run at once.
+  const MAX_ACTIVE_PREVIEWS = 4;
   const [visibleVideoIds, setVisibleVideoIds] = useState<string[]>([]);
   const resolvedVideoUrisRef = useRef<Map<string, string>>(new Map());
   const [, setResolvedTick] = useState(0);
@@ -195,12 +194,10 @@ export default function MyPhotoScreen() {
   const renderPhoto = ({ item }: { item: LocalPhoto }) => {
     const isVideo = item.mediaType === 'video';
     const previewUri = isVideo ? resolvedVideoUrisRef.current.get(item.id) : undefined;
-    // Gate the inline player on three conditions: it's a video, it's in
-    // the (capped) visible slice, AND we have a playable file:// URI.
-    // Also bail out during sync — running decoders alongside upload I/O
-    // is what was crashing the app 5-10s after pressing Sync.
+    // Animate the tile when it's a visible video with a resolved file:// URI.
+    // No decoder is involved (frames only), so this is safe even mid-sync.
     const shouldPreview =
-      isVideo && !isSyncing && visibleVideoIds.includes(item.id) && !!previewUri;
+      isVideo && visibleVideoIds.includes(item.id) && !!previewUri;
 
     return (
       <TouchableOpacity
@@ -222,18 +219,16 @@ export default function MyPhotoScreen() {
           },
         })}
       >
-        {shouldPreview ? (
-          // Muted, looped inline preview of the visible video — the cell
-          // reads as live video, not a still. Tapping still opens the
-          // full-screen viewer (with sound) via the TouchableOpacity above.
-          <Video
-            source={{ uri: previewUri! }}
+        {isVideo && previewUri ? (
+          // Frame-flipbook "moving picture" — reads as motion without a live
+          // decoder. Falls back to the device thumbnail until frames extract.
+          // Tapping still opens the full-screen viewer (with sound).
+          <VideoFlipbook
+            videoUri={previewUri}
+            fallbackUri={item.uri}
+            durationMs={item.duration ? item.duration * 1000 : undefined}
+            active={shouldPreview}
             style={styles.cellImage}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay
-            isMuted
-            isLooping
-            useNativeControls={false}
           />
         ) : (
           <Image

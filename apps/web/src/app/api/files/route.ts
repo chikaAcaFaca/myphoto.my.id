@@ -85,6 +85,17 @@ export async function GET(request: NextRequest) {
           } catch { /* skip */ }
         }
 
+        // For videos, also presign the full media URL right here so the
+        // client can play inline WITHOUT a second /api/files/[id]/download-url
+        // call per video. That extra per-play function call was both burning
+        // Vercel invocations (free-tier overage) and — when throttled —
+        // leaving cloud videos stuck showing only their thumbnail.
+        if (data.s3Key && typeof data.mimeType === 'string' && data.mimeType.startsWith('video/')) {
+          try {
+            file.playbackUrl = await generateDownloadUrl(data.s3Key);
+          } catch { /* fall back to the per-video endpoint */ }
+        }
+
         return file;
       })
     );
