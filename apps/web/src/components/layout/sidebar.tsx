@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import NextImage from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -28,11 +28,57 @@ import {
   Gift,
   Palette,
   Flame,
+  RefreshCw,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore, useAuthStore } from '@/lib/stores';
 import { useStorage, usePWA, useIsMobile, useReferralStats } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
-import { FREE_STORAGE_LIMIT, BYTES_PER_GB } from '@myphoto/shared';
+import { FREE_STORAGE_LIMIT, BYTES_PER_GB, formatBytes } from '@myphoto/shared';
+import { getIdToken } from '@/lib/firebase';
+
+// One-shot reconcile of the user's storageUsed counter against the source of
+// truth (sum of non-trashed files + diskFiles). The counter has drifted high
+// in practice when older soft-deletes didn't decrement it, leaving users
+// stuck under the over-quota warning even after emptying folders of APKs.
+function RecomputeStorageButton() {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const onClick = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const token = await getIdToken();
+      const res = await fetch('/api/storage/recompute', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        queryClient.invalidateQueries({ queryKey: ['storage'] });
+        const freed = data?.freedBytes || 0;
+        if (freed > 0) {
+          alert(`Oslobođeno ${formatBytes(freed)} prostora.`);
+        } else {
+          alert('Skladište je već usklađeno.');
+        }
+      } else {
+        alert('Osvežavanje nije uspelo.');
+      }
+    } catch { alert('Mrežna greška.'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <button
+      onClick={onClick}
+      disabled={busy}
+      title="Osveži kvotu — preračunaj iskorišćeno skladište"
+      className="inline-flex items-center justify-center rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+    >
+      <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
+    </button>
+  );
+}
 
 const mainNav = [
   { name: 'Slike', href: '/photos', icon: Image },
@@ -196,7 +242,10 @@ export function Sidebar() {
           <div className="border-t border-gray-200 p-4 dark:border-gray-700">
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">Skladište</span>
-              <span className="font-medium">{storage.percentage}%</span>
+              <div className="flex items-center gap-2">
+                <RecomputeStorageButton />
+                <span className="font-medium">{storage.percentage}%</span>
+              </div>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
               <div

@@ -415,6 +415,22 @@ export async function DELETE(request: NextRequest) {
       trashedAt: new Date(),
     });
 
+    // Free the quota at soft-delete time. Previously deletion only set
+    // isTrashed=true and left storageUsed untouched, so users who "deleted"
+    // gigabytes of APKs still saw the over-quota warning. The Trash purge
+    // (DELETE /api/disk-files/trash) is now responsible only for S3 cleanup;
+    // it must not decrement again. Math.max(0,…) guards against any drift
+    // from older records that were already double-counted.
+    const size = fileDoc.data()?.size || 0;
+    if (size > 0) {
+      const userRef = db.collection('users').doc(userId);
+      const userDoc = await userRef.get();
+      const currentUsed = userDoc.data()?.storageUsed || 0;
+      await userRef.update({
+        storageUsed: Math.max(0, currentUsed - size),
+      });
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Disk files DELETE error:', error);
