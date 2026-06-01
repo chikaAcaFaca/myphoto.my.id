@@ -1509,10 +1509,24 @@ export default function MySpacePage() {
                   <Download className="h-4 w-4" /> Preuzmi kao ZIP
                 </button>
                 <button
-                  onClick={() => { deleteFolderMutation.mutate(contextMenu.item.id); setContextMenu(null); }}
+                  // If the right-clicked row is part of a multi-selection,
+                  // honour the user's mental model and delete the whole
+                  // selection. Otherwise, single-folder delete as before.
+                  onClick={() => {
+                    const inSel = selectedFolders.has(contextMenu.item.id);
+                    if (inSel && selectionCount > 1) {
+                      handleDeleteSelected();
+                    } else {
+                      deleteFolderMutation.mutate(contextMenu.item.id);
+                    }
+                    setContextMenu(null);
+                  }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
-                  <Trash2 className="h-4 w-4" /> Obriši
+                  <Trash2 className="h-4 w-4" />
+                  {selectedFolders.has(contextMenu.item.id) && selectionCount > 1
+                    ? `Obriši ${selectionCount} stavki`
+                    : 'Obriši'}
                 </button>
               </>
             ) : (
@@ -1617,10 +1631,25 @@ export default function MySpacePage() {
                   <Download className="h-4 w-4" /> Preuzmi
                 </button>
                 <button
-                  onClick={() => { deleteFileMutation.mutate(contextMenu.item.id); setContextMenu(null); }}
+                  // If this row is part of a multi-selection, the user
+                  // expects "Obriši" to apply to the whole selection — that
+                  // single-file delete on a multi-select was the other half
+                  // of the bug they reported.
+                  onClick={() => {
+                    const inSel = selectedFiles.has(contextMenu.item.id);
+                    if (inSel && selectionCount > 1) {
+                      handleDeleteSelected();
+                    } else {
+                      deleteFileMutation.mutate(contextMenu.item.id);
+                    }
+                    setContextMenu(null);
+                  }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
-                  <Trash2 className="h-4 w-4" /> Obriši
+                  <Trash2 className="h-4 w-4" />
+                  {selectedFiles.has(contextMenu.item.id) && selectionCount > 1
+                    ? `Obriši ${selectionCount} stavki`
+                    : 'Obriši'}
                 </button>
               </>
             )}
@@ -1628,39 +1657,51 @@ export default function MySpacePage() {
         )}
       </AnimatePresence>
 
-      {/* Floating Selection Bar */}
+      {/* Floating Selection Bar — on mobile the 4 buttons + full labels +
+          "N izabrano" tag previously overflowed the viewport, hiding the
+          Delete button off-screen to the right (which is what the user kept
+          missing). Now: max-width clamps to the viewport, button labels
+          collapse to icon-only on narrow screens (sm:inline reveals them),
+          and Obriši sits between Premesti and the secondary actions so the
+          two primary actions are always the most visible. */}
       <AnimatePresence>
         {hasSelection && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+            className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 items-center gap-1.5 overflow-x-auto rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-xl sm:bottom-6 sm:gap-2 sm:px-4 sm:py-2.5 dark:border-gray-700 dark:bg-gray-800"
           >
-            <span className="mr-2 text-sm font-medium">{selectionCount} izabrano</span>
+            <span className="mr-1 shrink-0 text-xs font-medium sm:mr-2 sm:text-sm">
+              {selectionCount} <span className="hidden sm:inline">izabrano</span>
+            </span>
             <button
               onClick={() => setShowMoveModal(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-600"
+              aria-label="Premesti"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary-500 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-primary-600 sm:px-3"
             >
-              <FolderInput className="h-4 w-4" /> Premesti
-            </button>
-            <button
-              onClick={() => handleCopy('copy')}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-            >
-              <Copy className="h-4 w-4" /> Kopiraj
-            </button>
-            <button
-              onClick={() => handleCopy('cut')}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-            >
-              <Scissors className="h-4 w-4" /> Iseci
+              <FolderInput className="h-4 w-4" /> <span className="hidden sm:inline">Premesti</span>
             </button>
             <button
               onClick={handleDeleteSelected}
-              className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+              aria-label={`Obriši ${selectionCount} stavki`}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-2.5 py-1.5 text-sm font-medium text-red-600 hover:bg-red-100 sm:px-3 dark:border-red-800 dark:bg-red-900/20 dark:hover:bg-red-900/40"
             >
-              <Trash2 className="h-4 w-4" /> Obriši
+              <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Obriši</span>
+            </button>
+            <button
+              onClick={() => handleCopy('copy')}
+              aria-label="Kopiraj"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm font-medium hover:bg-gray-50 sm:px-3 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              <Copy className="h-4 w-4" /> <span className="hidden sm:inline">Kopiraj</span>
+            </button>
+            <button
+              onClick={() => handleCopy('cut')}
+              aria-label="Iseci"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm font-medium hover:bg-gray-50 sm:px-3 dark:border-gray-600 dark:hover:bg-gray-700"
+            >
+              <Scissors className="h-4 w-4" /> <span className="hidden sm:inline">Iseci</span>
             </button>
             {clipboard && (
               <button

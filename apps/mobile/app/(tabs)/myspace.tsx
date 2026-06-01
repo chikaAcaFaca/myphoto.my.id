@@ -13,12 +13,24 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 const FOLDER_COLORS = ['#dbeafe', '#fce7f3', '#dcfce7', '#fff7ed', '#f3e8ff', '#fef3c7'];
 
-function getFileIcon(mimeType: string): string {
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType.startsWith('video/')) return 'videocam';
-  if (mimeType.startsWith('audio/')) return 'musical-notes';
-  if (mimeType.includes('pdf')) return 'document-text';
-  if (mimeType.includes('zip') || mimeType.includes('rar')) return 'archive';
+function getFileIcon(mimeType: string | undefined | null, filename?: string): string {
+  // Disk files saved before mimeType was always set can land here with
+  // mimeType=undefined. Calling .startsWith on undefined throws TypeError —
+  // and since renderFile runs once per row, that throw blew up the whole
+  // MySpace screen on mount (user landed in Downloads, app exited to home).
+  const m = (mimeType || '').toLowerCase();
+  if (m.startsWith('image/')) return 'image';
+  if (m.startsWith('video/')) return 'videocam';
+  if (m.startsWith('audio/')) return 'musical-notes';
+  if (m.includes('pdf')) return 'document-text';
+  if (m.includes('zip') || m.includes('rar') || m.includes('android.package')) return 'archive';
+  // Filename-extension fallback for older records with no mimeType at all.
+  const ext = (filename || '').toLowerCase().split('.').pop() || '';
+  if (['apk', 'zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'archive';
+  if (['mp4', 'mov', 'webm', 'mkv'].includes(ext)) return 'videocam';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].includes(ext)) return 'image';
+  if (['mp3', 'wav', 'm4a', 'ogg', 'flac'].includes(ext)) return 'musical-notes';
+  if (ext === 'pdf') return 'document-text';
   return 'document';
 }
 
@@ -98,13 +110,14 @@ export default function MySpaceScreen() {
           try {
             const token = await getToken();
             if (!token) return;
+            const safeMime = file.mimeType || '';
             const cloudFile: CloudFile = {
               id: file.id,
               name: file.name,
               s3Key: file.s3Key,
-              mimeType: file.mimeType,
+              mimeType: safeMime,
               size: file.size,
-              type: file.mimeType.startsWith('image/') ? 'image' : file.mimeType.startsWith('video/') ? 'video' : 'document',
+              type: safeMime.startsWith('image/') ? 'image' : safeMime.startsWith('video/') ? 'video' : 'document',
             };
             const result = await downloadToDevice(cloudFile, token);
             if (result.success) {
@@ -123,11 +136,11 @@ export default function MySpaceScreen() {
   const renderFile = (file: DiskFile) => (
     <TouchableOpacity key={file.id} style={[styles.folderItem, { backgroundColor: tc.bgCard }]} onPress={() => handleFilePress(file)}>
       <View style={[styles.folderIcon, { backgroundColor: '#f1f5f9' }]}>
-        <Ionicons name={getFileIcon(file.mimeType) as any} size={20} color={colors.primary} />
+        <Ionicons name={getFileIcon(file.mimeType, file.name) as any} size={20} color={colors.primary} />
       </View>
       <View style={styles.folderInfo}>
-        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{file.name}</Text>
-        <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{formatBytes(file.size)}</Text>
+        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{file.name || 'Bez imena'}</Text>
+        <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{formatBytes(file.size || 0)}</Text>
       </View>
       <Ionicons name="download-outline" size={18} color={tc.textMuted} />
     </TouchableOpacity>
