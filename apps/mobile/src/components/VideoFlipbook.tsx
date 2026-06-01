@@ -29,10 +29,14 @@ let activeExtractions = 0;
 const MAX_CONCURRENT_EXTRACT = 2;
 
 // Sample N frames from the first PREVIEW_WINDOW_MS of the clip.
-const FRAME_COUNT = 6;
-const PREVIEW_WINDOW_MS = 2000;
-// Playback cadence of the loop — 6 frames × 220ms ≈ 1.3s loop.
-const FRAME_INTERVAL_MS = 220;
+// 24 frames across 3 seconds (~8 fps) reads as continuous motion — close to
+// real video playback rather than a slideshow. Initial extraction is heavier
+// (still capped to 2 concurrent globally) but it's a one-time cost per clip;
+// cached forever after.
+const FRAME_COUNT = 24;
+const PREVIEW_WINDOW_MS = 3000;
+// 24 × 125ms = 3s loop → frames replay at the same cadence they were sampled.
+const FRAME_INTERVAL_MS = 125;
 
 export function VideoFlipbook({
   videoUri,
