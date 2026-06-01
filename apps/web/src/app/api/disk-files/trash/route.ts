@@ -63,12 +63,17 @@ export async function PATCH(request: NextRequest) {
 
     const collection = type === 'folder' ? 'folders' : 'diskFiles';
     const batch = db.batch();
+    // Restore now also re-adds the freed bytes to storageUsed since
+    // soft-delete decremented them. Tracking the total here so we update
+    // the user counter once at the end of the batch.
+    let bytesToRestore = 0;
 
     for (const id of ids) {
       const docRef = db.collection(collection).doc(id);
       const doc = await docRef.get();
       if (doc.exists && doc.data()?.userId === userId) {
         batch.update(docRef, { isTrashed: false, trashedAt: null });
+        if (type === 'file') bytesToRestore += doc.data()?.size || 0;
       }
     }
 
@@ -82,6 +87,7 @@ export async function PATCH(request: NextRequest) {
           .get();
         for (const fileDoc of filesSnap.docs) {
           batch.update(fileDoc.ref, { isTrashed: false, trashedAt: null });
+          bytesToRestore += fileDoc.data()?.size || 0;
         }
         // Restore subfolders too
         const subSnap = await db.collection('folders')
@@ -96,6 +102,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     await batch.commit();
+
+    if (bytesToRestore > 0) {
+      const userRef = db.collection('users').doc(userId);
+      const userDoc = await userRef.get();
+      const currentUsed = userDoc.data()?.storageUsed || 0;
+      await userRef.update({ storageUsed: currentUsed + bytesToRestore });
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Disk trash PATCH error:', error);
@@ -117,10 +131,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     const collection = type === 'folder' ? 'folders' : 'diskFiles';
-    let totalFreed = 0;
-    // Track per-folder freed bytes so we can fan out the negative delta to
-    // any shares covering each folder. Files that lived in different
-    // folders of a multi-id purge can each touch a different share tree.
+    // We no longer decrement storageUsed here — the soft-delete step
+    // (DELETE /api/disk-files) now does that immediately, so permanent
+    // delete is just S3 + Firestore cleanup. Decrementing again would
+    // under-count. (Old pre-fix records in Trash whose soft-delete never
+    // decremented will be reconciled via /api/storage/recompute.)
     const freedByFolder = new Map<string, number>();
 
     for (const id of ids) {
@@ -136,7 +151,6 @@ export async function DELETE(request: NextRequest) {
         }
         const bytes = data.size || 0;
         const folderId = data.folderId || 'root';
-        totalFreed += bytes;
         freedByFolder.set(folderId, (freedByFolder.get(folderId) || 0) + bytes);
         await docRef.delete();
       } else {
@@ -152,21 +166,11 @@ export async function DELETE(request: NextRequest) {
             try { await deleteObject(s3Key); } catch {}
           }
           const bytes = data.size || 0;
-          totalFreed += bytes;
           freedByFolder.set(id, (freedByFolder.get(id) || 0) + bytes);
           await fileDoc.ref.delete();
         }
         await docRef.delete();
       }
-    }
-
-    // Update storage used
-    if (totalFreed > 0) {
-      const userDoc = await db.collection('users').doc(userId).get();
-      const currentUsed = userDoc.data()?.storageUsed || 0;
-      await db.collection('users').doc(userId).update({
-        storageUsed: Math.max(0, currentUsed - totalFreed),
-      });
     }
 
     // Fan out negative deltas to viewers of any share covering each folder
