@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { Component, useState, useEffect, useCallback, type ErrorInfo, type ReactNode } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,40 @@ import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
 import { downloadToDevice, type CloudFile } from '@/lib/cloud-download';
 import type { DiskFolder, DiskFile } from '@myphoto/shared';
+
+// Tab-local ErrorBoundary so a single bad record doesn't dump the user back
+// to the launcher. The global ErrorBoundary in _layout would catch a JS
+// throw too, but it tears down the whole nav stack; this one keeps the user
+// inside the tabs.
+class MySpaceErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error('MySpace render error:', error, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
+          <Ionicons name="warning-outline" size={48} color="#facc15" />
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginTop: 12, textAlign: 'center' }}>
+            MySpace nije uspeo da se učita
+          </Text>
+          <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
+            {this.state.error.message}
+          </Text>
+          <TouchableOpacity
+            style={{ marginTop: 16, paddingHorizontal: 18, paddingVertical: 10, backgroundColor: '#0ea5e9', borderRadius: 8 }}
+            onPress={() => this.setState({ error: null })}
+          >
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Pokušaj ponovo</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
@@ -34,7 +68,15 @@ function getFileIcon(mimeType: string | undefined | null, filename?: string): st
   return 'document';
 }
 
-export default function MySpaceScreen() {
+export default function MySpaceScreenWithBoundary() {
+  return (
+    <MySpaceErrorBoundary>
+      <MySpaceScreen />
+    </MySpaceErrorBoundary>
+  );
+}
+
+function MySpaceScreen() {
   const { colors: tc } = useTheme();
   const { getToken } = useAuth();
   const [folders, setFolders] = useState<DiskFolder[]>([]);
@@ -54,8 +96,11 @@ export default function MySpaceScreen() {
       });
       if (!res.ok) return;
       const data = await res.json();
-      setFolders(data.folders || []);
-      setFiles(data.files || []);
+      // Force arrays even if the API momentarily returns null / an error
+      // shape — Array.prototype.map / spread on a non-array would crash the
+      // render at line 193's `[...folders.map(...), ...files.map(...)]`.
+      setFolders(Array.isArray(data.folders) ? data.folders : []);
+      setFiles(Array.isArray(data.files) ? data.files : []);
     } catch (e) {
       console.error('Error fetching folder:', e);
     } finally {
@@ -88,14 +133,26 @@ export default function MySpaceScreen() {
     fetchFolder(currentFolder, true);
   };
 
+  // Date can come back as an ISO string, a Firestore Timestamp object that
+  // didn't get serialised, or undefined; we just want a date string and
+  // never want a throw to nuke the row.
+  const safeDate = (v: any): string => {
+    try {
+      if (!v) return '';
+      const d = v instanceof Date ? v : new Date(v);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleDateString();
+    } catch { return ''; }
+  };
+
   const renderFolder = (folder: DiskFolder, index: number) => (
     <TouchableOpacity key={folder.id} style={[styles.folderItem, { backgroundColor: tc.bgCard }]} onPress={() => navigateToFolder(folder)}>
       <View style={[styles.folderIcon, { backgroundColor: FOLDER_COLORS[index % FOLDER_COLORS.length] }]}>
         <Ionicons name="folder" size={20} color={colors.accent} />
       </View>
       <View style={styles.folderInfo}>
-        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{folder.name}</Text>
-        <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{new Date(folder.updatedAt).toLocaleDateString()}</Text>
+        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{folder.name || 'Bez imena'}</Text>
+        <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{safeDate(folder.updatedAt)}</Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={tc.textMuted} />
     </TouchableOpacity>
@@ -190,21 +247,28 @@ export default function MySpaceScreen() {
         </View>
       ) : (
         <FlatList
-          data={[...folders.map(f => ({ ...f, _type: 'folder' as const })), ...files.map(f => ({ ...f, _type: 'file' as const }))]}
-          keyExtractor={(item) => item.id}
+          // Skip null/garbage entries up front so a single bad record can't
+          // throw inside .map / spread and tear the screen down.
+          data={[
+            ...folders.filter(Boolean).map((f, i) => ({ ...f, _type: 'folder' as const, _idx: i })),
+            ...files.filter(Boolean).map((f) => ({ ...f, _type: 'file' as const, _idx: 0 })),
+          ]}
+          keyExtractor={(item, i) => (item?.id ? String(item.id) : `row-${i}`)}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           contentContainerStyle={{ paddingBottom: 80 }}
-          renderItem={({ item, index }) => {
-            if (item._type === 'folder') return renderFolder(item as DiskFolder & { _type: 'folder' }, index);
-            return renderFile(item as DiskFile & { _type: 'file' });
+          renderItem={({ item }) => {
+            // Final safety net — even with everything guarded, one rogue
+            // row shouldn't take the whole list with it.
+            try {
+              if (item._type === 'folder') {
+                return renderFolder(item as DiskFolder & { _type: 'folder' }, item._idx);
+              }
+              return renderFile(item as DiskFile & { _type: 'file' });
+            } catch (e) {
+              console.warn('MySpace row render skipped:', e);
+              return null;
+            }
           }}
-          ListHeaderComponent={
-            folders.length > 0 && files.length > 0 ? (
-              <Text style={styles.sectionTitle}>Fajlovi</Text>
-            ) : null
-          }
-          // Show section title before files
-          stickyHeaderIndices={folders.length > 0 && files.length > 0 ? [folders.length] : undefined}
         />
       )}
 
