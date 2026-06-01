@@ -76,6 +76,11 @@ export default function MySpaceScreenWithBoundary() {
   );
 }
 
+// One entry in the navigation history — the folder we landed on plus the
+// path (breadcrumbs) we had at the time, so Back/Forward restores both.
+type NavEntry = { id: string; name: string; parents: { id: string; name: string }[] };
+const ROOT_ENTRY: NavEntry = { id: 'root', name: 'Home', parents: [] };
+
 function MySpaceScreen() {
   const { colors: tc } = useTheme();
   const { getToken } = useAuth();
@@ -85,6 +90,15 @@ function MySpaceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentFolder, setCurrentFolder] = useState('root');
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string; name: string }[]>([]);
+  // Windows-Explorer-style nav history: full visit sequence + cursor. Back
+  // walks the cursor left, Forward walks it right, Up adds a parent-folder
+  // entry (counts as a navigation, so it pushes onto history).
+  const [history, setHistory] = useState<NavEntry[]>([ROOT_ENTRY]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
+  const canGoUp = breadcrumbs.length > 0;
 
   const fetchFolder = useCallback(async (parentId: string, refresh = false) => {
     try {
@@ -113,19 +127,54 @@ function MySpaceScreen() {
     fetchFolder(currentFolder);
   }, [currentFolder, fetchFolder]);
 
-  const navigateToFolder = (folder: DiskFolder) => {
-    setBreadcrumbs(prev => [...prev, { id: folder.id, name: folder.name }]);
-    setCurrentFolder(folder.id);
+  // Apply a NavEntry as the current view — used by Back/Forward where we
+  // already know exactly where we're going.
+  const applyEntry = (entry: NavEntry) => {
+    setBreadcrumbs(entry.id === 'root' ? [] : [...entry.parents, { id: entry.id, name: entry.name }]);
+    setCurrentFolder(entry.id);
     setLoading(true);
   };
 
-  const navigateBack = () => {
-    if (breadcrumbs.length === 0) return;
-    const newBc = [...breadcrumbs];
-    newBc.pop();
-    setBreadcrumbs(newBc);
-    setCurrentFolder(newBc.length > 0 ? newBc[newBc.length - 1].id : 'root');
-    setLoading(true);
+  // Drilling INTO a folder is a forward navigation. We trim anything past
+  // the current cursor (matches browser/Explorer "you can't go forward to a
+  // future you've abandoned") and push the new entry on top.
+  const navigateToFolder = (folder: DiskFolder) => {
+    const entry: NavEntry = {
+      id: folder.id,
+      name: folder.name || 'Folder',
+      parents: breadcrumbs,
+    };
+    setHistory((h) => [...h.slice(0, historyIndex + 1), entry]);
+    setHistoryIndex((i) => i + 1);
+    applyEntry(entry);
+  };
+
+  const goBack = () => {
+    if (!canGoBack) return;
+    const i = historyIndex - 1;
+    setHistoryIndex(i);
+    applyEntry(history[i]);
+  };
+
+  const goForward = () => {
+    if (!canGoForward) return;
+    const i = historyIndex + 1;
+    setHistoryIndex(i);
+    applyEntry(history[i]);
+  };
+
+  // Up = the parent folder. Adds an entry to history (Explorer does too —
+  // Up arrow shows up in the Back stack afterwards).
+  const goUp = () => {
+    if (!canGoUp) return;
+    const newCrumbs = breadcrumbs.slice(0, -1);
+    const parent = newCrumbs.length > 0 ? newCrumbs[newCrumbs.length - 1] : null;
+    const entry: NavEntry = parent
+      ? { id: parent.id, name: parent.name, parents: newCrumbs.slice(0, -1) }
+      : ROOT_ENTRY;
+    setHistory((h) => [...h.slice(0, historyIndex + 1), entry]);
+    setHistoryIndex((i) => i + 1);
+    applyEntry(entry);
   };
 
   const onRefresh = () => {
@@ -214,26 +263,45 @@ function MySpaceScreen() {
         <Text style={styles.headerSubtitle}>Vasi fajlovi u cloudu</Text>
       </View>
 
-      {/* Breadcrumbs */}
-      {breadcrumbs.length > 0 && (
-        <View style={[styles.breadcrumbs, { backgroundColor: tc.bgCard }]}>
-          <TouchableOpacity onPress={() => { setBreadcrumbs([]); setCurrentFolder('root'); setLoading(true); }}>
-            <Ionicons name="home" size={16} color={colors.primary} />
-          </TouchableOpacity>
-          {breadcrumbs.map((bc, i) => (
-            <View key={bc.id} style={styles.breadcrumbItem}>
-              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-              <TouchableOpacity onPress={() => {
-                setBreadcrumbs(breadcrumbs.slice(0, i + 1));
-                setCurrentFolder(bc.id);
-                setLoading(true);
-              }}>
-                <Text style={styles.breadcrumbText} numberOfLines={1}>{bc.name}</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-      )}
+      {/* Nav toolbar — Windows-Explorer-style: ← Back / → Forward / ↑ Up
+          on the left, then the home button + breadcrumbs as the address
+          path. Stays visible even at root so the arrows are reachable on
+          first scroll into a folder. */}
+      <View style={[styles.breadcrumbs, { backgroundColor: tc.bgCard }]}>
+        <TouchableOpacity onPress={goBack} disabled={!canGoBack} style={styles.navBtn}>
+          <Ionicons name="arrow-back" size={18} color={canGoBack ? colors.primary : colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={goForward} disabled={!canGoForward} style={styles.navBtn}>
+          <Ionicons name="arrow-forward" size={18} color={canGoForward ? colors.primary : colors.textMuted} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={goUp} disabled={!canGoUp} style={styles.navBtn}>
+          <Ionicons name="arrow-up" size={18} color={canGoUp ? colors.primary : colors.textMuted} />
+        </TouchableOpacity>
+        <View style={styles.navDivider} />
+        <TouchableOpacity onPress={() => {
+          // Home — same as navigating to root via the nav (push history).
+          if (currentFolder === 'root') return;
+          setHistory((h) => [...h.slice(0, historyIndex + 1), ROOT_ENTRY]);
+          setHistoryIndex((i) => i + 1);
+          applyEntry(ROOT_ENTRY);
+        }}>
+          <Ionicons name="home" size={16} color={colors.primary} />
+        </TouchableOpacity>
+        {breadcrumbs.map((bc, i) => (
+          <View key={bc.id} style={styles.breadcrumbItem}>
+            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+            <TouchableOpacity onPress={() => {
+              // Click a breadcrumb segment = navigate to it, push history.
+              const entry: NavEntry = { id: bc.id, name: bc.name, parents: breadcrumbs.slice(0, i) };
+              setHistory((h) => [...h.slice(0, historyIndex + 1), entry]);
+              setHistoryIndex((idx) => idx + 1);
+              applyEntry(entry);
+            }}>
+              <Text style={styles.breadcrumbText} numberOfLines={1}>{bc.name}</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
 
       {/* Content */}
       {loading ? (
@@ -287,9 +355,11 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   headerSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   breadcrumbs: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8,
     backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: colors.borderLight, gap: 4,
   },
+  navBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
+  navDivider: { width: 1, height: 20, backgroundColor: colors.borderLight, marginHorizontal: 4 },
   breadcrumbItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   breadcrumbText: { fontSize: 12, color: colors.primary, ...fonts.semibold, maxWidth: 80 },
   folderItem: {
