@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 // @ts-ignore – getReactNativePersistence is exported from the RN bundle via
 // the "react-native" condition in package.json. Metro resolves it at runtime,
@@ -74,6 +74,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   getToken: () => Promise<string | null>;
+  /** Re-fetch /api/users/me so storageUsed/storageLimit (quota gauge +
+   *  upsell) reflect the latest server state. Safe to call often. */
+  refreshAppUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,6 +87,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const authRef = useRef<Auth | null>(null);
+
+  // Fetch the full user record (storageUsed/storageLimit, referral, settings)
+  // from /api/users/me and store it. Shared by the auth listener and by
+  // refreshAppUser(). Never throws — quota gating degrades gracefully.
+  const fetchAppUser = useCallback(async (token: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const userData = await response.json();
+        setAppUser(userData);
+      }
+    } catch (fetchErr) {
+      console.error('Error fetching user data:', fetchErr);
+    }
+  }, []);
+
+  // Public refresh — re-pulls /api/users/me using the current token so the
+  // quota gauge and the proactive storage upsell react to uploads/deletes.
+  const refreshAppUser = useCallback(async () => {
+    const token = await (authRef.current?.currentUser?.getIdToken() ??
+      SecureStore.getItemAsync('auth_token'));
+    if (token) await fetchAppUser(token);
+  }, [fetchAppUser]);
+
+  // Keep quota fresh whenever the app returns to the foreground — uploads
+  // that happened in the background service (or on the web) are reflected
+  // without forcing a re-login.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshAppUser().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [refreshAppUser]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -99,18 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const token = await firebaseUser.getIdToken();
             await SecureStore.setItemAsync('auth_token', token);
 
-            try {
-              const response = await fetch(
-                `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              if (response.ok) {
-                const userData = await response.json();
-                setAppUser(userData);
-              }
-            } catch (fetchErr) {
-              console.error('Error fetching user data:', fetchErr);
-            }
+            await fetchAppUser(token);
 
             // Register device (fire-and-forget)
             registerDevice(token).catch(() => {});
@@ -222,7 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, appUser, isLoading, error, signIn, signUp, signOut, signInWithGoogle, getToken }}
+      value={{ user, appUser, isLoading, error, signIn, signUp, signOut, signInWithGoogle, getToken, refreshAppUser }}
     >
       {children}
     </AuthContext.Provider>
