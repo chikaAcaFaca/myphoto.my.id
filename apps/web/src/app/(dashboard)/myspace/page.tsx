@@ -100,6 +100,17 @@ export default function MySpacePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  // On phones the coordinate-anchored context menu opens off the bottom of the
+  // screen (Delete unreachable). Track viewport size so we can switch the menu
+  // to a bottom sheet there. Set in an effect to avoid hydration mismatch.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   const [currentFolderId, setCurrentFolderId] = useState('root');
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string; name: string }[]>([]);
@@ -1409,12 +1420,45 @@ export default function MySpacePage() {
       {/* Context menu */}
       <AnimatePresence>
         {contextMenu && (
+          <>
+            {/* Mobile: dim backdrop behind the bottom sheet so a tap anywhere
+                outside closes it. */}
+            {isMobile && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 bg-black/30"
+                onClick={() => setContextMenu(null)}
+              />
+            )}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed z-50 w-52 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
+            initial={isMobile ? { opacity: 0, y: 24 } : { opacity: 0, scale: 0.95 }}
+            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, scale: 1 }}
+            exit={isMobile ? { opacity: 0, y: 24 } : { opacity: 0, scale: 0.95 }}
+            className={cn(
+              'fixed z-50 overflow-y-auto overscroll-contain border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800',
+              isMobile
+                ? 'inset-x-2 bottom-2 max-h-[70vh] w-auto rounded-2xl'
+                : 'w-52 max-h-[80vh] rounded-lg'
+            )}
+            style={
+              isMobile
+                ? undefined
+                : (() => {
+                    // Desktop: keep the menu fully on-screen — clamp x to the
+                    // viewport, and when the click is in the lower half, open
+                    // upward (anchor the menu's bottom at the click) so a long
+                    // menu never spills past the bottom edge.
+                    const W = 208, M = 8;
+                    const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
+                    const vh = typeof window !== 'undefined' ? window.innerHeight : 768;
+                    const left = Math.max(M, Math.min(contextMenu.x, vw - W - M));
+                    return contextMenu.y > vh * 0.55
+                      ? { left, bottom: vh - contextMenu.y }
+                      : { left, top: contextMenu.y };
+                  })()
+            }
             onClick={(e) => e.stopPropagation()}
           >
             {contextMenu.type === 'background' ? (
@@ -1625,6 +1669,7 @@ export default function MySpacePage() {
               </>
             )}
           </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -1635,7 +1680,7 @@ export default function MySpacePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+            className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-xl sm:bottom-6 sm:gap-2 sm:px-4 sm:py-2.5 dark:border-gray-700 dark:bg-gray-800"
           >
             <span className="mr-2 text-sm font-medium">{selectionCount} izabrano</span>
             <button
