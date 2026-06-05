@@ -95,7 +95,8 @@
       },
       "eas": {
         "projectId": "39901b89-3e19-43af-ba14-95a9ad6eee43"
-      }
+      },
+      "appBuild": "2026-06-05"
     },
     "runtimeVersion": "1.0.0",
     "updates": {

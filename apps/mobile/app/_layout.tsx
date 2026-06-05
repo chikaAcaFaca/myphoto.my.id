@@ -31,6 +31,7 @@ import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { SyncProvider } from '@/lib/sync-context';
 import { CloudGateProvider } from '@/lib/cloud-gate';
 import { StorageGuardProvider } from '@/lib/storage-guard';
+import { AppUpdateCheck } from '@/lib/app-update-check';
 import { ThemeProvider } from '@/lib/theme-context';
 import { ShareIntentHandler } from '@/components/ShareIntentHandler';
 
@@ -119,6 +120,8 @@ function RootNavigator() {
           {/* Watch for incoming Android share intents (image/video) and upload
               them into the user's MySpace once we're inside the auth-gated zone. */}
           <ShareIntentHandler />
+          {/* Offer an update when a newer APK has been published. */}
+          <AppUpdateCheck />
           <Slot />
         </StorageGuardProvider>
       </CloudGateProvider>
