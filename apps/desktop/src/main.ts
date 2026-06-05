@@ -308,6 +308,10 @@ ipcMain.handle('force-sync', () => {
 app.whenReady().then(() => {
   createWindow();
   createTray();
+  // Apply the start-with-Windows preference on every launch so the default
+  // (startOnBoot: true) actually registers the login item — previously this
+  // only ran when settings were saved, so a fresh install never auto-started.
+  app.setLoginItemSettings({ openAtLogin: store.get('startOnBoot') as boolean });
   initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
 });
 

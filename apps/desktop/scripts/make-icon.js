@@ -40,4 +40,13 @@ const SIZES = [16, 32, 48, 64, 128, 256];
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, Buffer.concat([header, entries, ...pngs]));
   console.log(`Wrote ${OUT} (${SIZES.join(',')} px, ${fs.statSync(OUT).size} bytes)`);
+
+  // Also emit the brand PNGs the app loads at runtime: the tray icon (shown in
+  // the Windows notification area near the clock) and a general app icon. These
+  // were missing, so the tray fell back to a plain blue square.
+  const trayOut = path.resolve(__dirname, '../assets/tray-icon.png');
+  const iconOut = path.resolve(__dirname, '../assets/icon.png');
+  await sharp(SRC).resize(32, 32, { fit: 'cover' }).png().toFile(trayOut);
+  await sharp(SRC).resize(256, 256, { fit: 'cover' }).png().toFile(iconOut);
+  console.log(`Wrote ${trayOut} (32px) and ${iconOut} (256px)`);
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(2); });
