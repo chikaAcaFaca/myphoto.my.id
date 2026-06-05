@@ -292,7 +292,11 @@ export async function backgroundFindNewPhotos(
   syncState: SyncState
 ): Promise<MediaLibrary.Asset[]> {
   try {
-    const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
+    // CHECK only — never request here. The background/foreground sync path must
+    // not open a permission dialog that collides with the gallery's own
+    // MediaLibrary request at launch. The in-app kicker/home screen acquire the
+    // grant; this just reads it.
+    const { status } = await MediaLibrary.getPermissionsAsync(false, ['photo', 'video']);
     if (status !== 'granted') return [];
   } catch {
     console.log('MediaLibrary permissions not available (Expo Go limitation)');
@@ -572,17 +576,27 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   //      foreground service isn't available (Expo Go / pre-rebuild) or was
   //      reaped, and to nudge a wake on boot.
   useEffect(() => {
+    let fgTimer: ReturnType<typeof setTimeout> | undefined;
     if (settings.autoBackup && user && settings.syncMode !== 'manual') {
       registerBackgroundFetch();
-      startForegroundSync().then((ok) => {
-        if (!ok && !isForegroundSyncAvailable()) {
-          console.log('Foreground sync unavailable — relying on background-fetch');
-        }
-      });
+      // DEFER the foreground service. Starting it at launch fired its own
+      // permission requests (POST_NOTIFICATIONS + MediaLibrary) at the same
+      // moment the photo grid was requesting MediaLibrary — the collision left
+      // the home tab stuck on "Učitavanje slika" with nothing rendering. Start
+      // it only after the app has settled and the initial permission grant is
+      // done, so the gallery loads first.
+      fgTimer = setTimeout(() => {
+        startForegroundSync().then((ok) => {
+          if (!ok && !isForegroundSyncAvailable()) {
+            console.log('Foreground sync unavailable — relying on background-fetch');
+          }
+        });
+      }, 15000);
     } else {
       stopForegroundSync();
     }
     return () => {
+      if (fgTimer) clearTimeout(fgTimer);
       unregisterBackgroundFetch();
     };
   }, [settings.autoBackup, user, settings.syncMode]);
