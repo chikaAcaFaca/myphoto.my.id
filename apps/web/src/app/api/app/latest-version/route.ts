@@ -15,12 +15,12 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const LATEST_BUILD = '2026-06-05-v2';
+const LATEST_BUILD = '2026-06-05-v3';
 
 export async function GET() {
   return NextResponse.json({
     build: LATEST_BUILD,
     url: '/api/download/android',
-    notes: 'Ispravka: galerija je ostajala na "Učitavanje slika". Ažuriraj.',
+    notes: 'Mirniji prikaz videa (bez treperenja). Ažuriraj.',
   });
 }
