@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   description: 'Preuzmite MyPhoto aplikaciju za automatsku sinhronizaciju fajlova na računaru, Android telefonu ili tabletu.',
 };
 
+// Microsoft Store listing URL — set this once the app is published to the
+// Store, then the Store button appears (Store installs skip SmartScreen).
+const STORE_URL = '';
+
 export default function DownloadPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
@@ -33,12 +37,30 @@ export default function DownloadPage() {
             <li>✓ Pokreće se sa Windowsom</li>
           </ul>
           <a
-            href="/downloads/MyPhoto-Setup.exe"
+            href="/api/download/desktop"
             className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-blue-700"
           >
             ⬇️ Preuzmi za Windows
           </a>
+          {/* Microsoft Store button — only rendered once the app is published
+              (set STORE_URL). Store installs skip the SmartScreen warning. */}
+          {STORE_URL ? (
+            <a
+              href={STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-2 rounded-xl border border-blue-200 px-6 py-3 font-semibold text-blue-700 transition-colors hover:bg-blue-50"
+            >
+               Microsoft Store
+            </a>
+          ) : (
+            <p className="mt-3 text-xs text-gray-400"> Microsoft Store — uskoro</p>
+          )}
           <p className="mt-2 text-xs text-gray-400">Windows 10/11 · 64-bit</p>
+          <p className="mt-1 text-xs text-gray-400">
+            Pri prvom pokretanju Windows može da pita „Unknown publisher" —
+            klikni „More info → Run anyway" (bezbedno, naša aplikacija).
+          </p>
         </div>
 
         {/* Android */}
