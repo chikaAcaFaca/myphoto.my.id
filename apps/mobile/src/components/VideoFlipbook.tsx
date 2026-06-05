@@ -18,7 +18,7 @@
  * runs on-device (expo-video-thumbnails) — zero server cost.
  */
 import { useEffect, useRef, useState } from 'react';
-import { Image, type ImageStyle, type StyleProp } from 'react-native';
+import { View, Image, StyleSheet, type ViewStyle, type ImageStyle, type StyleProp } from 'react-native';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 
 // Process-wide frame cache: uri -> extracted frame file URIs.
@@ -105,6 +105,28 @@ export function VideoFlipbook({
     return () => clearInterval(t);
   }, [active, frames]);
 
-  const src = active && frames.length ? frames[idx % frames.length] : fallbackUri;
-  return <Image source={{ uri: src }} style={style} resizeMode="cover" />;
+  // Until we have frames (or the tile is off-screen) show the static thumbnail.
+  if (!active || frames.length === 0) {
+    return <Image source={{ uri: fallbackUri }} style={style} resizeMode="cover" />;
+  }
+
+  // Smooth, flicker-free playback: mount ALL frames once (each decodes a single
+  // time) and only flip which one is opaque. Swapping a single <Image source>
+  // every 125ms was the strobe — RN tears down/decodes on each source change,
+  // flashing between frames. Toggling opacity on already-decoded bitmaps has no
+  // decode gap, so the loop reads as calm continuous motion. Cheap vs a live
+  // decoder, so the original OOM concern doesn't apply (only ~4 tiles active).
+  return (
+    <View style={style as StyleProp<ViewStyle>}>
+      {frames.map((uri, i) => (
+        <Image
+          key={uri}
+          source={{ uri }}
+          resizeMode="cover"
+          fadeDuration={0}
+          style={[StyleSheet.absoluteFill, { opacity: i === idx % frames.length ? 1 : 0 }]}
+        />
+      ))}
+    </View>
+  );
 }
