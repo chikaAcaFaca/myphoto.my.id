@@ -65,6 +65,22 @@ async function getValidToken(): Promise<string> {
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+
+// Single instance only. Auto-start + a manual launch (or repeated clicks) were
+// spawning several parallel MyPhoto processes. If we don't get the lock another
+// instance is already running — quit immediately and just focus that one.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
 let syncEngine: SyncEngine | null = null;
 
 function createWindow() {

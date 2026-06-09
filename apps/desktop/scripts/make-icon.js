@@ -5,7 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const sharp = require(path.resolve(__dirname, '../../../node_modules/sharp'));
 
-const SRC = path.resolve(__dirname, '../../web/public/icons/icon-512.png');
+// Use the Android app icon (stylised white "m" on blue) so desktop matches it
+// in the taskbar, Task Manager and tray.
+const SRC = path.resolve(__dirname, '../../mobile/assets/icon.png');
 const OUT = path.resolve(__dirname, '../assets/icon.ico');
 const SIZES = [16, 32, 48, 64, 128, 256];
 
