@@ -9,6 +9,8 @@ import { getIdToken } from '@/lib/firebase';
 import { syncSettingsToIDB, refreshStaleTokens, requestBackgroundSync } from '@/lib/upload-queue';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
+import { AndroidAppBanner } from '@/components/layout/android-app-banner';
+import { WindowsAppBanner } from '@/components/layout/windows-app-banner';
 import { UploadModal } from '@/components/modals/upload-modal';
 import { CreateAlbumModal } from '@/components/modals/create-album-modal';
 import { PhotoLightbox } from '@/components/gallery/photo-lightbox';
@@ -103,6 +105,8 @@ export default function DashboardLayout({
         }`}
       >
         <Header />
+        <AndroidAppBanner />
+        <WindowsAppBanner />
         <main className="flex-1 overflow-auto p-2 pb-20 lg:p-6 lg:pb-6">{children}</main>
       </div>
 

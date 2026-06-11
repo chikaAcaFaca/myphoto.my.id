@@ -5,7 +5,22 @@ import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 export const dynamic = 'force-dynamic';
 
+// SECURITY: this route exposes admin powers (list every user, change anyone's
+// storageLimit, read infra status). It was completely unauthenticated. Gate it
+// behind a shared secret: callers must send `x-debug-secret` matching the
+// DEBUG_SECRET env var. Secure-by-default — if DEBUG_SECRET isn't set, every
+// request is denied, so the route is closed until an operator opts in.
+function debugAuthorized(request: NextRequest): boolean {
+  const secret = process.env.DEBUG_SECRET;
+  if (!secret) return false;
+  const provided = request.headers.get('x-debug-secret') || '';
+  return provided.length > 0 && provided === secret;
+}
+
+const FORBIDDEN = NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
 export async function GET(request: NextRequest) {
+  if (!debugAuthorized(request)) return FORBIDDEN;
   const results: Record<string, any> = {};
 
   // 1. Check env vars (presence only, not values)
@@ -95,6 +110,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Admin actions (e.g., set storage limit)
 export async function POST(request: NextRequest) {
+  if (!debugAuthorized(request)) return FORBIDDEN;
   try {
     initAdmin();
     const body = await request.json();
