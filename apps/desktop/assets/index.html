@@ -217,6 +217,9 @@
         </div>
         <div class="error-msg" id="login-error"></div>
         <button class="btn btn-primary" onclick="login()" id="login-btn">Prijavi se</button>
+        <div style="text-align:center;margin:14px 0 10px;font-size:12px;color:#9ca3af;">— ili —</div>
+        <button class="btn btn-secondary" onclick="googleLogin()" id="google-login-btn">Nastavi sa Google</button>
+        <p style="text-align:center;margin-top:8px;font-size:11px;color:#9ca3af;">Za one koji ne znaju lozinku</p>
       </div>
     </div>
 
@@ -379,6 +382,37 @@
       }
 
       btnEl.textContent = 'Prijavi se';
+      btnEl.disabled = false;
+    }
+
+    // Google sign-in: opens the system browser, desktop receives tokens via loopback.
+    async function googleLogin() {
+      const errorEl = document.getElementById('login-error');
+      const btnEl = document.getElementById('google-login-btn');
+      btnEl.textContent = 'Otvaranje pregledača…';
+      btnEl.disabled = true;
+      errorEl.style.display = 'none';
+
+      try {
+        const result = await desktopApi.googleLogin();
+        if (result.success) {
+          document.getElementById('login-section').style.display = 'none';
+          document.getElementById('status-section').style.display = 'block';
+          const config = await desktopApi.getConfig();
+          if (!config.syncFolder) {
+            switchTab('settings');
+            selectFolder();
+          }
+        } else {
+          errorEl.textContent = result.error || 'Google prijava nije uspela';
+          errorEl.style.display = 'block';
+        }
+      } catch (e) {
+        errorEl.textContent = 'Greška pri Google prijavi';
+        errorEl.style.display = 'block';
+      }
+
+      btnEl.textContent = 'Nastavi sa Google';
       btnEl.disabled = false;
     }
 
