@@ -25,6 +25,12 @@ export const MAX_REFERRALS = 15;                           // max 15 friends
 export const REFERRAL_QUALIFICATION_BYTES = 100 * BYTES_PER_MB; // referee must upload 100MB to qualify
 export const MAX_FAMILY_MEMBERS_REFERRAL = 6;
 
+// Meme-wall referral (separate, stricter system — referee must do more to qualify)
+export const MEME_REFERRAL_BONUS = 1 * BYTES_PER_GB;               // +1GB per qualified meme referral
+export const MAX_MEME_REFERRAL_BONUS = 10 * BYTES_PER_GB;          // max 10GB from meme referrals
+export const MEME_QUALIFICATION_UPLOAD_BYTES = 500 * BYTES_PER_MB; // referee must upload 500MB
+export const MEME_QUALIFICATION_REFERRALS = 5;                     // referee must refer 5 friends
+
 // Max free storage: 1GB (reg) + 1GB (app) + 512MB (desktop) + 7.5GB (15 referrals) = ~10GB
 // But realistically without all referrals: 1GB + 1GB + 512MB + 512MB = 3GB (enough for MySpace free)
 export const MAX_FREE_STORAGE = 10 * BYTES_PER_GB;

@@ -27,6 +27,7 @@ export interface User {
   referredBy?: string;
   referralCount: number;
   referralBonusBytes: number;
+  memeReferralBonus?: number;
   backupBonusClaimed?: boolean;
   desktopBonusClaimed?: boolean;
   // Track referral qualification (must upload 100MB to qualify referrer for bonus)
