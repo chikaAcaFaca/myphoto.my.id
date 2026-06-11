@@ -33,14 +33,19 @@ initializeApp({
 
 (async () => {
   const user = await getAuth().getUserByEmail(email);
-  const db = getFirestore();
+  // Named DB 'myphoto' — the app reads/writes there, not "(default)".
+  const db = getFirestore(undefined, 'myphoto');
   const ref = db.collection('users').doc(user.uid);
   const snap = await ref.get();
 
   if (snap.exists) {
     const before = snap.data().storageLimit || 0;
     const after = before + grantGB * GB;
-    await ref.update({ storageLimit: after });
+    // Record in manualBonusBytes so a later recalc preserves this grant.
+    await ref.update({
+      storageLimit: after,
+      manualBonusBytes: FieldValue.increment(grantGB * GB),
+    });
     console.log(`Existing profile — limit ${(before / GB).toFixed(2)} -> ${(after / GB).toFixed(2)} GB`);
     return;
   }
@@ -60,6 +65,7 @@ initializeApp({
     },
     storageUsed: 0,
     storageLimit: FREE + grantGB * GB,
+    manualBonusBytes: grantGB * GB,
     subscriptionIds: [],
     role: 'user',
     referralCode: code(8),

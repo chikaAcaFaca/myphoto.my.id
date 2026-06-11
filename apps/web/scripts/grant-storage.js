@@ -8,7 +8,7 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const { initializeApp, cert } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 
 const email = process.argv[2];
 const addGB = parseFloat(process.argv[3] || '0');
@@ -29,13 +29,20 @@ initializeApp({
 
 (async () => {
   const user = await getAuth().getUserByEmail(email);
-  const db = getFirestore();
+  // Named DB 'myphoto' — the app reads/writes there, not "(default)".
+  const db = getFirestore(undefined, 'myphoto');
   const ref = db.collection('users').doc(user.uid);
   const snap = await ref.get();
   if (!snap.exists) throw new Error(`No users/${user.uid} doc for ${email}`);
   const before = snap.data().storageLimit || 0;
-  const after = before + addGB * BYTES_PER_GB;
-  await ref.update({ storageLimit: after });
+  const addBytes = addGB * BYTES_PER_GB;
+  const after = before + addBytes;
+  // Record the grant in manualBonusBytes so recalculateStorageLimit preserves
+  // it; bump storageLimit in the same write to keep behaviour immediate.
+  await ref.update({
+    storageLimit: after,
+    manualBonusBytes: FieldValue.increment(addBytes),
+  });
   console.log(
     `Granted ${addGB} GB to ${email} (${user.uid}): ` +
       `${(before / BYTES_PER_GB).toFixed(2)} GB -> ${(after / BYTES_PER_GB).toFixed(2)} GB`

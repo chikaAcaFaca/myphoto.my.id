@@ -28,6 +28,10 @@ export interface User {
   referralCount: number;
   referralBonusBytes: number;
   memeReferralBonus?: number;
+  // Admin-granted storage (support comps, manual top-ups). Deliberate and
+  // unbounded; recalculateStorageLimit always adds it so a recalc never wipes
+  // a manual grant. Back-filled for existing users by backfill-manual-bonus.js.
+  manualBonusBytes?: number;
   backupBonusClaimed?: boolean;
   desktopBonusClaimed?: boolean;
   // Track referral qualification (must upload 100MB to qualify referrer for bonus)

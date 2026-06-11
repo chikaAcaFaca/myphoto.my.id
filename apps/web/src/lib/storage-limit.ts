@@ -31,6 +31,9 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
   const desktopBonus = userData.desktopBonusClaimed ? DESKTOP_INSTALL_BONUS : 0;
   const referralBonus = Math.min(userData.referralBonusBytes || 0, MAX_REFERRAL_BONUS);
   const memeBonus = Math.min(userData.memeReferralBonus || 0, MAX_MEME_REFERRAL_BONUS);
+  // Admin-granted storage — deliberate, unbounded, never clamped. Without this
+  // a recalc would silently reset a manually-topped-up account to the formula.
+  const manualBonus = userData.manualBonusBytes || 0;
 
   // Sum storage from all active subscriptions (stacking)
   const subsSnapshot = await db
@@ -45,7 +48,7 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
   }
 
   const totalStorage =
-    FREE_STORAGE_LIMIT + backupBonus + desktopBonus + referralBonus + memeBonus + subscriptionStorage;
+    FREE_STORAGE_LIMIT + backupBonus + desktopBonus + referralBonus + memeBonus + manualBonus + subscriptionStorage;
 
   await db.collection('users').doc(userId).update({
     storageLimit: totalStorage,
@@ -53,7 +56,7 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
 
   console.log(
     `Recalculated storageLimit for ${userId}: ${totalStorage} ` +
-      `(backup:${backupBonus} desktop:${desktopBonus} referral:${referralBonus} meme:${memeBonus} subs:${subscriptionStorage})`
+      `(backup:${backupBonus} desktop:${desktopBonus} referral:${referralBonus} meme:${memeBonus} manual:${manualBonus} subs:${subscriptionStorage})`
   );
 
   return totalStorage;
