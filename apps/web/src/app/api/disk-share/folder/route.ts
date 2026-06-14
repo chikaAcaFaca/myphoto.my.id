@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { resolveDiskShareApiKey } from '@/lib/disk-share-api-key';
+import { resolveDiskShareApiKey, enforceDiskApiKeyRateLimit } from '@/lib/disk-share-api-key';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +20,8 @@ async function resolveShareContext(
 ): Promise<{ ctx?: ShareContext; error?: NextResponse }> {
   const apiKey = await resolveDiskShareApiKey(request);
   if (apiKey) {
+    const limited = await enforceDiskApiKeyRateLimit(apiKey.shareToken);
+    if (limited) return { error: limited };
     if (apiKey.permission !== 'readwrite') {
       return { error: NextResponse.json({ error: 'API key is read-only' }, { status: 403 }) };
     }

@@ -7,7 +7,7 @@ import {
   computeViewerQuotaForShare,
   listShareTreeFiles,
 } from '@/lib/shared-folder-quota';
-import { resolveDiskShareApiKey } from '@/lib/disk-share-api-key';
+import { resolveDiskShareApiKey, enforceDiskApiKeyRateLimit } from '@/lib/disk-share-api-key';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +32,10 @@ export async function GET(request: NextRequest) {
     // Automated callers authenticate via X-Disk-Api-Key and act as the share
     // owner (no quota gating). The share token is embedded in the key.
     const apiKey = await resolveDiskShareApiKey(request);
+    if (apiKey) {
+      const limited = await enforceDiskApiKeyRateLimit(apiKey.shareToken);
+      if (limited) return limited;
+    }
     const queryToken = url.searchParams.get('token');
     if (apiKey && queryToken && queryToken !== apiKey.shareToken) {
       return NextResponse.json({ error: 'Token does not match API key' }, { status: 403 });

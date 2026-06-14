@@ -1,6 +1,7 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import { db } from '@/lib/firebase-admin';
+import { checkRateLimit, rateLimitExceededResponse } from '@/lib/rate-limit';
 
 /**
  * Programmatic API-key access to a single disk share.
@@ -121,4 +122,17 @@ export async function resolveDiskShareApiKey(
     type: data.type,
     permission: data.apiKeyPermission,
   };
+}
+
+/**
+ * Throttle API-key calls per share. Each key gets its own generous budget
+ * (the shared `api` bucket, 1000/min) — high enough never to bother a normal
+ * automation run, but a hard cap that stops a runaway loop or a stolen key
+ * from hammering the backend. Returns a 429 response when exceeded, else null.
+ */
+export async function enforceDiskApiKeyRateLimit(
+  shareToken: string
+): Promise<NextResponse | null> {
+  const rl = await checkRateLimit(`diskApiKey:${shareToken}`, 'api');
+  return rl.success ? null : rateLimitExceededResponse(rl);
 }

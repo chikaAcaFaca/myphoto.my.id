@@ -3,7 +3,7 @@ import { db } from '@/lib/firebase-admin';
 import { generateUploadUrl } from '@/lib/s3';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
-import { resolveDiskShareApiKey } from '@/lib/disk-share-api-key';
+import { resolveDiskShareApiKey, enforceDiskApiKeyRateLimit } from '@/lib/disk-share-api-key';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,10 @@ export async function POST(request: NextRequest) {
   try {
     // Automated callers authenticate via X-Disk-Api-Key (must grant readwrite).
     const apiKey = await resolveDiskShareApiKey(request);
+    if (apiKey) {
+      const limited = await enforceDiskApiKeyRateLimit(apiKey.shareToken);
+      if (limited) return limited;
+    }
     if (apiKey && apiKey.permission !== 'readwrite') {
       return NextResponse.json({ error: 'API key is read-only' }, { status: 403 });
     }
@@ -97,6 +101,10 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const apiKey = await resolveDiskShareApiKey(request);
+    if (apiKey) {
+      const limited = await enforceDiskApiKeyRateLimit(apiKey.shareToken);
+      if (limited) return limited;
+    }
     if (apiKey && apiKey.permission !== 'readwrite') {
       return NextResponse.json({ error: 'API key is read-only' }, { status: 403 });
     }
