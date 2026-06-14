@@ -35,6 +35,7 @@ import {
   ExternalLink,
   Crop,
   Eraser,
+  KeyRound,
 } from 'lucide-react';
 import JSZip from 'jszip';
 import { useAuthStore, useUIStore } from '@/lib/stores';
@@ -141,6 +142,11 @@ export default function MySpacePage() {
   const [shareLoading, setShareLoading] = useState(false);
   const [shareData, setShareData] = useState<{ token: string; shareUrl: string; permission: string } | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  // Programmatic API key for the current folder share (Boty / external automation)
+  const [apiKey, setApiKey] = useState<{ exists: boolean; last4?: string; permission?: string } | null>(null);
+  const [apiKeyRaw, setApiKeyRaw] = useState<string | null>(null);
+  const [apiKeyBusy, setApiKeyBusy] = useState(false);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
   // Fetch current folder contents
   const { data, isLoading } = useQuery({
@@ -537,6 +543,87 @@ export default function MySpacePage() {
       setTimeout(() => setShareCopied(false), 2000);
     }
   }, [shareData]);
+
+  // --- Programmatic API key (folder shares only) ---
+  const loadApiKeyStatus = useCallback(async (shareToken: string) => {
+    try {
+      const token = await getIdToken();
+      const res = await fetch(`/api/disk-share/api-key?token=${encodeURIComponent(shareToken)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setApiKey(data.exists
+        ? { exists: true, last4: data.last4, permission: data.permission }
+        : { exists: false });
+    } catch {
+      /* ignore — leave status unknown */
+    }
+  }, []);
+
+  useEffect(() => {
+    setApiKeyRaw(null);
+    setApiKeyCopied(false);
+    setApiKey(null);
+    if (shareData?.token && shareModal?.type === 'folder') {
+      loadApiKeyStatus(shareData.token);
+    }
+  }, [shareData?.token, shareModal?.type, loadApiKeyStatus]);
+
+  const handleGenerateApiKey = useCallback(async (permission: 'read' | 'readwrite') => {
+    if (!shareData) return;
+    setApiKeyBusy(true);
+    try {
+      const token = await getIdToken();
+      const res = await fetch('/api/disk-share/api-key', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: shareData.token, permission }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      setApiKeyRaw(data.apiKey);
+      setApiKey({ exists: true, last4: data.last4, permission: data.permission });
+      setApiKeyCopied(false);
+      addNotification({ type: 'success', title: 'API ključ generisan — kopirajte ga odmah (prikazuje se samo jednom)' });
+    } catch {
+      addNotification({ type: 'error', title: 'Greška pri generisanju ključa' });
+    } finally {
+      setApiKeyBusy(false);
+    }
+  }, [shareData, addNotification]);
+
+  const handleRevokeApiKey = useCallback(async () => {
+    if (!shareData) return;
+    setApiKeyBusy(true);
+    try {
+      const token = await getIdToken();
+      const res = await fetch('/api/disk-share/api-key', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: shareData.token }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setApiKey({ exists: false });
+      setApiKeyRaw(null);
+      addNotification({ type: 'success', title: 'API ključ opozvan' });
+    } catch {
+      addNotification({ type: 'error', title: 'Greška' });
+    } finally {
+      setApiKeyBusy(false);
+    }
+  }, [shareData, addNotification]);
+
+  const handleCopyApiKey = useCallback(async () => {
+    if (!apiKeyRaw) return;
+    try {
+      await navigator.clipboard.writeText(apiKeyRaw);
+      setApiKeyCopied(true);
+      setTimeout(() => setApiKeyCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }, [apiKeyRaw]);
 
   // Keyboard shortcuts: Ctrl+C, Ctrl+X, Ctrl+V, Ctrl+A, Delete
   useEffect(() => {
@@ -1878,6 +1965,88 @@ export default function MySpacePage() {
                       <ExternalLink className="h-3.5 w-3.5" />
                       Otvori deljeni link
                     </a>
+
+                    {/* Programmatic API key — folder shares only */}
+                    {shareModal.type === 'folder' && (
+                      <div className="mb-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                        <div className="mb-1 flex items-center gap-2">
+                          <KeyRound className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm font-medium">API ključ (za automatizaciju)</span>
+                        </div>
+                        <p className="mb-3 text-xs text-gray-400">
+                          Omogućava eksternom servisu da programski čita/piše u ovaj folder bez prijave
+                          (HTTP header <code className="rounded bg-gray-100 px-1 dark:bg-gray-700">X-Disk-Api-Key</code>).
+                        </p>
+
+                        {apiKeyRaw ? (
+                          <div className="mb-2">
+                            <label className="mb-1.5 block text-xs font-medium text-amber-600">
+                              Kopirajte ključ sada — neće biti ponovo prikazan
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                readOnly
+                                value={apiKeyRaw}
+                                onFocus={(e) => e.currentTarget.select()}
+                                className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 font-mono text-xs dark:border-gray-600 dark:bg-gray-700"
+                              />
+                              <button
+                                onClick={handleCopyApiKey}
+                                className={cn(
+                                  'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors',
+                                  apiKeyCopied ? 'bg-green-500' : 'bg-primary-500 hover:bg-primary-600'
+                                )}
+                              >
+                                {apiKeyCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          </div>
+                        ) : apiKey?.exists ? (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs text-gray-500">
+                              Aktivan ključ ••••{apiKey.last4}
+                              {' · '}
+                              {apiKey.permission === 'read' ? 'Čitanje' : 'Čitanje i pisanje'}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleGenerateApiKey(apiKey.permission === 'read' ? 'read' : 'readwrite')}
+                                disabled={apiKeyBusy}
+                                className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                              >
+                                Regeneriši
+                              </button>
+                              <button
+                                onClick={handleRevokeApiKey}
+                                disabled={apiKeyBusy}
+                                className="rounded-lg border border-red-300 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                              >
+                                Opozovi
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleGenerateApiKey('read')}
+                              disabled={apiKeyBusy}
+                              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-xs font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                            >
+                              {apiKeyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Globe className="h-3.5 w-3.5" />}
+                              Ključ (čitanje)
+                            </button>
+                            <button
+                              onClick={() => handleGenerateApiKey('readwrite')}
+                              disabled={apiKeyBusy}
+                              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-green-300 px-3 py-2 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-50 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/20"
+                            >
+                              {apiKeyBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pencil className="h-3.5 w-3.5" />}
+                              Ključ (čitanje+pisanje)
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Revoke share */}
                     <button

@@ -143,6 +143,13 @@ service cloud.firestore {
       allow write: if false; // Only server can manage
     }
 
+    // Disk share API keys (programmatic access). Holds the key HASH — never
+    // exposed to clients. Read/written only by the server (admin SDK).
+    match /diskShareKeys/{shareToken} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // Disk share access records (tracks who accessed which shares)
     match /diskShareAccess/{accessId} {
       allow read: if isAuthenticated() && (

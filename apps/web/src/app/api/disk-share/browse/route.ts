@@ -8,6 +8,7 @@ import {
   listShareTreeFiles,
   type ViewerShareQuota,
 } from '@/lib/shared-folder-quota';
+import { resolveDiskShareApiKey } from '@/lib/disk-share-api-key';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +30,17 @@ async function getOptionalUserId(request: NextRequest): Promise<string | null> {
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const token = url.searchParams.get('token');
     const subfolderId = url.searchParams.get('folderId');
+
+    // Automated callers authenticate via X-Disk-Api-Key and act as the share
+    // owner, scoped to the one share the key belongs to. The share token is
+    // embedded in the key, so the `token` query param is optional for them.
+    const apiKey = await resolveDiskShareApiKey(request);
+    const queryToken = url.searchParams.get('token');
+    if (apiKey && queryToken && queryToken !== apiKey.shareToken) {
+      return NextResponse.json({ error: 'Token does not match API key' }, { status: 403 });
+    }
+    const token = apiKey ? apiKey.shareToken : queryToken;
 
     if (!token) {
       return NextResponse.json({ error: 'Missing token' }, { status: 400 });
@@ -49,8 +59,8 @@ export async function GET(request: NextRequest) {
 
     const ownerId = shareData.userId;
 
-    // Check authentication
-    const viewerUserId = await getOptionalUserId(request);
+    // Check authentication — API-key callers act as the owner.
+    const viewerUserId = apiKey ? apiKey.ownerId : await getOptionalUserId(request);
 
     if (!viewerUserId) {
       // Not authenticated — return share metadata + owner's referral code for registration

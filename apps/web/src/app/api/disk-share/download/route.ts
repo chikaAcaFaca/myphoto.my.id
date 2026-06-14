@@ -7,6 +7,7 @@ import {
   computeViewerQuotaForShare,
   listShareTreeFiles,
 } from '@/lib/shared-folder-quota';
+import { resolveDiskShareApiKey } from '@/lib/disk-share-api-key';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,14 +26,22 @@ async function requireAuth(request: NextRequest): Promise<string | null> {
 // GET /api/disk-share/download?token=X&fileId=Y — get presigned download URL for shared file
 export async function GET(request: NextRequest) {
   try {
-    const viewerUserId = await requireAuth(request);
+    const url = new URL(request.url);
+    const fileId = url.searchParams.get('fileId');
+
+    // Automated callers authenticate via X-Disk-Api-Key and act as the share
+    // owner (no quota gating). The share token is embedded in the key.
+    const apiKey = await resolveDiskShareApiKey(request);
+    const queryToken = url.searchParams.get('token');
+    if (apiKey && queryToken && queryToken !== apiKey.shareToken) {
+      return NextResponse.json({ error: 'Token does not match API key' }, { status: 403 });
+    }
+    const token = apiKey ? apiKey.shareToken : queryToken;
+
+    const viewerUserId = apiKey ? apiKey.ownerId : await requireAuth(request);
     if (!viewerUserId) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
-
-    const url = new URL(request.url);
-    const token = url.searchParams.get('token');
-    const fileId = url.searchParams.get('fileId');
 
     if (!token || !fileId) {
       return NextResponse.json({ error: 'Missing token or fileId' }, { status: 400 });

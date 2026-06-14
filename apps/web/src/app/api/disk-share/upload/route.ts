@@ -3,14 +3,25 @@ import { db } from '@/lib/firebase-admin';
 import { generateUploadUrl } from '@/lib/s3';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
+import { resolveDiskShareApiKey } from '@/lib/disk-share-api-key';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/disk-share/upload — get presigned upload URL for shared folder (readwrite only)
 export async function POST(request: NextRequest) {
   try {
+    // Automated callers authenticate via X-Disk-Api-Key (must grant readwrite).
+    const apiKey = await resolveDiskShareApiKey(request);
+    if (apiKey && apiKey.permission !== 'readwrite') {
+      return NextResponse.json({ error: 'API key is read-only' }, { status: 403 });
+    }
+
     const body = await request.json();
-    const { token, folderId, filename, mimeType, size } = body;
+    const { folderId, filename, mimeType, size } = body;
+    if (apiKey && body.token && body.token !== apiKey.shareToken) {
+      return NextResponse.json({ error: 'Token does not match API key' }, { status: 403 });
+    }
+    const token = apiKey ? apiKey.shareToken : body.token;
 
     if (!token || !filename || !mimeType || !size) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -85,8 +96,17 @@ export async function POST(request: NextRequest) {
 // PATCH /api/disk-share/upload — confirm upload to shared folder
 export async function PATCH(request: NextRequest) {
   try {
+    const apiKey = await resolveDiskShareApiKey(request);
+    if (apiKey && apiKey.permission !== 'readwrite') {
+      return NextResponse.json({ error: 'API key is read-only' }, { status: 403 });
+    }
+
     const body = await request.json();
-    const { token, fileId, s3Key, filename, mimeType, size, folderId } = body;
+    const { fileId, s3Key, filename, mimeType, size, folderId } = body;
+    if (apiKey && body.token && body.token !== apiKey.shareToken) {
+      return NextResponse.json({ error: 'Token does not match API key' }, { status: 403 });
+    }
+    const token = apiKey ? apiKey.shareToken : body.token;
 
     if (!token || !fileId || !s3Key || !filename) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
