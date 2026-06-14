@@ -84,6 +84,29 @@ export function parseDiskShareApiKey(
   return { shareToken, secret };
 }
 
+/**
+ * Pull the raw disk API key off a request. Accepted (in priority order):
+ *   - X-Disk-Api-Key: dsk_...
+ *   - x-api-key: dsk_...
+ *   - Authorization: Bearer dsk_...
+ * Only values with the dsk_ prefix are treated as disk keys, so a Firebase ID
+ * token in the Authorization header is left untouched for the Firebase path.
+ */
+function extractRawKey(request: NextRequest): string | null {
+  const direct = request.headers.get(DISK_API_KEY_HEADER);
+  if (direct?.startsWith(KEY_PREFIX)) return direct.trim();
+
+  const xApiKey = request.headers.get('x-api-key');
+  if (xApiKey?.startsWith(KEY_PREFIX)) return xApiKey.trim();
+
+  const authz = request.headers.get('authorization');
+  if (authz?.startsWith('Bearer ')) {
+    const t = authz.slice(7).trim();
+    if (t.startsWith(KEY_PREFIX)) return t;
+  }
+  return null;
+}
+
 function safeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   try {
@@ -102,7 +125,7 @@ function safeEqualHex(a: string, b: string): boolean {
 export async function resolveDiskShareApiKey(
   request: NextRequest
 ): Promise<ResolvedDiskApiKey | null> {
-  const raw = request.headers.get(DISK_API_KEY_HEADER);
+  const raw = extractRawKey(request);
   const parsed = parseDiskShareApiKey(raw);
   if (!parsed) return null;
 
