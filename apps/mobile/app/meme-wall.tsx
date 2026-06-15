@@ -6,7 +6,7 @@ import {
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, Audio } from 'expo-av';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, fonts } from '@/lib/theme';
@@ -67,6 +67,9 @@ export default function MemeWallScreen() {
     setVisibleId(first ? (first.item as MemePost).id : null);
   }).current;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
+  // Live Video handles keyed by meme id. On Android the shouldPlay prop alone
+  // doesn't reliably start ExoPlayer, so we drive play/pause imperatively.
+  const videoRefs = useRef<Map<string, Video>>(new Map()).current;
 
   const fetchMemes = useCallback(async (pageNum: number, append = false) => {
     try {
@@ -90,6 +93,31 @@ export default function MemeWallScreen() {
   }, [getToken]);
 
   useEffect(() => { fetchMemes(1); }, [fetchMemes]);
+
+  // Allow video playback even with the ringer on silent, and don't kill audio
+  // for other apps when we stop. Without an explicit audio mode, expo-av on
+  // Android can refuse to start the first clip.
+  useEffect(() => {
+    Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: false }).catch(() => {});
+  }, []);
+
+  // Autoplay the first clip. onViewableItemsChanged frequently does NOT fire for
+  // an item that's already on screen at mount, so visibleId stays null and the
+  // top video sits on a frozen frame (looks like a static image). Seed it.
+  useEffect(() => {
+    if (!visibleId && memes.length > 0) setVisibleId(memes[0].id);
+  }, [memes, visibleId]);
+
+  // Drive playback imperatively: play the visible clip, pause the rest. The
+  // shouldPlay prop is kept as a hint, but on Android it routinely leaves the
+  // video frozen on its first frame, so playAsync() is what actually starts it.
+  useEffect(() => {
+    videoRefs.forEach((ref, id) => {
+      if (!ref) return;
+      if (id === visibleId) ref.playAsync?.().catch(() => {});
+      else ref.pauseAsync?.().catch(() => {});
+    });
+  }, [visibleId, memes]);
 
   const onRefresh = () => { setRefreshing(true); setPage(1); fetchMemes(1); };
 
@@ -186,12 +214,14 @@ export default function MemeWallScreen() {
     <View style={[styles.page, { height: pageH, width }]}>
       {item.mediaType === 'video' ? (
         <Video
+          ref={(r) => { if (r) videoRefs.set(item.id, r); else videoRefs.delete(item.id); }}
           source={{ uri: item.imageUrl }}
           style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.CONTAIN}
           shouldPlay={visibleId === item.id}
           isLooping
           isMuted={false}
+          onLoad={() => { if (visibleId === item.id) videoRefs.get(item.id)?.playAsync?.().catch(() => {}); }}
         />
       ) : (
         <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="contain" transition={150} />
