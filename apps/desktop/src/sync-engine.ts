@@ -76,8 +76,19 @@ interface SyncDB {
   folders: Record<string, string>; // relative path → remote folder ID
 }
 
+// A cloud file discovered while walking the remote tree during a pull.
+interface RemoteFile {
+  id: string;        // diskFiles doc id
+  name: string;
+  size: number;
+  relPath: string;   // path relative to the base folder, '/'-separated
+  folderId: string;  // the cloud folder it lives in
+}
+
 const MAX_RETRIES = 5;
 const BASE_RETRY_DELAY = 2000;
+// How often to pull remote (Boty/web/mobile) changes down to the local folder.
+const REMOTE_PULL_INTERVAL = 60_000;
 
 function retryDelay(attempt: number): number {
   return Math.min(BASE_RETRY_DELAY * Math.pow(2, attempt), 60000);
@@ -96,6 +107,11 @@ export class SyncEngine {
   private syncDBPath: string;
   private retryTimer: NodeJS.Timeout | null = null;
   private remoteBaseFolderId: string | null = null;
+  private pullTimer: NodeJS.Timeout | null = null;
+  private isPulling = false;
+  // Local paths we just wrote from a download — the watcher must not bounce
+  // them straight back up. Belt-and-suspenders to the sync-DB hash check.
+  private recentlyDownloaded = new Set<string>();
 
   constructor(options: SyncEngineOptions) {
     this.options = options;
@@ -425,6 +441,142 @@ export class SyncEngine {
     }, delay);
   }
 
+  // ---- Remote → local pull (Phase 1: bring Boty/web/mobile changes down) ----
+
+  private startRemotePull(): void {
+    void this.runRemotePull();
+    if (!this.pullTimer) {
+      this.pullTimer = setInterval(() => { void this.runRemotePull(); }, REMOTE_PULL_INTERVAL);
+    }
+  }
+
+  private async runRemotePull(): Promise<void> {
+    if (this.isPulling || !this.watcher) return;
+
+    const baseId = await this.getBaseFolderId();
+    // A base of 'root' would mirror the user's ENTIRE account into the local
+    // folder — never do that. Pull only runs with an explicit base folder.
+    if (baseId === 'root') {
+      this.log('Remote pull skipped: no base folder set.');
+      return;
+    }
+
+    this.isPulling = true;
+    try {
+      const remoteFiles = await this.listRemoteTree(baseId);
+      let pulled = 0;
+      for (const rf of remoteFiles) {
+        if (!this.watcher) break; // stopped mid-pass
+        if (await this.maybeDownload(rf)) pulled++;
+      }
+      if (pulled > 0) this.log(`Pulled ${pulled} file(s) from cloud.`);
+    } catch (err: any) {
+      this.log(`Remote pull error: ${err.message || err}`);
+    } finally {
+      this.isPulling = false;
+    }
+  }
+
+  /** Recursively list every file under a cloud folder, paths relative to it. */
+  private async listRemoteTree(baseId: string): Promise<RemoteFile[]> {
+    const out: RemoteFile[] = [];
+    const queue: Array<{ folderId: string; relDir: string }> = [{ folderId: baseId, relDir: '' }];
+
+    while (queue.length > 0) {
+      const { folderId, relDir } = queue.shift()!;
+      const token = await this.authToken();
+      const res = await fetch(
+        `${this.options.serverUrl}/api/folders?parentId=${encodeURIComponent(folderId)}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        folders?: Array<{ id: string; name: string }>;
+        files?: Array<{ id: string; name: string; size?: number }>;
+      };
+      for (const f of data.folders || []) {
+        queue.push({ folderId: f.id, relDir: relDir ? `${relDir}/${f.name}` : f.name });
+      }
+      for (const file of data.files || []) {
+        out.push({
+          id: file.id,
+          name: file.name,
+          size: file.size || 0,
+          relPath: relDir ? `${relDir}/${file.name}` : file.name,
+          folderId,
+        });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Download a remote file to its local path when it's missing or the remote
+   * changed. Never clobbers a local file that changed since the last sync
+   * (logs it as a conflict and leaves the local copy — Phase 3 territory).
+   */
+  private async maybeDownload(rf: RemoteFile): Promise<boolean> {
+    const localPath = path.join(this.options.syncFolder, ...rf.relPath.split('/'));
+    const key = rf.relPath;
+
+    if (fs.existsSync(localPath)) {
+      if (fs.statSync(localPath).size === rf.size) return false; // same content
+      const entry = this.syncDB.files[key];
+      if (!entry) {
+        this.log(`Skipped (untracked local differs): ${rf.relPath}`);
+        return false;
+      }
+      const localHash = await this.fileHash(localPath);
+      if (localHash !== entry.hash) {
+        this.log(`Conflict (kept local): ${rf.relPath}`);
+        return false;
+      }
+      // Local untouched since last sync, remote changed → safe to overwrite.
+    }
+
+    try {
+      const token = await this.authToken();
+      const metaRes = await fetch(
+        `${this.options.serverUrl}/api/disk-files/download?fileId=${encodeURIComponent(rf.id)}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (!metaRes.ok) {
+        this.log(`Download URL failed for ${rf.relPath} (${metaRes.status})`);
+        return false;
+      }
+      const { downloadUrl } = (await metaRes.json()) as { downloadUrl: string };
+
+      const fileRes = await fetch(downloadUrl);
+      if (!fileRes.ok) {
+        this.log(`S3 download failed for ${rf.relPath} (${fileRes.status})`);
+        return false;
+      }
+      const buf = Buffer.from(await fileRes.arrayBuffer());
+
+      // Suppress the watcher's re-upload of what we're about to write.
+      this.recentlyDownloaded.add(localPath);
+      fs.mkdirSync(path.dirname(localPath), { recursive: true });
+      fs.writeFileSync(localPath, buf);
+      setTimeout(() => this.recentlyDownloaded.delete(localPath), 10000);
+
+      // Record as synced so the watcher and future passes treat it as current.
+      const hash = await this.fileHash(localPath);
+      this.syncDB.files[key] = {
+        hash,
+        remoteFolderId: rf.folderId,
+        remoteFileId: rf.id,
+        syncedAt: Date.now(),
+      };
+      this.saveSyncDB();
+
+      this.log(`Downloaded: ${rf.relPath}`);
+      return true;
+    } catch (err: any) {
+      this.log(`Error downloading ${rf.relPath}: ${err.message || err}`);
+      return false;
+    }
+  }
+
   /**
    * Start watching the sync folder for changes.
    */
@@ -456,11 +608,13 @@ export class SyncEngine {
 
     this.watcher
       .on('add', (filePath) => {
+        if (this.recentlyDownloaded.has(filePath)) return; // we just wrote it
         this.stats.filesWatched++;
         this.uploadQueue.push(filePath);
         this.processQueue();
       })
       .on('change', (filePath) => {
+        if (this.recentlyDownloaded.has(filePath)) return; // we just wrote it
         this.uploadQueue.push(filePath);
         this.processQueue();
       })
@@ -473,6 +627,8 @@ export class SyncEngine {
         if (this.uploadQueue.length === 0) {
           this.options.onStatus('idle');
         }
+        // Start pulling remote (Boty/web/mobile) changes down to the folder.
+        this.startRemotePull();
       });
   }
 
@@ -489,6 +645,11 @@ export class SyncEngine {
       clearTimeout(this.retryTimer);
       this.retryTimer = null;
     }
+    if (this.pullTimer) {
+      clearInterval(this.pullTimer);
+      this.pullTimer = null;
+    }
+    this.isPulling = false;
     this.log('Sync stopped');
   }
 
