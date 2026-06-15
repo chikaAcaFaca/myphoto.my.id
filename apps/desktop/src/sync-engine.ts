@@ -5,6 +5,11 @@ import * as crypto from 'crypto';
 
 interface SyncEngineOptions {
   syncFolder: string;
+  /** MySpace folder (path) everything syncs under, e.g. "NKNET CONSULTING DOO".
+   *  Slash- or backslash-separated for nested bases. Empty/undefined uploads
+   *  straight to the MySpace root (legacy behavior). Lets the desktop mirror
+   *  the local folder as a named tree instead of dumping its contents at root. */
+  remoteBasePath?: string;
   apiToken: string;
   /** Resolves a fresh API token, refreshing in-band if the cached one
    *  is near expiry. The engine should call this before each HTTP
@@ -53,6 +58,16 @@ function isMediaFile(mimeType: string): boolean {
   return IMAGE_VIDEO_PREFIXES.some((prefix) => mimeType.startsWith(prefix));
 }
 
+// Editor lock/temp files we must never upload: Office leaves "~$Doc.docx"
+// open while editing, LibreOffice writes ".~lock.Doc.docx#", and assorted
+// tools drop "*.tmp". These churn constantly and would otherwise count as
+// "watched"/"synced" and pollute MySpace. Hidden dotfiles are handled
+// separately by the watcher's ignore rule.
+function isTempFile(filePath: string): boolean {
+  const base = path.basename(filePath);
+  return base.startsWith('~$') || base.startsWith('.~lock.') || /\.tmp$/i.test(base);
+}
+
 // Track synced files by content hash to avoid re-uploads
 const SYNC_DB_FILE = '.myphoto-sync-db.json';
 
@@ -80,6 +95,7 @@ export class SyncEngine {
   private isProcessing = false;
   private syncDBPath: string;
   private retryTimer: NodeJS.Timeout | null = null;
+  private remoteBaseFolderId: string | null = null;
 
   constructor(options: SyncEngineOptions) {
     this.options = options;
@@ -138,22 +154,65 @@ export class SyncEngine {
   }
 
   /**
-   * Ensure a folder exists on MySpace, creating it recursively if needed.
-   * Returns the remote folder ID.
+   * Resolve (creating if needed) the remote base folder everything syncs
+   * under, from the configured remoteBasePath. Empty path → MySpace root.
+   * Cached after the first resolution.
    */
-  private async ensureRemoteFolder(relativePath: string): Promise<string> {
-    if (!relativePath || relativePath === '.') return 'root';
+  private async getBaseFolderId(): Promise<string> {
+    if (this.remoteBaseFolderId) return this.remoteBaseFolderId;
 
-    // Check cache
-    if (this.syncDB.folders[relativePath]) {
-      return this.syncDB.folders[relativePath];
+    const basePath = (this.options.remoteBasePath || '').trim();
+    if (!basePath) {
+      this.remoteBaseFolderId = 'root';
+      return 'root';
     }
 
-    // Ensure parent exists first
-    const parentPath = path.dirname(relativePath);
-    const parentId = parentPath === '.' ? 'root' : await this.ensureRemoteFolder(parentPath);
+    const cacheKey = `__base__:${basePath}`;
+    const cached = this.syncDB.folders[cacheKey];
+    if (cached) {
+      this.remoteBaseFolderId = cached;
+      return cached;
+    }
 
-    const folderName = path.basename(relativePath);
+    let parentId = 'root';
+    for (const segment of basePath.split(/[\/\\]+/).filter(Boolean)) {
+      parentId = await this.findOrCreateFolder(segment, parentId);
+    }
+    this.remoteBaseFolderId = parentId;
+    this.syncDB.folders[cacheKey] = parentId;
+    this.saveSyncDB();
+    return parentId;
+  }
+
+  /** List parentId's children and return the id of the one named `name`. */
+  private async findChildFolder(name: string, parentId: string): Promise<string | null> {
+    try {
+      const token = await this.authToken();
+      const res = await fetch(
+        `${this.options.serverUrl}/api/folders?parentId=${encodeURIComponent(parentId)}`,
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { folders?: Array<{ id: string; name: string }> };
+        const match = (data.folders || []).find((f) => f.name === name);
+        if (match) return match.id;
+      }
+    } catch (err) {
+      this.log(`Folder lookup failed for "${name}": ${err}`);
+    }
+    return null;
+  }
+
+  /**
+   * Find a child folder by name under parentId, or create it. We look it up
+   * FIRST because POST /api/folders returns 409 on a duplicate name rather
+   * than the existing folder — without this, syncing into a folder Boty or
+   * the web already made would 409 and the file would land in the parent.
+   * Looking up first also lets the desktop MERGE into the shared tree.
+   */
+  private async findOrCreateFolder(name: string, parentId: string): Promise<string> {
+    const existing = await this.findChildFolder(name, parentId);
+    if (existing) return existing;
 
     try {
       const token = await this.authToken();
@@ -163,26 +222,50 @@ export class SyncEngine {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: folderName,
-          parentId,
-        }),
+        body: JSON.stringify({ name, parentId }),
       });
-
       if (res.ok) {
-        const data = await res.json() as { id?: string; folderId?: string };
-        const folderId = data.id || data.folderId;
-        if (folderId) {
-          this.syncDB.folders[relativePath] = folderId;
-          this.saveSyncDB();
-          return folderId;
-        }
+        const data = (await res.json()) as { id?: string; folderId?: string };
+        const id = data.id || data.folderId;
+        if (id) return id;
+      } else if (res.status === 409) {
+        // Raced with another writer between lookup and create — use theirs.
+        const raced = await this.findChildFolder(name, parentId);
+        if (raced) return raced;
       }
     } catch (err) {
-      this.log(`Error creating remote folder "${relativePath}": ${err}`);
+      this.log(`Error creating remote folder "${name}": ${err}`);
     }
+    return parentId; // last-resort: keep the file rather than drop it
+  }
 
-    return parentId; // Fallback to parent
+  /**
+   * Ensure the remote folder for a file's directory exists (relative to the
+   * configured base folder), creating each level as needed. Returns its id.
+   */
+  private async ensureRemoteFolder(relativeDir: string): Promise<string> {
+    const baseId = await this.getBaseFolderId();
+    if (!relativeDir || relativeDir === '.') return baseId;
+
+    const basePrefix = (this.options.remoteBasePath || '').trim();
+    const segments = relativeDir.split(/[\/\\]+/).filter(Boolean);
+    let parentId = baseId;
+    let walked = '';
+
+    for (const segment of segments) {
+      walked = walked ? `${walked}/${segment}` : segment;
+      // Cache key is scoped to the base path so changing the base never
+      // reuses a folder id resolved under the old root.
+      const cacheKey = `${basePrefix}|${walked}`;
+      let id = this.syncDB.folders[cacheKey];
+      if (!id) {
+        id = await this.findOrCreateFolder(segment, parentId);
+        this.syncDB.folders[cacheKey] = id;
+        this.saveSyncDB();
+      }
+      parentId = id;
+    }
+    return parentId;
   }
 
   /**
@@ -280,7 +363,6 @@ export class SyncEngine {
       };
       this.saveSyncDB();
 
-      this.stats.filesSynced++;
       this.log(`Synced: ${relativePath}`);
       return true;
     } catch (err: any) {
@@ -303,9 +385,9 @@ export class SyncEngine {
       // Skip if file no longer exists
       if (!fs.existsSync(filePath)) continue;
 
-      // Skip sync DB file and hidden files
+      // Skip sync DB file, hidden files, and editor lock/temp files
       const basename = path.basename(filePath);
-      if (basename === SYNC_DB_FILE || basename.startsWith('.')) continue;
+      if (basename === SYNC_DB_FILE || basename.startsWith('.') || isTempFile(filePath)) continue;
 
       const success = await this.uploadFile(filePath);
       if (!success) {
@@ -352,10 +434,17 @@ export class SyncEngine {
     this.log(`Starting sync for: ${this.options.syncFolder}`);
     this.options.onStatus('syncing');
 
+    // Recount from scratch every start. The watcher re-emits 'add' for every
+    // existing file on launch, so a restart (e.g. forceSync) would otherwise
+    // ADD to the previous run's tally and double-count the same folder.
+    this.stats.filesWatched = 0;
+
     this.watcher = chokidar.watch(this.options.syncFolder, {
       ignored: [
         /(^|[\/\\])\../, // Hidden files
         `**/${SYNC_DB_FILE}`,
+        /[\/\\]~\$[^\/\\]*$/, // Office lock files (~$Doc.docx)
+        /\.tmp$/i, // generic temp files
       ],
       persistent: true,
       ignoreInitial: false, // Process existing files on first run
@@ -404,19 +493,22 @@ export class SyncEngine {
   }
 
   /**
-   * Force re-sync all files.
+   * Force a re-scan of the sync folder. Re-walks every file and uploads
+   * anything missing or changed (the per-file content-hash check skips
+   * what's already synced). Does NOT wipe the sync DB — doing so made the
+   * server mint a brand-new file for every already-synced item, leaving
+   * duplicates in MySpace. To genuinely re-upload everything, clear the
+   * DB explicitly elsewhere; the default "full sync" just reconciles.
    */
   forceSync(): void {
-    this.log('Force sync: re-scanning all files...');
-    this.syncDB.files = {};
-    this.saveSyncDB();
-
-    // Re-scan folder
+    this.log('Full sync: re-scanning all files...');
     this.stop();
     this.start();
   }
 
   getStats(): SyncStats {
-    return { ...this.stats };
+    // filesSynced reflects what's actually recorded as synced, not a
+    // session counter that drifts across restarts/retries.
+    return { ...this.stats, filesSynced: Object.keys(this.syncDB.files).length };
   }
 }

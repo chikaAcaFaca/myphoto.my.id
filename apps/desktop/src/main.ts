@@ -7,6 +7,10 @@ import { SyncEngine } from './sync-engine';
 const store = new Store({
   defaults: {
     syncFolder: '',
+    // MySpace folder everything syncs under. Empty → derived from the sync
+    // folder's own name at init, so the cloud mirrors a named tree (e.g.
+    // "NKNET CONSULTING DOO") instead of dumping contents at the root.
+    remoteBasePath: '',
     apiToken: '',
     refreshToken: '',
     // Wall-clock ms at which the current apiToken stops being valid.
@@ -83,11 +87,6 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, '..', 'assets', 'index.html'));
-
-  // Temporary debug aid — open DevTools so renderer-side errors are
-  // visible while we're stabilising the login flow. Remove before
-  // shipping a packaged build.
-  mainWindow.webContents.openDevTools({ mode: 'detach' });
 
   mainWindow.on('close', (e) => {
     e.preventDefault();
@@ -204,8 +203,13 @@ async function initSyncEngine() {
     fs.mkdirSync(syncFolder, { recursive: true });
   }
 
+  // Default the cloud base folder to the local folder's name so the MySpace
+  // tree mirrors it (and lines up with Boty writing into the same folder).
+  const remoteBasePath = (store.get('remoteBasePath') as string) || path.basename(syncFolder);
+
   syncEngine = new SyncEngine({
     syncFolder,
+    remoteBasePath,
     // Pass the refresh callback so the engine can ask for a fresh token
     // mid-flight instead of failing once the cached one expires.
     apiToken,
@@ -230,6 +234,7 @@ async function initSyncEngine() {
 // IPC handlers for renderer
 ipcMain.handle('get-config', () => ({
   syncFolder: store.get('syncFolder'),
+  remoteBasePath: store.get('remoteBasePath'),
   apiToken: store.get('apiToken'),
   serverUrl: store.get('serverUrl'),
   syncEnabled: store.get('syncEnabled'),
@@ -304,12 +309,29 @@ ipcMain.handle('force-sync', () => {
   syncEngine?.forceSync();
 });
 
-// App lifecycle
-app.whenReady().then(() => {
-  createWindow();
-  createTray();
-  initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
-});
+// App lifecycle.
+// Single-instance lock: the app lives in the tray with its window hidden, so
+// when the user clicks the launcher again they expect the window to surface —
+// not a second silent background process. Grab the lock; if another instance
+// already holds it, hand off (show its window) and quit this one.
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+    createTray();
+    initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
+  });
+}
 
 app.on('window-all-closed', (e: Event) => {
   // Don't quit, keep in tray
