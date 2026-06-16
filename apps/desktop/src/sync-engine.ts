@@ -124,6 +124,15 @@ export class SyncEngine {
       if (fs.existsSync(this.syncDBPath)) {
         const data = fs.readFileSync(this.syncDBPath, 'utf-8');
         this.syncDB = JSON.parse(data);
+        // Migrate legacy backslash keys (written by older builds on Windows) to
+        // forward-slash so they match the unified key convention — otherwise the
+        // first scan after upgrading would re-upload everything once.
+        const norm = (obj: Record<string, any>) => {
+          const out: Record<string, any> = {};
+          for (const [k, v] of Object.entries(obj || {})) out[k.split('\\').join('/')] = v;
+          return out;
+        };
+        this.syncDB = { files: norm(this.syncDB.files), folders: norm(this.syncDB.folders) };
       }
     } catch {
       this.syncDB = { files: {}, folders: {} };
@@ -288,8 +297,15 @@ export class SyncEngine {
    * Upload a single file to MySpace (and MyPhoto if it's an image/video).
    */
   private async uploadFile(filePath: string): Promise<boolean> {
-    const relativePath = path.relative(this.options.syncFolder, filePath);
-    const relativeDir = path.dirname(relativePath);
+    const relNative = path.relative(this.options.syncFolder, filePath);
+    const relativeDir = path.dirname(relNative);
+    // The sync-DB key is ALWAYS forward-slash so it matches the keys the pull
+    // side writes (cloud paths are '/'-separated). Previously this used the
+    // native separator ('\' on Windows), so a downloaded file ("a/b.pdf" key)
+    // never matched on the next scan ("a\b.pdf" key) → it re-uploaded → the
+    // server auto-renamed it to "b (1).pdf" → pull → re-upload … an infinite
+    // duplication loop that ballooned the folder and burned storage/requests.
+    const relativePath = relNative.split(path.sep).join('/');
     const fileName = path.basename(filePath);
     const mimeType = getMimeType(filePath);
 
