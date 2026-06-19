@@ -11,9 +11,13 @@ interface ShareContext {
   shareToken: string;
 }
 
-// Resolve the share + owner for a folder-management call. Accepts either an
-// API key (X-Disk-Api-Key, must grant readwrite) or a Firebase owner token
-// (with `token` in the body). Returns the context or a NextResponse error.
+// Resolve the share + owner for a folder-management call. Accepts, in order:
+//   1. an API key (X-Disk-Api-Key, must grant readwrite),
+//   2. a bare disk-share token in the body (same anonymous auth as the upload
+//      route — a valid, active, readwrite folder share authorizes the call
+//      without a logged-in session), or
+//   3. a Firebase owner session + `token` in the body.
+// Returns the context or a NextResponse error.
 async function resolveShareContext(
   request: NextRequest,
   body: any
@@ -31,6 +35,32 @@ async function resolveShareContext(
     return {
       ctx: { ownerId: apiKey.ownerId, sharedRootFolderId: apiKey.folderId, shareToken: apiKey.shareToken },
     };
+  }
+
+  // Anonymous share-token path — identical contract to /api/disk-share/upload:
+  // a valid, active, readwrite folder share authorizes the operation with NO
+  // logged-in session. Purely additive: we only short-circuit on success here;
+  // every other case falls through to the unchanged owner-session path below,
+  // so existing owner behaviour is preserved.
+  const bodyToken = body?.token;
+  if (bodyToken) {
+    const tokenDoc = await db.collection('diskShares').doc(bodyToken).get();
+    if (tokenDoc.exists) {
+      const tokenData = tokenDoc.data()!;
+      if (
+        tokenData.isActive &&
+        tokenData.type === 'folder' &&
+        tokenData.permission === 'readwrite'
+      ) {
+        return {
+          ctx: {
+            ownerId: tokenData.userId,
+            sharedRootFolderId: tokenData.folderId,
+            shareToken: bodyToken,
+          },
+        };
+      }
+    }
   }
 
   // Firebase owner path
