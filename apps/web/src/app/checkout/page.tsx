@@ -19,6 +19,13 @@ import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
 import type { StorageTier, BillingPeriod } from '@myphoto/shared';
 import { useAuthStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
+import { loadFreemius, openFreemiusCheckout } from '@/lib/freemius-checkout';
+
+// Which processor the checkout drives. Default 'paddle' preserves existing
+// behavior; set NEXT_PUBLIC_PAYMENT_PROVIDER=freemius to switch the storefront.
+const PAYMENT_PROVIDER = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || 'paddle') as
+  | 'paddle'
+  | 'freemius';
 
 function getPaddlePriceId(tier: StorageTier, period: BillingPeriod): string {
   switch (period) {
@@ -46,6 +53,7 @@ function CheckoutContent() {
   const { user, firebaseUser, isLoading: authLoading, isInitialized } = useAuthStore();
 
   const [paddle, setPaddle] = useState<Paddle | null>(null);
+  const [freemiusReady, setFreemiusReady] = useState(false);
   const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
 
   // Parse URL params
@@ -74,6 +82,13 @@ function CheckoutContent() {
   }, [router]);
 
   useEffect(() => {
+    if (PAYMENT_PROVIDER === 'freemius') {
+      loadFreemius()
+        .then(() => setFreemiusReady(true))
+        .catch((err) => console.error(err));
+      return;
+    }
+
     const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
     if (!token) return;
 
@@ -89,7 +104,25 @@ function CheckoutContent() {
   }, [handleCheckoutEvent]);
 
   const handleOpenCheckout = () => {
-    if (!paddle || !firebaseUser || !user) return;
+    if (!firebaseUser || !user) return;
+
+    if (PAYMENT_PROVIDER === 'freemius') {
+      const planId = tier.freemiusPlanId;
+      if (!planId) return;
+
+      setIsOpeningCheckout(true);
+      const opened = openFreemiusCheckout({
+        planId,
+        billingCycle: period === 'yearly' ? 'annual' : 'monthly',
+        userEmail: user.email,
+        onSuccess: () => router.push('/photos?subscribed=true'),
+        onClose: () => setIsOpeningCheckout(false),
+      });
+      if (!opened) setIsOpeningCheckout(false);
+      return;
+    }
+
+    if (!paddle) return;
 
     const priceId = getPaddlePriceId(tier, period);
     if (!priceId) return;
@@ -111,6 +144,9 @@ function CheckoutContent() {
 
   const priceTotal = getPeriodTotal(tier, period);
   const priceMonthly = getMonthlyEquivalent(tier, period);
+
+  const checkoutReady = PAYMENT_PROVIDER === 'freemius' ? freemiusReady : !!paddle;
+  const providerName = PAYMENT_PROVIDER === 'freemius' ? 'Freemius' : 'Paddle';
 
   const isLoggedIn = isInitialized && !!user && !!firebaseUser;
   const showAuthLoading = !isInitialized || authLoading;
@@ -211,10 +247,10 @@ function CheckoutContent() {
                   </p>
                   <button
                     onClick={handleOpenCheckout}
-                    disabled={!paddle || isOpeningCheckout}
+                    disabled={!checkoutReady || isOpeningCheckout}
                     className={cn(
                       'flex w-full items-center justify-center gap-2 rounded-lg py-4 text-lg font-semibold text-white transition-colors',
-                      paddle && !isOpeningCheckout
+                      checkoutReady && !isOpeningCheckout
                         ? 'bg-primary-500 hover:bg-primary-600'
                         : 'cursor-not-allowed bg-gray-400'
                     )}
@@ -224,7 +260,7 @@ function CheckoutContent() {
                         <Loader2 className="h-5 w-5 animate-spin" />
                         Otvaranje plaćanja...
                       </>
-                    ) : !paddle ? (
+                    ) : !checkoutReady ? (
                       <>
                         <Loader2 className="h-5 w-5 animate-spin" />
                         Učitavanje...
@@ -237,7 +273,7 @@ function CheckoutContent() {
                     )}
                   </button>
                   <p className="mt-3 text-center text-xs text-gray-500">
-                    Bićete preusmereni na sigurnu Paddle stranicu za plaćanje
+                    Plaćanje se obavlja preko sigurne {providerName} platforme
                   </p>
                 </div>
               ) : (
@@ -292,7 +328,7 @@ function CheckoutContent() {
                   </div>
                   <div>
                     <p className="font-medium">Sigurno plaćanje</p>
-                    <p className="text-sm text-gray-500">Paddle — PCI DSS Level 1</p>
+                    <p className="text-sm text-gray-500">{providerName} — PCI DSS Level 1</p>
                   </div>
                 </div>
               </div>

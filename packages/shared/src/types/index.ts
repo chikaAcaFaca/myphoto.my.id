@@ -245,6 +245,11 @@ export interface Subscription {
   billingPeriod?: BillingPeriod;
   currentPeriodEnd: Date;
   paddleCustomerId: string;
+  /** Which processor owns this subscription. Absent on legacy Paddle docs. */
+  provider?: 'paddle' | 'freemius';
+  /** Freemius identifiers — set when provider === 'freemius'. */
+  freemiusLicenseId?: string;
+  freemiusSubscriptionId?: string;
   createdAt: Date;
 }
 
@@ -319,6 +324,10 @@ export interface StorageTier {
   priceYearly: number;
   paddleMonthlyId: string;
   paddleYearlyId: string;
+  /** Freemius plan ID — one plan serves both monthly & yearly; the billing
+   *  cycle is selected at checkout time via `billing_cycle`. Empty until the
+   *  plan is created in the Freemius dashboard. */
+  freemiusPlanId?: string;
   features: string[];
   isPopular?: boolean;
   memesPerDay: number;
