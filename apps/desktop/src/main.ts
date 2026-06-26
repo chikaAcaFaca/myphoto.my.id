@@ -85,6 +85,19 @@ if (!gotSingleInstanceLock) {
 }
 let syncEngine: SyncEngine | null = null;
 
+// Register (or clear) the Windows auto-start login item. In a packaged build
+// process.execPath is the app's own exe, so the bare form is correct. In dev
+// (`electron .`) it's the bare electron.exe — registering THAT alone makes
+// Windows launch Electron's built-in "welcome" app at boot (a stray "Electron"
+// window), so we must also hand it the resolved app path.
+function applyAutoStart(openAtLogin: boolean) {
+  app.setLoginItemSettings(
+    process.defaultApp
+      ? { openAtLogin, path: process.execPath, args: [path.resolve(process.argv[1])] }
+      : { openAtLogin }
+  );
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 480,
@@ -101,11 +114,6 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, '..', 'assets', 'index.html'));
-
-  // Temporary debug aid — open DevTools so renderer-side errors are
-  // visible while we're stabilising the login flow. Remove before
-  // shipping a packaged build.
-  mainWindow.webContents.openDevTools({ mode: 'detach' });
 
   mainWindow.on('close', (e) => {
     e.preventDefault();
@@ -276,9 +284,7 @@ ipcMain.handle('save-config', (_event, config: Record<string, unknown>) => {
   initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
 
   // Auto-start on boot
-  app.setLoginItemSettings({
-    openAtLogin: config.startOnBoot as boolean || false,
-  });
+  applyAutoStart((config.startOnBoot as boolean) || false);
 
   return true;
 });
@@ -407,7 +413,7 @@ app.whenReady().then(() => {
   // Apply the start-with-Windows preference on every launch so the default
   // (startOnBoot: true) actually registers the login item — previously this
   // only ran when settings were saved, so a fresh install never auto-started.
-  app.setLoginItemSettings({ openAtLogin: store.get('startOnBoot') as boolean });
+  applyAutoStart(store.get('startOnBoot') as boolean);
   initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
 });
 
