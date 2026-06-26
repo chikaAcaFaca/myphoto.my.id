@@ -262,10 +262,17 @@ ipcMain.handle('save-config', (_event, config: Record<string, unknown>) => {
   syncEngine?.stop();
   initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
 
-  // Auto-start on boot
-  app.setLoginItemSettings({
-    openAtLogin: config.startOnBoot as boolean || false,
-  });
+  // Auto-start on boot. In a packaged build process.execPath is the app's own
+  // exe, so the bare form is correct. In dev (`electron .`) process.execPath is
+  // the bare electron.exe — registering THAT alone makes Windows launch
+  // Electron's built-in "welcome" app at boot (the stray "Electron" window), so
+  // we must also hand it the app path.
+  const openAtLogin = (config.startOnBoot as boolean) || false;
+  app.setLoginItemSettings(
+    process.defaultApp
+      ? { openAtLogin, path: process.execPath, args: [path.resolve(process.argv[1])] }
+      : { openAtLogin }
+  );
 
   return true;
 });
