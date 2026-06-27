@@ -9,12 +9,31 @@ import React, { useEffect, useState, Component, type ErrorInfo, type ReactNode }
 import { View, Text, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
+
+// One-time audio session config so expo-av's <Video> auto-plays reliably.
+// Without `playsInSilentModeIOS` an iOS device on silent never starts the
+// player; on Android the session has to be set BEFORE the first Video mounts
+// or shouldPlay can be silently ignored. We fire-and-forget — failure here
+// only degrades audio behavior, never crashes.
+Audio.setAudioModeAsync({
+  allowsRecordingIOS: false,
+  interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+  interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+  playsInSilentModeIOS: true,
+  shouldDuckAndroid: true,
+  staysActiveInBackground: false,
+  playThroughEarpieceAndroid: false,
+}).catch(() => {});
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { SyncProvider } from '@/lib/sync-context';
 import { CloudGateProvider } from '@/lib/cloud-gate';
+import { StorageGuardProvider } from '@/lib/storage-guard';
+import { AppUpdateCheck } from '@/lib/app-update-check';
 import { ThemeProvider } from '@/lib/theme-context';
+import { ShareIntentHandler } from '@/components/ShareIntentHandler';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -97,7 +116,14 @@ function RootNavigator() {
   return (
     <SyncProvider>
       <CloudGateProvider>
-        <Slot />
+        <StorageGuardProvider>
+          {/* Watch for incoming Android share intents (image/video) and upload
+              them into the user's MySpace once we're inside the auth-gated zone. */}
+          <ShareIntentHandler />
+          {/* Offer an update when a newer APK has been published. */}
+          <AppUpdateCheck />
+          <Slot />
+        </StorageGuardProvider>
       </CloudGateProvider>
     </SyncProvider>
   );

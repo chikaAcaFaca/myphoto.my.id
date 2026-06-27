@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { FieldValue } from 'firebase-admin/firestore';
+import {
+  MEME_REFERRAL_BONUS,
+  MAX_MEME_REFERRAL_BONUS,
+  MEME_QUALIFICATION_UPLOAD_BYTES,
+  MEME_QUALIFICATION_REFERRALS,
+} from '@myphoto/shared';
+import { recalculateStorageLimit } from '@/lib/storage-limit';
 
 export const dynamic = 'force-dynamic';
-
-const MEME_REFERRAL_BONUS = 1 * 1024 * 1024 * 1024; // 1GB per qualified referral
-const MAX_MEME_REFERRAL_BONUS = 10 * 1024 * 1024 * 1024; // Max 10GB from meme referrals
-const QUALIFICATION_UPLOAD_BYTES = 500 * 1024 * 1024; // Referee must upload 500MB
-const QUALIFICATION_REFERRALS = 5; // Referee must refer 5 friends
 
 // POST /api/meme-wall/referral — register meme referral (bonus granted later when qualified)
 export async function POST(request: NextRequest) {
@@ -78,7 +80,12 @@ export async function PUT(request: NextRequest) {
   try {
     const authResult = await verifyAuthWithRateLimit(request, 'api');
     if (!authResult.success) return authResult.response;
-    const { userId } = authResult;
+    const { userId, emailVerified } = authResult;
+
+    // Unverified referee email can never qualify a referral (anti-Sybil).
+    if (!emailVerified) {
+      return NextResponse.json({ qualified: 0, reason: 'email_not_verified' });
+    }
 
     // Check if this user has pending meme referrals where they are the referee
     const pendingRefs = await db.collection('memeReferrals')
@@ -90,59 +97,72 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ qualified: 0 });
     }
 
-    // Check qualification: uploaded 500MB + referred 5 friends
+    // Check qualification: uploaded 500MB (monotonic — NOT storageUsed, which
+    // drops on delete and would let a referee farm via delete+re-upload) and
+    // referred 5 friends.
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const userData = userDoc.data()!;
-    const totalUploaded = userData.totalUploadedBytes || userData.storageUsed || 0;
+    const totalUploaded = userData.totalUploadedBytes || 0;
     const referralCount = userData.referralCount || 0;
 
-    if (totalUploaded < QUALIFICATION_UPLOAD_BYTES || referralCount < QUALIFICATION_REFERRALS) {
+    if (totalUploaded < MEME_QUALIFICATION_UPLOAD_BYTES || referralCount < MEME_QUALIFICATION_REFERRALS) {
       return NextResponse.json({
         qualified: 0,
         progress: {
           uploaded: totalUploaded,
-          requiredUpload: QUALIFICATION_UPLOAD_BYTES,
+          requiredUpload: MEME_QUALIFICATION_UPLOAD_BYTES,
           referrals: referralCount,
-          requiredReferrals: QUALIFICATION_REFERRALS,
+          requiredReferrals: MEME_QUALIFICATION_REFERRALS,
         },
       });
     }
 
-    // User qualifies — grant bonuses to all meme creators
-    let granted = 0;
+    // User qualifies — grant bonuses to all meme creators. Each grant runs in a
+    // transaction (idempotent: re-checks bonusGranted) and clamps so the creator
+    // never exceeds MAX_MEME_REFERRAL_BONUS. Two concurrent PUTs can no longer
+    // double-grant.
+    const creatorsGranted = new Set<string>();
     for (const ref of pendingRefs.docs) {
-      const refData = ref.data();
-      if (refData.bonusGranted) continue;
+      const creatorId = ref.data().creatorId as string;
+      const creatorRef = db.collection('users').doc(creatorId);
 
-      const creatorId = refData.creatorId;
+      const didGrant = await db.runTransaction(async (tx) => {
+        const freshRef = await tx.get(ref.ref);
+        if (freshRef.data()?.bonusGranted) return false;
 
-      // Check creator hasn't exceeded max bonus
-      const creatorDoc = await db.collection('users').doc(creatorId).get();
-      if (!creatorDoc.exists) continue;
+        const creatorSnap = await tx.get(creatorRef);
+        if (!creatorSnap.exists) return false;
 
-      const creatorBonus = creatorDoc.data()?.memeReferralBonus || 0;
-      if (creatorBonus >= MAX_MEME_REFERRAL_BONUS) continue;
+        const creatorBonus = creatorSnap.data()?.memeReferralBonus || 0;
+        const grant = Math.min(MEME_REFERRAL_BONUS, MAX_MEME_REFERRAL_BONUS - creatorBonus);
 
-      // Grant bonus
-      await db.collection('users').doc(creatorId).update({
-        storageLimit: FieldValue.increment(MEME_REFERRAL_BONUS),
-        memeReferralBonus: FieldValue.increment(MEME_REFERRAL_BONUS),
+        // Always mark processed so we stop re-checking this referral.
+        tx.update(ref.ref, {
+          qualified: true,
+          bonusGranted: true,
+          qualifiedAt: FieldValue.serverTimestamp(),
+        });
+
+        if (grant <= 0) return false; // creator already at cap — no bonus
+        tx.update(creatorRef, {
+          memeReferralBonus: FieldValue.increment(grant),
+        });
+        return true;
       });
 
-      await ref.ref.update({
-        qualified: true,
-        bonusGranted: true,
-        qualifiedAt: new Date(),
-      });
-
-      granted++;
+      if (didGrant) creatorsGranted.add(creatorId);
     }
 
-    return NextResponse.json({ qualified: granted });
+    // Recompute storageLimit once per affected creator (single source of truth).
+    for (const creatorId of creatorsGranted) {
+      await recalculateStorageLimit(creatorId);
+    }
+
+    return NextResponse.json({ qualified: creatorsGranted.size });
   } catch (error) {
     console.error('Meme referral qualification error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

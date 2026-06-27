@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  RefreshControl, Image, Dimensions, AppState,
+  RefreshControl, Image, Dimensions, AppState, type ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useSync } from '@/lib/sync-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { VideoFlipbook } from '@/components/VideoFlipbook';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -39,6 +40,55 @@ export default function MyPhotoScreen() {
   const [uploadedIds, setUploadedIds] = useState<Set<string>>(new Set());
   const endCursorRef = useRef<string | undefined>(undefined);
   const appState = useRef(AppState.currentState);
+
+  // Inline "moving picture" preview in the home grid. Real <Video> players
+  // here crashed the app (many live native decoders + upload I/O = OOM), so
+  // we now use VideoFlipbook — a few still frames cross-faded on a timer, with
+  // NO persistent decoder. That removes the crash entirely, so we no longer
+  // pause during sync and can afford a slightly larger visible set. The cap
+  // just bounds how many frame extractions run at once.
+  const MAX_ACTIVE_PREVIEWS = 4;
+  const [visibleVideoIds, setVisibleVideoIds] = useState<string[]>([]);
+  const resolvedVideoUrisRef = useRef<Map<string, string>>(new Map());
+  const [, setResolvedTick] = useState(0);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50, waitForInteraction: false }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    // Order-preserving so we can take the TOP N and stay deterministic as
+    // the user scrolls. (A Set lost ordering and we ended up picking
+    // arbitrary tiles to play.)
+    const ordered: string[] = [];
+    for (const v of viewableItems) {
+      if (!v.isViewable) continue;
+      const it = v.item as LocalPhoto;
+      if (it.mediaType === 'video') ordered.push(it.id);
+    }
+    setVisibleVideoIds(ordered.slice(0, MAX_ACTIVE_PREVIEWS));
+  }).current;
+
+  // Resolve file:// URIs for the (capped) visible-video set. content://
+  // (the default from MediaLibrary.getAssetsAsync) mounts on expo-av's
+  // Video but never plays — we have to go through getAssetInfoAsync.
+  // Serial (await loop) instead of fan-out so a fast scroll doesn't queue
+  // 50 parallel native IPCs.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const id of visibleVideoIds) {
+        if (cancelled) return;
+        if (resolvedVideoUrisRef.current.has(id)) continue;
+        try {
+          const info = await MediaLibrary.getAssetInfoAsync(id);
+          const file = info?.localUri || info?.uri;
+          if (file) {
+            resolvedVideoUrisRef.current.set(id, file);
+            if (!cancelled) setResolvedTick((t) => t + 1);
+          }
+        } catch { /* fall back to the static thumbnail */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [visibleVideoIds]);
 
   // Load uploaded asset IDs from AsyncStorage (sync state)
   const loadUploadedIds = useCallback(async () => {
@@ -141,54 +191,77 @@ export default function MyPhotoScreen() {
 
   const uploadedCount = photos.filter(p => p.isUploaded).length;
 
-  const renderPhoto = ({ item }: { item: LocalPhoto }) => (
-    <TouchableOpacity
-      style={styles.cell}
-      activeOpacity={0.8}
-      delayPressIn={100}
-      onPress={() => router.push({
-        pathname: '/photo-viewer',
-        params: {
-          id: item.id,
-          name: item.filename,
-          type: item.mediaType === 'video' ? 'video' : 'image',
-          isFavorite: '0',
-          localUri: item.uri,
-          // Tells the viewer whether the device id also has a cloud
-          // record — without this it can't tell device-only photos
-          // from backed-up ones and every cloud API call 404s.
-          isUploaded: item.isUploaded ? '1' : '0',
-        },
-      })}
-    >
-      <Image
-        source={{ uri: item.uri }}
-        style={styles.cellImage}
-        resizeMode="cover"
-      />
+  const renderPhoto = ({ item }: { item: LocalPhoto }) => {
+    const isVideo = item.mediaType === 'video';
+    const previewUri = isVideo ? resolvedVideoUrisRef.current.get(item.id) : undefined;
+    // Animate the tile when it's a visible video with a resolved file:// URI.
+    // No decoder is involved (frames only), so this is safe even mid-sync.
+    const shouldPreview =
+      isVideo && visibleVideoIds.includes(item.id) && !!previewUri;
 
-      {/* Cloud status badge */}
-      <View style={[styles.cloudBadge, item.isUploaded ? styles.cloudBadgeUploaded : styles.cloudBadgePending]}>
-        <Ionicons
-          name={item.isUploaded ? 'checkmark' : 'cloud-upload-outline'}
-          size={10}
-          color="#fff"
-        />
-      </View>
+    return (
+      <TouchableOpacity
+        style={styles.cell}
+        activeOpacity={0.8}
+        delayPressIn={100}
+        onPress={() => router.push({
+          pathname: '/photo-viewer',
+          params: {
+            id: item.id,
+            name: item.filename,
+            type: isVideo ? 'video' : 'image',
+            isFavorite: '0',
+            localUri: item.uri,
+            // Tells the viewer whether the device id also has a cloud
+            // record — without this it can't tell device-only photos
+            // from backed-up ones and every cloud API call 404s.
+            isUploaded: item.isUploaded ? '1' : '0',
+          },
+        })}
+      >
+        {isVideo && previewUri ? (
+          // Frame-flipbook "moving picture" — reads as motion without a live
+          // decoder. Falls back to the device thumbnail until frames extract.
+          // Tapping still opens the full-screen viewer (with sound).
+          <VideoFlipbook
+            videoUri={previewUri}
+            fallbackUri={item.uri}
+            durationMs={item.duration ? item.duration * 1000 : undefined}
+            active={shouldPreview}
+            style={styles.cellImage}
+          />
+        ) : (
+          <Image
+            source={{ uri: item.uri }}
+            style={styles.cellImage}
+            resizeMode="cover"
+          />
+        )}
 
-      {/* Video duration badge */}
-      {item.mediaType === 'video' && (
-        <View style={styles.videoBadge}>
-          <Ionicons name="play" size={10} color="#fff" />
-          {item.duration > 0 && (
-            <Text style={styles.duration}>
-              {Math.floor(item.duration / 60)}:{String(Math.floor(item.duration % 60)).padStart(2, '0')}
-            </Text>
-          )}
+        {/* Cloud status badge */}
+        <View style={[styles.cloudBadge, item.isUploaded ? styles.cloudBadgeUploaded : styles.cloudBadgePending]}>
+          <Ionicons
+            name={item.isUploaded ? 'checkmark' : 'cloud-upload-outline'}
+            size={10}
+            color="#fff"
+          />
         </View>
-      )}
-    </TouchableOpacity>
-  );
+
+        {/* Video duration badge — keep this even while previewing so the
+            tile still reads as a video (and the duration is informative). */}
+        {isVideo && (
+          <View style={styles.videoBadge}>
+            <Ionicons name="play" size={10} color="#fff" />
+            {item.duration > 0 && (
+              <Text style={styles.duration}>
+                {Math.floor(item.duration / 60)}:{String(Math.floor(item.duration % 60)).padStart(2, '0')}
+              </Text>
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
@@ -283,6 +356,8 @@ export default function MyPhotoScreen() {
           maxToRenderPerBatch={30}
           windowSize={10}
           initialNumToRender={30}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
         />
       )}
     </SafeAreaView>

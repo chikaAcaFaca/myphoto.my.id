@@ -11,6 +11,7 @@ import {
 export interface AuthResult {
   success: true;
   userId: string;
+  emailVerified: boolean;
   rateLimitResult: RateLimitResult;
 }
 
@@ -45,10 +46,12 @@ export async function verifyAuthWithRateLimit(
 
   // Verify Firebase token
   let userId: string;
+  let emailVerified = false;
   try {
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await getAuth().verifyIdToken(token);
     userId = decodedToken.uid;
+    emailVerified = decodedToken.email_verified === true;
   } catch (authError) {
     console.error('Auth token verification failed:', authError);
     return {
@@ -76,6 +79,7 @@ export async function verifyAuthWithRateLimit(
   return {
     success: true,
     userId,
+    emailVerified,
     rateLimitResult,
   };
 }
@@ -83,7 +87,7 @@ export async function verifyAuthWithRateLimit(
 /**
  * Get client IP address from request headers
  */
-function getClientIp(request: NextRequest): string {
+export function getClientIp(request: NextRequest): string {
   // Check common proxy headers
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {

@@ -34,6 +34,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="myspace"
+        options={{
+          title: 'MySpace',
+          tabBarIcon: ({ color, size }) => (
+            // Outlined cloud differentiates the personal-cloud namespace
+            // from Upload's filled cloud-upload action icon.
+            <Ionicons name="cloud-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="meme-wall-tab"
         options={{
           title: 'MemeWall',
@@ -70,7 +81,6 @@ export default function TabLayout() {
         }}
       />
       {/* Hide screens from tab bar */}
-      <Tabs.Screen name="myspace" options={{ href: null }} />
       <Tabs.Screen name="videos" options={{ href: null }} />
       <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>

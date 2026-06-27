@@ -1,6 +1,6 @@
 {
   "name": "myphoto-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MyPhoto Desktop Sync - Sinhronizacija fajlova kao Dropbox",
   "main": "dist/main.js",
   "private": true,
@@ -10,7 +10,8 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "dist:win": "electron-builder --win"
+    "dist:win": "electron-builder --win",
+    "dist:msix": "electron-builder --win appx"
   },
   "build": {
     "appId": "id.my.myphoto.desktop",
@@ -31,6 +32,15 @@
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "assets/icon.ico",
       "uninstallerIcon": "assets/icon.ico"
+    },
+    "appx": {
+      "applicationId": "MyPhotoSync",
+      "identityName": "REPLACE_FROM_PARTNER_CENTER",
+      "publisher": "CN=REPLACE_FROM_PARTNER_CENTER",
+      "publisherDisplayName": "REPLACE_FROM_PARTNER_CENTER",
+      "backgroundColor": "#0ea5e9",
+      "showNameOnTiles": true,
+      "languages": ["sr-Latn", "en-US"]
     },
     "mac": {
       "target": ["dmg"],

@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Auth
   login: (email: string, password: string) => ipcRenderer.invoke('login', email, password),
+  googleLogin: () => ipcRenderer.invoke('google-login'),
 
   // Sync
   getSyncStats: () => ipcRenderer.invoke('get-sync-stats'),

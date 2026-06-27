@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert,
   ActivityIndicator, Share, Platform, Modal, ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
+import { ZoomPanView } from '@/components/ZoomPanView';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -50,6 +51,7 @@ export default function PhotoViewerScreen() {
   const [mediaUrl, setMediaUrl] = useState<string | null>(localUri || null);
   const [mediaLoading, setMediaLoading] = useState(!localUri);
   const isVideo = type === 'video';
+  const videoRef = useRef<Video>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -57,20 +59,33 @@ export default function PhotoViewerScreen() {
     // needed. Calling /api/files/{deviceId}/download-url would 404 and
     // surface a confusing "Nije moguće učitati fajl" toast.
     if (isLocalOnly) {
-      // Fast path: render whatever URI we got from the gallery
-      // immediately so the user sees the photo while we (maybe)
-      // upgrade content:// to file:// in the background. Without
-      // this, a slow getAssetInfoAsync call left the user staring
-      // at a spinner even though we already had a perfectly good
-      // URI to show.
+      const needsResolve = !!localUri && localUri.startsWith('content://');
+
+      // expo-av's Video CANNOT play a content:// URI. For videos we therefore
+      // resolve the file:// path BEFORE rendering (showing a spinner) instead
+      // of mounting a player on content:// that silently never plays.
+      if (isVideo && needsResolve) {
+        setMediaLoading(true);
+        let cancelled = false;
+        (async () => {
+          try {
+            const info = await MediaLibrary.getAssetInfoAsync(id);
+            if (!cancelled) setMediaUrl(info?.localUri || localUri);
+          } catch (e) {
+            console.warn('Failed to resolve content URI:', e);
+            if (!cancelled) setMediaUrl(localUri || null);
+          } finally {
+            if (!cancelled) setMediaLoading(false);
+          }
+        })();
+        return () => { cancelled = true; };
+      }
+
+      // Images render immediately (expo-image handles content:// fine); we
+      // still upgrade content:// → file:// in the background.
       setMediaUrl(localUri || null);
       setMediaLoading(false);
-
-      // For Android content:// URIs we *also* try to resolve a
-      // file:// path because expo-av's Video can't play content://
-      // schemes. The fast-path render above remains in place for
-      // images (which expo-image handles fine).
-      if (localUri && localUri.startsWith('content://')) {
+      if (needsResolve) {
         let cancelled = false;
         (async () => {
           try {
@@ -357,21 +372,29 @@ export default function PhotoViewerScreen() {
         ) : !mediaUrl ? (
           <Text style={{ color: '#fff' }}>Nije moguće učitati fajl.</Text>
         ) : isVideo ? (
+          // shouldPlay alone has been flaky on some Android devices (the player
+          // loads the source, paints the first frame, then never actually
+          // starts). Calling playAsync explicitly in onLoad guarantees
+          // playback once the AV pipeline reports the source is ready.
           <Video
+            ref={videoRef}
             source={{ uri: mediaUrl }}
             style={styles.image}
             useNativeControls
             resizeMode={ResizeMode.CONTAIN}
             shouldPlay
             isLooping={false}
+            onLoad={() => { videoRef.current?.playAsync().catch(() => {}); }}
           />
         ) : (
-          <Image
-            source={{ uri: mediaUrl }}
-            style={styles.image}
-            contentFit="contain"
-            transition={200}
-          />
+          <ZoomPanView style={styles.image}>
+            <Image
+              source={{ uri: mediaUrl }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+              transition={200}
+            />
+          </ZoomPanView>
         )}
       </View>
 
@@ -427,20 +450,22 @@ export default function PhotoViewerScreen() {
             {/* "Kreiraj" (creative hub) intentionally hidden — feature
                 still in development, see deferred follow-up. */}
 
-            {type !== 'video' && (
-              <TouchableOpacity style={styles.action} onPress={() => router.push({
-                pathname: '/meme-creator',
-                params: {
-                  id: id!,
-                  name: name || 'Photo',
-                  ...(localUri ? { uri: mediaUrl || localUri } : {}),
-                  isUploaded: isUploaded || '0',
-                },
-              })}>
-                <Ionicons name="flame-outline" size={22} color="#f97316" />
-                <Text style={[styles.actionText, { color: '#f97316' }]}>Meme</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={styles.action} onPress={() => router.push({
+              pathname: '/meme-creator',
+              params: {
+                id: id!,
+                name: name || 'Photo',
+                // Pass the playable media URL (image or video) + its type so the
+                // meme creator renders a <Video> for videos instead of a broken
+                // <Image>. Works for cloud (mediaUrl) and device (localUri).
+                ...((mediaUrl || localUri) ? { uri: mediaUrl || localUri } : {}),
+                isUploaded: isUploaded || '0',
+                type: type || 'image',
+              },
+            })}>
+              <Ionicons name="flame-outline" size={22} color="#f97316" />
+              <Text style={[styles.actionText, { color: '#f97316' }]}>Meme</Text>
+            </TouchableOpacity>
 
             {/* Cloud-only actions are hidden for local-only photos.
                 Favorite/archive/delete need a cloud record; Info has a

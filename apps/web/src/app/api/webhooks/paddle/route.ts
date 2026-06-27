@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { initAdmin, db } from '@/lib/firebase-admin';
-import { STORAGE_TIERS, FREE_STORAGE_LIMIT, BACKUP_BONUS } from '@myphoto/shared';
+import { STORAGE_TIERS } from '@myphoto/shared';
+import { recalculateStorageLimit } from '@/lib/storage-limit';
 
 export const dynamic = 'force-dynamic';
 
@@ -291,34 +292,5 @@ async function handlePaymentFailed(event: PaddleWebhookEvent) {
   console.log('Payment failed:', event.event_id);
 }
 
-async function recalculateStorageLimit(userId: string) {
-  // Get user data for bonuses
-  const userDoc = await db.collection('users').doc(userId).get();
-  const userData = userDoc.data();
-  const referralBonus = userData?.referralBonusBytes || 0;
-  const backupBonus = userData?.backupBonusClaimed ? BACKUP_BONUS : 0;
-
-  // Get all active subscriptions for user
-  const subsSnapshot = await db
-    .collection('subscriptions')
-    .where('userId', '==', userId)
-    .where('status', '==', 'active')
-    .get();
-
-  // Sum up storage from all active subscriptions (stacking)
-  let totalSubscriptionStorage = 0;
-  for (const doc of subsSnapshot.docs) {
-    const data = doc.data();
-    totalSubscriptionStorage += data.storageAmount || 0;
-  }
-
-  // Total = free tier (1GB) + backup bonus (4GB) + referral bonus + subscriptions
-  const totalStorage = FREE_STORAGE_LIMIT + backupBonus + referralBonus + totalSubscriptionStorage;
-
-  // Update user document
-  await db.collection('users').doc(userId).update({
-    storageLimit: totalStorage,
-  });
-
-  console.log(`Updated storage limit for user ${userId}: ${totalStorage} bytes (backup: ${backupBonus}, referral: ${referralBonus}, subs: ${totalSubscriptionStorage})`);
-}
+// recalculateStorageLimit now lives in @/lib/storage-limit (single source of
+// truth that also accounts for desktop + meme-referral bonuses).

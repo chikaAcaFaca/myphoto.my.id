@@ -64,6 +64,15 @@
       ]
     },
     {
+      "collectionGroup": "files",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isTrashed", "order": "ASCENDING" },
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "albums",
       "queryScope": "COLLECTION",
       "fields": [
@@ -119,6 +128,31 @@
       "fields": [
         { "fieldPath": "viewerUserId", "order": "ASCENDING" },
         { "fieldPath": "accessedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "refereeUserId", "order": "ASCENDING" },
+        { "fieldPath": "qualified", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "referrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "referrerUserId", "order": "ASCENDING" },
+        { "fieldPath": "qualified", "order": "ASCENDING" },
+        { "fieldPath": "refereeIp", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "memeReferrals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "refereeId", "order": "ASCENDING" },
+        { "fieldPath": "qualified", "order": "ASCENDING" }
       ]
     }
   ],

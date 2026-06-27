@@ -21,6 +21,11 @@ import {
   uploadFileToMySpace,
   pickFolder,
 } from './folder-sync';
+import {
+  startForegroundSync,
+  stopForegroundSync,
+  isForegroundSyncAvailable,
+} from './foreground-sync';
 
 const BACKGROUND_SYNC_TASK = 'MYPHOTO_BACKGROUND_SYNC';
 const SYNC_STATE_KEY = '@myphoto/sync_state';
@@ -57,14 +62,14 @@ interface FailedUpload {
   error?: string;
 }
 
-interface SyncState {
+export interface SyncState {
   pendingUploads: string[]; // Asset IDs
   uploadedAssets: string[]; // Asset IDs already uploaded
   lastSyncTime: number | null;
   failedUploads: FailedUpload[]; // Failed uploads for retry
 }
 
-interface SyncSettings {
+export interface SyncSettings {
   syncMode: 'wifi_only' | 'wifi_and_mobile' | 'manual';
   autoBackup: boolean;
   allowRoaming: boolean;
@@ -253,7 +258,7 @@ async function uploadAssetDual(
 }
 
 // Standalone upload function for background task (no React context)
-async function backgroundUploadAsset(
+export async function backgroundUploadAsset(
   asset: MediaLibrary.Asset,
   token: string,
   apiUrl: string
@@ -282,12 +287,16 @@ async function backgroundUploadAsset(
 }
 
 // Find new photos for background sync (standalone, no React state)
-async function backgroundFindNewPhotos(
+export async function backgroundFindNewPhotos(
   settings: SyncSettings,
   syncState: SyncState
 ): Promise<MediaLibrary.Asset[]> {
   try {
-    const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
+    // CHECK only — never request here. The background/foreground sync path must
+    // not open a permission dialog that collides with the gallery's own
+    // MediaLibrary request at launch. The in-app kicker/home screen acquire the
+    // grant; this just reads it.
+    const { status } = await MediaLibrary.getPermissionsAsync(false, ['photo', 'video']);
     if (status !== 'granted') return [];
   } catch {
     console.log('MediaLibrary permissions not available (Expo Go limitation)');
@@ -431,7 +440,7 @@ function ensureBackgroundTaskRegistered() {
   }
 }
 
-async function loadSyncState(): Promise<SyncState> {
+export async function loadSyncState(): Promise<SyncState> {
   try {
     const data = await AsyncStorage.getItem(SYNC_STATE_KEY);
     if (data) {
@@ -448,7 +457,7 @@ async function loadSyncState(): Promise<SyncState> {
   };
 }
 
-async function saveSyncState(state: SyncState): Promise<void> {
+export async function saveSyncState(state: SyncState): Promise<void> {
   try {
     await AsyncStorage.setItem(SYNC_STATE_KEY, JSON.stringify(state));
   } catch (error) {
@@ -456,7 +465,7 @@ async function saveSyncState(state: SyncState): Promise<void> {
   }
 }
 
-async function loadSyncSettings(): Promise<SyncSettings> {
+export async function loadSyncSettings(): Promise<SyncSettings> {
   try {
     const data = await AsyncStorage.getItem('@myphoto/sync_settings');
     if (data) {
@@ -477,7 +486,7 @@ async function saveSyncSettings(settings: SyncSettings): Promise<void> {
 }
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const { user, getToken } = useAuth();
+  const { user, getToken, refreshAppUser } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncState, setSyncState] = useState<SyncState>({
@@ -560,15 +569,42 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // Register background fetch
+  // Register background sync. Two layers, used together:
+  //   1. Foreground service (react-native-background-actions) — the reliable
+  //      path that keeps uploading even after the app is swiped away/killed.
+  //   2. expo-background-fetch — OS WorkManager fallback for when the
+  //      foreground service isn't available (Expo Go / pre-rebuild) or was
+  //      reaped, and to nudge a wake on boot.
   useEffect(() => {
-    if (settings.autoBackup && user) {
+    let fgTimer: ReturnType<typeof setTimeout> | undefined;
+    if (settings.autoBackup && user && settings.syncMode !== 'manual') {
       registerBackgroundFetch();
+      // DEFER the foreground service. Starting it at launch fired its own
+      // permission requests (POST_NOTIFICATIONS + MediaLibrary) at the same
+      // moment the photo grid was requesting MediaLibrary — the collision left
+      // the home tab stuck on "Učitavanje slika" with nothing rendering. Start
+      // it only after the app has settled and the initial permission grant is
+      // done, so the gallery loads first.
+      fgTimer = setTimeout(() => {
+        startForegroundSync().then((ok) => {
+          if (!ok && !isForegroundSyncAvailable()) {
+            console.log('Foreground sync unavailable — relying on background-fetch');
+          }
+        });
+      }, 15000);
+    } else {
+      stopForegroundSync();
     }
     return () => {
+      if (fgTimer) clearTimeout(fgTimer);
       unregisterBackgroundFetch();
     };
-  }, [settings.autoBackup, user]);
+  }, [settings.autoBackup, user, settings.syncMode]);
+
+  // Stop the persistent service entirely when the user signs out.
+  useEffect(() => {
+    if (!user) stopForegroundSync();
+  }, [user]);
 
   // Foreground auto-backup kicker. Background fetch is unreliable on
   // Android — the system frequently never wakes the task, especially
@@ -589,8 +625,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     // Give MediaLibrary permissions a moment to settle on first launch
     // — kicking the sync immediately on mount sometimes fires before
     // the permission prompt finishes and findNewPhotos returns [].
-    const t = setTimeout(() => {
-      startSync().catch((e) => console.warn('Auto-backup startSync failed:', e));
+    const t = setTimeout(async () => {
+      // Photos/videos first, then any synced document folders, then refresh
+      // the quota so the storage gauge + proactive upsell react to what we
+      // just uploaded. Each call self-guards (network policy, enabled flags).
+      try {
+        await startSync();
+        await startFolderSync();
+      } catch (e) {
+        console.warn('Auto-backup kick failed:', e);
+      } finally {
+        refreshAppUser().catch(() => {});
+      }
     }, 2000);
     return () => clearTimeout(t);
   }, [user, settings.autoBackup, settings.syncMode]);
@@ -864,8 +910,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsSyncing(false);
       setSyncProgress(0);
+      // Reflect the new storageUsed in the quota gauge + upsell.
+      refreshAppUser().catch(() => {});
     }
-  }, [isSyncing, user, settings, syncState, syncCancelled]);
+  }, [isSyncing, user, settings, syncState, syncCancelled, refreshAppUser]);
 
   const stopSync = useCallback(() => {
     setSyncCancelled(true);
@@ -1043,8 +1091,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsFolderSyncing(false);
       setFolderSyncProgress(0);
+      refreshAppUser().catch(() => {});
     }
-  }, [isFolderSyncing, user, folderSyncSettings, folderSyncState, settings, syncCancelled]);
+  }, [isFolderSyncing, user, folderSyncSettings, folderSyncState, settings, syncCancelled, refreshAppUser]);
 
   // ---- Photo pending count ----
 

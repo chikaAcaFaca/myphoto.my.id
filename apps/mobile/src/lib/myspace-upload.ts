@@ -11,8 +11,11 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export const CREATIONS_FOLDER = 'MyPhoto Kreacije';
 
-// Resolve a top-level MySpace folder by name, creating it if missing. The API
-// handles duplicates gracefully, so a POST is safe to call every time.
+// Resolve a top-level MySpace folder by name, creating it if missing. The
+// folders POST endpoint returns 409 when the folder already exists, so on a
+// conflict we look it up in the parent's listing — otherwise every save after
+// the first would silently dump into the root (the user couldn't find their
+// stickers anywhere).
 async function ensureFolder(name: string, token: string): Promise<string> {
   try {
     const res = await fetch(`${API_URL}/api/folders`, {
@@ -23,6 +26,16 @@ async function ensureFolder(name: string, token: string): Promise<string> {
     if (res.ok) {
       const data = await res.json();
       return data.id || data.folderId || 'root';
+    }
+    if (res.status === 409) {
+      const list = await fetch(`${API_URL}/api/folders?parentId=root`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (list.ok) {
+        const data = await list.json();
+        const found = (data.folders || []).find((f: any) => f.name === name);
+        if (found?.id) return found.id;
+      }
     }
   } catch (e) {
     console.warn('ensureFolder failed:', e);

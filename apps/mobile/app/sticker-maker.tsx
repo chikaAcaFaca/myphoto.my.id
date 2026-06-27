@@ -17,6 +17,7 @@ import { saveToMySpace } from '@/lib/myspace-upload';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { ZoomPanView } from '@/components/ZoomPanView';
 
 const { width } = Dimensions.get('window');
 const STICKER_SIZE = width - 80;
@@ -140,9 +141,27 @@ export default function StickerMakerScreen() {
         saveUri = dl.uri;
       }
       if (saveUri) {
-        await MediaLibrary.saveToLibraryAsync(saveUri);
+        // Drop the sticker into a dedicated "MyPhoto Stickers" album so the
+        // user can find it in the Viber / WhatsApp / Telegram image picker
+        // instead of scrolling through every photo on the device.
+        const asset = await MediaLibrary.createAssetAsync(saveUri);
+        try {
+          const album = await MediaLibrary.getAlbumAsync('MyPhoto Stickers');
+          if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album.id, false);
+          } else {
+            await MediaLibrary.createAlbumAsync('MyPhoto Stickers', asset, false);
+          }
+        } catch (e) {
+          // Album step is best-effort — if it fails the asset is still in
+          // the device gallery, just not under our named album.
+          console.warn('Album organize failed:', e);
+        }
       }
-      Alert.alert('Sacuvano!', 'Stiker je sacuvan. Mozete ga koristiti u Viberu i drugim aplikacijama!');
+      Alert.alert(
+        'Sačuvano!',
+        'Stiker je u albumu „MyPhoto Stickers" na uređaju. U Viberu / WhatsAppu / Telegramu izaberi „prikači sliku" pa otvori taj album.',
+      );
     } catch (e) {
       Alert.alert('Greska', 'Cuvanje nije uspelo.');
     } finally {
@@ -170,10 +189,21 @@ export default function StickerMakerScreen() {
         mimeType: 'image/png',
         token,
       });
-      Alert.alert(
-        ok ? 'Sačuvano' : 'Greška',
-        ok ? 'Stiker je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo.',
-      );
+      if (ok) {
+        Alert.alert(
+          'Sačuvano',
+          'Stiker je u tvom prostoru — folder „MyPhoto Kreacije".',
+          [
+            { text: 'OK', style: 'cancel' },
+            {
+              text: 'Otvori MySpace',
+              onPress: () => router.push('/(tabs)/myspace'),
+            },
+          ],
+        );
+      } else {
+        Alert.alert('Greška', 'Čuvanje u prostor nije uspelo.');
+      }
     } finally {
       setSavingSpace(false);
     }
@@ -206,38 +236,47 @@ export default function StickerMakerScreen() {
       const br = shape === 'circle' ? s / 2 : 30;
       return (
         <View style={[styles.stickerFrame, { borderRadius: br, borderColor, borderWidth: 4 }]}>
-          <Image
-            source={{ uri: imageUri }}
-            style={[styles.stickerImage, { borderRadius: br - 4, transform: [{ scale: zoom }] }]}
-            contentFit="cover"
-          />
+          {/* Pinch-to-zoom + drag the subject inside the clipped frame. The
+              frame's overflow:hidden clips the image to the chosen shape. */}
+          <ZoomPanView style={StyleSheet.absoluteFillObject}>
+            <Image
+              source={{ uri: imageUri }}
+              style={[styles.stickerImage, { borderRadius: br - 4 }]}
+              contentFit="cover"
+            />
+          </ZoomPanView>
         </View>
       );
     }
 
-    // Star and Heart use SVG clip path
+    // Star and Heart use SVG clip path. We wrap the whole SVG in ZoomPanView
+    // so pinch/pan works here too — the outline scales with the image as a
+    // side-effect, but pinch is what the user actually asked for and the
+    // outline only ever looks "bigger", not wrong.
     const clipId = shape === 'star' ? 'starClip' : 'heartClip';
     const pathD = shape === 'star' ? STAR_PATH : HEART_PATH;
 
     return (
-      <View style={{ width: s, height: s }}>
-        <Svg width={s} height={s} viewBox="0 0 100 100">
-          <Defs>
-            <ClipPath id={clipId}>
-              <Path d={pathD} />
-            </ClipPath>
-          </Defs>
-          <SvgImage
-            href={imageUri}
-            x={((1 - zoom) / 2) * 100}
-            y={((1 - zoom) / 2) * 100}
-            width={100 * zoom}
-            height={100 * zoom}
-            clipPath={`url(#${clipId})`}
-            preserveAspectRatio="xMidYMid slice"
-          />
-          <Path d={pathD} stroke={borderColor} strokeWidth="3" fill="none" />
-        </Svg>
+      <View style={{ width: s, height: s, overflow: 'hidden' }}>
+        <ZoomPanView style={StyleSheet.absoluteFillObject}>
+          <Svg width={s} height={s} viewBox="0 0 100 100">
+            <Defs>
+              <ClipPath id={clipId}>
+                <Path d={pathD} />
+              </ClipPath>
+            </Defs>
+            <SvgImage
+              href={imageUri}
+              x={0}
+              y={0}
+              width={100}
+              height={100}
+              clipPath={`url(#${clipId})`}
+              preserveAspectRatio="xMidYMid slice"
+            />
+            <Path d={pathD} stroke={borderColor} strokeWidth="3" fill="none" />
+          </Svg>
+        </ZoomPanView>
       </View>
     );
   };
@@ -273,17 +312,13 @@ export default function StickerMakerScreen() {
           </View>
         </View>
 
-        {/* Zoom control */}
+        {/* All shapes (circle/rounded/star/heart) use pinch-to-zoom + drag via
+            ZoomPanView now. The +/- buttons are gone — they were strictly worse
+            and confused the user about which gesture was authoritative. */}
         {imageUri && shape !== 'text' && (
-          <View style={styles.zoomRow}>
-            <TouchableOpacity onPress={() => setZoom(Math.max(0.5, zoom - 0.1))} style={styles.zoomBtn}>
-              <Ionicons name="remove" size={20} color={tc.text} />
-            </TouchableOpacity>
-            <Text style={[styles.zoomText, { color: tc.textMuted }]}>{Math.round(zoom * 100)}%</Text>
-            <TouchableOpacity onPress={() => setZoom(Math.min(2, zoom + 0.1))} style={styles.zoomBtn}>
-              <Ionicons name="add" size={20} color={tc.text} />
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.zoomHint, { color: tc.textMuted }]}>
+            Uštipni sa 2 prsta za zum · prevuci da pomeriš
+          </Text>
         )}
 
         {/* Tools */}
@@ -405,6 +440,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   zoomText: { fontSize: 14, ...fonts.bold, width: 50, textAlign: 'center' },
+  zoomHint: { fontSize: 11, textAlign: 'center', marginBottom: 8 },
   toolsCard: { width: width - 24, borderRadius: radius.lg, padding: 16, marginTop: 8 },
   removeBgBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

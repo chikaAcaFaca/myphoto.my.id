@@ -1,0 +1,6 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["id.my.myphoto.shareintent.ShareIntentModule"]
+  }
+}
