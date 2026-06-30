@@ -1,0 +1,16 @@
+# Keep CLI uploads small — Vercel only builds apps/web (+ packages/*).
+# Everything below is irrelevant to the web build or is reinstalled/rebuilt
+# on Vercel, and was bloating the upload to ~2GB.
+**/node_modules
+apps/mobile
+apps/desktop
+**/.next
+**/dist
+**/build
+**/.turbo
+**/*.apk
+**/*.aab
+**/*.zip
+**/*.log
+**/*.ipa
+android
