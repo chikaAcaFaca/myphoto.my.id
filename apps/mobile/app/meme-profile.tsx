@@ -17,6 +17,7 @@ const THUMB_SIZE = (width - 36) / 3;
 interface ProfileMeme {
   id: string;
   imageUrl: string;
+  mediaType: 'image' | 'video' | 'gif';
   caption: string;
   likes: number;
   shares: number;
@@ -95,9 +96,25 @@ export default function MemeProfileScreen() {
     });
   }, [userId, userName]);
 
+  // Tapping any thumbnail opens the full-screen feed viewer scoped to this
+  // user, starting on the tapped meme (TikTok-style).
+  const openViewer = (item: ProfileMeme) =>
+    router.push({
+      pathname: '/meme-wall',
+      params: { profileUserId: userId, profileName: userName, startId: item.id },
+    });
+
   const renderMeme = ({ item }: { item: ProfileMeme }) => (
-    <TouchableOpacity style={styles.thumbWrap}>
-      <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+    <TouchableOpacity style={styles.thumbWrap} onPress={() => openViewer(item)} activeOpacity={0.8}>
+      {item.mediaType === 'video' ? (
+        // Don't mount a <Video> per grid cell (many players → OOM). Show a
+        // play-badge tile; the real player runs in the viewer on tap.
+        <View style={[styles.thumb, styles.videoThumb]}>
+          <Ionicons name="play" size={26} color="#fff" />
+        </View>
+      ) : (
+        <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+      )}
       <View style={styles.thumbStats}>
         <Ionicons name="heart" size={10} color="#fff" />
         <Text style={styles.thumbCount}>{item.likes}</Text>
@@ -201,6 +218,7 @@ const styles = StyleSheet.create({
   grid: { padding: 4 },
   thumbWrap: { width: THUMB_SIZE, height: THUMB_SIZE, margin: 2, borderRadius: 4, overflow: 'hidden' },
   thumb: { width: '100%', height: '100%' },
+  videoThumb: { backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center' },
   thumbStats: {
     position: 'absolute', bottom: 2, left: 4, flexDirection: 'row', alignItems: 'center', gap: 2,
   },

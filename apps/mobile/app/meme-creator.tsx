@@ -241,16 +241,26 @@ export default function MemeCreatorScreen() {
     }
   }, [mediaUri, mediaType, getToken, captureMeme]);
 
+  // Synchronous in-flight flag so a rapid second tap can't start a second
+  // publish before the `publishing` state re-renders (root cause of duplicates).
+  const publishingRef = useRef(false);
+
   const handlePublish = useCallback(async () => {
     if (!mediaUri) return;
+    // setPublishing(true) only lands after the await-heavy limit/moderation
+    // checks below, so a double-tap used to mint two meme docs. Block re-entry
+    // immediately here.
+    if (publishingRef.current) return;
     const captionText = [topText, bottomText].filter(Boolean).join(' ');
     if (!captionText.trim()) {
       Alert.alert('Dodaj tekst', 'Meme mora imati tekst pre objave na MemeWall.');
       return;
     }
 
+    publishingRef.current = true;
     const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
     if (!limitCheck.allowed) {
+      publishingRef.current = false;
       Alert.alert('Nadogradite plan', limitCheck.reason, [
         { text: 'OK' },
         { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
@@ -271,7 +281,7 @@ export default function MemeCreatorScreen() {
           ]
         );
       });
-      if (!proceed) return;
+      if (!proceed) { publishingRef.current = false; return; }
     }
 
     setPublishing(true);
@@ -373,6 +383,7 @@ export default function MemeCreatorScreen() {
       Alert.alert('Greska', 'Objavljivanje nije uspelo.');
     } finally {
       setPublishing(false);
+      publishingRef.current = false;
     }
   }, [mediaUri, topText, bottomText, template, fontSize, mediaType, id, appUser?.storageLimit, getToken, captureMeme]);
 
