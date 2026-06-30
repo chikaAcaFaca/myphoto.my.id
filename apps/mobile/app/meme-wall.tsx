@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  RefreshControl, Dimensions, Share, ViewToken, Alert, Modal, TextInput,
+  RefreshControl, Dimensions, Share, ViewToken, Alert, TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -454,8 +454,11 @@ export default function MemeWallScreen() {
         onPosted={() => patch(commentMemeId!, x => ({ ...x, commentCount: (x.commentCount || 0) + 1 }))}
       />
 
-      <Modal visible={!!editMeme} transparent animationType="slide" onRequestClose={() => setEditMeme(null)}>
-        <View style={styles.modalBackdrop}>
+      {/* In-tree overlay (NOT a native <Modal>): a Modal spawns a separate
+          Android window that detaches the expo-av video surface behind it, so
+          the video went black after editing. An absolute View keeps it attached. */}
+      {editMeme ? (
+        <View style={styles.editOverlay}>
           <View style={[styles.editSheet, { backgroundColor: tc.bgCard }]}>
             <Text style={[styles.editTitle, { color: tc.text }]}>Izmeni meme</Text>
             <Text style={[styles.editLabel, { color: tc.textMuted }]}>Opis</Text>
@@ -480,7 +483,7 @@ export default function MemeWallScreen() {
             </View>
           </View>
         </View>
-      </Modal>
+      ) : null}
     </View>
   );
 }
@@ -528,7 +531,7 @@ const styles = StyleSheet.create({
   },
   memeTop: { top: '8%' },
   memeBottom: { bottom: '24%' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  editOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end', zIndex: 100 },
   editSheet: { padding: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, gap: 6 },
   editTitle: { fontSize: 18, ...fonts.bold, marginBottom: 4 },
   editLabel: { fontSize: 12, ...fonts.semibold, marginTop: 4 },

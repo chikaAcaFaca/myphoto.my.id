@@ -158,8 +158,19 @@ export async function DELETE(
       try { await deleteObject(data.s3Key); } catch (e) { console.error('Meme media delete failed:', e); }
     }
 
-    // recursiveDelete removes the doc plus reactions/favorites/reposts/comments.
-    await db.recursiveDelete(ref);
+    // NOTE: do NOT use db.recursiveDelete — `db` is a Proxy (firebase-admin.ts)
+    // and recursiveDelete's internals (BulkWriter / instanceof Firestore) don't
+    // survive it, which 500'd the delete. Clear the known subcollections by
+    // hand (each holds at most one doc per user action), then drop the meme.
+    for (const sub of ['reactions', 'favorites', 'reposts', 'comments']) {
+      try {
+        const snap = await ref.collection(sub).get();
+        await Promise.all(snap.docs.map((d) => d.ref.delete()));
+      } catch (e) {
+        console.error(`Meme ${sub} cleanup failed:`, e);
+      }
+    }
+    await ref.delete();
 
     return NextResponse.json({ success: true });
   } catch (error) {
