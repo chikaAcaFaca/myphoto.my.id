@@ -15,12 +15,15 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const LATEST_BUILD = '2026-06-05-v3';
+// Matches the appBuild embedded in the currently published APK
+// (apps/mobile app.json → extra.appBuild). Keep them equal or the app
+// nags itself to "update" to the very build it's already running.
+const LATEST_BUILD = '2026-06-15';
 
 export async function GET() {
   return NextResponse.json({
     build: LATEST_BUILD,
     url: '/api/download/android',
-    notes: 'Mirniji prikaz videa (bez treperenja). Ažuriraj.',
+    notes: 'Brisanje i izmena memova, stabilniji video.',
   });
 }
