@@ -91,3 +91,7 @@ MYCAMERABACKUP*.png
 # google-services.json) intentionally NOT committed. New hand-edited native
 # files need `git add -f`.
 apps/mobile/android/
+.env*
+
+# Local Vercel deploy token (never commit)
+.vercel-token
