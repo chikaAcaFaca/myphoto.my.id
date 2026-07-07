@@ -235,6 +235,14 @@ export function Sidebar() {
             isActive={pathname === '/trash'}
             isCollapsed={isCollapsed}
           />
+          {/* Always-visible entry to the Android app download (the top banner
+              only shows on Android phone browsers, so desktop users couldn't
+              find it). */}
+          <NavItem
+            item={{ name: 'Preuzmi aplikaciju', href: '/download', icon: Download }}
+            isActive={pathname === '/download'}
+            isCollapsed={isCollapsed}
+          />
         </nav>
 
         {/* Storage Usage */}
