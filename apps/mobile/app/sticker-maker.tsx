@@ -233,7 +233,7 @@ export default function StickerMakerScreen() {
         <View style={[styles.stickerFrame, { borderRadius: br, borderColor, borderWidth: 4 }]}>
           {/* Pinch-to-zoom + drag the subject inside the clipped frame. The
               frame's overflow:hidden clips the image to the chosen shape. */}
-          <ZoomPanView style={StyleSheet.absoluteFillObject}>
+          <ZoomPanView style={StyleSheet.absoluteFillObject} panAtBaseScale>
             <Image
               source={{ uri: imageUri }}
               style={[styles.stickerImage, { borderRadius: br - 4 }]}
@@ -253,7 +253,7 @@ export default function StickerMakerScreen() {
 
     return (
       <View style={{ width: s, height: s, overflow: 'hidden' }}>
-        <ZoomPanView style={StyleSheet.absoluteFillObject}>
+        <ZoomPanView style={StyleSheet.absoluteFillObject} panAtBaseScale>
           <Svg width={s} height={s} viewBox="0 0 100 100">
             <Defs>
               <ClipPath id={clipId}>

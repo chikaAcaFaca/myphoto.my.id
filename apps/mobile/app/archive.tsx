@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { setViewerPhotos } from '@/lib/photo-list-store';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
@@ -50,10 +51,16 @@ export default function ArchiveScreen() {
     <TouchableOpacity
       style={styles.cell}
       activeOpacity={0.8}
-      onPress={() => router.push({
-        pathname: '/photo-viewer',
-        params: { id: item.id, name: item.name, type: item.type, isArchived: '1', isFavorite: item.isFavorite ? '1' : '0' },
-      })}
+      onPress={() => {
+        setViewerPhotos(files.map((f) => ({
+          id: f.id, name: f.name, type: f.type, isArchived: '1',
+          isFavorite: f.isFavorite ? '1' : '0',
+        })));
+        router.push({
+          pathname: '/photo-viewer',
+          params: { id: item.id, name: item.name, type: item.type, isArchived: '1', isFavorite: item.isFavorite ? '1' : '0' },
+        });
+      }}
     >
       <Image
         source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=small` }}

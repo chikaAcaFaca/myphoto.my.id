@@ -8,6 +8,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { setViewerPhotos } from '@/lib/photo-list-store';
 import * as MediaLibrary from 'expo-media-library';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
@@ -143,16 +144,23 @@ export default function VideosScreen() {
       style={[styles.videoCard, { backgroundColor: tc.bgCard }]}
       activeOpacity={0.7}
       delayPressIn={100}
-      onPress={() => router.push({
-        pathname: '/photo-viewer',
-        params: {
-          id: item.id,
-          name: item.name,
-          type: 'video',
-          isFavorite: item.isFavorite ? '1' : '0',
-          isArchived: item.isArchived ? '1' : '0',
-        },
-      })}
+      onPress={() => {
+        setViewerPhotos(displayVideos.map((f) => ({
+          id: f.id, name: f.name, type: f.type || 'video',
+          isFavorite: f.isFavorite ? '1' : '0',
+          isArchived: f.isArchived ? '1' : '0',
+        })));
+        router.push({
+          pathname: '/photo-viewer',
+          params: {
+            id: item.id,
+            name: item.name,
+            type: 'video',
+            isFavorite: item.isFavorite ? '1' : '0',
+            isArchived: item.isArchived ? '1' : '0',
+          },
+        });
+      }}
     >
       <View style={styles.videoThumb}>
         {item.id === activeVideoId && activeVideoUrl ? (

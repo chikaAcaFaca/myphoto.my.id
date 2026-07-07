@@ -26,6 +26,7 @@ export function ZoomPanView({
   maxScale = 5,
   doubleTapScale = 2.5,
   onTransformChange,
+  panAtBaseScale = false,
 }: {
   children: React.ReactNode;
   style?: ViewStyle;
@@ -33,6 +34,11 @@ export function ZoomPanView({
   maxScale?: number;
   doubleTapScale?: number;
   onTransformChange?: (t: ZoomPanTransform) => void;
+  // Sticker/crop mode: allow single-finger pan even at 1x (so the user can
+  // reposition a cover-filled image to frame an off-centre subject) and keep
+  // the framing on release instead of snapping back. Default false keeps the
+  // photo-viewer behaviour (pan only when zoomed, so horizontal swipe works).
+  panAtBaseScale?: boolean;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
@@ -73,13 +79,13 @@ export function ZoomPanView({
       // content is already zoomed in (so the parent ScrollView scrolls normally
       // at 1x).
       onMoveShouldSetPanResponder: (e) =>
-        e.nativeEvent.touches.length === 2 || cur.current.scale > 1.01,
+        e.nativeEvent.touches.length === 2 || cur.current.scale > 1.01 || panAtBaseScale,
       // ALSO claim in the capture phase for those cases — without this, a
       // parent ScrollView swallows the multi-touch / pan move before it ever
       // reaches us. That's why pinch silently did nothing inside the sticker
       // maker's ScrollView even though it worked in the photo viewer.
       onMoveShouldSetPanResponderCapture: (e) =>
-        e.nativeEvent.touches.length === 2 || cur.current.scale > 1.01,
+        e.nativeEvent.touches.length === 2 || cur.current.scale > 1.01 || panAtBaseScale,
       onPanResponderGrant: (e) => {
         start.current = { ...cur.current };
         const t = e.nativeEvent.touches;
@@ -92,15 +98,20 @@ export function ZoomPanView({
           let s = start.current.scale * (dist(t as any) / pinchStartDist.current);
           s = Math.max(minScale * 0.8, Math.min(maxScale, s));
           scale.setValue(s);
-        } else if (t.length === 1 && cur.current.scale > 1.01) {
+        } else if (t.length === 1 && (cur.current.scale > 1.01 || panAtBaseScale)) {
           translateX.setValue(start.current.translateX + g.dx);
           translateY.setValue(start.current.translateY + g.dy);
         }
       },
       onPanResponderRelease: () => {
         pinchStartDist.current = 0;
-        // Snap back to fit if zoomed out under 1x.
-        if (cur.current.scale <= 1) resetTo(1);
+        if (panAtBaseScale) {
+          // Keep the user's framing; only clamp the scale back into range.
+          if (cur.current.scale < minScale) resetTo(minScale, cur.current.translateX, cur.current.translateY);
+        } else if (cur.current.scale <= 1) {
+          // Snap back to fit if zoomed out under 1x.
+          resetTo(1);
+        }
       },
       onPanResponderTerminate: () => { pinchStartDist.current = 0; },
     })
