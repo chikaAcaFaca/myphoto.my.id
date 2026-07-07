@@ -188,18 +188,13 @@ export default function StickerMakerScreen() {
         filename: `stiker-${Date.now()}.png`,
         mimeType: 'image/png',
         token,
+        folderName: 'Stikeri',
+        isSticker: true,
       });
       if (ok) {
         Alert.alert(
           'Sačuvano',
-          'Stiker je u tvom prostoru — folder „MyPhoto Kreacije".',
-          [
-            { text: 'OK', style: 'cancel' },
-            {
-              text: 'Otvori MySpace',
-              onPress: () => router.push('/(tabs)/myspace'),
-            },
-          ],
+          'Stiker je u tvojoj MyPhoto galeriji, u albumu „Stikeri".',
         );
       } else {
         Alert.alert('Greška', 'Čuvanje u prostor nije uspelo.');

@@ -12,6 +12,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/lib/auth-context';
+import { useCloudGate } from '@/lib/cloud-gate';
 import { colors, fonts, radius } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
@@ -36,6 +37,7 @@ export default function PhotoViewerScreen() {
   const isLocalOnly = !!localUri && isUploaded !== '1';
   const { colors: tc } = useTheme();
   const { getToken, appUser } = useAuth();
+  const { ensureOnCloud } = useCloudGate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isFavorite, setIsFavorite] = useState(favParam === '1');
@@ -164,19 +166,37 @@ export default function PhotoViewerScreen() {
   const handleShare = async () => {
     try {
       const token = await getToken();
-      // Create share link via API
+      let cloudFileId = id;
+      // Device photos (home gallery) carry `localUri`; their `id` is a
+      // MediaLibrary asset id, not a cloud file id, so /api/share can't find
+      // it ("File not found"). Back the photo up if needed, then resolve its
+      // cloud file id (by stored assetId, falling back to filename).
+      if (localUri) {
+        const ready = await ensureOnCloud({ assetId: id, isUploaded: isUploaded === '1' });
+        if (!ready) return;
+        const rr = await fetch(
+          `${API_URL}/api/files/resolve?assetId=${encodeURIComponent(id)}&name=${encodeURIComponent(name || '')}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+        );
+        if (rr.ok) {
+          cloudFileId = (await rr.json()).fileId;
+        } else {
+          Alert.alert('Deljenje', 'Ne mogu da pripremim sliku za deljenje. Pokušaj ponovo za koji trenutak.');
+          return;
+        }
+      }
+
       const res = await fetch(`${API_URL}/api/share`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ fileId: id, permission: 'read' }),
+        body: JSON.stringify({ fileId: cloudFileId, permission: 'read' }),
       });
 
       // Append the sharer's referral code so a recipient who signs up via
-      // the link credits this user with +512MB. The server's /api/share
-      // already issues a token; we just decorate the URL with ?ref=CODE.
+      // the link credits this user with +512MB.
       const refCode = appUser?.referralCode;
       const refSuffix = refCode ? `?ref=${encodeURIComponent(refCode)}` : '';
 
@@ -188,9 +208,7 @@ export default function PhotoViewerScreen() {
           url: shareUrl,
         });
       } else {
-        // Fallback: share direct stream URL plus referral hint.
-        const fallback = `${API_URL}/api/stream/${id}${refSuffix}`;
-        await Share.share({ message: `${name} - ${fallback}` });
+        Alert.alert('Deljenje', 'Deljenje trenutno nije uspelo. Pokušaj ponovo.');
       }
     } catch (e) {
       console.error('Share error:', e);

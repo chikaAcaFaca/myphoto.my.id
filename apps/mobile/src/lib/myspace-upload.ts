@@ -49,8 +49,11 @@ export async function saveToMySpace(opts: {
   mimeType: string;
   token: string;
   folderName?: string;
+  /** Mark as a sticker → server files it into the "Stikeri" gallery album
+   *  and sets an isSticker badge flag. */
+  isSticker?: boolean;
 }): Promise<boolean> {
-  const { uri, filename, mimeType, token, folderName = CREATIONS_FOLDER } = opts;
+  const { uri, filename, mimeType, token, folderName = CREATIONS_FOLDER, isSticker } = opts;
   let localUri = uri;
   let tmpToCleanup: string | null = null;
   try {
@@ -89,7 +92,7 @@ export async function saveToMySpace(opts: {
     const confirm = await fetch(`${API_URL}/api/disk-files`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileId, s3Key, filename, mimeType, size, folderId }),
+      body: JSON.stringify({ fileId, s3Key, filename, mimeType, size, folderId, ...(isSticker ? { isSticker: true } : {}) }),
     });
     return confirm.ok;
   } catch (e) {

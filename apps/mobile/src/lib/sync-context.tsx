@@ -247,6 +247,9 @@ async function uploadAssetDual(
         mimeType,
         size: fileInfo.size,
         folderId,
+        // Lets the cloud file be resolved back from this device photo later
+        // (e.g. to build a share link). Server stores it on the files record.
+        deviceAssetId: asset.id,
       }),
     });
 
