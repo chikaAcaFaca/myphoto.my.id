@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
@@ -73,25 +74,38 @@ export default function AlbumsScreen() {
     }
   };
 
-  const renderAlbum = ({ item }: { item: Album }) => (
-    <TouchableOpacity style={[styles.albumCard, { backgroundColor: tc.bgCard }]} activeOpacity={0.7} delayPressIn={100}>
-      {item.coverFileId ? (
-        <Image
-          source={{ uri: `${API_URL}/api/thumbnail/${item.coverFileId}?size=medium` }}
-          style={styles.albumCover}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={[styles.albumCover, styles.albumCoverEmpty]}>
-          <Ionicons name="images-outline" size={32} color={colors.textMuted} />
+  const renderAlbum = ({ item }: { item: Album }) => {
+    const previews: string[] = (item as any).previewThumbUrls || [];
+    const cover =
+      (item as any).coverThumbUrl ||
+      (item.coverFileId ? `${API_URL}/api/thumbnail/${item.coverFileId}?size=medium` : null);
+    return (
+      <TouchableOpacity
+        style={[styles.albumCard, { backgroundColor: tc.bgCard }]}
+        activeOpacity={0.7}
+        delayPressIn={100}
+        onPress={() => router.push({ pathname: '/album-detail' as any, params: { id: item.id, name: item.name } })}
+      >
+        {previews.length > 1 ? (
+          <View style={styles.mosaic}>
+            {previews.slice(0, 4).map((uri, i) => (
+              <Image key={i} source={{ uri }} style={styles.mosaicCell} resizeMode="cover" />
+            ))}
+          </View>
+        ) : previews.length === 1 || cover ? (
+          <Image source={{ uri: previews[0] || cover! }} style={styles.albumCover} resizeMode="cover" />
+        ) : (
+          <View style={[styles.albumCover, styles.albumCoverEmpty]}>
+            <Ionicons name="images-outline" size={32} color={colors.textMuted} />
+          </View>
+        )}
+        <View style={styles.albumInfo}>
+          <Text style={[styles.albumName, { color: tc.text }]} numberOfLines={1}>{item.name}</Text>
+          <Text style={[styles.albumCount, { color: tc.textMuted }]}>{item.fileCount} slika</Text>
         </View>
-      )}
-      <View style={styles.albumInfo}>
-        <Text style={[styles.albumName, { color: tc.text }]} numberOfLines={1}>{item.name}</Text>
-        <Text style={[styles.albumCount, { color: tc.textMuted }]}>{item.fileCount} slika</Text>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
@@ -182,6 +196,8 @@ const styles = StyleSheet.create({
   },
   albumCover: { width: '100%', height: 100 },
   albumCoverEmpty: { backgroundColor: colors.bgInput, alignItems: 'center', justifyContent: 'center' },
+  mosaic: { width: '100%', height: 100, flexDirection: 'row', flexWrap: 'wrap', backgroundColor: colors.bgInput },
+  mosaicCell: { width: '50%', height: 50 },
   albumInfo: { padding: 10 },
   albumName: { fontSize: 13, ...fonts.bold, color: colors.text },
   albumCount: { fontSize: 10, color: colors.textMuted, marginTop: 2 },

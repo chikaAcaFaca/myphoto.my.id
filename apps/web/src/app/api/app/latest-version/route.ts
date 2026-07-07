@@ -18,12 +18,12 @@ export const dynamic = 'force-dynamic';
 // Matches the appBuild embedded in the currently published APK
 // (apps/mobile app.json → extra.appBuild). Keep them equal or the app
 // nags itself to "update" to the very build it's already running.
-const LATEST_BUILD = '2026-07-07';
+const LATEST_BUILD = '2026-07-07-b';
 
 export async function GET() {
   return NextResponse.json({
     build: LATEST_BUILD,
     url: '/api/download/android',
-    notes: 'Deljenje slika radi, stikeri idu u album „Stikeri".',
+    notes: 'Swipe kroz slike + albumi se otvaraju sa pregledom i deljenjem.',
   });
 }

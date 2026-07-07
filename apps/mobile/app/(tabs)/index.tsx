@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import { useAuth } from '@/lib/auth-context';
 import { useSync } from '@/lib/sync-context';
+import { setViewerPhotos } from '@/lib/photo-list-store';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { VideoFlipbook } from '@/components/VideoFlipbook';
@@ -204,20 +205,31 @@ export default function MyPhotoScreen() {
         style={styles.cell}
         activeOpacity={0.8}
         delayPressIn={100}
-        onPress={() => router.push({
-          pathname: '/photo-viewer',
-          params: {
-            id: item.id,
-            name: item.filename,
-            type: isVideo ? 'video' : 'image',
-            isFavorite: '0',
-            localUri: item.uri,
-            // Tells the viewer whether the device id also has a cloud
-            // record — without this it can't tell device-only photos
-            // from backed-up ones and every cloud API call 404s.
-            isUploaded: item.isUploaded ? '1' : '0',
-          },
-        })}
+        onPress={() => {
+          // Seed the viewer with the whole ordered grid so it can swipe
+          // left/right through every photo, starting on the tapped one.
+          setViewerPhotos(photos.map((p) => ({
+            id: p.id,
+            name: p.filename,
+            type: p.mediaType === 'video' ? 'video' : 'image',
+            localUri: p.uri,
+            isUploaded: p.isUploaded ? '1' : '0',
+          })));
+          router.push({
+            pathname: '/photo-viewer',
+            params: {
+              id: item.id,
+              name: item.filename,
+              type: isVideo ? 'video' : 'image',
+              isFavorite: '0',
+              localUri: item.uri,
+              // Tells the viewer whether the device id also has a cloud
+              // record — without this it can't tell device-only photos
+              // from backed-up ones and every cloud API call 404s.
+              isUploaded: item.isUploaded ? '1' : '0',
+            },
+          });
+        }}
       >
         {isVideo && previewUri ? (
           // Frame-flipbook "moving picture" — reads as motion without a live

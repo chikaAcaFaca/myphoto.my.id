@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert,
-  ActivityIndicator, Share, Platform, Modal, ScrollView,
+  ActivityIndicator, Share, Platform, Modal, ScrollView, FlatList, type ViewToken,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
@@ -13,6 +13,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/lib/auth-context';
 import { useCloudGate } from '@/lib/cloud-gate';
+import { getViewerPhotos, type ViewerPhoto } from '@/lib/photo-list-store';
 import { colors, fonts, radius } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
@@ -21,27 +22,125 @@ import type { FileMetadata } from '@myphoto/shared';
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
+// One page of the swipeable viewer. Loads its own media (device URI or a
+// presigned cloud URL) so neighbouring photos are ready as you swipe. Only the
+// active page's video plays.
+function PhotoPage({ photo, isActive, pageW, pageH, getToken }: {
+  photo: ViewerPhoto;
+  isActive: boolean;
+  pageW: number;
+  pageH: number;
+  getToken: () => Promise<string | null>;
+}) {
+  const isVideo = photo.type === 'video';
+  const isLocalOnly = !!photo.localUri && photo.isUploaded !== '1';
+  const [uri, setUri] = useState<string | null>(photo.localUri || null);
+  const [loading, setLoading] = useState(!photo.localUri);
+  const videoRef = useRef<Video>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (isLocalOnly) {
+        // expo-av can't play content:// — resolve to file:// first. Images
+        // render content:// fine, so we still upgrade in the background.
+        if (photo.localUri?.startsWith('content://')) {
+          try {
+            const info = await MediaLibrary.getAssetInfoAsync(photo.id);
+            if (!cancelled && info?.localUri) setUri(info.localUri);
+          } catch { /* keep content:// */ }
+        }
+        if (!cancelled) setLoading(false);
+        return;
+      }
+      try {
+        setLoading(true);
+        const token = await getToken();
+        const res = await fetch(`${API_URL}/api/files/${photo.id}/download-url`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const { downloadUrl } = await res.json();
+        if (!cancelled) setUri(downloadUrl);
+      } catch (e) {
+        console.error('Media load error:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [photo.id]);
+
+  useEffect(() => {
+    if (!isVideo) return;
+    if (isActive) videoRef.current?.playAsync().catch(() => {});
+    else videoRef.current?.pauseAsync().catch(() => {});
+  }, [isActive, isVideo]);
+
+  return (
+    <View style={{ width: pageW, height: pageH, alignItems: 'center', justifyContent: 'center' }}>
+      {loading ? (
+        <ActivityIndicator size="large" color="#fff" />
+      ) : !uri ? (
+        <Text style={{ color: '#fff' }}>Nije moguće učitati fajl.</Text>
+      ) : isVideo ? (
+        <Video
+          ref={videoRef}
+          source={{ uri }}
+          style={{ width: pageW, height: pageH }}
+          useNativeControls
+          resizeMode={ResizeMode.CONTAIN}
+          shouldPlay={isActive}
+          isLooping={false}
+        />
+      ) : (
+        <ZoomPanView style={{ width: pageW, height: pageH }}>
+          <Image source={{ uri }} style={{ width: '100%', height: '100%' }} contentFit="contain" transition={200} />
+        </ZoomPanView>
+      )}
+    </View>
+  );
+}
+
 export default function PhotoViewerScreen() {
   const params = useLocalSearchParams<{
     id: string; name: string; type: string; isFavorite?: string; isTrashed?: string;
     isArchived?: string; localUri?: string; isUploaded?: string;
   }>();
-  const { id, name, type, isFavorite: favParam, isTrashed: trashedParam,
-    isArchived: archivedParam, localUri, isUploaded } = params;
-  const isTrashed = trashedParam === '1';
-  // Home gallery shows device photos by passing `localUri`. If the item
-  // hasn't also been backed up to the cloud (`isUploaded !== '1'`), the
-  // server has nothing under this id — every /api/files/{id} call
-  // would 404. We detect that and switch to a local-only mode that
-  // displays the photo from disk and hides cloud-only actions.
+  // Swipe between photos: the gallery seeds an ordered list into the viewer
+  // store before navigating; we page through it. If the store doesn't hold this
+  // id (deep link / older caller) fall back to a single photo from the params.
+  const photos = useMemo<ViewerPhoto[]>(() => {
+    const stored = getViewerPhotos();
+    if (stored.some((p) => p.id === params.id)) return stored;
+    return [{
+      id: params.id, name: params.name, type: params.type,
+      isFavorite: params.isFavorite, isArchived: params.isArchived,
+      isTrashed: params.isTrashed, localUri: params.localUri, isUploaded: params.isUploaded,
+    }];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const initialIndex = Math.max(0, photos.findIndex((p) => p.id === params.id));
+  const [index, setIndex] = useState(initialIndex);
+  const current = photos[index] || photos[0];
+  const { id, name, type, localUri, isUploaded } = current;
+  const isTrashed = current.isTrashed === '1';
+  // A device photo (localUri, not backed up) has no cloud record under this id —
+  // switch to local-only mode that reads from disk and hides cloud-only actions.
   const isLocalOnly = !!localUri && isUploaded !== '1';
+  const [mediaH, setMediaH] = useState(0);
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const first = viewableItems.find((v) => v.isViewable);
+    if (first && typeof first.index === 'number') setIndex(first.index);
+  }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
   const { colors: tc } = useTheme();
   const { getToken, appUser } = useAuth();
   const { ensureOnCloud } = useCloudGate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(favParam === '1');
-  const [isArchived, setIsArchived] = useState(archivedParam === '1');
+  const [isFavorite, setIsFavorite] = useState(current.isFavorite === '1');
+  const [isArchived, setIsArchived] = useState(current.isArchived === '1');
   const [togglingFav, setTogglingFav] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [fileInfo, setFileInfo] = useState<FileMetadata | null>(null);
@@ -120,6 +219,13 @@ export default function PhotoViewerScreen() {
     })();
     return () => { cancelled = true; };
   }, [id, getToken, isLocalOnly, localUri]);
+
+  // Swiping to another photo → reflect that photo's favorite/archived flags.
+  useEffect(() => {
+    setIsFavorite(current.isFavorite === '1');
+    setIsArchived(current.isArchived === '1');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
 
   const handleSaveToDevice = async () => {
     try {
@@ -383,36 +489,26 @@ export default function PhotoViewerScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Media (image or video) */}
-      <View style={styles.imageContainer}>
-        {mediaLoading ? (
+      {/* Media pager — swipe left/right through the gallery's ordered photos */}
+      <View style={styles.imageContainer} onLayout={(e) => setMediaH(e.nativeEvent.layout.height)}>
+        {mediaH === 0 ? (
           <ActivityIndicator size="large" color="#fff" />
-        ) : !mediaUrl ? (
-          <Text style={{ color: '#fff' }}>Nije moguće učitati fajl.</Text>
-        ) : isVideo ? (
-          // shouldPlay alone has been flaky on some Android devices (the player
-          // loads the source, paints the first frame, then never actually
-          // starts). Calling playAsync explicitly in onLoad guarantees
-          // playback once the AV pipeline reports the source is ready.
-          <Video
-            ref={videoRef}
-            source={{ uri: mediaUrl }}
-            style={styles.image}
-            useNativeControls
-            resizeMode={ResizeMode.CONTAIN}
-            shouldPlay
-            isLooping={false}
-            onLoad={() => { videoRef.current?.playAsync().catch(() => {}); }}
-          />
         ) : (
-          <ZoomPanView style={styles.image}>
-            <Image
-              source={{ uri: mediaUrl }}
-              style={{ width: '100%', height: '100%' }}
-              contentFit="contain"
-              transition={200}
-            />
-          </ZoomPanView>
+          <FlatList
+            data={photos}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(p) => p.id}
+            initialScrollIndex={index}
+            getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+            windowSize={3}
+            renderItem={({ item }) => (
+              <PhotoPage photo={item} isActive={item.id === current.id} pageW={width} pageH={mediaH} getToken={getToken} />
+            )}
+          />
         )}
       </View>
 

@@ -38,6 +38,27 @@ export async function GET(request: NextRequest) {
           // Cover lookup is best-effort; missing cover is fine.
         }
       }
+
+      // Up to 4 preview thumbnails so the mobile card can show a mosaic of
+      // what's inside instead of a single cover. array-contains has an auto
+      // index; filter trashed in memory to avoid a composite index.
+      try {
+        const filesSnap = await db
+          .collection('files')
+          .where('albumIds', 'array-contains', doc.id)
+          .limit(8)
+          .get();
+        const live = filesSnap.docs.filter((f) => !f.data().isTrashed).slice(0, 4);
+        const thumbs = await Promise.all(
+          live.map(async (f) => {
+            const key = f.data().smallThumbKey || f.data().thumbnailKey;
+            return key ? await generateDownloadUrl(key) : null;
+          })
+        );
+        album.previewThumbUrls = thumbs.filter(Boolean);
+      } catch {
+        // Preview mosaic is best-effort.
+      }
       return album;
     })
   );
