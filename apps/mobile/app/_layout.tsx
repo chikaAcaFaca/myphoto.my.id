@@ -75,11 +75,24 @@ function RootNavigator() {
   const router = useRouter();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
-  // Re-read onboarding status whenever user or route changes
+  // Re-read onboarding status whenever user or route changes. The `segments`
+  // dependency is load-bearing: onboarding.tsx writes the flag and immediately
+  // navigates, and this re-read is what picks the new value up — without it the
+  // routing effect below would bounce the user back to /onboarding forever.
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY).then((val) => {
-      setOnboardingDone(val === 'true');
-    });
+    let cancelled = false;
+    AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY)
+      .then((val) => {
+        if (!cancelled) setOnboardingDone(val === 'true');
+      })
+      // A failed read must not gate the whole UI on the spinner — assume the
+      // user has already onboarded and let them into the app.
+      .catch(() => {
+        if (!cancelled) setOnboardingDone(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user, segments]);
 
   useEffect(() => {

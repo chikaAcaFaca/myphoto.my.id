@@ -145,6 +145,62 @@ const SyncContext = createContext<SyncContextType | undefined>(undefined);
 // Cache of device album title → MySpace folder ID (to avoid re-creating folders)
 const folderIdCache = new Map<string, string>();
 
+/**
+ * Device album membership index: asset id → album title.
+ *
+ * Built once and reused. Every upload used to re-enumerate every album (500
+ * assets per call) just to label one photo — O(photos × albums × 500) calls
+ * across the native bridge, run by four concurrent workers. On a phone with a
+ * few thousand photos that pins the JS thread for minutes: the UI stops
+ * responding to touches and Android offers to close the app, which is why a
+ * running backup made the app look frozen and needed a Force stop.
+ */
+let albumIndex: Map<string, string> | null = null;
+let albumIndexPromise: Promise<Map<string, string>> | null = null;
+
+async function getAlbumIndex(): Promise<Map<string, string>> {
+  if (albumIndex) return albumIndex;
+  if (albumIndexPromise) return albumIndexPromise;
+
+  albumIndexPromise = (async () => {
+    const index = new Map<string, string>();
+    try {
+      const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
+      for (const album of albums) {
+        if (album.assetCount === 0) continue;
+        let after: string | undefined;
+        // Page through the album so a large one is covered fully without
+        // materialising thousands of assets in a single call.
+        for (;;) {
+          const page = await MediaLibrary.getAssetsAsync({
+            album: album.id,
+            first: 500,
+            ...(after ? { after } : {}),
+          });
+          for (const a of page.assets) {
+            // First album wins, mirroring the previous "break on first match".
+            if (!index.has(a.id)) index.set(a.id, album.title);
+          }
+          if (!page.hasNextPage || page.assets.length === 0) break;
+          after = page.endCursor;
+        }
+      }
+    } catch {
+      // No permission / not available — uploads fall back to the root folder.
+    }
+    albumIndex = index;
+    albumIndexPromise = null;
+    return index;
+  })();
+
+  return albumIndexPromise;
+}
+
+/** Drop the cached index so newly added photos get their album resolved. */
+function invalidateAlbumIndex() {
+  albumIndex = null;
+}
+
 // Ensure a MySpace folder exists for a device album, returns folderId
 async function ensureMySpaceFolder(
   albumTitle: string,
@@ -266,25 +322,10 @@ export async function backgroundUploadAsset(
   token: string,
   apiUrl: string
 ): Promise<boolean> {
-  // Get album name for folder structure
-  let albumTitle: string | undefined;
-  try {
-    const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
-    for (const album of albums) {
-      const { assets } = await MediaLibrary.getAssetsAsync({
-        album: album.id,
-        first: 0,
-      });
-      // Quick check if this asset belongs to this album
-      // (simplified — full check would query per-asset)
-      if (album.assetCount > 0) {
-        albumTitle = album.title;
-        break;
-      }
-    }
-  } catch {
-    // Fall back to no album
-  }
+  // Resolve the real album for folder structure. The previous version picked
+  // whichever album happened to be listed first, so every backed-up photo was
+  // filed under the same wrong folder.
+  const albumTitle = (await getAlbumIndex()).get(asset.id);
 
   return uploadAssetDual(asset, albumTitle, token, apiUrl);
 }
@@ -338,7 +379,8 @@ export async function backgroundFindNewPhotos(
     allAssets = assets;
   }
 
-  return allAssets.filter((a) => !syncState.uploadedAssets.includes(a.id));
+  const uploaded = new Set(syncState.uploadedAssets);
+  return allAssets.filter((a) => !uploaded.has(a.id));
 }
 
 // Register background task — deferred to avoid crash if native module not ready
@@ -712,12 +754,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       allAssets = assets;
     }
 
-    // Filter out already uploaded ones
-    const newAssets = allAssets.filter(
-      (asset) => !syncState.uploadedAssets.includes(asset.id)
-    );
-
-    return newAssets;
+    // Filter out already uploaded ones. Set lookup, not Array.includes — the
+    // uploaded list grows to one entry per backed-up photo, so the linear scan
+    // made this quadratic in library size.
+    const uploaded = new Set(syncState.uploadedAssets);
+    return allAssets.filter((asset) => !uploaded.has(asset.id));
   };
 
   const uploadAsset = async (asset: MediaLibrary.Asset): Promise<boolean> => {
@@ -728,24 +769,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const apiUrl = process.env.EXPO_PUBLIC_API_URL;
       if (!apiUrl) throw new Error('No API URL');
 
-      // Find which album this asset belongs to (for MySpace folder structure)
-      let albumTitle: string | undefined;
-      try {
-        const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
-        for (const album of albums) {
-          if (album.assetCount === 0) continue;
-          const { assets } = await MediaLibrary.getAssetsAsync({
-            album: album.id,
-            first: 500,
-          });
-          if (assets.some((a) => a.id === asset.id)) {
-            albumTitle = album.title;
-            break;
-          }
-        }
-      } catch {
-        // Fall back to no album
-      }
+      // Find which album this asset belongs to (for MySpace folder structure),
+      // via the shared index instead of re-scanning every album per photo.
+      const albumTitle = (await getAlbumIndex()).get(asset.id);
 
       // Upload to both MySpace (folder structure) and MyPhoto (gallery + AI)
       return await uploadAssetDual(asset, albumTitle, token, apiUrl);
@@ -773,6 +799,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setIsSyncing(true);
     setSyncProgress(0);
     setSyncCancelled(false);
+
+    // Photos taken since the last run need their album resolved too.
+    invalidateAlbumIndex();
 
     try {
       const newPhotos = await findNewPhotos();
@@ -839,15 +868,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (syncCancelled) break;
 
         try {
-          // Fetch the asset from MediaLibrary by ID
-          const assets = await MediaLibrary.getAssetsAsync({
-            first: 1,
-            // Filter to find specific asset - scan recent ones
-          });
-          // Try to find the asset
-          let asset: MediaLibrary.Asset | null = null;
-          const allAssets = await MediaLibrary.getAssetsAsync({ first: 5000, mediaType: ['photo', 'video'] });
-          asset = allAssets.assets.find(a => a.id === failed.assetId) || null;
+          // Look the asset up directly by id. This used to pull 5000 assets
+          // into memory on every retry iteration just to find one of them —
+          // enough allocation churn to stall (or OOM) the app mid-backup.
+          const asset = (await MediaLibrary.getAssetInfoAsync(failed.assetId).catch(
+            () => null
+          )) as MediaLibrary.Asset | null;
 
           if (!asset) {
             // Asset may have been deleted from device, remove from retry queue

@@ -23,6 +23,7 @@ import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User as AppUser } from '@myphoto/shared';
 import { registerDevice } from './device-registry';
+import { fetchWithTimeout, withTimeout } from './net';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // refreshAppUser(). Never throws — quota gating degrades gracefully.
   const fetchAppUser = useCallback(async (token: string) => {
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -108,9 +109,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Public refresh — re-pulls /api/users/me using the current token so the
   // quota gauge and the proactive storage upsell react to uploads/deletes.
+  // `getIdToken()` hits the network whenever the cached token is past its
+  // one-hour life, and Firebase gives us no way to bound that call — so it
+  // gets an explicit deadline and falls back to the stored token.
   const refreshAppUser = useCallback(async () => {
-    const token = await (authRef.current?.currentUser?.getIdToken() ??
-      SecureStore.getItemAsync('auth_token'));
+    let token: string | null = null;
+    const current = authRef.current?.currentUser;
+    if (current) {
+      token = await withTimeout(current.getIdToken(), 10000).catch(() => null);
+    }
+    if (!token) token = await SecureStore.getItemAsync('auth_token');
     if (token) await fetchAppUser(token);
   }, [fetchAppUser]);
 
@@ -130,29 +138,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const auth = getFirebaseAuth();
       authRef.current = auth;
 
-      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        try {
-          setUser(firebaseUser);
+      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        setUser(firebaseUser);
 
-          if (firebaseUser) {
-            const token = await firebaseUser.getIdToken();
+        // Release the loading gate on the FIRST answer from Firebase, before
+        // any network work. Everything below (token refresh, /api/users/me,
+        // device registration) used to sit in front of this line — one stalled
+        // socket there left `isLoading` true forever, which renders nothing but
+        // a spinner and keeps the splash screen up, so the only way out was
+        // Force stop. Profile data is not needed to draw the first screen.
+        setIsLoading(false);
+
+        if (!firebaseUser) {
+          SecureStore.deleteItemAsync('auth_token').catch(() => {});
+          setAppUser(null);
+          return;
+        }
+
+        void (async () => {
+          try {
+            const token = await withTimeout(firebaseUser.getIdToken(), 10000);
             await SecureStore.setItemAsync('auth_token', token);
-
             await fetchAppUser(token);
-
             // Register device (fire-and-forget)
             registerDevice(token).catch(() => {});
-          } else {
-            await SecureStore.deleteItemAsync('auth_token');
-            setAppUser(null);
+          } catch (err: any) {
+            // Non-fatal: the app stays usable on the cached token/profile and
+            // AppState 'active' will retry the refresh on the next foreground.
+            console.warn('Auth bootstrap (deferred) failed:', err?.message || err);
           }
-
-          setIsLoading(false);
-        } catch (err: any) {
-          console.error('Auth state error:', err);
-          setError(err.message || 'Auth initialization failed');
-          setIsLoading(false);
-        }
+        })();
       });
     } catch (err: any) {
       console.error('Firebase init error:', err);
@@ -160,7 +175,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
 
-    return () => unsubscribe?.();
+    // Last-resort watchdog. If Firebase never delivers a first auth state
+    // (its AsyncStorage-backed persistence read can wedge on a cold start),
+    // stop gating the UI. Worst case the user lands on the login screen; the
+    // listener still fires later and routes them straight into the app. That
+    // is recoverable — an endless spinner is not.
+    const watchdog = setTimeout(() => setIsLoading(false), 8000);
+
+    return () => {
+      clearTimeout(watchdog);
+      unsubscribe?.();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
