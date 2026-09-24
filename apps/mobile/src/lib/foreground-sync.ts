@@ -20,6 +20,7 @@
  */
 import { Platform, PermissionsAndroid } from 'react-native';
 import { runSyncPass, type SyncProgress } from './background-sync-runner';
+import { t } from './i18n';
 
 // Android 13+ requires runtime POST_NOTIFICATIONS consent or the foreground
 // service notification is suppressed (uploads still run, but the user can't see
@@ -53,9 +54,11 @@ const PASS_INTERVAL_MS = 5 * 60 * 1000; // re-scan every 5 min while running
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function describe(p: SyncProgress): string {
-  if (p.phase === 'idle') return 'Sve je sinhronizovano';
-  const what = p.phase === 'photos' ? 'slike' : 'fajlove';
-  return `Otpremam ${what} ${p.done}/${p.total}…`;
+  if (p.phase === 'idle') return t('sync.notificationIdle');
+  const params = { done: p.done, total: p.total };
+  return p.phase === 'photos'
+    ? t('sync.notificationUploadingPhotos', params)
+    : t('sync.notificationUploadingFiles', params);
 }
 
 // updateNotification may or may not return a Promise across versions — call it
@@ -69,10 +72,11 @@ function safeUpdateNotification(taskDesc: string) {
   }
 }
 
-const options = {
+// Built at start time so the notification follows the current app language.
+const buildOptions = () => ({
   taskName: 'MyPhotoBackup',
-  taskTitle: 'MyPhoto čuva tvoje uspomene',
-  taskDesc: 'Pripremam sinhronizaciju…',
+  taskTitle: t('sync.notificationTitle'),
+  taskDesc: t('sync.notificationPreparing'),
   taskIcon: { name: 'ic_launcher', type: 'mipmap' },
   color: '#7C3AED',
   linkingURI: 'myphoto://',
@@ -82,7 +86,7 @@ const options = {
   // config plugin so the manifest and runtime types agree.
   foregroundServiceType: ['dataSync'],
   parameters: {},
-};
+});
 
 // The long-running task: loop sync passes until the service is stopped.
 const backupLoop = async () => {
@@ -122,7 +126,7 @@ export async function startForegroundSync(): Promise<boolean> {
   starting = true;
   try {
     await ensureNotificationPermission();
-    await BackgroundService.start(backupLoop, options);
+    await BackgroundService.start(backupLoop, buildOptions());
     return true;
   } catch (e) {
     console.warn('Failed to start foreground sync service:', e);

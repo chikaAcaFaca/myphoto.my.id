@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT, type TKey } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 
@@ -20,22 +21,24 @@ interface ComicPanel {
   bubblePosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 }
 
+// Label = photo count (cols * rows), rendered via the common.photos plural.
 const LAYOUTS = [
-  { id: '2x1', label: '2 slike', cols: 1, rows: 2 },
-  { id: '2x2', label: '4 slike', cols: 2, rows: 2 },
-  { id: '3x2', label: '6 slika', cols: 2, rows: 3 },
-  { id: '3x1', label: '3 slike', cols: 1, rows: 3 },
+  { id: '2x1', cols: 1, rows: 2 },
+  { id: '2x2', cols: 2, rows: 2 },
+  { id: '3x2', cols: 2, rows: 3 },
+  { id: '3x1', cols: 1, rows: 3 },
 ];
 
-const BUBBLE_POSITIONS = [
-  { key: 'top-left' as const, label: 'Gore levo' },
-  { key: 'top-right' as const, label: 'Gore desno' },
-  { key: 'bottom-left' as const, label: 'Dole levo' },
-  { key: 'bottom-right' as const, label: 'Dole desno' },
+const BUBBLE_POSITIONS: { key: ComicPanel['bubblePosition']; labelKey: TKey }[] = [
+  { key: 'top-left', labelKey: 'comic.posTopLeft' },
+  { key: 'top-right', labelKey: 'comic.posTopRight' },
+  { key: 'bottom-left', labelKey: 'comic.posBottomLeft' },
+  { key: 'bottom-right', labelKey: 'comic.posBottomRight' },
 ];
 
 export default function ComicCreatorScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const [panels, setPanels] = useState<ComicPanel[]>([]);
   const [layout, setLayout] = useState(LAYOUTS[0]);
   const [editingPanel, setEditingPanel] = useState<ComicPanel | null>(null);
@@ -47,7 +50,7 @@ export default function ComicCreatorScreen() {
 
   const addPanel = useCallback(async () => {
     if (panels.length >= maxPanels) {
-      Alert.alert('Maksimum', `Ovaj raspored podrzava ${maxPanels} slika.`);
+      Alert.alert(t('comic.maxTitle'), t('comic.maxMessage', { photos: tp('common.photos', maxPanels) }));
       return;
     }
 
@@ -67,7 +70,7 @@ export default function ComicCreatorScreen() {
       }));
       setPanels((prev) => [...prev, ...newPanels].slice(0, maxPanels));
     }
-  }, [panels.length, maxPanels]);
+  }, [panels.length, maxPanels, t, tp]);
 
   const updateBubble = useCallback(() => {
     if (!editingPanel) return;
@@ -88,9 +91,9 @@ export default function ComicCreatorScreen() {
 
   const handleShare = useCallback(async () => {
     await Share.share({
-      message: `${title ? title + '\n' : ''}Strip napravljen u MyPhoto app!\nPreuzmite: https://myphotomy.space`,
+      message: `${title ? title + '\n' : ''}${t('comic.shareMessage')}\nhttps://myphotomy.space`,
     });
-  }, [title]);
+  }, [title, t]);
 
   const panelSize = layout.cols === 1
     ? { w: width - 32, h: 200 }
@@ -143,7 +146,7 @@ export default function ComicCreatorScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Strip Kreator</Text>
+        <Text style={styles.headerTitle}>{t('comic.title')}</Text>
         <TouchableOpacity onPress={handleShare} style={styles.topBtn}>
           <Ionicons name="share-outline" size={20} color="#fff" />
         </TouchableOpacity>
@@ -153,7 +156,7 @@ export default function ComicCreatorScreen() {
         {/* Title input */}
         <TextInput
           style={[styles.titleInput, { backgroundColor: tc.bgCard, color: tc.text, borderColor: tc.border }]}
-          placeholder="Naslov stripa..."
+          placeholder={t('comic.titlePlaceholder')}
           placeholderTextColor={tc.textMuted}
           value={title}
           onChangeText={setTitle}
@@ -168,7 +171,7 @@ export default function ComicCreatorScreen() {
               style={[styles.layoutBtn, layout.id === l.id && { backgroundColor: '#8b5cf6' + '20', borderColor: '#8b5cf6' }]}
               onPress={() => { setLayout(l); setPanels((prev) => prev.slice(0, l.cols * l.rows)); }}
             >
-              <Text style={[styles.layoutText, layout.id === l.id && { color: '#8b5cf6' }]}>{l.label}</Text>
+              <Text style={[styles.layoutText, layout.id === l.id && { color: '#8b5cf6' }]}>{tp('common.photos', l.cols * l.rows)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -197,13 +200,13 @@ export default function ComicCreatorScreen() {
                 onPress={addPanel}
               >
                 <Ionicons name="add-circle-outline" size={32} color={tc.textMuted} />
-                <Text style={[styles.addPanelText, { color: tc.textMuted }]}>Dodaj sliku</Text>
+                <Text style={[styles.addPanelText, { color: tc.textMuted }]}>{t('comic.addImage')}</Text>
               </TouchableOpacity>
             )}
           </View>
 
           {/* Watermark */}
-          <Text style={[styles.watermark, { color: tc.textMuted }]}>Made with MyPhoto</Text>
+          <Text style={[styles.watermark, { color: tc.textMuted }]}>{t('comic.watermark')}</Text>
         </View>
       </ScrollView>
 
@@ -211,11 +214,11 @@ export default function ComicCreatorScreen() {
       <Modal visible={!!editingPanel} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: tc.bgCard }]}>
-            <Text style={[styles.modalTitle, { color: tc.text }]}>Oblacic za panel</Text>
+            <Text style={[styles.modalTitle, { color: tc.text }]}>{t('comic.bubbleTitle')}</Text>
 
             <TextInput
               style={[styles.bubbleInput, { backgroundColor: tc.bgInput, color: tc.text, borderColor: tc.border }]}
-              placeholder="Sta kaze lik na slici?"
+              placeholder={t('comic.bubblePlaceholder')}
               placeholderTextColor={tc.textMuted}
               value={bubbleText}
               onChangeText={setBubbleText}
@@ -224,7 +227,7 @@ export default function ComicCreatorScreen() {
               autoFocus
             />
 
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>POZICIJA</Text>
+            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>{t('comic.position')}</Text>
             <View style={styles.posRow}>
               {BUBBLE_POSITIONS.map((p) => (
                 <TouchableOpacity
@@ -232,17 +235,17 @@ export default function ComicCreatorScreen() {
                   style={[styles.posBtn, bubblePos === p.key && { backgroundColor: '#8b5cf6' + '20', borderColor: '#8b5cf6' }]}
                   onPress={() => setBubblePos(p.key)}
                 >
-                  <Text style={[styles.posText, bubblePos === p.key && { color: '#8b5cf6' }]}>{p.label}</Text>
+                  <Text style={[styles.posText, bubblePos === p.key && { color: '#8b5cf6' }]}>{t(p.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={() => setEditingPanel(null)} style={styles.cancelBtn}>
-                <Text style={{ color: tc.textMuted, ...fonts.semibold }}>Otkazi</Text>
+                <Text style={{ color: tc.textMuted, ...fonts.semibold }}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={updateBubble} style={[styles.saveBtn, { backgroundColor: '#8b5cf6' }]}>
-                <Text style={{ color: '#fff', ...fonts.bold }}>Sacuvaj</Text>
+                <Text style={{ color: '#fff', ...fonts.bold }}>{t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </View>

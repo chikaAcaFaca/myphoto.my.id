@@ -9,6 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -26,6 +27,7 @@ interface ProfileMeme {
 
 export default function MemeProfileScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { userId, userName } = useLocalSearchParams<{ userId: string; userName: string }>();
   const { user, getToken } = useAuth();
   const [memes, setMemes] = useState<ProfileMeme[]>([]);
@@ -92,9 +94,9 @@ export default function MemeProfileScreen() {
 
   const handleShareProfile = useCallback(async () => {
     await Share.share({
-      message: `Pogledaj memove od @${userName} na MyPhoto!\nhttps://myphotomy.space/user/${userId}`,
+      message: `${t('meme.profile.shareMessage', { name: userName })}\nhttps://myphotomy.space/user/${userId}`,
     });
-  }, [userId, userName]);
+  }, [userId, userName, t]);
 
   // Tapping any thumbnail opens the full-screen feed viewer scoped to this
   // user, starting on the tapped meme (TikTok-style).
@@ -143,7 +145,7 @@ export default function MemeProfileScreen() {
         </View>
         <Text style={[styles.profileName, { color: tc.text }]}>@{userName}</Text>
         <Text style={[styles.profileStats, { color: tc.textMuted }]}>
-          {memes.length} memova · {memes.reduce((s, m) => s + m.likes, 0)} lajkova · {followerCount} pratilaca
+          {tp('meme.profile.memes', memes.length)} · {tp('meme.profile.likes', memes.reduce((s, m) => s + m.likes, 0))} · {tp('meme.profile.followers', followerCount)}
         </Text>
 
         {/* CTA / Follow */}
@@ -153,7 +155,7 @@ export default function MemeProfileScreen() {
             onPress={() => router.push('/register')}
           >
             <Ionicons name="sparkles" size={18} color="#fff" />
-            <Text style={styles.ctaText}>Napravi svoj meme — Registruj se besplatno!</Text>
+            <Text style={styles.ctaText}>{t('meme.profile.signUpCta')}</Text>
           </TouchableOpacity>
         ) : !isOwnProfile ? (
           <TouchableOpacity
@@ -163,7 +165,7 @@ export default function MemeProfileScreen() {
           >
             <Ionicons name={isFollowing ? 'checkmark' : 'person-add'} size={18} color={isFollowing ? tc.text : '#fff'} />
             <Text style={[styles.ctaText, isFollowing && { color: tc.text }]}>
-              {isFollowing ? 'Pratiš' : 'Zaprati'}
+              {isFollowing ? t('meme.profile.following') : t('meme.profile.follow')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -177,7 +179,7 @@ export default function MemeProfileScreen() {
       ) : memes.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={48} color={tc.textMuted} />
-          <Text style={[styles.emptyText, { color: tc.textMuted }]}>Nema memova jos</Text>
+          <Text style={[styles.emptyText, { color: tc.textMuted }]}>{t('meme.profile.empty')}</Text>
         </View>
       ) : (
         <FlatList

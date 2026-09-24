@@ -33,6 +33,7 @@ import { CloudGateProvider } from '@/lib/cloud-gate';
 import { StorageGuardProvider } from '@/lib/storage-guard';
 import { AppUpdateCheck } from '@/lib/app-update-check';
 import { ThemeProvider } from '@/lib/theme-context';
+import { I18nProvider, t } from '@/lib/i18n';
 import { ShareIntentHandler } from '@/components/ShareIntentHandler';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -57,7 +58,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     if (this.state.error) {
       return (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>MyPhoto Crash Report</Text>
+          <Text style={styles.errorTitle}>{t('nav.crashReport')}</Text>
           <ScrollView style={styles.errorScroll}>
             <Text style={styles.errorText}>{this.state.error.message}</Text>
             <Text style={styles.errorStack}>{this.state.error.stack}</Text>
@@ -145,13 +146,15 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <RootNavigator />
-          </AuthProvider>
-        </QueryClientProvider>
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <RootNavigator />
+            </AuthProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </ErrorBoundary>
   );
 }

@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { MemeComments } from '@/components/MemeComments';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -54,6 +55,7 @@ function RailButton({ icon, color, count, label, onPress }: {
 
 export default function MemeWallScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const insets = useSafeAreaInsets();
   const { user, getToken } = useAuth();
   // Profile mode: when opened from a profile grid, this screen shows ONE
@@ -206,7 +208,7 @@ export default function MemeWallScreen() {
   const handleShare = useCallback(async (m: MemePost) => {
     try {
       await Share.share({
-        message: `${m.caption}\n\nPogledaj još mimova na MyPhoto!\nhttps://myphotomy.space/meme/${m.id}`,
+        message: `${m.caption}\n\n${t('meme.wall.shareMessage')}\nhttps://myphotomy.space/meme/${m.id}`,
       });
       patch(m.id, x => ({ ...x, shares: x.shares + 1 }));
       const token = await getToken();
@@ -215,7 +217,7 @@ export default function MemeWallScreen() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
     } catch {}
-  }, [getToken, patch]);
+  }, [getToken, patch, t]);
 
   const openProfile = (m: MemePost) =>
     router.push({ pathname: '/meme-profile', params: { userId: m.authorId, userName: m.authorName } });
@@ -239,10 +241,10 @@ export default function MemeWallScreen() {
 
   // ---- Owner edit / delete (shown only on the current user's own memes) ----
   const handleDelete = useCallback((m: MemePost) => {
-    Alert.alert('Obriši meme?', 'Ovo trajno briše ovaj meme.', [
-      { text: 'Otkaži', style: 'cancel' },
+    Alert.alert(t('meme.wall.deleteTitle'), t('meme.wall.deleteMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Obriši', style: 'destructive', onPress: async () => {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             const token = await getToken();
             const res = await fetch(`${API_URL}/api/meme-wall/${m.id}`, {
@@ -250,12 +252,12 @@ export default function MemeWallScreen() {
               headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
             if (res.ok) setMemes(prev => prev.filter(x => x.id !== m.id));
-            else Alert.alert('Greška', 'Brisanje nije uspelo.');
-          } catch { Alert.alert('Greška', 'Brisanje nije uspelo.'); }
+            else Alert.alert(t('common.error'), t('meme.wall.deleteFailed'));
+          } catch { Alert.alert(t('common.error'), t('meme.wall.deleteFailed')); }
         },
       },
     ]);
-  }, [getToken]);
+  }, [getToken, t]);
 
   const openEdit = useCallback((m: MemePost) => {
     setEditMeme(m);
@@ -278,22 +280,22 @@ export default function MemeWallScreen() {
         patch(editMeme.id, x => ({ ...x, caption: editCaption, topText: editTop, bottomText: editBottom }));
         setEditMeme(null);
       } else {
-        Alert.alert('Greška', 'Izmena nije uspela.');
+        Alert.alert(t('common.error'), t('meme.wall.editFailed'));
       }
     } catch {
-      Alert.alert('Greška', 'Izmena nije uspela.');
+      Alert.alert(t('common.error'), t('meme.wall.editFailed'));
     } finally {
       setEditSaving(false);
     }
-  }, [editMeme, editCaption, editTop, editBottom, getToken, patch]);
+  }, [editMeme, editCaption, editTop, editBottom, getToken, patch, t]);
 
   const ownerActions = useCallback((m: MemePost) => {
-    Alert.alert('Tvoj meme', undefined, [
-      { text: 'Izmeni tekst', onPress: () => openEdit(m) },
-      { text: 'Obriši', style: 'destructive', onPress: () => handleDelete(m) },
-      { text: 'Otkaži', style: 'cancel' },
+    Alert.alert(t('meme.wall.yourMeme'), undefined, [
+      { text: t('meme.wall.editText'), onPress: () => openEdit(m) },
+      { text: t('common.delete'), style: 'destructive', onPress: () => handleDelete(m) },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
-  }, [openEdit, handleDelete]);
+  }, [openEdit, handleDelete, t]);
 
   const renderMeme = useCallback(({ item }: { item: MemePost }) => (
     <View style={[styles.page, { height: pageH, width }]}>
@@ -357,11 +359,11 @@ export default function MemeWallScreen() {
         <RailButton
           icon="refresh-outline"
           color="#fff"
-          label="Remix"
+          label={t('meme.wall.remix')}
           onPress={() => handleRemix(item)}
         />
         {user?.uid === item.authorId ? (
-          <RailButton icon="ellipsis-horizontal" color="#fff" label="Uredi" onPress={() => ownerActions(item)} />
+          <RailButton icon="ellipsis-horizontal" color="#fff" label={t('meme.wall.manage')} onPress={() => ownerActions(item)} />
         ) : null}
       </View>
 
@@ -381,13 +383,13 @@ export default function MemeWallScreen() {
             style={styles.remixBadge}
           >
             <Ionicons name="refresh-outline" size={11} color="#fff" />
-            <Text style={styles.remixBadgeText}>Remix od @{item.remixOf.authorName}</Text>
+            <Text style={styles.remixBadgeText}>{t('meme.wall.remixOf', { name: item.remixOf.authorName })}</Text>
           </TouchableOpacity>
         ) : null}
         {item.caption ? <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text> : null}
       </View>
     </View>
-  ), [pageH, visibleId, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix, user?.uid, ownerActions]);
+  ), [pageH, visibleId, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix, user?.uid, ownerActions, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
@@ -399,7 +401,7 @@ export default function MemeWallScreen() {
               <Ionicons name="arrow-back" size={22} color="#000" />
             </TouchableOpacity>
             <View style={styles.headerCenter}>
-              <Text style={styles.headerTitle}>@{profileName || 'profil'}</Text>
+              <Text style={styles.headerTitle}>@{profileName || t('meme.wall.profileFallback')}</Text>
             </View>
             <View style={{ width: 32 }} />
           </>
@@ -423,10 +425,10 @@ export default function MemeWallScreen() {
       ) : memes.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="flame-outline" size={64} color="#64748b" />
-          <Text style={styles.emptyText}>MemeWall je prazan!</Text>
+          <Text style={styles.emptyText}>{t('meme.wall.empty')}</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/creative-hub')}>
             <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.emptyBtnText}>Napravi meme</Text>
+            <Text style={styles.emptyBtnText}>{t('meme.wall.createMeme')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -460,25 +462,25 @@ export default function MemeWallScreen() {
       {editMeme ? (
         <View style={styles.editOverlay}>
           <View style={[styles.editSheet, { backgroundColor: tc.bgCard }]}>
-            <Text style={[styles.editTitle, { color: tc.text }]}>Izmeni meme</Text>
-            <Text style={[styles.editLabel, { color: tc.textMuted }]}>Opis</Text>
-            <TextInput value={editCaption} onChangeText={setEditCaption} placeholder="Opis" placeholderTextColor={tc.textMuted} style={[styles.editInput, { color: tc.text, borderColor: tc.border }]} multiline />
+            <Text style={[styles.editTitle, { color: tc.text }]}>{t('meme.wall.editTitle')}</Text>
+            <Text style={[styles.editLabel, { color: tc.textMuted }]}>{t('meme.wall.caption')}</Text>
+            <TextInput value={editCaption} onChangeText={setEditCaption} placeholder={t('meme.wall.caption')} placeholderTextColor={tc.textMuted} style={[styles.editInput, { color: tc.text, borderColor: tc.border }]} multiline />
             {editMeme?.mediaType !== 'image' ? (
               <>
-                <Text style={[styles.editLabel, { color: tc.textMuted }]}>Gornji tekst</Text>
-                <TextInput value={editTop} onChangeText={setEditTop} placeholder="Gornji tekst" placeholderTextColor={tc.textMuted} style={[styles.editInput, { color: tc.text, borderColor: tc.border }]} />
-                <Text style={[styles.editLabel, { color: tc.textMuted }]}>Donji tekst</Text>
-                <TextInput value={editBottom} onChangeText={setEditBottom} placeholder="Donji tekst" placeholderTextColor={tc.textMuted} style={[styles.editInput, { color: tc.text, borderColor: tc.border }]} />
+                <Text style={[styles.editLabel, { color: tc.textMuted }]}>{t('meme.topText')}</Text>
+                <TextInput value={editTop} onChangeText={setEditTop} placeholder={t('meme.topText')} placeholderTextColor={tc.textMuted} style={[styles.editInput, { color: tc.text, borderColor: tc.border }]} />
+                <Text style={[styles.editLabel, { color: tc.textMuted }]}>{t('meme.bottomText')}</Text>
+                <TextInput value={editBottom} onChangeText={setEditBottom} placeholder={t('meme.bottomText')} placeholderTextColor={tc.textMuted} style={[styles.editInput, { color: tc.text, borderColor: tc.border }]} />
               </>
             ) : (
-              <Text style={[styles.editNote, { color: tc.textMuted }]}>Za slike je tekst ubačen u sliku pri objavi — možeš izmeniti opis, ili obrisati meme i napraviti novi.</Text>
+              <Text style={[styles.editNote, { color: tc.textMuted }]}>{t('meme.wall.imageEditNote')}</Text>
             )}
             <View style={styles.editBtnRow}>
               <TouchableOpacity style={[styles.editBtn, { backgroundColor: tc.bgInput }]} onPress={() => setEditMeme(null)} disabled={editSaving}>
-                <Text style={[styles.editBtnText, { color: tc.text }]}>Otkaži</Text>
+                <Text style={[styles.editBtnText, { color: tc.text }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.editBtn, { backgroundColor: tc.primary }]} onPress={saveEdit} disabled={editSaving}>
-                <Text style={[styles.editBtnText, { color: '#fff' }]}>{editSaving ? 'Čuvam...' : 'Sačuvaj'}</Text>
+                <Text style={[styles.editBtnText, { color: '#fff' }]}>{editSaving ? t('meme.saving') : t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </View>

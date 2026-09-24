@@ -6,6 +6,7 @@
 import { CAN_SELL_IN_APP } from './distribution';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_TIERS } from '@myphoto/shared';
+import { t } from './i18n';
 
 const MEME_USAGE_KEY = 'meme_usage';
 
@@ -96,7 +97,9 @@ export async function checkMemeLimit(storageLimit: number, isAiGenerated: boolea
       if (usage.monthly >= FREE_MONTHLY_LIMIT) {
         return {
           allowed: false,
-          reason: `Dostigli ste mesečni limit od ${FREE_MONTHLY_LIMIT} besplatnih memova. Nadogradite na Mini plan${CAN_SELL_IN_APP ? ' (€0.69/mes)' : ''} za neograničeno memova!`,
+          reason: CAN_SELL_IN_APP
+            ? t('meme.limits.freeMonthlyReachedWithPrice', { limit: FREE_MONTHLY_LIMIT })
+            : t('meme.limits.freeMonthlyReached', { limit: FREE_MONTHLY_LIMIT }),
           remainingDaily: 0,
           remainingMonthly: 0,
         };
@@ -118,7 +121,7 @@ export async function checkMemeLimit(storageLimit: number, isAiGenerated: boolea
   if (usage.daily >= tier.memesPerDay) {
     return {
       allowed: false,
-      reason: `Dostigli ste dnevni limit od ${tier.memesPerDay} AI memova za ${tier.name} plan. Možete i dalje praviti memove ručno bez limita, ili nadogradite plan za više AI memova.`,
+      reason: t('meme.limits.aiDailyReached', { limit: tier.memesPerDay, plan: tier.name }),
       remainingDaily: 0,
       remainingMonthly,
     };
@@ -127,7 +130,7 @@ export async function checkMemeLimit(storageLimit: number, isAiGenerated: boolea
   if (usage.monthly >= tier.memesPerMonth) {
     return {
       allowed: false,
-      reason: `Dostigli ste mesečni limit od ${tier.memesPerMonth} AI memova za ${tier.name} plan. Možete i dalje praviti memove ručno bez limita, ili nadogradite plan za više AI memova.`,
+      reason: t('meme.limits.aiMonthlyReached', { limit: tier.memesPerMonth, plan: tier.name }),
       remainingDaily,
       remainingMonthly: 0,
     };

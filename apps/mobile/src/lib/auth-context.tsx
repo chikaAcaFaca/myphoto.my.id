@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { Platform, AppState } from 'react-native';
+import { t } from './i18n';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 // @ts-ignore – getReactNativePersistence is exported from the RN bundle via
 // the "react-native" condition in package.json. Metro resolves it at runtime,
@@ -235,7 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (googleResponse.type === 'success') {
       const idToken = googleResponse.params?.id_token || (googleResponse as any).authentication?.idToken;
       if (!idToken) {
-        pendingGoogleResolver.current?.reject(new Error('Google nije vratio ID token'));
+        pendingGoogleResolver.current?.reject(new Error(t('libs.auth.googleNoIdToken')));
         pendingGoogleResolver.current = null;
         return;
       }
@@ -245,7 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .catch((e) => pendingGoogleResolver.current?.reject(e))
         .finally(() => { pendingGoogleResolver.current = null; });
     } else if (googleResponse.type === 'error') {
-      pendingGoogleResolver.current?.reject(new Error(googleResponse.error?.message || 'Google sign-in error'));
+      pendingGoogleResolver.current?.reject(new Error(googleResponse.error?.message || t('libs.auth.googleSignInError')));
       pendingGoogleResolver.current = null;
     } else if (googleResponse.type === 'cancel' || googleResponse.type === 'dismiss') {
       // Treat cancel as a no-op resolve so the caller's UI returns to
@@ -257,10 +258,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!GOOGLE_WEB_CLIENT_ID && !GOOGLE_ANDROID_CLIENT_ID) {
-      throw new Error('Google Client ID nije konfigurisan u .env');
+      throw new Error(t('libs.auth.googleNotConfigured'));
     }
     if (!promptGoogle) {
-      throw new Error('Google auth nije spreman — pokušaj ponovo za par sekundi.');
+      throw new Error(t('libs.auth.googleNotReady'));
     }
     // Wrap promptAsync + the response effect in a single promise so
     // callers (login.tsx, register.tsx) can await sign-in completion
@@ -286,17 +287,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = async (password?: string) => {
     const auth = authRef.current || getFirebaseAuth();
     const current = auth.currentUser;
-    if (!current) throw new Error('Niste prijavljeni');
+    if (!current) throw new Error(t('libs.auth.notSignedIn'));
     const uid = current.uid;
 
     // The server only accepts tokens from a sign-in in the last 10 minutes.
     if (usesPassword) {
-      if (!password) throw new Error('Unesite lozinku');
+      if (!password) throw new Error(t('libs.auth.enterPassword'));
       await reauthenticateWithCredential(current, EmailAuthProvider.credential(current.email!, password));
     } else {
       await signInWithGoogle();
       if (auth.currentUser?.uid !== uid) {
-        throw new Error('Izabran je drugi Google nalog');
+        throw new Error(t('libs.auth.differentGoogleAccount'));
       }
     }
 
@@ -312,7 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `Brisanje nije uspelo (HTTP ${res.status})`);
+      throw new Error(data.error || t('libs.auth.deleteFailed', { status: res.status }));
     }
     await firebaseSignOut(auth).catch(() => {});
   };

@@ -18,23 +18,24 @@ import { checkMemeLimit, getMemeUsageStats } from '@/lib/meme-limits';
 import { moderateCaption } from '@/lib/ai-captions';
 import { saveToMySpace } from '@/lib/myspace-upload';
 import { ZoomPanView } from '@/components/ZoomPanView';
+import { useT, type TKey } from '@/lib/i18n';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
-const MEME_TEMPLATES = [
-  { id: 'classic', label: 'Klasicni', topPos: 0.03, bottomPos: 0.78 },
-  { id: 'top-only', label: 'Gore', topPos: 0.05, bottomPos: null },
-  { id: 'bottom-only', label: 'Dole', topPos: null, bottomPos: 0.75 },
-  { id: 'center', label: 'Centar', topPos: 0.40, bottomPos: null },
+const MEME_TEMPLATES: { id: string; labelKey: TKey; topPos: number | null; bottomPos: number | null }[] = [
+  { id: 'classic', labelKey: 'meme.creator.layoutClassic', topPos: 0.03, bottomPos: 0.78 },
+  { id: 'top-only', labelKey: 'meme.creator.layoutTop', topPos: 0.05, bottomPos: null },
+  { id: 'bottom-only', labelKey: 'meme.creator.layoutBottom', topPos: null, bottomPos: 0.75 },
+  { id: 'center', labelKey: 'meme.creator.layoutCenter', topPos: 0.40, bottomPos: null },
 ];
 
 // Meme frame orientation — lets landscape media (esp. video) use a wide frame
 // instead of being cropped into the default portrait box.
-const MEME_ASPECTS = [
-  { id: 'portrait', label: 'Portret', ratio: 4 / 5 },
-  { id: 'square', label: 'Kvadrat', ratio: 1 },
-  { id: 'landscape', label: 'Pejzaž', ratio: 16 / 9 },
+const MEME_ASPECTS: { id: string; labelKey: TKey; ratio: number }[] = [
+  { id: 'portrait', labelKey: 'meme.creator.aspectPortrait', ratio: 4 / 5 },
+  { id: 'square', labelKey: 'meme.creator.aspectSquare', ratio: 1 },
+  { id: 'landscape', labelKey: 'meme.creator.aspectLandscape', ratio: 16 / 9 },
 ];
 
 const FONT_SIZES = [
@@ -46,6 +47,7 @@ const FONT_SIZES = [
 
 export default function MemeCreatorScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { id, name, uri: sourceUri, isUploaded, type, remixOfId, remixOfAuthor } = useLocalSearchParams<{
     id?: string; name?: string; uri?: string; isUploaded?: string; type?: string;
     // Set by the meme-wall Remix button. We forward remixOfId to the publish
@@ -125,9 +127,9 @@ export default function MemeCreatorScreen() {
     // Manual meme limit check (Free users can't create)
     const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
     if (!limitCheck.allowed) {
-      Alert.alert('Nadogradite plan', limitCheck.reason, [
-        { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
+      Alert.alert(t('meme.upgradeTitle'), limitCheck.reason, [
+        { text: t('common.ok') },
+        { text: t('common.viewPlans'), onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -139,11 +141,11 @@ export default function MemeCreatorScreen() {
       if (modResult.flagged) {
         const proceed = await new Promise<boolean>((resolve) => {
           Alert.alert(
-            '⚠️ Upozorenje o sadržaju',
-            `Ovaj sadržaj može kršiti Uslove korišćenja.\n\nRazlog: ${modResult.reason}\n\nObjavljivanjem preuzimate POTPUNU odgovornost za sve pravne posledice, uključujući krivičnu ili prekršajnu. Nastaviti?`,
+            `⚠️ ${t('meme.creator.contentWarningTitle')}`,
+            t('meme.creator.contentWarningMessage', { reason: modResult.reason }),
             [
-              { text: 'Odustani', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Objavi na svoju odgovornost', style: 'destructive', onPress: () => resolve(true) },
+              { text: t('meme.creator.giveUp'), style: 'cancel', onPress: () => resolve(false) },
+              { text: t('meme.creator.publishAtOwnRisk'), style: 'destructive', onPress: () => resolve(true) },
             ]
           );
         });
@@ -157,22 +159,22 @@ export default function MemeCreatorScreen() {
         ? `${API_URL}/api/stream/${id}`
         : mediaUri;
       await Share.share({
-        message: `${topText ? topText + '\n' : ''}${bottomText ? bottomText + '\n' : ''}\n@${user?.displayName || 'user'} • myphotomy.space`,
+        message: `${topText ? topText + '\n' : ''}${bottomText ? bottomText + '\n' : ''}\n@${user?.displayName || t('common.user')} • myphotomy.space`,
         url: shareUrl,
       });
     } catch (e) {
       console.log('Share error:', e);
     }
-  }, [mediaUri, topText, bottomText, id, appUser?.storageLimit]);
+  }, [mediaUri, topText, bottomText, id, appUser?.storageLimit, t]);
 
   const handleSave = useCallback(async () => {
     if (!mediaUri) return;
 
     const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
     if (!limitCheck.allowed) {
-      Alert.alert('Nadogradite plan', limitCheck.reason, [
-        { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
+      Alert.alert(t('meme.upgradeTitle'), limitCheck.reason, [
+        { text: t('common.ok') },
+        { text: t('common.viewPlans'), onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -182,7 +184,7 @@ export default function MemeCreatorScreen() {
       const perms = mediaType === 'video' ? ['video'] : ['photo'];
       const { status } = await MediaLibrary.requestPermissionsAsync(false, perms as any);
       if (status !== 'granted') {
-        Alert.alert('Dozvola', 'Dozvolite pristup galeriji.');
+        Alert.alert(t('common.permission'), t('meme.creator.allowGallery'));
         return;
       }
 
@@ -205,13 +207,13 @@ export default function MemeCreatorScreen() {
       }
 
       await MediaLibrary.saveToLibraryAsync(saveUri);
-      Alert.alert('Sacuvano!', 'Meme je sacuvan u galeriju. Podeli ga sa prijateljima!');
+      Alert.alert(t('meme.creator.savedTitle'), t('meme.creator.savedToGallery'));
     } catch (e) {
-      Alert.alert('Greska', 'Cuvanje nije uspelo.');
+      Alert.alert(t('common.error'), t('meme.creator.saveFailed'));
     } finally {
       setSaving(false);
     }
-  }, [mediaUri, mediaType, id, getToken, captureMeme]);
+  }, [mediaUri, mediaType, id, getToken, captureMeme, t]);
 
   // Save the meme into the user's MySpace cloud (personal space). Image memes
   // save the baked snapshot (text + watermark); video keeps the source.
@@ -221,7 +223,7 @@ export default function MemeCreatorScreen() {
     try {
       const token = await getToken();
       if (!token) {
-        Alert.alert('Prijava', 'Prijavi se da bi sačuvao u svoj prostor.');
+        Alert.alert(t('meme.signInTitle'), t('meme.creator.signInToSave'));
         return;
       }
       const isVideo = mediaType === 'video';
@@ -233,13 +235,13 @@ export default function MemeCreatorScreen() {
         token,
       });
       Alert.alert(
-        ok ? 'Sačuvano' : 'Greška',
-        ok ? 'Meme je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo.',
+        ok ? t('common.saved') : t('common.error'),
+        ok ? t('meme.creator.savedToSpace', { folder: 'MyPhoto Kreacije' }) : t('meme.creator.saveToSpaceFailed'),
       );
     } finally {
       setSavingSpace(false);
     }
-  }, [mediaUri, mediaType, getToken, captureMeme]);
+  }, [mediaUri, mediaType, getToken, captureMeme, t]);
 
   // Synchronous in-flight flag so a rapid second tap can't start a second
   // publish before the `publishing` state re-renders (root cause of duplicates).
@@ -253,7 +255,7 @@ export default function MemeCreatorScreen() {
     if (publishingRef.current) return;
     const captionText = [topText, bottomText].filter(Boolean).join(' ');
     if (!captionText.trim()) {
-      Alert.alert('Dodaj tekst', 'Meme mora imati tekst pre objave na MemeWall.');
+      Alert.alert(t('meme.creator.addTextTitle'), t('meme.creator.addTextMessage'));
       return;
     }
 
@@ -261,9 +263,9 @@ export default function MemeCreatorScreen() {
     const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
     if (!limitCheck.allowed) {
       publishingRef.current = false;
-      Alert.alert('Nadogradite plan', limitCheck.reason, [
-        { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
+      Alert.alert(t('meme.upgradeTitle'), limitCheck.reason, [
+        { text: t('common.ok') },
+        { text: t('common.viewPlans'), onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -273,11 +275,11 @@ export default function MemeCreatorScreen() {
     if (modResult.flagged) {
       const proceed = await new Promise<boolean>((resolve) => {
         Alert.alert(
-          'Upozorenje o sadrzaju',
-          `Ovaj sadrzaj moze krsiti Uslove koriscenja.\n\nRazlog: ${modResult.reason}\n\nObjavljivanjem preuzimate POTPUNU odgovornost za sve pravne posledice, ukljucujuci krivicnu ili prekrsajnu. Nastaviti?`,
+          t('meme.creator.contentWarningTitle'),
+          t('meme.creator.contentWarningMessage', { reason: modResult.reason }),
           [
-            { text: 'Odustani', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Objavi na svoju odgovornost', style: 'destructive', onPress: () => resolve(true) },
+            { text: t('meme.creator.giveUp'), style: 'cancel', onPress: () => resolve(false) },
+            { text: t('meme.creator.publishAtOwnRisk'), style: 'destructive', onPress: () => resolve(true) },
           ]
         );
       });
@@ -363,29 +365,29 @@ export default function MemeCreatorScreen() {
         }
 
         const shareUrl = `${API_URL}${responseData.shareUrl || '/meme-wall'}`;
-        Alert.alert('Objavljeno!', 'Tvoj meme je sada na MemeWall-u!', [
-          { text: 'Pogledaj', onPress: () => router.push('/meme-wall') },
+        Alert.alert(t('meme.creator.publishedTitle'), t('meme.creator.publishedMessage'), [
+          { text: t('meme.creator.view'), onPress: () => router.push('/meme-wall') },
           {
-            text: 'Podeli',
+            text: t('common.share'),
             onPress: () => {
               Share.share({
-                message: `${captionText}\n\nNapravljeno u MyPhoto 📸\n${shareUrl}`,
+                message: `${captionText}\n\n${t('meme.madeWith')}\n${shareUrl}`,
               });
             },
           },
-          { text: 'OK' },
+          { text: t('common.ok') },
         ]);
       } else {
         const errData = await res.json().catch(() => null);
-        Alert.alert('Greska', errData?.error || 'Objavljivanje nije uspelo. Pokusajte ponovo.');
+        Alert.alert(t('common.error'), errData?.error || t('meme.creator.publishFailedRetry'));
       }
     } catch (e) {
-      Alert.alert('Greska', 'Objavljivanje nije uspelo.');
+      Alert.alert(t('common.error'), t('meme.creator.publishFailed'));
     } finally {
       setPublishing(false);
       publishingRef.current = false;
     }
-  }, [mediaUri, topText, bottomText, template, fontSize, mediaType, id, appUser?.storageLimit, getToken, captureMeme]);
+  }, [mediaUri, topText, bottomText, template, fontSize, mediaType, id, appUser?.storageLimit, getToken, captureMeme, t]);
 
   return (
     <KeyboardAvoidingView
@@ -399,7 +401,7 @@ export default function MemeCreatorScreen() {
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {remixOfId ? `Remix @${remixOfAuthor || '...'}` : 'Meme Kreator'}
+            {remixOfId ? t('meme.creator.remixTitle', { name: remixOfAuthor || '...' }) : t('meme.creator.title')}
           </Text>
           <View style={{ flexDirection: 'row', gap: 4 }}>
             <TouchableOpacity onPress={handleShare} style={styles.topBtn}>
@@ -425,8 +427,8 @@ export default function MemeCreatorScreen() {
               <Ionicons name="sparkles" size={14} color={tc.primary} />
               <Text style={[styles.usageText, { color: tc.textMuted }]}>
                 {appUser && appUser.storageLimit > 1073741824
-                  ? `AI: ${memeStats.daily}/${memeStats.maxDaily} danas · Rucno: neograniceno`
-                  : 'Nadogradite plan za kreiranje memova'}
+                  ? t('meme.creator.usage', { used: memeStats.daily, max: memeStats.maxDaily })
+                  : t('meme.creator.upgradeToCreate')}
               </Text>
             </View>
           )}
@@ -439,14 +441,14 @@ export default function MemeCreatorScreen() {
                 onPress={() => pickMedia('image')}
               >
                 <Ionicons name="image-outline" size={24} color="#fff" />
-                <Text style={styles.mediaTypeText}>Slika / GIF</Text>
+                <Text style={styles.mediaTypeText}>{t('meme.creator.imageGif')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.mediaTypeBtn, { backgroundColor: '#8b5cf6' }]}
                 onPress={() => pickMedia('video')}
               >
                 <Ionicons name="videocam-outline" size={24} color="#fff" />
-                <Text style={styles.mediaTypeText}>Video</Text>
+                <Text style={styles.mediaTypeText}>{t('meme.creator.video')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -513,7 +515,7 @@ export default function MemeCreatorScreen() {
                 {mediaType !== 'image' && (
                   <View style={styles.mediaTypeBadge}>
                     <Ionicons name={mediaType === 'video' ? 'videocam' : 'infinite'} size={12} color="#fff" />
-                    <Text style={styles.mediaTypeBadgeText}>{mediaType === 'video' ? 'VIDEO' : 'GIF'}</Text>
+                    <Text style={styles.mediaTypeBadgeText}>{mediaType === 'video' ? t('meme.creator.videoBadge') : 'GIF'}</Text>
                   </View>
                 )}
                 {/* Watermark - always visible branding */}
@@ -530,7 +532,7 @@ export default function MemeCreatorScreen() {
             <View style={styles.inputRow}>
               <TextInput
                 style={[styles.input, { backgroundColor: tc.bgInput, color: tc.text, borderColor: tc.border }]}
-                placeholder="Tekst gore..."
+                placeholder={t('meme.creator.topPlaceholder')}
                 placeholderTextColor={tc.textMuted}
                 value={topText}
                 onChangeText={setTopText}
@@ -540,7 +542,7 @@ export default function MemeCreatorScreen() {
             <View style={styles.inputRow}>
               <TextInput
                 style={[styles.input, { backgroundColor: tc.bgInput, color: tc.text, borderColor: tc.border }]}
-                placeholder="Tekst dole..."
+                placeholder={t('meme.creator.bottomPlaceholder')}
                 placeholderTextColor={tc.textMuted}
                 value={bottomText}
                 onChangeText={setBottomText}
@@ -549,7 +551,7 @@ export default function MemeCreatorScreen() {
             </View>
 
             {/* Orientation / aspect selector */}
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>ORIJENTACIJA</Text>
+            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>{t('meme.creator.orientation')}</Text>
             <View style={styles.optionRow}>
               {MEME_ASPECTS.map((a) => (
                 <TouchableOpacity
@@ -557,27 +559,27 @@ export default function MemeCreatorScreen() {
                   style={[styles.optionBtn, memeAspect.id === a.id && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
                   onPress={() => setMemeAspect(a)}
                 >
-                  <Text style={[styles.optionText, memeAspect.id === a.id && { color: tc.primary }]}>{a.label}</Text>
+                  <Text style={[styles.optionText, memeAspect.id === a.id && { color: tc.primary }]}>{t(a.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Template selector */}
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>RASPORED</Text>
+            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>{t('meme.creator.layout')}</Text>
             <View style={styles.optionRow}>
-              {MEME_TEMPLATES.map((t) => (
+              {MEME_TEMPLATES.map((tpl) => (
                 <TouchableOpacity
-                  key={t.id}
-                  style={[styles.optionBtn, template.id === t.id && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
-                  onPress={() => setTemplate(t)}
+                  key={tpl.id}
+                  style={[styles.optionBtn, template.id === tpl.id && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
+                  onPress={() => setTemplate(tpl)}
                 >
-                  <Text style={[styles.optionText, template.id === t.id && { color: tc.primary }]}>{t.label}</Text>
+                  <Text style={[styles.optionText, template.id === tpl.id && { color: tc.primary }]}>{t(tpl.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Font size selector */}
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>VELICINA TEKSTA</Text>
+            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>{t('meme.creator.textSize')}</Text>
             <View style={styles.optionRow}>
               {FONT_SIZES.map((f) => (
                 <TouchableOpacity
@@ -593,7 +595,7 @@ export default function MemeCreatorScreen() {
             {/* Image positioning is now via gestures on the preview above. */}
             {mediaUri && mediaType === 'image' && (
               <Text style={[styles.controlLabel, { color: tc.textMuted, textAlign: 'center', marginTop: 6 }]}>
-                Uštipni sa 2 prsta za zum · prevuci da pomeriš sliku
+                {t('meme.creator.gestureHint')}
               </Text>
             )}
 
@@ -610,7 +612,7 @@ export default function MemeCreatorScreen() {
                   <Ionicons name="globe-outline" size={18} color="#fff" />
                 )}
                 <Text style={styles.publishText}>
-                  {publishing ? 'Objavljujem...' : 'Objavi na MemeWall'}
+                  {publishing ? t('meme.creator.publishing') : t('meme.creator.publish')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -623,14 +625,14 @@ export default function MemeCreatorScreen() {
                   try {
                     const caption = [topText, bottomText].filter(Boolean).join(' ');
                     await Share.share({
-                      message: `${caption}\n\nNapravljeno u MyPhoto 📸\nhttps://myphotomy.space`,
+                      message: `${caption}\n\n${t('meme.madeWith')}\nhttps://myphotomy.space`,
                       url: mediaUri.startsWith('file') ? mediaUri : undefined,
                     });
                   } catch {}
                 }}
               >
                 <Ionicons name="share-social" size={18} color="#fff" />
-                <Text style={styles.publishText}>Podeli na mrežama</Text>
+                <Text style={styles.publishText}>{t('meme.creator.shareSocial')}</Text>
               </TouchableOpacity>
             )}
 
@@ -646,7 +648,7 @@ export default function MemeCreatorScreen() {
                 ) : (
                   <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
                 )}
-                <Text style={styles.publishText}>Sačuvaj u moj prostor</Text>
+                <Text style={styles.publishText}>{t('meme.saveToMySpace')}</Text>
               </TouchableOpacity>
             )}
 
@@ -655,11 +657,11 @@ export default function MemeCreatorScreen() {
               <View style={styles.changeRow}>
                 <TouchableOpacity style={styles.changeBtn} onPress={() => pickMedia('image')}>
                   <Ionicons name="image-outline" size={16} color={tc.primary} />
-                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>Slika/GIF</Text>
+                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>{t('meme.creator.imageGif')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.changeBtn} onPress={() => pickMedia('video')}>
                   <Ionicons name="videocam-outline" size={16} color={tc.primary} />
-                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>Video</Text>
+                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>{t('meme.creator.video')}</Text>
                 </TouchableOpacity>
               </View>
             )}

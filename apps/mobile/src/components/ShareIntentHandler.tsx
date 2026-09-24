@@ -12,7 +12,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { consumeShared, type SharedItem } from '@/lib/share-intent';
 import { saveToMySpace } from '@/lib/myspace-upload';
 import { useAuth } from '@/lib/auth-context';
+import { t, tp } from '@/lib/i18n';
 
+// Stored server-side folder name (lookup key) — intentionally not translated.
 const SHARED_FOLDER = 'Iz drugih aplikacija';
 
 function inferExtension(mimeType: string): string {
@@ -66,7 +68,7 @@ export function ShareIntentHandler() {
         if (!items.length) return;
         const token = await getToken();
         if (!token) {
-          Alert.alert('Prijava', 'Prijavi se da bi otpremio podeljene fajlove.');
+          Alert.alert(t('shareIntent.signInTitle'), t('shareIntent.signInBody'));
           return;
         }
         let ok = 0;
@@ -87,15 +89,15 @@ export function ShareIntentHandler() {
         }
         if (ok > 0) {
           Alert.alert(
-            'Otpremljeno',
-            `${ok} fajl(ova) je u tvom prostoru — folder „${SHARED_FOLDER}".`,
+            t('shareIntent.uploadedTitle'),
+            tp('shareIntent.uploadedBody', ok, { folder: SHARED_FOLDER }),
             [
-              { text: 'OK', style: 'cancel' },
-              { text: 'Otvori MySpace', onPress: () => router.push('/(tabs)/myspace') },
+              { text: t('common.ok'), style: 'cancel' },
+              { text: t('shareIntent.openMySpace'), onPress: () => router.push('/(tabs)/myspace') },
             ],
           );
         } else if (items.length > 0) {
-          Alert.alert('Greška', 'Podeljeni fajl nije uspeo da se otpremi.');
+          Alert.alert(t('shareIntent.errorTitle'), t('shareIntent.errorBody'));
         }
       } finally {
         inflightRef.current = false;

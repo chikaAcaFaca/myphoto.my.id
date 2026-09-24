@@ -13,6 +13,7 @@ import { setViewerPhotos } from '@/lib/photo-list-store';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { VideoFlipbook } from '@/components/VideoFlipbook';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -32,6 +33,7 @@ interface LocalPhoto {
 
 export default function MyPhotoScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { getToken } = useAuth();
   const { isSyncing, syncProgress, pendingCount, startSync, settings } = useSync();
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
@@ -314,14 +316,14 @@ export default function MyPhotoScreen() {
             <>
               <ActivityIndicator size="small" color="#fff" />
               <Text style={styles.syncText}>
-                Sinhronizacija... {Math.round(syncProgress)}%
+                {t('home.syncing', { percent: Math.round(syncProgress) })}
               </Text>
             </>
           ) : (
             <>
               <Ionicons name="cloud-upload-outline" size={14} color="#fff" />
               <Text style={styles.syncText}>
-                {pendingCount} fajlova čeka upload
+                {tp('home.pendingUpload', pendingCount)}
               </Text>
             </>
           )}
@@ -335,7 +337,7 @@ export default function MyPhotoScreen() {
       {!isSyncing && pendingCount === 0 && photos.length > 0 && (
         <View style={[styles.syncBar, { backgroundColor: '#22c55e' }]}>
           <Ionicons name="checkmark-circle" size={14} color="#fff" />
-          <Text style={styles.syncText}>{photos.length} slika na uređaju · {uploadedCount} u cloudu</Text>
+          <Text style={styles.syncText}>{t('home.deviceSummary', { device: photos.length, cloud: uploadedCount })}</Text>
         </View>
       )}
 
@@ -343,14 +345,14 @@ export default function MyPhotoScreen() {
       {loading && photos.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.emptySubtext, { color: tc.textMuted, marginTop: 12 }]}>Učitavanje slika...</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textMuted, marginTop: 12 }]}>{t('home.loadingPhotos')}</Text>
         </View>
       ) : photos.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={64} color={tc.textMuted} />
-          <Text style={[styles.emptyText, { color: tc.text }]}>Nema slika</Text>
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('home.noPhotos')}</Text>
           <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>
-            Dozvolite pristup slikama u Settings
+            {t('home.allowAccess')}
           </Text>
         </View>
       ) : (

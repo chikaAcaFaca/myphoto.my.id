@@ -17,6 +17,7 @@ import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { colors, radius, fonts } from './theme';
+import { useT } from './i18n';
 
 const API = process.env.EXPO_PUBLIC_API_URL;
 const CURRENT_BUILD = (Constants.expoConfig?.extra as any)?.appBuild as string | undefined;
@@ -29,6 +30,7 @@ interface LatestVersion {
 }
 
 export function AppUpdateCheck() {
+  const { t } = useT();
   const [info, setInfo] = useState<LatestVersion | null>(null);
 
   useEffect(() => {
@@ -66,17 +68,17 @@ export function AppUpdateCheck() {
     <Modal visible transparent animationType="fade" onRequestClose={later}>
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <Text style={styles.title}>Dostupna je nova verzija</Text>
+          <Text style={styles.title}>{t('appUpdate.title')}</Text>
           <Text style={styles.body}>
             {info.notes?.trim()
               ? info.notes
-              : 'Izašla je novija verzija aplikacije sa poboljšanjima i ispravkama.'}
+              : t('appUpdate.defaultNotes')}
           </Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={update}>
-            <Text style={styles.primaryText}>Ažuriraj</Text>
+            <Text style={styles.primaryText}>{t('appUpdate.update')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryBtn} onPress={later}>
-            <Text style={styles.secondaryText}>Kasnije</Text>
+            <Text style={styles.secondaryText}>{t('appUpdate.later')}</Text>
           </TouchableOpacity>
         </View>
       </View>

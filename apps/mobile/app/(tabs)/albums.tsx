@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { Album } from '@myphoto/shared';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const COL = 2;
@@ -19,6 +20,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function AlbumsScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { getToken } = useAuth();
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export default function AlbumsScreen() {
 
   const handleCreateAlbum = async () => {
     const trimmed = newAlbumName.trim();
-    if (!trimmed) { Alert.alert('Greska', 'Unesite naziv albuma.'); return; }
+    if (!trimmed) { Alert.alert(t('common.error'), t('albums.nameRequired')); return; }
     setCreating(true);
     try {
       const token = await getToken();
@@ -68,7 +70,7 @@ export default function AlbumsScreen() {
       setNewAlbumDesc('');
       fetchAlbums();
     } catch (e) {
-      Alert.alert('Greska', 'Kreiranje albuma nije uspelo.');
+      Alert.alert(t('common.error'), t('albums.createFailed'));
     } finally {
       setCreating(false);
     }
@@ -101,7 +103,7 @@ export default function AlbumsScreen() {
         )}
         <View style={styles.albumInfo}>
           <Text style={[styles.albumName, { color: tc.text }]} numberOfLines={1}>{item.name}</Text>
-          <Text style={[styles.albumCount, { color: tc.textMuted }]}>{item.fileCount} slika</Text>
+          <Text style={[styles.albumCount, { color: tc.textMuted }]}>{tp('common.photos', item.fileCount || 0)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -111,7 +113,7 @@ export default function AlbumsScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
         <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>Albums</Text>
+          <Text style={styles.headerTitle}>{t('albums.title')}</Text>
           <TouchableOpacity style={styles.addBtn} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
             <Ionicons name="add" size={22} color="#fff" />
           </TouchableOpacity>
@@ -125,11 +127,11 @@ export default function AlbumsScreen() {
       ) : albums.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="albums-outline" size={64} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: tc.text }]}>Nema albuma</Text>
-          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>Kreirajte prvi album da organizujete slike</Text>
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('albums.empty')}</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>{t('albums.emptyHint')}</Text>
           <TouchableOpacity style={styles.createBtn} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
             <Ionicons name="add-circle" size={20} color="#fff" />
-            <Text style={styles.createBtnText}>Novi album</Text>
+            <Text style={styles.createBtnText}>{t('albums.newAlbum')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -147,10 +149,10 @@ export default function AlbumsScreen() {
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: tc.bgCard }]}>
-            <Text style={[styles.modalTitle, { color: tc.text }]}>Novi album</Text>
+            <Text style={[styles.modalTitle, { color: tc.text }]}>{t('albums.newAlbum')}</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Naziv albuma"
+              placeholder={t('albums.namePlaceholder')}
               placeholderTextColor={colors.textMuted}
               value={newAlbumName}
               onChangeText={setNewAlbumName}
@@ -158,7 +160,7 @@ export default function AlbumsScreen() {
             />
             <TextInput
               style={[styles.modalInput, { height: 60 }]}
-              placeholder="Opis (opciono)"
+              placeholder={t('albums.descriptionPlaceholder')}
               placeholderTextColor={colors.textMuted}
               value={newAlbumDesc}
               onChangeText={setNewAlbumDesc}
@@ -166,10 +168,10 @@ export default function AlbumsScreen() {
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setShowCreate(false); setNewAlbumName(''); setNewAlbumDesc(''); }}>
-                <Text style={styles.modalCancelText}>Otkazi</Text>
+                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalCreateBtn} onPress={handleCreateAlbum} disabled={creating}>
-                {creating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.modalCreateText}>Kreiraj</Text>}
+                {creating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.modalCreateText}>{t('albums.create')}</Text>}
               </TouchableOpacity>
             </View>
           </View>

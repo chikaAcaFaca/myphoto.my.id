@@ -11,6 +11,7 @@ import { useSync } from '@/lib/sync-context';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
@@ -23,6 +24,7 @@ interface PickedFile {
 
 export default function UploadScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const {
     isSyncing, syncProgress, pendingCount, startSync, stopSync,
     folderSyncSettings, folderSyncPending, isFolderSyncing, folderSyncProgress, startFolderSync,
@@ -156,7 +158,7 @@ export default function UploadScreen() {
       setUploadTotal(picked.length);
       const token = await getToken();
       if (!token) {
-        Alert.alert('Greska', 'Niste ulogovani.');
+        Alert.alert(t('common.error'), t('upload.notSignedIn'));
         setUploading(false);
         return;
       }
@@ -172,16 +174,16 @@ export default function UploadScreen() {
       }
 
       Alert.alert(
-        'Upload zavrsen',
-        `${success}/${picked.length} fajlova uspesno uploadovano.`
+        t('upload.doneTitle'),
+        t('upload.doneMessage', { success, total: picked.length })
       );
     } catch (e) {
       console.log('Pick error:', e);
-      Alert.alert('Greska', 'Nije moguce izabrati fajlove.');
+      Alert.alert(t('common.error'), t('upload.pickFailed'));
     } finally {
       setUploading(false);
     }
-  }, [getToken]);
+  }, [getToken, t]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
@@ -190,9 +192,9 @@ export default function UploadScreen() {
         <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
           <View style={styles.headerCenter}>
             <Ionicons name="cloud-upload" size={24} color="#fff" />
-            <Text style={styles.headerTitle}>Upload</Text>
+            <Text style={styles.headerTitle}>{t('upload.title')}</Text>
           </View>
-          <Text style={styles.headerSubtitle}>Uploadujte fajlove u cloud</Text>
+          <Text style={styles.headerSubtitle}>{t('upload.subtitle')}</Text>
         </View>
 
         {/* Manual upload buttons */}
@@ -203,8 +205,8 @@ export default function UploadScreen() {
             disabled={uploading}
           >
             <Ionicons name="images-outline" size={28} color="#fff" />
-            <Text style={styles.pickBtnTitle}>Slike</Text>
-            <Text style={styles.pickBtnSub}>Izaberi iz galerije</Text>
+            <Text style={styles.pickBtnTitle}>{t('upload.photos')}</Text>
+            <Text style={styles.pickBtnSub}>{t('upload.photosSub')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -213,8 +215,8 @@ export default function UploadScreen() {
             disabled={uploading}
           >
             <Ionicons name="videocam-outline" size={28} color="#fff" />
-            <Text style={styles.pickBtnTitle}>Video</Text>
-            <Text style={styles.pickBtnSub}>Izaberi snimke</Text>
+            <Text style={styles.pickBtnTitle}>{t('upload.videos')}</Text>
+            <Text style={styles.pickBtnSub}>{t('upload.videosSub')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -223,8 +225,8 @@ export default function UploadScreen() {
             disabled={uploading}
           >
             <Ionicons name="document-outline" size={28} color="#fff" />
-            <Text style={styles.pickBtnTitle}>Fajlovi</Text>
-            <Text style={styles.pickBtnSub}>PDF, dokument...</Text>
+            <Text style={styles.pickBtnTitle}>{t('upload.files')}</Text>
+            <Text style={styles.pickBtnSub}>{t('upload.filesSub')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -234,7 +236,7 @@ export default function UploadScreen() {
             <View style={styles.progressItem}>
               <ActivityIndicator size="small" color={tc.primary} />
               <Text style={[styles.pendingTitle, { marginLeft: 10, color: tc.text }]}>
-                Uploadovano {uploadCount}/{uploadTotal} fajlova...
+                {t('upload.progress', { done: uploadCount, total: uploadTotal })}
               </Text>
             </View>
             <View style={styles.progressBar}>
@@ -244,7 +246,7 @@ export default function UploadScreen() {
         )}
 
         {/* Auto-backup section */}
-        <Text style={[styles.sectionTitle, { color: tc.textSecondary }]}>AUTO-BACKUP</Text>
+        <Text style={[styles.sectionTitle, { color: tc.textSecondary }]}>{t('upload.autoBackupSection')}</Text>
 
         <TouchableOpacity
           style={[styles.syncBtn, { borderColor: tc.primary }]}
@@ -253,7 +255,7 @@ export default function UploadScreen() {
         >
           <Ionicons name={isSyncing ? 'pause' : 'sync'} size={20} color={tc.primary} />
           <Text style={[styles.syncBtnText, { color: tc.primary }]}>
-            {isSyncing ? 'Pauziraj Sync' : pendingCount > 0 ? `Sync ${pendingCount} fajlova` : 'Sve je sinhronizovano'}
+            {isSyncing ? t('upload.pauseSync') : pendingCount > 0 ? tp('upload.syncFiles', pendingCount) : t('upload.allSynced')}
           </Text>
         </TouchableOpacity>
 
@@ -263,14 +265,14 @@ export default function UploadScreen() {
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${syncProgress}%` }]} />
             </View>
-            <Text style={[styles.progressText, { color: tc.textMuted }]}>{Math.round(syncProgress)}% syncing...</Text>
+            <Text style={[styles.progressText, { color: tc.textMuted }]}>{t('upload.syncingPercent', { percent: Math.round(syncProgress) })}</Text>
           </View>
         )}
 
         {/* MySpace Folder Sync */}
         {folderSyncSettings.enabled && folderSyncSettings.folders.length > 0 && (
           <>
-            <Text style={[styles.sectionTitle, { color: tc.textSecondary }]}>MYSPACE FOLDER SYNC</Text>
+            <Text style={[styles.sectionTitle, { color: tc.textSecondary }]}>{t('upload.folderSyncSection')}</Text>
 
             <TouchableOpacity
               style={[styles.syncBtn, { borderColor: '#8b5cf6' }]}
@@ -281,10 +283,10 @@ export default function UploadScreen() {
               <Ionicons name={isFolderSyncing ? 'hourglass' : 'folder-open'} size={20} color="#8b5cf6" />
               <Text style={[styles.syncBtnText, { color: '#8b5cf6' }]}>
                 {isFolderSyncing
-                  ? 'Sync u toku...'
+                  ? t('upload.syncInProgress')
                   : folderSyncPending > 0
-                    ? `Sync ${folderSyncPending} fajlova u MySpace`
-                    : 'MySpace folderi azurni'}
+                    ? tp('upload.syncFilesToMySpace', folderSyncPending)
+                    : t('upload.foldersUpToDate')}
               </Text>
             </TouchableOpacity>
 
@@ -293,7 +295,7 @@ export default function UploadScreen() {
                 <View style={styles.progressBar}>
                   <View style={[styles.progressFill, { width: `${folderSyncProgress}%`, backgroundColor: '#8b5cf6' }]} />
                 </View>
-                <Text style={[styles.progressText, { color: tc.textMuted }]}>{Math.round(folderSyncProgress)}% MySpace sync...</Text>
+                <Text style={[styles.progressText, { color: tc.textMuted }]}>{t('upload.folderSyncPercent', { percent: Math.round(folderSyncProgress) })}</Text>
               </View>
             )}
           </>
@@ -312,10 +314,10 @@ export default function UploadScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.pendingTitle, { color: tc.text }]}>
-                  {pendingCount > 0 ? `${pendingCount} fajlova ceka sync` : 'Sve je sinhronizovano'}
+                  {pendingCount > 0 ? tp('upload.pendingSync', pendingCount) : t('upload.allSynced')}
                 </Text>
                 <Text style={[styles.pendingSubtitle, { color: tc.textMuted }]}>
-                  {pendingCount > 0 ? 'Pokrenite sync za upload' : 'Vasi fajlovi su azurni u cloudu'}
+                  {pendingCount > 0 ? t('upload.startSyncHint') : t('upload.upToDateHint')}
                 </Text>
               </View>
             </View>

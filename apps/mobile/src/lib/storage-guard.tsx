@@ -23,6 +23,7 @@ import { STORAGE_TIERS } from '@myphoto/shared';
 import { useAuth } from './auth-context';
 import { getUserTier } from './meme-limits';
 import { colors, radius, fonts } from './theme';
+import { useT } from './i18n';
 
 type Level = 'ok' | 'warn' | 'critical' | 'full';
 
@@ -64,6 +65,7 @@ const StorageGuardContext = createContext<undefined>(undefined);
 
 export function StorageGuardProvider({ children }: { children: ReactNode }) {
   const { appUser } = useAuth();
+  const { t } = useT();
   const [shown, setShown] = useState<Level | null>(null);
   const lastHandledRef = useRef<Level | null>(null);
 
@@ -104,33 +106,36 @@ export function StorageGuardProvider({ children }: { children: ReactNode }) {
 
   let title = '';
   let body = '';
-  let cta = 'Pogledaj planove';
+  let cta = t('storage.viewPlans');
+  const planParams = suggestion
+    ? { plan: suggestion.name, storage: suggestion.storageDisplay }
+    : undefined;
+  const upgradeCta = suggestion
+    ? t('storage.upgradeTo', { plan: suggestion.name })
+    : t('storage.upgradePlan');
   if (shown === 'warn') {
-    title = 'Prostor se puni';
+    title = t('storage.warnTitle');
     body =
-      `Iskoristio si oko 85% prostora. Ostalo ti je još ${fmtGB(remaining)}. ` +
-      (suggestion
-        ? `Razmisli o planu ${suggestion.name} (${suggestion.storageDisplay}) da ti ne ponestane.`
-        : 'Nadogradi plan da ti ne ponestane prostora.');
-    cta = 'Pogledaj planove';
+      t('storage.warnBody', { remaining: fmtGB(remaining) }) +
+      ' ' +
+      (suggestion ? t('storage.warnSuggest', planParams) : t('storage.warnGeneric'));
+    cta = t('storage.viewPlans');
   } else if (shown === 'critical') {
-    title = 'Skoro je puno!';
+    title = t('storage.criticalTitle');
     body =
-      `Ostalo ti je svega ${fmtGB(remaining)} prostora. Kad se napuni, nove slike, ` +
-      `video i fajlovi neće moći da se sačuvaju u cloud.` +
+      t('storage.criticalBody', { remaining: fmtGB(remaining) }) +
       (suggestion
-        ? ` Pređi na ${suggestion.name} (${suggestion.storageDisplay})` +
+        ? ' ' +
           // Prices only where the build may sell (never in the Play build).
-          (CAN_SELL_IN_APP ? ` za ${suggestion.priceYearly.toFixed(2)} €/god.` : '.')
+          (CAN_SELL_IN_APP
+            ? t('storage.criticalSuggestPrice', { ...planParams, price: suggestion.priceYearly.toFixed(2) })
+            : t('storage.criticalSuggest', planParams))
         : '');
-    cta = suggestion ? `Nadogradi na ${suggestion.name}` : 'Nadogradi plan';
+    cta = upgradeCta;
   } else if (shown === 'full') {
-    title = 'Prostor je popunjen';
-    body =
-      'Tvoj cloud je pun — nove slike, video i fajlovi se trenutno ne mogu ' +
-      'čuvati. Nadogradi plan da nastaviš sa bezbednim čuvanjem uspomena.' +
-      (suggestion ? ` Predlog: ${suggestion.name} (${suggestion.storageDisplay}).` : '');
-    cta = suggestion ? `Nadogradi na ${suggestion.name}` : 'Nadogradi plan';
+    title = t('storage.fullTitle');
+    body = t('storage.fullBody') + (suggestion ? ' ' + t('storage.fullSuggest', planParams) : '');
+    cta = upgradeCta;
   }
 
   return (
@@ -150,7 +155,7 @@ export function StorageGuardProvider({ children }: { children: ReactNode }) {
               <Text style={styles.primaryText}>{cta}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.secondaryBtn} onPress={close}>
-              <Text style={styles.secondaryText}>{shown === 'full' ? 'Kasnije' : 'Ne sada'}</Text>
+              <Text style={styles.secondaryText}>{shown === 'full' ? t('storage.later') : t('storage.notNow')}</Text>
             </TouchableOpacity>
           </View>
         </View>

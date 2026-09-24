@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const COL = 2;
@@ -38,6 +39,7 @@ function formatDuration(seconds?: number): string {
 
 export default function VideosScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { getToken } = useAuth();
   const [cloudVideos, setCloudVideos] = useState<FileMetadata[]>([]);
   const [deviceVideos, setDeviceVideos] = useState<DeviceVideo[]>([]);
@@ -208,7 +210,7 @@ export default function VideosScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <Text style={styles.headerTitle}>Video</Text>
+        <Text style={styles.headerTitle}>{t('videos.title')}</Text>
       </View>
 
       {/* Filter toggle */}
@@ -220,7 +222,7 @@ export default function VideosScreen() {
             onPress={() => setFilter(f)}
           >
             <Text style={[styles.toggleText, filter === f && styles.toggleTextActive]}>
-              {f === 'all' ? 'Svi' : f === 'device' ? 'Device' : 'Cloud'}
+              {f === 'all' ? t('videos.filterAll') : f === 'device' ? t('videos.filterDevice') : t('videos.filterCloud')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -233,8 +235,8 @@ export default function VideosScreen() {
       ) : displayVideos.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="videocam-outline" size={64} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: tc.text }]}>Nema videa</Text>
-          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>Vasi video snimci ce se pojaviti ovde</Text>
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('videos.empty')}</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>{t('videos.emptyHint')}</Text>
         </View>
       ) : (
         <FlatList

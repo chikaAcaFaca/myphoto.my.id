@@ -16,6 +16,7 @@ import { useCloudGate } from '@/lib/cloud-gate';
 import { getViewerPhotos, type ViewerPhoto } from '@/lib/photo-list-store';
 import { colors, fonts, radius } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 import { formatBytes } from '@myphoto/shared';
 import type { FileMetadata } from '@myphoto/shared';
 
@@ -32,6 +33,7 @@ function PhotoPage({ photo, isActive, pageW, pageH, getToken }: {
   pageH: number;
   getToken: () => Promise<string | null>;
 }) {
+  const { t } = useT();
   const isVideo = photo.type === 'video';
   const isLocalOnly = !!photo.localUri && photo.isUploaded !== '1';
   const [uri, setUri] = useState<string | null>(photo.localUri || null);
@@ -82,7 +84,7 @@ function PhotoPage({ photo, isActive, pageW, pageH, getToken }: {
       {loading ? (
         <ActivityIndicator size="large" color="#fff" />
       ) : !uri ? (
-        <Text style={{ color: '#fff' }}>Nije moguće učitati fajl.</Text>
+        <Text style={{ color: '#fff' }}>{t('viewer.loadFailed')}</Text>
       ) : isVideo ? (
         <Video
           ref={videoRef}
@@ -103,6 +105,7 @@ function PhotoPage({ photo, isActive, pageW, pageH, getToken }: {
 }
 
 export default function PhotoViewerScreen() {
+  const { t, dateLocale } = useT();
   const params = useLocalSearchParams<{
     id: string; name: string; type: string; isFavorite?: string; isTrashed?: string;
     isArchived?: string; localUri?: string; isUploaded?: string;
@@ -232,14 +235,14 @@ export default function PhotoViewerScreen() {
       setSaving(true);
       const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
       if (status !== 'granted') {
-        Alert.alert('Dozvola potrebna', 'Dozvolite pristup galeriji da sacuvate sliku.');
+        Alert.alert(t('common.permissionRequired'), t('viewer.galleryPermission'));
         return;
       }
 
       // Local-only photos are already in the device gallery — saving
       // them again would duplicate. Tell the user instead of erroring.
       if (isLocalOnly) {
-        Alert.alert('Već sačuvano', 'Slika je već u tvojoj galeriji na telefonu.');
+        Alert.alert(t('viewer.alreadySavedTitle'), t('viewer.alreadySavedMessage'));
         return;
       }
 
@@ -260,10 +263,10 @@ export default function PhotoViewerScreen() {
       const fileDownload = await FileSystem.downloadAsync(downloadUrl, cacheUri);
 
       await MediaLibrary.saveToLibraryAsync(fileDownload.uri);
-      Alert.alert('Sacuvano', 'Fajl je sacuvan u galeriju.');
+      Alert.alert(t('common.saved'), t('viewer.savedToGallery'));
     } catch (e: any) {
       console.error('Save error:', e);
-      Alert.alert('Greska', 'Nije moguce sacuvati fajl.');
+      Alert.alert(t('common.error'), t('viewer.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -287,7 +290,7 @@ export default function PhotoViewerScreen() {
         if (rr.ok) {
           cloudFileId = (await rr.json()).fileId;
         } else {
-          Alert.alert('Deljenje', 'Ne mogu da pripremim sliku za deljenje. Pokušaj ponovo za koji trenutak.');
+          Alert.alert(t('viewer.shareTitle'), t('viewer.sharePrepareFailed'));
           return;
         }
       }
@@ -310,11 +313,11 @@ export default function PhotoViewerScreen() {
         const data = await res.json();
         const shareUrl = `${API_URL}${data.shareUrl}${refSuffix}`;
         await Share.share({
-          message: `${name}\n${shareUrl}${refCode ? `\n\nDobij +1GB besplatno kad se registruješ preko ovog linka.` : ''}`,
+          message: `${name}\n${shareUrl}${refCode ? `\n\n${t('viewer.shareReferral')}` : ''}`,
           url: shareUrl,
         });
       } else {
-        Alert.alert('Deljenje', 'Deljenje trenutno nije uspelo. Pokušaj ponovo.');
+        Alert.alert(t('viewer.shareTitle'), t('viewer.shareFailed'));
       }
     } catch (e) {
       console.error('Share error:', e);
@@ -323,7 +326,7 @@ export default function PhotoViewerScreen() {
 
   const handleToggleFavorite = async () => {
     if (isLocalOnly) {
-      Alert.alert('Backup potreban', 'Sliku prvo treba uploadovati na cloud da bi bila omiljena. Backup se pokreće automatski u pozadini.');
+      Alert.alert(t('viewer.backupRequiredTitle'), t('viewer.backupRequiredFavorite'));
       return;
     }
     try {
@@ -341,7 +344,7 @@ export default function PhotoViewerScreen() {
       });
       if (!res.ok) {
         setIsFavorite(!newVal); // rollback
-        Alert.alert('Greska', 'Nije moguce azurirati omiljeno.');
+        Alert.alert(t('common.error'), t('viewer.favoriteFailed'));
       }
     } catch (e) {
       setIsFavorite(!isFavorite); // rollback
@@ -398,10 +401,10 @@ export default function PhotoViewerScreen() {
       });
       if (res.ok) {
         setIsArchived(newVal);
-        Alert.alert(newVal ? 'Arhivirano' : 'Vraceno', newVal ? 'Slika je arhivirana.' : 'Slika je vracena iz arhive.');
+        Alert.alert(newVal ? t('viewer.archivedTitle') : t('viewer.restoredTitle'), newVal ? t('viewer.archivedMessage') : t('viewer.unarchivedMessage'));
         router.back();
       } else {
-        Alert.alert('Greska', 'Akcija nije uspela.');
+        Alert.alert(t('common.error'), t('viewer.actionFailed'));
       }
     } catch (e) {
       console.error('Archive error:', e);
@@ -416,19 +419,19 @@ export default function PhotoViewerScreen() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      Alert.alert('Vraceno', 'Fajl je vracen iz korpe.');
+      Alert.alert(t('viewer.restoredTitle'), t('viewer.restoredFromTrash'));
       router.back();
     } catch (e) {
       console.error('Restore error:', e);
-      Alert.alert('Greska', 'Nije moguce vratiti fajl.');
+      Alert.alert(t('common.error'), t('viewer.restoreFailed'));
     }
   };
 
   const handlePermanentDelete = () => {
-    Alert.alert('Trajno obrisati?', 'Ova akcija je nepovratna.', [
-      { text: 'Otkazi', style: 'cancel' },
+    Alert.alert(t('viewer.permanentDeleteTitle'), t('viewer.permanentDeleteMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Obrisi zauvek', style: 'destructive', onPress: async () => {
+        text: t('viewer.deleteForever'), style: 'destructive', onPress: async () => {
           try {
             const token = await getToken();
             const res = await fetch(`${API_URL}/api/files/${id}/permanent-delete`, {
@@ -439,7 +442,7 @@ export default function PhotoViewerScreen() {
             router.back();
           } catch (e) {
             console.error('Permanent delete error:', e);
-            Alert.alert('Greska', 'Brisanje nije uspelo.');
+            Alert.alert(t('common.error'), t('viewer.deleteFailed'));
           }
         },
       },
@@ -447,10 +450,10 @@ export default function PhotoViewerScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Premestiti u korpu?', `${name} će biti vraćeno u korpu (30 dana pre trajnog brisanja).`, [
-      { text: 'Otkazi', style: 'cancel' },
+    Alert.alert(t('viewer.moveToTrashTitle'), t('viewer.moveToTrashMessage', { name }), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Premesti', style: 'destructive', onPress: async () => {
+        text: t('viewer.move'), style: 'destructive', onPress: async () => {
           try {
             const token = await getToken();
             // Soft-delete: PATCH isTrashed=true via the per-file endpoint
@@ -469,7 +472,7 @@ export default function PhotoViewerScreen() {
             router.back();
           } catch (e) {
             console.error('Delete error:', e);
-            Alert.alert('Greska', 'Premestanje u korpu nije uspelo.');
+            Alert.alert(t('common.error'), t('viewer.moveToTrashFailed'));
           }
         }
       },
@@ -483,7 +486,7 @@ export default function PhotoViewerScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
           <Ionicons name="close" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.fileName} numberOfLines={1}>{name || 'Photo'}</Text>
+        <Text style={styles.fileName} numberOfLines={1}>{name || t('viewer.photo')}</Text>
         <TouchableOpacity style={styles.topBtn}>
           <Ionicons name="ellipsis-vertical" size={20} color="#fff" />
         </TouchableOpacity>
@@ -518,15 +521,15 @@ export default function PhotoViewerScreen() {
           <>
             <TouchableOpacity style={styles.action} onPress={handleRestore}>
               <Ionicons name="arrow-undo-outline" size={22} color={colors.success} />
-              <Text style={[styles.actionText, { color: colors.success }]}>Vrati</Text>
+              <Text style={[styles.actionText, { color: colors.success }]}>{t('viewer.restore')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.action} onPress={handleShowInfo}>
               <Ionicons name="information-circle-outline" size={22} color="#fff" />
-              <Text style={styles.actionText}>Info</Text>
+              <Text style={styles.actionText}>{t('viewer.info')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.action} onPress={handlePermanentDelete}>
               <Ionicons name="skull-outline" size={22} color="#f87171" />
-              <Text style={[styles.actionText, { color: '#f87171' }]}>Obrisi zauvek</Text>
+              <Text style={[styles.actionText, { color: '#f87171' }]}>{t('viewer.deleteForever')}</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -537,12 +540,12 @@ export default function PhotoViewerScreen() {
               ) : (
                 <Ionicons name="download-outline" size={22} color="#fff" />
               )}
-              <Text style={styles.actionText}>Save</Text>
+              <Text style={styles.actionText}>{t('common.save')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.action} onPress={handleShare}>
               <Ionicons name="share-outline" size={22} color="#fff" />
-              <Text style={styles.actionText}>Share</Text>
+              <Text style={styles.actionText}>{t('common.share')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.action} onPress={() => router.push({
@@ -558,7 +561,7 @@ export default function PhotoViewerScreen() {
               },
             })}>
               <Ionicons name="brush-outline" size={22} color="#fff" />
-              <Text style={styles.actionText}>Uredi</Text>
+              <Text style={styles.actionText}>{t('viewer.edit')}</Text>
             </TouchableOpacity>
 
             {/* "Kreiraj" (creative hub) intentionally hidden — feature
@@ -578,7 +581,7 @@ export default function PhotoViewerScreen() {
               },
             })}>
               <Ionicons name="flame-outline" size={22} color="#f97316" />
-              <Text style={[styles.actionText, { color: '#f97316' }]}>Meme</Text>
+              <Text style={[styles.actionText, { color: '#f97316' }]}>{t('viewer.meme')}</Text>
             </TouchableOpacity>
 
             {/* Cloud-only actions are hidden for local-only photos.
@@ -595,13 +598,13 @@ export default function PhotoViewerScreen() {
                     color={isFavorite ? colors.accent : '#fff'}
                   />
                 )}
-                <Text style={[styles.actionText, isFavorite && { color: colors.accent }]}>Omiljeno</Text>
+                <Text style={[styles.actionText, isFavorite && { color: colors.accent }]}>{t('viewer.favorite')}</Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity style={styles.action} onPress={handleShowInfo}>
               <Ionicons name="information-circle-outline" size={22} color="#fff" />
-              <Text style={styles.actionText}>Info</Text>
+              <Text style={styles.actionText}>{t('viewer.info')}</Text>
             </TouchableOpacity>
 
             {!isLocalOnly && (
@@ -614,7 +617,7 @@ export default function PhotoViewerScreen() {
             {!isLocalOnly && (
               <TouchableOpacity style={styles.action} onPress={handleDelete}>
                 <Ionicons name="trash-outline" size={22} color="#f87171" />
-                <Text style={[styles.actionText, { color: '#f87171' }]}>Delete</Text>
+                <Text style={[styles.actionText, { color: '#f87171' }]}>{t('common.delete')}</Text>
               </TouchableOpacity>
             )}
           </>
@@ -626,7 +629,7 @@ export default function PhotoViewerScreen() {
         <View style={styles.infoOverlay}>
           <View style={[styles.infoSheet, { backgroundColor: tc.bgCard }]}>
             <View style={[styles.infoHeader, { borderBottomColor: tc.borderLight }]}>
-              <Text style={styles.infoTitle}>Detalji</Text>
+              <Text style={styles.infoTitle}>{t('viewer.details')}</Text>
               <TouchableOpacity onPress={() => setShowInfo(false)}>
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
@@ -639,39 +642,39 @@ export default function PhotoViewerScreen() {
             ) : fileInfo ? (
               <ScrollView style={{ maxHeight: height * 0.5 }} showsVerticalScrollIndicator={false}>
                 <View style={styles.infoSection}>
-                  <Text style={styles.infoLabel}>FAJL</Text>
-                  <InfoRow label="Ime" value={fileInfo.name} />
-                  <InfoRow label="Velicina" value={formatBytes(fileInfo.size || 0)} />
+                  <Text style={styles.infoLabel}>{t('viewer.sectionFile')}</Text>
+                  <InfoRow label={t('viewer.name')} value={fileInfo.name} />
+                  <InfoRow label={t('viewer.size')} value={formatBytes(fileInfo.size || 0)} />
                   {fileInfo.width && fileInfo.height && (
-                    <InfoRow label="Dimenzije" value={`${fileInfo.width} x ${fileInfo.height}`} />
+                    <InfoRow label={t('viewer.dimensions')} value={`${fileInfo.width} x ${fileInfo.height}`} />
                   )}
-                  <InfoRow label="Tip" value={fileInfo.mimeType || fileInfo.type || '-'} />
+                  <InfoRow label={t('viewer.type')} value={fileInfo.mimeType || fileInfo.type || '-'} />
                 </View>
 
                 <View style={styles.infoSection}>
-                  <Text style={styles.infoLabel}>DATUM</Text>
-                  <InfoRow label="Snimljeno" value={fileInfo.takenAt ? new Date(fileInfo.takenAt).toLocaleDateString('sr-Latn') : '-'} />
-                  <InfoRow label="Uploadovano" value={fileInfo.createdAt ? new Date(fileInfo.createdAt).toLocaleDateString('sr-Latn') : '-'} />
+                  <Text style={styles.infoLabel}>{t('viewer.sectionDate')}</Text>
+                  <InfoRow label={t('viewer.taken')} value={fileInfo.takenAt ? new Date(fileInfo.takenAt).toLocaleDateString(dateLocale) : '-'} />
+                  <InfoRow label={t('viewer.uploaded')} value={fileInfo.createdAt ? new Date(fileInfo.createdAt).toLocaleDateString(dateLocale) : '-'} />
                 </View>
 
                 {fileInfo.cameraModel && (
                   <View style={styles.infoSection}>
-                    <Text style={styles.infoLabel}>UREDJAJ</Text>
-                    <InfoRow label="Kamera" value={fileInfo.cameraModel} />
-                    {fileInfo.cameraMake && <InfoRow label="Proizvodjac" value={fileInfo.cameraMake} />}
+                    <Text style={styles.infoLabel}>{t('viewer.sectionDevice')}</Text>
+                    <InfoRow label={t('viewer.camera')} value={fileInfo.cameraModel} />
+                    {fileInfo.cameraMake && <InfoRow label={t('viewer.manufacturer')} value={fileInfo.cameraMake} />}
                   </View>
                 )}
 
                 {fileInfo.locationName && (
                   <View style={styles.infoSection}>
-                    <Text style={styles.infoLabel}>LOKACIJA</Text>
-                    <InfoRow label="Mesto" value={fileInfo.locationName} />
+                    <Text style={styles.infoLabel}>{t('viewer.sectionLocation')}</Text>
+                    <InfoRow label={t('viewer.place')} value={fileInfo.locationName} />
                   </View>
                 )}
 
                 {fileInfo.labels && fileInfo.labels.length > 0 && (
                   <View style={styles.infoSection}>
-                    <Text style={styles.infoLabel}>AI TAGOVI</Text>
+                    <Text style={styles.infoLabel}>{t('viewer.sectionAiTags')}</Text>
                     <View style={styles.tagsRow}>
                       {fileInfo.labels.map((tag: string, i: number) => (
                         <View key={i} style={[styles.tag, { backgroundColor: tc.bgInput }]}>
@@ -684,7 +687,7 @@ export default function PhotoViewerScreen() {
               </ScrollView>
             ) : (
               <Text style={{ padding: 20, color: colors.textMuted, textAlign: 'center' }}>
-                Nije moguce ucitati detalje
+                {t('viewer.detailsFailed')}
               </Text>
             )}
           </View>

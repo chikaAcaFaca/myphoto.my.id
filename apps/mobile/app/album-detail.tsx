@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { setViewerPhotos } from '@/lib/photo-list-store';
 import { fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -25,6 +26,7 @@ interface AlbumFile {
 
 export default function AlbumDetailScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { getToken, appUser } = useAuth();
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
   const [files, setFiles] = useState<AlbumFile[]>([]);
@@ -73,16 +75,16 @@ export default function AlbumDetailScreen() {
         const refCode = appUser?.referralCode;
         const refSuffix = refCode ? `?ref=${encodeURIComponent(refCode)}` : '';
         const url = `${API_URL}${d.shareUrl}${refSuffix}`;
-        await Share.share({ message: `Album „${name}" na MyPhoto\n${url}`, url });
+        await Share.share({ message: `${t('albums.shareMessage', { name })}\n${url}`, url });
       } else {
-        Alert.alert('Deljenje', 'Deljenje albuma nije uspelo.');
+        Alert.alert(t('albums.shareTitle'), t('albums.shareFailed'));
       }
     } catch {
-      Alert.alert('Deljenje', 'Deljenje albuma nije uspelo.');
+      Alert.alert(t('albums.shareTitle'), t('albums.shareFailed'));
     } finally {
       setSharing(false);
     }
-  }, [id, name, getToken, appUser]);
+  }, [id, name, getToken, appUser, t]);
 
   const renderCell = ({ item }: { item: AlbumFile }) => (
     <TouchableOpacity style={styles.cell} activeOpacity={0.8} onPress={() => openPhoto(item)}>
@@ -103,7 +105,7 @@ export default function AlbumDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.hBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.hTitle} numberOfLines={1}>{name || 'Album'}</Text>
+        <Text style={styles.hTitle} numberOfLines={1}>{name || t('albums.albumFallback')}</Text>
         <TouchableOpacity onPress={shareAlbum} style={styles.hBtn} disabled={sharing}>
           {sharing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="share-social-outline" size={20} color="#fff" />}
         </TouchableOpacity>
@@ -114,7 +116,7 @@ export default function AlbumDetailScreen() {
       ) : files.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={48} color={tc.textMuted} />
-          <Text style={[styles.empty, { color: tc.textMuted }]}>Album je prazan</Text>
+          <Text style={[styles.empty, { color: tc.textMuted }]}>{t('albums.emptyAlbum')}</Text>
         </View>
       ) : (
         <FlatList

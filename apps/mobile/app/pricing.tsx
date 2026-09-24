@@ -12,6 +12,7 @@ import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { CAN_SELL_IN_APP } from '@/lib/distribution';
 import { formatBytes } from '@myphoto/shared';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -29,6 +30,7 @@ export default function PricingScreen() {
 function PlanInfoScreen() {
   const { colors: tc } = useTheme();
   const { appUser } = useAuth();
+  const { t } = useT();
   const currentTier = getUserTier(appUser?.storageLimit || 0);
   const used = appUser?.storageUsed || 0;
   const limit = appUser?.storageLimit || 0;
@@ -39,7 +41,7 @@ function PlanInfoScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Vaš plan</Text>
+        <Text style={styles.headerTitle}>{t('pricing.yourPlan')}</Text>
         <View style={{ width: 36 }} />
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -49,12 +51,11 @@ function PlanInfoScreen() {
             <Text style={[styles.tierStorage, { color: tc.text }]}>{currentTier.storageDisplay}</Text>
           </View>
           <Text style={{ color: tc.textMuted, marginTop: 8 }}>
-            Iskorišćeno {formatBytes(used)} od {formatBytes(limit)}
+            {t('pricing.usedOf', { used: formatBytes(used), limit: formatBytes(limit) })}
           </Text>
         </View>
         <Text style={{ color: tc.textMuted, fontSize: 13, lineHeight: 19 }}>
-          Planom i pretplatom upravljate na našem sajtu, prijavljeni istim nalogom.
-          Promene se ovde pojavljuju automatski.
+          {t('pricing.manageOnWeb')}
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -65,6 +66,7 @@ function StorePricingScreen() {
   const { colors: tc } = useTheme();
   const { appUser } = useAuth();
   const [billing, setBilling] = useState<BillingPeriod>('yearly');
+  const { t } = useT();
   const currentTier = getUserTier(appUser?.storageLimit || 0);
 
   const handleSelectPlan = useCallback((tier: typeof STORAGE_TIERS[0]) => {
@@ -79,7 +81,7 @@ function StorePricingScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Izaberite plan</Text>
+        <Text style={styles.headerTitle}>{t('pricing.choosePlan')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -90,15 +92,15 @@ function StorePricingScreen() {
             style={[styles.billingBtn, billing === 'monthly' && { backgroundColor: tc.primary }]}
             onPress={() => setBilling('monthly')}
           >
-            <Text style={[styles.billingText, billing === 'monthly' && { color: '#fff' }]}>Mesecno</Text>
+            <Text style={[styles.billingText, billing === 'monthly' && { color: '#fff' }]}>{t('pricing.monthly')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.billingBtn, billing === 'yearly' && { backgroundColor: tc.primary }]}
             onPress={() => setBilling('yearly')}
           >
-            <Text style={[styles.billingText, billing === 'yearly' && { color: '#fff' }]}>Godisnje</Text>
+            <Text style={[styles.billingText, billing === 'yearly' && { color: '#fff' }]}>{t('pricing.yearly')}</Text>
             <View style={styles.freeBadge}>
-              <Text style={styles.freeText}>2 mes. free</Text>
+              <Text style={styles.freeText}>{t('pricing.twoMonthsFree')}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -109,11 +111,11 @@ function StorePricingScreen() {
         <View style={styles.trustRow}>
           <View style={[styles.trustBadge, { backgroundColor: '#dcfce7' }]}>
             <Ionicons name="shield-checkmark" size={12} color="#16a34a" />
-            <Text style={[styles.trustText, { color: '#16a34a' }]}>Bez AI treninga</Text>
+            <Text style={[styles.trustText, { color: '#16a34a' }]}>{t('pricing.noAiTraining')}</Text>
           </View>
           <View style={[styles.trustBadge, { backgroundColor: '#dbeafe' }]}>
             <Ionicons name="server" size={12} color="#2563eb" />
-            <Text style={[styles.trustText, { color: '#2563eb' }]}>EU Serveri</Text>
+            <Text style={[styles.trustText, { color: '#2563eb' }]}>{t('pricing.euServers')}</Text>
           </View>
           <View style={[styles.trustBadge, { backgroundColor: '#f3e8ff' }]}>
             <Ionicons name="lock-closed" size={12} color="#7c3aed" />
@@ -142,12 +144,12 @@ function StorePricingScreen() {
             >
               {isPopular && !isCurrent && (
                 <View style={[styles.badge, { backgroundColor: '#fbbf24' }]}>
-                  <Text style={[styles.badgeText, { color: '#92400e' }]}>NAJPOPULARNIJI</Text>
+                  <Text style={[styles.badgeText, { color: '#92400e' }]}>{t('pricing.mostPopular')}</Text>
                 </View>
               )}
               {isCurrent && (
                 <View style={[styles.badge, { backgroundColor: '#22c55e' }]}>
-                  <Text style={styles.badgeText}>VAS PLAN</Text>
+                  <Text style={styles.badgeText}>{t('pricing.yourPlanBadge')}</Text>
                 </View>
               )}
 
@@ -161,33 +163,33 @@ function StorePricingScreen() {
               <View style={styles.memeRow}>
                 <Ionicons name="sparkles" size={12} color="#8b5cf6" />
                 <Text style={styles.memeText}>
-                  {tier.memesPerDay > 0 ? `${tier.memesPerDay} AI/dan` : '0 AI'} · {isFree ? '0 rucno' : 'neogr. rucno'} · {tier.memesPerMonth}/mes
+                  {tier.memesPerDay > 0 ? t('pricing.aiPerDay', { count: tier.memesPerDay }) : t('pricing.noAi')} · {isFree ? t('pricing.manualNone') : t('pricing.manualUnlimited')} · {t('pricing.perMonthShort', { count: tier.memesPerMonth })}
                 </Text>
               </View>
 
               {/* BOTH prices side by side */}
               {isFree ? (
                 <View style={styles.priceSection}>
-                  <Text style={[styles.priceMain, { color: tc.text }]}>Besplatno</Text>
+                  <Text style={[styles.priceMain, { color: tc.text }]}>{t('pricing.free')}</Text>
                 </View>
               ) : (
                 <View style={styles.priceSection}>
                   {/* Monthly price */}
                   <View style={[styles.priceBox, billing === 'monthly' && styles.priceBoxActive]}>
-                    <Text style={[styles.priceLabel, { color: tc.textMuted }]}>Mesecno</Text>
+                    <Text style={[styles.priceLabel, { color: tc.textMuted }]}>{t('pricing.monthly')}</Text>
                     <Text style={[styles.priceAmount, { color: billing === 'monthly' ? tc.primary : tc.text }]}>
                       €{monthlyPrice.toFixed(2)}
                     </Text>
-                    <Text style={[styles.priceSub, { color: tc.textMuted }]}>/mes</Text>
+                    <Text style={[styles.priceSub, { color: tc.textMuted }]}>{t('pricing.perMonth')}</Text>
                   </View>
 
                   {/* Yearly price */}
                   <View style={[styles.priceBox, billing === 'yearly' && styles.priceBoxActive]}>
-                    <Text style={[styles.priceLabel, { color: tc.textMuted }]}>Godisnje</Text>
+                    <Text style={[styles.priceLabel, { color: tc.textMuted }]}>{t('pricing.yearly')}</Text>
                     <Text style={[styles.priceAmount, { color: billing === 'yearly' ? '#16a34a' : tc.text }]}>
                       €{yearlyMonthly.toFixed(2)}
                     </Text>
-                    <Text style={[styles.priceSub, { color: tc.textMuted }]}>/mes</Text>
+                    <Text style={[styles.priceSub, { color: tc.textMuted }]}>{t('pricing.perMonth')}</Text>
                     {savings > 0 && (
                       <View style={styles.savingsPill}>
                         <Text style={styles.savingsPillText}>-{savings}%</Text>
@@ -204,7 +206,7 @@ function StorePricingScreen() {
                   onPress={() => handleSelectPlan(tier)}
                 >
                   <Text style={[styles.selectBtnText, isPopular && { color: '#fff' }]}>
-                    Izaberi {tier.name}
+                    {t('pricing.select', { name: tier.name })}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -214,15 +216,15 @@ function StorePricingScreen() {
 
         {/* Features */}
         <View style={[styles.featuresCard, { backgroundColor: tc.bgCard }]}>
-          <Text style={[styles.featuresTitle, { color: tc.text }]}>Svi planovi ukljucuju</Text>
+          <Text style={[styles.featuresTitle, { color: tc.text }]}>{t('pricing.allPlansInclude')}</Text>
           {[
-            'Auto-backup slika i videa',
-            'AI pretraga i auto-tagging',
-            'Original kvalitet, bez kompresije',
-            'Deljenje albuma i foldera',
-            'Meme Kreator i MemeWall',
-            'EU serveri, GDPR zastita',
-            'Otkažite bilo kada',
+            t('pricing.featureBackup'),
+            t('pricing.featureAiSearch'),
+            t('pricing.featureOriginal'),
+            t('pricing.featureSharing'),
+            t('pricing.featureMemes'),
+            t('pricing.featureEu'),
+            t('pricing.featureCancel'),
           ].map((f, i) => (
             <View key={i} style={styles.featureRow}>
               <Ionicons name="checkmark-circle" size={16} color="#22c55e" />

@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const NOTIF_KEY = '@myphoto/notifications';
 
@@ -25,6 +26,7 @@ const defaults: NotifSettings = {
 
 export default function NotificationsSettingsScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const [settings, setSettings] = useState<NotifSettings>(defaults);
 
   useEffect(() => {
@@ -46,18 +48,18 @@ export default function NotificationsSettingsScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Obavestenja</Text>
+          <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
           <View style={{ width: 32 }} />
         </View>
       </View>
 
       <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-        <Text style={styles.sectionLabel}>OBAVESTAVAJ ME KADA</Text>
+        <Text style={styles.sectionLabel}>{t('notifications.notifyMeWhen')}</Text>
 
         <View style={styles.settingRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingText}>Upload zavrsen</Text>
-            <Text style={styles.settingDesc}>Obavestenje kada se upload slika zavrsi</Text>
+            <Text style={styles.settingText}>{t('notifications.uploadComplete')}</Text>
+            <Text style={styles.settingDesc}>{t('notifications.uploadCompleteDesc')}</Text>
           </View>
           <Switch
             value={settings.uploadComplete}
@@ -69,8 +71,8 @@ export default function NotificationsSettingsScreen() {
 
         <View style={styles.settingRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingText}>Secanja spremna</Text>
-            <Text style={styles.settingDesc}>Obavestenje kada imate nova secanja</Text>
+            <Text style={styles.settingText}>{t('notifications.memoriesReady')}</Text>
+            <Text style={styles.settingDesc}>{t('notifications.memoriesReadyDesc')}</Text>
           </View>
           <Switch
             value={settings.memoriesReady}
@@ -82,8 +84,8 @@ export default function NotificationsSettingsScreen() {
 
         <View style={styles.settingRow}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingText}>Upozorenje za skladiste</Text>
-            <Text style={styles.settingDesc}>Kada je skladiste skoro puno (80%+)</Text>
+            <Text style={styles.settingText}>{t('notifications.storageWarning')}</Text>
+            <Text style={styles.settingDesc}>{t('notifications.storageWarningDesc')}</Text>
           </View>
           <Switch
             value={settings.storageWarning}
@@ -95,8 +97,8 @@ export default function NotificationsSettingsScreen() {
 
         <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingText}>Nedeljni pregled</Text>
-            <Text style={styles.settingDesc}>Kratak pregled aktivnosti svake nedelje</Text>
+            <Text style={styles.settingText}>{t('notifications.weeklySummary')}</Text>
+            <Text style={styles.settingDesc}>{t('notifications.weeklySummaryDesc')}</Text>
           </View>
           <Switch
             value={settings.weeklySummary}

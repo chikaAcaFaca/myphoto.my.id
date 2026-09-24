@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { formatBytes } from '@myphoto/shared';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 const { width } = Dimensions.get('window');
@@ -42,6 +43,7 @@ interface SharedFile {
 
 export default function FamilyScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { getToken, appUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [family, setFamily] = useState<FamilyData | null>(null);
@@ -85,17 +87,17 @@ export default function FamilyScreen() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ action: 'create', name: 'My Family' }),
+        body: JSON.stringify({ action: 'create', name: t('family.defaultName') }),
       });
       if (res.ok) {
-        Alert.alert('Uspesno', 'Porodica je kreirana!');
+        Alert.alert(t('common.success'), t('family.created'));
         fetchFamily();
       } else {
         const err = await res.json();
-        Alert.alert('Greska', err.error || 'Nije uspelo');
+        Alert.alert(t('common.error'), err.error || t('family.failed'));
       }
     } catch {
-      Alert.alert('Greska', 'Mrezna greska');
+      Alert.alert(t('common.error'), t('family.networkError'));
     } finally {
       setCreating(false);
     }
@@ -117,14 +119,14 @@ export default function FamilyScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        Alert.alert('Uspesno', `${data.memberName} je dodat u porodicu!`);
+        Alert.alert(t('common.success'), t('family.memberAdded', { name: data.memberName }));
         setInviteEmail('');
         fetchFamily();
       } else {
-        Alert.alert('Greska', data.error || 'Pozivanje nije uspelo');
+        Alert.alert(t('common.error'), data.error || t('family.inviteFailed'));
       }
     } catch {
-      Alert.alert('Greska', 'Mrezna greska');
+      Alert.alert(t('common.error'), t('family.networkError'));
     } finally {
       setInviting(false);
     }
@@ -132,12 +134,12 @@ export default function FamilyScreen() {
 
   const handleRemoveMember = (member: FamilyMember) => {
     Alert.alert(
-      'Ukloni clana',
-      `Da li zelite da uklonite ${member.displayName}?`,
+      t('family.removeTitle'),
+      t('family.removeConfirm', { name: member.displayName }),
       [
-        { text: 'Otkazi', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Ukloni',
+          text: t('common.remove'),
           style: 'destructive',
           onPress: async () => {
             const token = await getToken();
@@ -175,7 +177,7 @@ export default function FamilyScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Porodica</Text>
+        <Text style={styles.headerTitle}>{t('family.title')}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -188,10 +190,9 @@ export default function FamilyScreen() {
               /* No family yet */
               <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
                 <Ionicons name="people" size={48} color={tc.textMuted} style={{ alignSelf: 'center' }} />
-                <Text style={[styles.emptyTitle, { color: tc.text }]}>Nemate porodicu</Text>
+                <Text style={[styles.emptyTitle, { color: tc.text }]}>{t('family.emptyTitle')}</Text>
                 <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>
-                  Kreirajte porodicu da biste delili storage i slike sa clanovima.
-                  Svi clanovi koriste isti account za storage.
+                  {t('family.emptySubtitle')}
                 </Text>
                 <TouchableOpacity
                   style={styles.createBtn}
@@ -203,7 +204,7 @@ export default function FamilyScreen() {
                   ) : (
                     <>
                       <Ionicons name="add-circle" size={18} color="#fff" />
-                      <Text style={styles.createBtnText}>Kreiraj porodicu</Text>
+                      <Text style={styles.createBtnText}>{t('family.create')}</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -212,16 +213,16 @@ export default function FamilyScreen() {
               <>
                 {/* Family info */}
                 <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-                  <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>PORODICA</Text>
+                  <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>{t('family.sectionFamily')}</Text>
                   <Text style={[styles.familyName, { color: tc.text }]}>{family.name}</Text>
                   <Text style={[styles.familyMeta, { color: tc.textMuted }]}>
-                    {family.memberCount} {family.memberCount === 1 ? 'clan' : 'clanova'} · Zajednicki storage: {formatBytes(family.sharedStorageUsed)}
+                    {tp('family.members', family.memberCount)} · {t('family.sharedStorage', { size: formatBytes(family.sharedStorageUsed) })}
                   </Text>
                 </View>
 
                 {/* Members */}
                 <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-                  <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>CLANOVI</Text>
+                  <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>{t('family.sectionMembers')}</Text>
                   {members.map(member => (
                     <View key={member.id} style={styles.memberRow}>
                       <View style={[styles.memberAvatar, { backgroundColor: member.role === 'admin' ? colors.primary : '#94a3b8' }]}>
@@ -234,7 +235,7 @@ export default function FamilyScreen() {
                           <Text style={[styles.memberName, { color: tc.text }]}>{member.displayName}</Text>
                           {member.role === 'admin' && (
                             <View style={styles.adminBadge}>
-                              <Text style={styles.adminText}>Admin</Text>
+                              <Text style={styles.adminText}>{t('family.admin')}</Text>
                             </View>
                           )}
                         </View>
@@ -255,7 +256,7 @@ export default function FamilyScreen() {
                     <View style={styles.inviteRow}>
                       <TextInput
                         style={[styles.inviteInput, { color: tc.text, borderColor: tc.textMuted + '40' }]}
-                        placeholder="Email adresa"
+                        placeholder={t('family.emailPlaceholder')}
                         placeholderTextColor={tc.textMuted}
                         value={inviteEmail}
                         onChangeText={setInviteEmail}
@@ -280,7 +281,7 @@ export default function FamilyScreen() {
                 {/* Shared Files */}
                 {sharedFiles.length > 0 && (
                   <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-                    <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>DELJENE SLIKE</Text>
+                    <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>{t('family.sectionShared')}</Text>
                     <View style={styles.thumbGrid}>
                       {sharedFiles.slice(0, 9).map(file => (
                         <TouchableOpacity
@@ -301,7 +302,7 @@ export default function FamilyScreen() {
                     </View>
                     {sharedFiles.length > 9 && (
                       <Text style={{ fontSize: 11, color: tc.textMuted, textAlign: 'center', marginTop: 8 }}>
-                        + jos {sharedFiles.length - 9} slika
+                        {t('family.morePhotos', { count: sharedFiles.length - 9 })}
                       </Text>
                     )}
                   </View>

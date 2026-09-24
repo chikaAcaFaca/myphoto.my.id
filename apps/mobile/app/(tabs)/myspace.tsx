@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
 import { downloadToDevice, type CloudFile } from '@/lib/cloud-download';
 import type { DiskFolder, DiskFile } from '@myphoto/shared';
+import { useT, t as tStatic } from '@/lib/i18n';
 
 // Tab-local ErrorBoundary so a single bad record doesn't dump the user back
 // to the launcher. The global ErrorBoundary in _layout would catch a JS
@@ -25,7 +26,7 @@ class MySpaceErrorBoundary extends Component<{ children: ReactNode }, { error: E
         <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
           <Ionicons name="warning-outline" size={48} color="#facc15" />
           <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginTop: 12, textAlign: 'center' }}>
-            MySpace nije uspeo da se učita
+            {tStatic('myspace.loadFailed')}
           </Text>
           <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
             {this.state.error.message}
@@ -34,7 +35,7 @@ class MySpaceErrorBoundary extends Component<{ children: ReactNode }, { error: E
             style={{ marginTop: 16, paddingHorizontal: 18, paddingVertical: 10, backgroundColor: '#0ea5e9', borderRadius: 8 }}
             onPress={() => this.setState({ error: null })}
           >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Pokušaj ponovo</Text>
+            <Text style={{ color: '#fff', fontWeight: '600' }}>{tStatic('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -83,6 +84,7 @@ const ROOT_ENTRY: NavEntry = { id: 'root', name: 'Home', parents: [] };
 
 function MySpaceScreen() {
   const { colors: tc } = useTheme();
+  const { t, dateLocale } = useT();
   const { getToken } = useAuth();
   const [folders, setFolders] = useState<DiskFolder[]>([]);
   const [files, setFiles] = useState<DiskFile[]>([]);
@@ -141,7 +143,7 @@ function MySpaceScreen() {
   const navigateToFolder = (folder: DiskFolder) => {
     const entry: NavEntry = {
       id: folder.id,
-      name: folder.name || 'Folder',
+      name: folder.name || t('myspace.folderFallback'),
       parents: breadcrumbs,
     };
     setHistory((h) => [...h.slice(0, historyIndex + 1), entry]);
@@ -190,7 +192,7 @@ function MySpaceScreen() {
       if (!v) return '';
       const d = v instanceof Date ? v : new Date(v);
       if (isNaN(d.getTime())) return '';
-      return d.toLocaleDateString();
+      return d.toLocaleDateString(dateLocale);
     } catch { return ''; }
   };
 
@@ -200,7 +202,7 @@ function MySpaceScreen() {
         <Ionicons name="folder" size={20} color={colors.accent} />
       </View>
       <View style={styles.folderInfo}>
-        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{folder.name || 'Bez imena'}</Text>
+        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{folder.name || t('myspace.untitled')}</Text>
         <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{safeDate(folder.updatedAt)}</Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={tc.textMuted} />
@@ -209,9 +211,9 @@ function MySpaceScreen() {
 
   const handleFilePress = async (file: DiskFile) => {
     Alert.alert(file.name, formatBytes(file.size), [
-      { text: 'Otkazi', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Preuzmi na uredjaj',
+        text: t('myspace.downloadToDevice'),
         onPress: async () => {
           try {
             const token = await getToken();
@@ -227,12 +229,12 @@ function MySpaceScreen() {
             };
             const result = await downloadToDevice(cloudFile, token);
             if (result.success) {
-              Alert.alert('Preuzeto', `${file.name} je sacuvan na uredjaj.`);
+              Alert.alert(t('myspace.downloadedTitle'), t('myspace.downloadedMessage', { name: file.name }));
             } else {
-              Alert.alert('Greska', result.error || 'Preuzimanje nije uspelo.');
+              Alert.alert(t('common.error'), result.error || t('myspace.downloadFailed'));
             }
           } catch (e) {
-            Alert.alert('Greska', 'Mrezna greska.');
+            Alert.alert(t('common.error'), t('myspace.networkError'));
           }
         },
       },
@@ -245,7 +247,7 @@ function MySpaceScreen() {
         <Ionicons name={getFileIcon(file.mimeType, file.name) as any} size={20} color={colors.primary} />
       </View>
       <View style={styles.folderInfo}>
-        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{file.name || 'Bez imena'}</Text>
+        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{file.name || t('myspace.untitled')}</Text>
         <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{formatBytes(file.size || 0)}</Text>
       </View>
       <Ionicons name="download-outline" size={18} color={tc.textMuted} />
@@ -260,7 +262,7 @@ function MySpaceScreen() {
           <Text style={styles.headerTitle}>MySpace</Text>
           <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
         </View>
-        <Text style={styles.headerSubtitle}>Vasi fajlovi u cloudu</Text>
+        <Text style={styles.headerSubtitle}>{t('myspace.subtitle')}</Text>
       </View>
 
       {/* Nav toolbar — Windows-Explorer-style: ← Back / → Forward / ↑ Up
@@ -311,7 +313,7 @@ function MySpaceScreen() {
       ) : folders.length === 0 && files.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="folder-open-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Prazan folder</Text>
+          <Text style={styles.emptyText}>{t('myspace.emptyFolder')}</Text>
         </View>
       ) : (
         <FlatList

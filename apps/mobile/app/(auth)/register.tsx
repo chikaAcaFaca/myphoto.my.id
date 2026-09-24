@@ -13,6 +13,7 @@ import {
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
+import { useT } from '@/lib/i18n';
 
 export default function RegisterScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -25,22 +26,23 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { signUp, signInWithGoogle } = useAuth();
+  const { t } = useT();
 
   const handleRegister = async () => {
     if (!displayName.trim()) {
-      setError('Unesite vaše ime');
+      setError(t('auth.register.enterName'));
       return;
     }
     if (!email || !password) {
-      setError('Popunite sva polja');
+      setError(t('auth.register.fillAllFields'));
       return;
     }
     if (password.length < 6) {
-      setError('Lozinka mora imati najmanje 6 karaktera');
+      setError(t('auth.register.passwordTooShort'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Lozinke se ne poklapaju');
+      setError(t('auth.register.passwordsDontMatch'));
       return;
     }
 
@@ -51,7 +53,7 @@ export default function RegisterScreen() {
       await signUp(email, password, displayName);
       // Navigation handled by RootNavigator auth gate → onboarding
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Registracija nije uspela');
+      setError(err instanceof Error ? err.message : t('auth.register.failed'));
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +67,7 @@ export default function RegisterScreen() {
       await signInWithGoogle();
       // Navigation handled by RootNavigator auth gate → onboarding
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google prijava nije uspela');
+      setError(err instanceof Error ? err.message : t('auth.googleLoginFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -87,8 +89,8 @@ export default function RegisterScreen() {
             <Text style={styles.logoText}>MyPhoto</Text>
           </View>
 
-          <Text style={styles.title}>Kreirajte nalog</Text>
-          <Text style={styles.subtitle}>1 GB besplatno, odmah</Text>
+          <Text style={styles.title}>{t('auth.register.title')}</Text>
+          <Text style={styles.subtitle}>{t('auth.register.subtitle')}</Text>
 
           {/* Error */}
           {error ? (
@@ -104,13 +106,13 @@ export default function RegisterScreen() {
             disabled={isLoading}
           >
             <Ionicons name="logo-google" size={20} color="#374151" style={{ marginRight: 8 }} />
-            <Text style={styles.googleButtonText}>Nastavi sa Google</Text>
+            <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
           </TouchableOpacity>
 
           {/* Divider */}
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>ili email</Text>
+            <Text style={styles.dividerText}>{t('auth.orEmail')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -119,7 +121,7 @@ export default function RegisterScreen() {
             <Ionicons name="person-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Vaše ime"
+              placeholder={t('auth.register.namePlaceholder')}
               placeholderTextColor="#9ca3af"
               value={displayName}
               onChangeText={setDisplayName}
@@ -132,7 +134,7 @@ export default function RegisterScreen() {
             <Ionicons name="mail-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder={t('auth.email')}
               placeholderTextColor="#9ca3af"
               value={email}
               onChangeText={setEmail}
@@ -147,7 +149,7 @@ export default function RegisterScreen() {
             <Ionicons name="lock-closed-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Lozinka (min 6 karaktera)"
+              placeholder={t('auth.register.passwordPlaceholder')}
               placeholderTextColor="#9ca3af"
               value={password}
               onChangeText={setPassword}
@@ -163,7 +165,7 @@ export default function RegisterScreen() {
             <Ionicons name="lock-closed-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Potvrdite lozinku"
+              placeholder={t('auth.register.confirmPasswordPlaceholder')}
               placeholderTextColor="#9ca3af"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -176,7 +178,7 @@ export default function RegisterScreen() {
             <Ionicons name="gift-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Referral kod (opciono, +512 MB)"
+              placeholder={t('auth.register.referralPlaceholder')}
               placeholderTextColor="#9ca3af"
               value={referralCode}
               onChangeText={setReferralCode}
@@ -193,24 +195,24 @@ export default function RegisterScreen() {
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Kreiraj nalog</Text>
+              <Text style={styles.buttonText}>{t('auth.register.createAccount')}</Text>
             )}
           </TouchableOpacity>
 
           {/* Benefits */}
           <View style={styles.benefitsContainer}>
-            <BenefitRow icon="cloud-outline" text="1 GB besplatno odmah" />
-            <BenefitRow icon="phone-portrait-outline" text="+1 GB kad uključite auto-backup" />
-            <BenefitRow icon="people-outline" text="+512 MB za svakog prijatelja (do 15)" />
-            <BenefitRow icon="shield-checkmark-outline" text="EU serveri, GDPR zaštita" />
+            <BenefitRow icon="cloud-outline" text={t('auth.register.benefitFree')} />
+            <BenefitRow icon="phone-portrait-outline" text={t('auth.register.benefitBackup')} />
+            <BenefitRow icon="people-outline" text={t('auth.register.benefitReferral')} />
+            <BenefitRow icon="shield-checkmark-outline" text={t('auth.register.benefitEu')} />
           </View>
 
           {/* Login link */}
           <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Već imate nalog? </Text>
+            <Text style={styles.loginText}>{t('auth.register.haveAccount')}</Text>
             <Link href="/(auth)/login" asChild>
               <TouchableOpacity>
-                <Text style={styles.loginLink}>Prijavite se</Text>
+                <Text style={styles.loginLink}>{t('auth.register.signIn')}</Text>
               </TouchableOpacity>
             </Link>
           </View>

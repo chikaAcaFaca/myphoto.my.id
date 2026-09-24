@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 36) / 2;
@@ -11,32 +12,33 @@ const CARD_W = (width - 36) / 2;
 const TOOLS = [
   {
     id: 'meme',
-    title: 'Meme Kreator',
-    desc: 'Dodaj smesni tekst na sliku',
+    title: 'creative.memeTitle',
+    desc: 'creative.memeDesc',
     icon: 'happy-outline' as const,
     color: '#f97316',
     route: '/meme-creator',
   },
   {
     id: 'comic',
-    title: 'Strip Kreator',
-    desc: 'Napravi strip od slika sa oblacicima',
+    title: 'creative.comicTitle',
+    desc: 'creative.comicDesc',
     icon: 'chatbubbles-outline' as const,
     color: '#8b5cf6',
     route: '/comic-creator',
   },
   {
     id: 'sticker',
-    title: 'Stiker Kreator',
-    desc: 'Napravi stikere za Viber i socijalne mreze',
+    title: 'creative.stickerTitle',
+    desc: 'creative.stickerDesc',
     icon: 'star-outline' as const,
     color: '#ec4899',
     route: '/sticker-maker',
   },
-];
+] as const;
 
 export default function CreativeHubScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
 
   return (
@@ -46,7 +48,7 @@ export default function CreativeHubScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Kreativni Alati</Text>
+          <Text style={styles.headerTitle}>{t('creative.title')}</Text>
           <View style={{ width: 32 }} />
         </View>
       </View>
@@ -54,7 +56,7 @@ export default function CreativeHubScreen() {
       <View style={styles.subtitle}>
         <Ionicons name="color-wand-outline" size={18} color={tc.primary} />
         <Text style={[styles.subtitleText, { color: tc.textSecondary }]}>
-          Napravi nesto smesno i podeli sa prijateljima!
+          {t('creative.subtitle')}
         </Text>
       </View>
 
@@ -72,15 +74,15 @@ export default function CreativeHubScreen() {
             <View style={[styles.iconCircle, { backgroundColor: tool.color + '15' }]}>
               <Ionicons name={tool.icon} size={28} color={tool.color} />
             </View>
-            <Text style={[styles.toolTitle, { color: tc.text }]}>{tool.title}</Text>
-            <Text style={[styles.toolDesc, { color: tc.textMuted }]}>{tool.desc}</Text>
+            <Text style={[styles.toolTitle, { color: tc.text }]}>{t(tool.title)}</Text>
+            <Text style={[styles.toolDesc, { color: tc.textMuted }]}>{t(tool.desc)}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={styles.footer}>
         <Text style={[styles.footerText, { color: tc.textMuted }]}>
-          Svi kreirani sadrzaji ukljucuju "Made with MyPhoto" watermark
+          {t('creative.watermarkNote')}
         </Text>
       </View>
     </SafeAreaView>

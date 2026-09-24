@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 import { colors, radius, fonts } from '@/lib/theme';
 
 /**
@@ -15,6 +16,7 @@ import { colors, radius, fonts } from '@/lib/theme';
 export default function DeleteAccountScreen() {
   const { user, usesPassword, deleteAccount } = useAuth();
   const themeColors = useTheme().colors;
+  const { t } = useT();
   const [confirmText, setConfirmText] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -27,14 +29,14 @@ export default function DeleteAccountScreen() {
     setError(null);
     try {
       await deleteAccount(usesPassword ? password : undefined);
-      Alert.alert('Nalog je obrisan', 'Svi vaši podaci su trajno uklonjeni.');
+      Alert.alert(t('account.deletedTitle'), t('account.deletedMessage'));
       router.replace('/');
     } catch (e: any) {
       const code = e?.code as string | undefined;
       if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        setError('Pogrešna lozinka.');
+        setError(t('account.wrongPassword'));
       } else {
-        setError(e?.message || 'Brisanje nije uspelo. Pokušajte ponovo.');
+        setError(e?.message || t('account.deleteFailed'));
       }
     } finally {
       setBusy(false);
@@ -47,18 +49,17 @@ export default function DeleteAccountScreen() {
         <TouchableOpacity onPress={() => router.back()} disabled={busy} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color={themeColors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: themeColors.text }]}>Brisanje naloga</Text>
+        <Text style={[styles.title, { color: themeColors.text }]}>{t('account.title')}</Text>
       </View>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <View style={styles.warning}>
           <Ionicons name="warning" size={22} color={colors.error} />
           <Text style={styles.warningText}>
-            Trajno se brišu sve fotografije, video snimci, MySpace fajlovi, albumi, memovi, deljeni linkovi i sam nalog
-            {user?.email ? ` (${user.email})` : ''}. Ovo se ne može poništiti.
+            {t('account.warning', { email: user?.email ? ` (${user.email})` : '' })}
           </Text>
         </View>
 
-        <Text style={[styles.label, { color: themeColors.text }]}>Upišite DELETE za potvrdu</Text>
+        <Text style={[styles.label, { color: themeColors.text }]}>{t('account.typeToConfirm')}</Text>
         <TextInput
           value={confirmText}
           onChangeText={setConfirmText}
@@ -71,7 +72,7 @@ export default function DeleteAccountScreen() {
 
         {usesPassword && (
           <>
-            <Text style={[styles.label, { color: themeColors.text }]}>Lozinka</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>{t('account.password')}</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
@@ -81,7 +82,7 @@ export default function DeleteAccountScreen() {
           </>
         )}
         {!usesPassword && (
-          <Text style={styles.hint}>Posle potvrde, Google će tražiti da ponovo izaberete svoj nalog.</Text>
+          <Text style={styles.hint}>{t('account.googleHint')}</Text>
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -91,7 +92,7 @@ export default function DeleteAccountScreen() {
           onPress={handleDelete}
           disabled={!canSubmit || busy}
         >
-          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteText}>Obriši nalog zauvek</Text>}
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteText}>{t('account.deleteForever')}</Text>}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

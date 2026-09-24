@@ -20,6 +20,7 @@ import { router } from 'expo-router';
 import { useAuth } from './auth-context';
 import { useSync } from './sync-context';
 import { colors, radius, fonts } from './theme';
+import { t as translate, useT } from './i18n';
 
 export interface CloudGateParams {
   /** MediaLibrary asset id of a device photo. Omit for images with no cloud
@@ -42,6 +43,7 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
   const { appUser } = useAuth();
   const { uploadSingleAsset } = useSync();
   const [uploading, setUploading] = useState(false);
+  const { t } = useT();
 
   const ensureOnCloud = useCallback(
     async ({ assetId, isUploaded }: CloudGateParams): Promise<boolean> => {
@@ -58,13 +60,12 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
       if (storageFull) {
         return new Promise<boolean>((resolve) => {
           Alert.alert(
-            'Prostor je popunjen',
-            'Da bismo obradili sliku, prvo je bezbedno čuvamo u tvom cloud-u — ali ' +
-              'tvoj prostor je pun. Nadogradi plan da zaštitiš i obrađuješ slike.',
+            translate('cloudGate.fullTitle'),
+            translate('cloudGate.fullBody'),
             [
-              { text: 'Ne sada', style: 'cancel', onPress: () => resolve(false) },
+              { text: translate('cloudGate.notNow'), style: 'cancel', onPress: () => resolve(false) },
               {
-                text: 'Pogledaj planove',
+                text: translate('cloudGate.viewPlans'),
                 onPress: () => {
                   resolve(false);
                   router.push('/pricing');
@@ -79,12 +80,11 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
       // photo up now and proceed.
       const confirmed = await new Promise<boolean>((resolve) => {
         Alert.alert(
-          'Zaštitimo original',
-          'Da bismo obradili sliku, prvo bezbedno čuvamo originalnu sliku u tvoj ' +
-            'cloud — tako je original zaštićen pre obrade.',
+          translate('cloudGate.protectTitle'),
+          translate('cloudGate.protectBody'),
           [
-            { text: 'Otkaži', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Sačuvaj i obradi', onPress: () => resolve(true) },
+            { text: translate('cloudGate.cancel'), style: 'cancel', onPress: () => resolve(false) },
+            { text: translate('cloudGate.saveAndProcess'), onPress: () => resolve(true) },
           ],
         );
       });
@@ -99,8 +99,8 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
       }
       if (!ok) {
         Alert.alert(
-          'Nije uspelo',
-          'Slika nije mogla da se sačuva u cloud. Proveri internet i pokušaj ponovo.',
+          translate('cloudGate.failedTitle'),
+          translate('cloudGate.failedBody'),
         );
         return false;
       }
@@ -116,9 +116,9 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
         <View style={styles.overlay}>
           <View style={styles.card}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.title}>Čuvamo tvoju sliku…</Text>
+            <Text style={styles.title}>{t('cloudGate.savingTitle')}</Text>
             <Text style={styles.subtitle}>
-              Bezbedno je smeštamo u tvoj cloud pre obrade.
+              {t('cloudGate.savingSubtitle')}
             </Text>
           </View>
         </View>

@@ -9,10 +9,15 @@ import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
 import { processUnindexedPhotos, getAiStatus, type AiProcessingStatus } from '@/lib/background-ai-processor';
+import { useT, type LanguagePreference } from '@/lib/i18n';
+
+// Native language names stay untranslated so users can always find their own.
+const LANGUAGE_OPTIONS: LanguagePreference[] = ['en', 'sr', 'auto'];
 
 export default function SettingsScreen() {
   const { user, appUser, signOut } = useAuth();
   const { isDark, mode, setMode } = useTheme();
+  const { t, tp, preference, setPreference } = useT();
   const {
     settings, updateSettings, deviceAlbums, isLoadingAlbums, refreshDeviceAlbums,
     folderSyncSettings, folderSyncPending, addSyncFolder, removeSyncFolder, toggleFolderSync,
@@ -34,22 +39,22 @@ export default function SettingsScreen() {
       });
       const updated = await getAiStatus();
       setAiStatus(updated);
-      Alert.alert('AI Indeksiranje', `Obradjeno ${count} slika.`);
+      Alert.alert(t('settings.aiIndexingTitle'), tp('settings.aiIndexingDone', count));
     } catch (e) {
-      Alert.alert('Greska', 'AI indeksiranje nije uspelo.');
+      Alert.alert(t('common.error'), t('settings.aiIndexingFailed'));
     } finally {
       setAiProcessing(false);
     }
-  }, []);
+  }, [t, tp]);
 
   const storageUsed = appUser?.storageUsed || 0;
   const storageLimit = appUser?.storageLimit || 0;
   const storagePercent = storageLimit > 0 ? Math.round((storageUsed / storageLimit) * 100) : 0;
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Da li ste sigurni?', [
-      { text: 'Otkazi', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
+    Alert.alert(t('settings.signOut'), t('settings.signOutConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('settings.signOut'), style: 'destructive', onPress: () => signOut() },
     ]);
   };
 
@@ -58,7 +63,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.bg }]} edges={['top']}>
       <View style={[styles.headerBg, { backgroundColor: themeColors.primary }]}>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
@@ -71,7 +76,7 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.profileName, { color: themeColors.text }]}>{appUser?.displayName || 'User'}</Text>
+              <Text style={[styles.profileName, { color: themeColors.text }]}>{appUser?.displayName || t('common.user')}</Text>
               <Text style={styles.profileEmail}>{user?.email}</Text>
             </View>
           </View>
@@ -79,7 +84,7 @@ export default function SettingsScreen() {
 
         {/* Storage */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
-          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>STORAGE</Text>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>{t('settings.storage')}</Text>
           <View style={styles.storageRow}>
             <Text style={[styles.storageUsed, { color: themeColors.text }]}>{formatBytes(storageUsed)} / {formatBytes(storageLimit)}</Text>
             <Text style={[styles.storagePercent, storagePercent > 80 && { color: colors.error }]}>{storagePercent}%</Text>
@@ -89,15 +94,15 @@ export default function SettingsScreen() {
           </View>
           <TouchableOpacity style={styles.upgradeBtn} activeOpacity={0.8} onPress={() => router.push('/pricing')}>
             <Ionicons name="arrow-up-circle" size={16} color="#fff" />
-            <Text style={styles.upgradeBtnText}>Upgrade Storage</Text>
+            <Text style={styles.upgradeBtnText}>{t('settings.upgradeStorage')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Backup & Sync */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
-          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>BACKUP & SYNC</Text>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>{t('settings.backupSync')}</Text>
           <View style={styles.settingRow}>
-            <Text style={[styles.settingText, { color: themeColors.text }]}>Auto Backup</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.autoBackup')}</Text>
             <Switch
               value={settings.autoBackup}
               onValueChange={(v) => updateSettings({ autoBackup: v })}
@@ -106,7 +111,7 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.settingRow}>
-            <Text style={[styles.settingText, { color: themeColors.text }]}>WiFi Only</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.wifiOnly')}</Text>
             <Switch
               value={settings.syncMode === 'wifi_only'}
               onValueChange={(v) => updateSettings({ syncMode: v ? 'wifi_only' : 'wifi_and_mobile' })}
@@ -115,17 +120,17 @@ export default function SettingsScreen() {
             />
           </View>
           <TouchableOpacity style={styles.settingRow}>
-            <Text style={[styles.settingText, { color: themeColors.text }]}>Upload Quality</Text>
-            <Text style={styles.settingValue}>{settings.uploadQuality === 'original' ? 'Original' : settings.uploadQuality === 'high' ? 'High' : 'Medium'}</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.uploadQuality')}</Text>
+            <Text style={styles.settingValue}>{settings.uploadQuality === 'original' ? t('settings.qualityOriginal') : settings.uploadQuality === 'high' ? t('settings.qualityHigh') : t('settings.qualityMedium')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.settingRow, { borderBottomWidth: 0 }]}
             onPress={() => { setIsFolderSectionOpen(!isFolderSectionOpen); refreshDeviceAlbums(); }}
           >
-            <Text style={[styles.settingText, { color: themeColors.text }]}>Backup Folders</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.backupFolders')}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={styles.settingValue}>
-                {(settings.backupFolders || []).length === 0 ? 'All' : `${settings.backupFolders.length}`}
+                {(settings.backupFolders || []).length === 0 ? t('settings.allFolders') : `${settings.backupFolders.length}`}
               </Text>
               <Ionicons name={isFolderSectionOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={colors.primary} />
             </View>
@@ -134,7 +139,7 @@ export default function SettingsScreen() {
           {isFolderSectionOpen && (
             <View style={{ paddingHorizontal: 4, paddingBottom: 4 }}>
               {isLoadingAlbums ? (
-                <Text style={styles.folderLoading}>Loading...</Text>
+                <Text style={styles.folderLoading}>{t('common.loading')}</Text>
               ) : deviceAlbums.map(album => {
                 const isSelected = (settings.backupFolders || []).includes(album.title);
                 return (
@@ -144,7 +149,7 @@ export default function SettingsScreen() {
                     onPress={() => {
                       const current = settings.backupFolders || [];
                       const updated = isSelected
-                        ? current.filter(t => t !== album.title)
+                        ? current.filter(f => f !== album.title)
                         : [...current, album.title];
                       updateSettings({ backupFolders: updated });
                     }}
@@ -165,9 +170,9 @@ export default function SettingsScreen() {
 
         {/* MySpace Folder Sync */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
-          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>MYSPACE FOLDER SYNC</Text>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>{t('settings.folderSync')}</Text>
           <View style={styles.settingRow}>
-            <Text style={[styles.settingText, { color: themeColors.text }]}>Sync Foldere u Cloud</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.syncFoldersToCloud')}</Text>
             <Switch
               value={folderSyncSettings.enabled}
               onValueChange={(v) => toggleFolderSync(v)}
@@ -179,10 +184,10 @@ export default function SettingsScreen() {
             style={[styles.settingRow, { borderBottomWidth: folderSyncSettings.folders.length > 0 ? 1 : 0 }]}
             onPress={() => setIsSyncFolderSectionOpen(!isSyncFolderSectionOpen)}
           >
-            <Text style={[styles.settingText, { color: themeColors.text }]}>Sync Folderi</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.syncFolders')}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={styles.settingValue}>
-                {folderSyncSettings.folders.length === 0 ? 'Nijedan' : `${folderSyncSettings.folders.length}`}
+                {folderSyncSettings.folders.length === 0 ? t('settings.noFolders') : `${folderSyncSettings.folders.length}`}
               </Text>
               <Ionicons name={isSyncFolderSectionOpen ? 'chevron-down' : 'chevron-forward'} size={16} color={colors.primary} />
             </View>
@@ -204,11 +209,11 @@ export default function SettingsScreen() {
                 onPress={() => addSyncFolder()}
               >
                 <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-                <Text style={[styles.settingValue, { fontSize: 13 }]}>Dodaj folder</Text>
+                <Text style={[styles.settingValue, { fontSize: 13 }]}>{t('settings.addFolder')}</Text>
               </TouchableOpacity>
               {folderSyncPending > 0 && (
                 <Text style={{ fontSize: 11, color: themeColors.textMuted, paddingHorizontal: 4, paddingBottom: 4 }}>
-                  {folderSyncPending} fajlova ceka sync u MySpace
+                  {tp('settings.filesPending', folderSyncPending)}
                 </Text>
               )}
             </View>
@@ -217,11 +222,11 @@ export default function SettingsScreen() {
 
         {/* Creative */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
-          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>KREATIVNI ALATI</Text>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>{t('settings.creativeTools')}</Text>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/creative-hub')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="color-wand-outline" size={18} color="#f97316" />
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Meme, Strip, Stikeri</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.creativeToolsRow')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
@@ -231,7 +236,7 @@ export default function SettingsScreen() {
               <Text style={[styles.settingText, { color: themeColors.text }]}>MemeWall</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ fontSize: 11, color: themeColors.textMuted }}>Javni mimovi</Text>
+              <Text style={{ fontSize: 11, color: themeColors.textMuted }}>{t('settings.publicMemes')}</Text>
               <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
             </View>
           </TouchableOpacity>
@@ -239,39 +244,39 @@ export default function SettingsScreen() {
 
         {/* Library */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
-          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>BIBLIOTEKA</Text>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>{t('settings.library')}</Text>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/trash')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="trash-outline" size={18} color={themeColors.text} />
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Korpa</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.trash')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/archive')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="archive-outline" size={18} color={themeColors.text} />
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Arhiva</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.archive')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/memories')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="sparkles-outline" size={18} color={themeColors.text} />
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Secanja</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.memories')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/people')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="people-outline" size={18} color={themeColors.text} />
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Ljudi</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.people')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => router.push('/duplicates')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="copy-outline" size={18} color={themeColors.text} />
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Duplikati</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.duplicates')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
@@ -279,12 +284,12 @@ export default function SettingsScreen() {
 
         {/* AI */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
-          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>AI NA UREDJAJU</Text>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>{t('settings.onDeviceAi')}</Text>
           <View style={styles.settingRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Indeksirano slika</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.indexedPhotos')}</Text>
               <Text style={{ fontSize: 11, color: themeColors.textMuted }}>
-                {aiStatus ? `${aiStatus.indexed} / ${aiStatus.totalOnDevice} na uredjaju` : 'Ucitavanje...'}
+                {aiStatus ? t('settings.indexedOnDevice', { indexed: aiStatus.indexed, total: aiStatus.totalOnDevice }) : t('common.loading')}
               </Text>
             </View>
             <TouchableOpacity
@@ -297,7 +302,7 @@ export default function SettingsScreen() {
               ) : (
                 <>
                   <Ionicons name="sparkles" size={14} color="#fff" />
-                  <Text style={styles.upgradeBtnText}>Pokreni AI</Text>
+                  <Text style={styles.upgradeBtnText}>{t('settings.runAi')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -306,22 +311,22 @@ export default function SettingsScreen() {
 
         {/* Devices & Family */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
-          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>UREDJAJI I PORODICA</Text>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>{t('settings.devicesFamily')}</Text>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/devices')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="phone-portrait-outline" size={18} color={themeColors.text} />
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Moji uredjaji</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.myDevices')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => router.push('/family')}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Ionicons name="people-outline" size={18} color={themeColors.text} />
-              <Text style={[styles.settingText, { color: themeColors.text }]}>Porodica</Text>
+              <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.family')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text style={{ fontSize: 11, color: themeColors.textMuted }}>
-                {appUser?.familyId ? 'Aktivna' : 'Nije kreirana'}
+                {appUser?.familyId ? t('settings.familyActive') : t('settings.familyNotCreated')}
               </Text>
               <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
             </View>
@@ -330,9 +335,9 @@ export default function SettingsScreen() {
 
         {/* App */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>
-          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>APP</Text>
+          <Text style={[styles.sectionLabel, { color: themeColors.textMuted }]}>{t('settings.app')}</Text>
           <View style={styles.settingRow}>
-            <Text style={[styles.settingText, { color: themeColors.text }]}>Dark Mode</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.darkMode')}</Text>
             <Switch
               value={isDark}
               onValueChange={(v) => setMode(v ? 'dark' : 'light')}
@@ -340,24 +345,47 @@ export default function SettingsScreen() {
               thumbColor="#fff"
             />
           </View>
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.language')}</Text>
+            <View style={styles.langRow}>
+              {LANGUAGE_OPTIONS.map((opt) => {
+                const active = preference === opt;
+                return (
+                  <TouchableOpacity
+                    key={opt}
+                    onPress={() => setPreference(opt)}
+                    style={[
+                      styles.langChip,
+                      { borderColor: active ? colors.primary : themeColors.border },
+                      active && { backgroundColor: colors.primary },
+                    ]}
+                  >
+                    <Text style={[styles.langChipText, { color: active ? '#fff' : themeColors.text }]}>
+                      {opt === 'en' ? 'English' : opt === 'sr' ? 'Srpski' : t('settings.languageAuto')}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
           <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/notifications-settings')}>
-            <Text style={[styles.settingText, { color: themeColors.text }]}>Notifications</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.notifications')}</Text>
             <Ionicons name="chevron-forward" size={16} color={themeColors.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]}>
-            <Text style={[styles.settingText, { color: themeColors.text }]}>About</Text>
+            <Text style={[styles.settingText, { color: themeColors.text }]}>{t('settings.about')}</Text>
             <Text style={styles.settingValueMuted}>v1.0.0</Text>
           </TouchableOpacity>
         </View>
 
         {/* Sign out */}
         <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.signOutText}>{t('settings.signOut')}</Text>
         </TouchableOpacity>
 
         {/* Account deletion (Google Play requirement) */}
         <TouchableOpacity style={styles.deleteAccountBtn} onPress={() => router.push('/delete-account' as never /* typed routes regenerate on next expo start */)}>
-          <Text style={styles.deleteAccountText}>Obriši nalog</Text>
+          <Text style={styles.deleteAccountText}>{t('settings.deleteAccount')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -413,6 +441,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14, alignItems: 'center',
   },
   signOutText: { color: colors.error, fontSize: 14, ...fonts.bold },
+  langRow: { flexDirection: 'row', gap: 6 },
+  langChip: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 5 },
+  langChipText: { fontSize: 11, ...fonts.semibold },
   deleteAccountBtn: { marginHorizontal: 12, marginTop: 8, marginBottom: 24, paddingVertical: 12, alignItems: 'center' },
   deleteAccountText: { color: colors.textMuted, fontSize: 13, textDecorationLine: 'underline' },
 });

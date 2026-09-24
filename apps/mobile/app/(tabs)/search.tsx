@@ -12,6 +12,7 @@ import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { searchLocalPhotos, type PhotoIndexEntry } from '@/lib/local-search-index';
 import type { FileMetadata } from '@myphoto/shared';
+import { useT, type TKey } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -19,19 +20,22 @@ const GAP = 2;
 const CELL = (width - GAP * (COL + 1)) / COL;
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
-const SUGGESTIONS = [
-  { label: 'Pets', icon: '🐶' },
-  { label: 'Cars', icon: '🚗' },
-  { label: 'Food', icon: '🍔' },
-  { label: 'Nature', icon: '🌳' },
-  { label: 'People', icon: '👥' },
-  { label: 'Travel', icon: '✈️' },
-  { label: 'Architecture', icon: '🏛️' },
-  { label: 'Sunset', icon: '🌅' },
+// `label` is the search term sent to the AI index (English labels); `key`
+// is only the displayed, translated chip text.
+const SUGGESTIONS: { label: string; key: TKey; icon: string }[] = [
+  { label: 'Pets', key: 'search.suggestions.pets', icon: '🐶' },
+  { label: 'Cars', key: 'search.suggestions.cars', icon: '🚗' },
+  { label: 'Food', key: 'search.suggestions.food', icon: '🍔' },
+  { label: 'Nature', key: 'search.suggestions.nature', icon: '🌳' },
+  { label: 'People', key: 'search.suggestions.people', icon: '👥' },
+  { label: 'Travel', key: 'search.suggestions.travel', icon: '✈️' },
+  { label: 'Architecture', key: 'search.suggestions.architecture', icon: '🏛️' },
+  { label: 'Sunset', key: 'search.suggestions.sunset', icon: '🌅' },
 ];
 
 export default function SearchScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { getToken } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FileMetadata[]>([]);
@@ -102,12 +106,12 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       <View style={styles.headerArea}>
-        <Text style={[styles.title, { color: tc.text }]}>Search</Text>
+        <Text style={[styles.title, { color: tc.text }]}>{t('search.title')}</Text>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search photos, videos, files..."
+            placeholder={t('search.placeholder')}
             placeholderTextColor={colors.textMuted}
             value={query}
             onChangeText={setQuery}
@@ -129,20 +133,20 @@ export default function SearchScreen() {
           onPress={() => { setSearchMode('cloud'); setSearched(false); setResults([]); setLocalResults([]); }}
         >
           <Ionicons name="cloud-outline" size={14} color={searchMode === 'cloud' ? tc.primary : colors.textMuted} />
-          <Text style={[styles.toggleText, searchMode === 'cloud' && { color: tc.primary }]}>Cloud</Text>
+          <Text style={[styles.toggleText, searchMode === 'cloud' && { color: tc.primary }]}>{t('search.modeCloud')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.toggleTab, searchMode === 'device' && [styles.toggleTabActive, { backgroundColor: tc.bgCard }]]}
           onPress={() => { setSearchMode('device'); setSearched(false); setResults([]); setLocalResults([]); }}
         >
           <Ionicons name="phone-portrait-outline" size={14} color={searchMode === 'device' ? tc.primary : colors.textMuted} />
-          <Text style={[styles.toggleText, searchMode === 'device' && { color: tc.primary }]}>Na uredjaju</Text>
+          <Text style={[styles.toggleText, searchMode === 'device' && { color: tc.primary }]}>{t('search.modeDevice')}</Text>
         </TouchableOpacity>
       </View>
 
       {!searched ? (
         <View style={{ flex: 1 }}>
-          <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>AI SUGGESTIONS</Text>
+          <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>{t('search.aiSuggestions')}</Text>
           <View style={styles.suggestions}>
             {SUGGESTIONS.map(s => (
               <TouchableOpacity
@@ -150,7 +154,7 @@ export default function SearchScreen() {
                 style={styles.suggestionChip}
                 onPress={() => { setQuery(s.label); doSearch(s.label); }}
               >
-                <Text style={[styles.suggestionText, { color: tc.primary }]}>{s.icon} {s.label}</Text>
+                <Text style={[styles.suggestionText, { color: tc.primary }]}>{s.icon} {t(s.key)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -163,9 +167,9 @@ export default function SearchScreen() {
         localResults.length === 0 ? (
           <View style={styles.center}>
             <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.noResults}>Nema lokalnih rezultata za "{query}"</Text>
+            <Text style={styles.noResults}>{t('search.noLocalResults', { query })}</Text>
             <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>
-              AI indeksiranje se pokrece automatski u pozadini
+              {t('search.indexingHint')}
             </Text>
           </View>
         ) : (
@@ -174,14 +178,14 @@ export default function SearchScreen() {
             keyExtractor={(item) => item.assetId}
             contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 12 }}
             ListHeaderComponent={
-              <Text style={styles.resultCount}>{localResults.length} na uredjaju</Text>
+              <Text style={styles.resultCount}>{tp('search.localCount', localResults.length)}</Text>
             }
             renderItem={({ item }) => (
               <View style={[styles.localResultCard, { backgroundColor: tc.bgCard }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.localLabels, { color: tc.text }]} numberOfLines={1}>{item.labels || 'Bez labela'}</Text>
+                  <Text style={[styles.localLabels, { color: tc.text }]} numberOfLines={1}>{item.labels || t('search.noLabels')}</Text>
                   <Text style={{ fontSize: 11, color: tc.textMuted }}>
-                    {item.sceneType} {item.isScreenshot ? '(screenshot)' : ''}
+                    {item.sceneType} {item.isScreenshot ? t('search.screenshot') : ''}
                   </Text>
                 </View>
                 <View style={[styles.sceneBadge, { backgroundColor: tc.bgInput }]}>
@@ -194,7 +198,7 @@ export default function SearchScreen() {
       ) : results.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-          <Text style={styles.noResults}>Nema rezultata za "{query}"</Text>
+          <Text style={styles.noResults}>{t('search.noResults', { query })}</Text>
         </View>
       ) : (
         <FlatList
@@ -205,7 +209,7 @@ export default function SearchScreen() {
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ paddingBottom: 80 }}
           ListHeaderComponent={
-            <Text style={styles.resultCount}>{results.length} rezultata</Text>
+            <Text style={styles.resultCount}>{tp('search.resultCount', results.length)}</Text>
           }
         />
       )}

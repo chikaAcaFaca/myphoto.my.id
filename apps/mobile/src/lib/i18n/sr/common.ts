@@ -1,0 +1,56 @@
+import type en from '../en/common';
+
+const common: typeof en = {
+  ok: 'OK',
+  cancel: 'Otkaži',
+  close: 'Zatvori',
+  save: 'Sačuvaj',
+  saved: 'Sačuvano',
+  delete: 'Obriši',
+  remove: 'Ukloni',
+  share: 'Podeli',
+  edit: 'Izmeni',
+  retry: 'Pokušaj ponovo',
+  back: 'Nazad',
+  next: 'Dalje',
+  skip: 'Preskoči',
+  done: 'Gotovo',
+  yes: 'Da',
+  no: 'Ne',
+  notNow: 'Ne sada',
+  continue: 'Nastavi',
+  loading: 'Učitavanje...',
+  error: 'Greška',
+  success: 'Uspešno',
+  permission: 'Dozvola',
+  permissionRequired: 'Dozvola potrebna',
+  viewPlans: 'Pogledaj planove',
+  upgradePlan: 'Nadogradi plan',
+  openMySpace: 'Otvori MySpace',
+  comingSoon: 'Uskoro',
+  unknownError: 'Nešto nije u redu. Pokušajte ponovo.',
+  noInternet: 'Nema internet konekcije.',
+  user: 'Korisnik',
+  photos: {
+    one: '{count} slika',
+    few: '{count} slike',
+    other: '{count} slika',
+  },
+  videos: {
+    one: '{count} video',
+    few: '{count} videa',
+    other: '{count} videa',
+  },
+  items: {
+    one: '{count} stavka',
+    few: '{count} stavke',
+    other: '{count} stavki',
+  },
+  files: {
+    one: '{count} fajl',
+    few: '{count} fajla',
+    other: '{count} fajlova',
+  },
+};
+
+export default common;
