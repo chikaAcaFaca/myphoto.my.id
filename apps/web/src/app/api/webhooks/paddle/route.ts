@@ -53,6 +53,12 @@ function verifyWebhookSignature(
     const timestamp = timestampPart.split('=')[1];
     const expectedSignature = signaturePart.split('=')[1];
 
+    // Reject stale deliveries so a captured request cannot be replayed.
+    const ageS = Math.abs(Math.floor(Date.now() / 1000) - parseInt(timestamp, 10));
+    if (!Number.isFinite(ageS) || ageS > 300) {
+      return false;
+    }
+
     const signedPayload = `${timestamp}:${payload}`;
     const hmac = createHmac('sha256', PADDLE_WEBHOOK_SECRET);
     hmac.update(signedPayload);

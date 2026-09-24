@@ -140,7 +140,20 @@ export async function PATCH(request: NextRequest) {
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
     if (name && typeof name === 'string') updates.name = name.trim();
-    if (parentId !== undefined) updates.parentId = parentId;
+    if (parentId !== undefined) {
+      // Moving a folder: the new parent must be root or one of the caller's
+      // own folders (and not the folder itself).
+      if (parentId !== null && parentId !== 'root') {
+        if (typeof parentId !== 'string' || parentId === folderId) {
+          return NextResponse.json({ error: 'Invalid parent' }, { status: 400 });
+        }
+        const parentDoc = await db.collection('folders').doc(parentId).get();
+        if (!parentDoc.exists || parentDoc.data()?.userId !== userId) {
+          return NextResponse.json({ error: 'Parent folder not found' }, { status: 404 });
+        }
+      }
+      updates.parentId = parentId;
+    }
 
     await db.collection('folders').doc(folderId).update(updates);
 

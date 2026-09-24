@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server';
+import { isOperator, operatorForbidden } from '@/lib/operator-guard';
+import { NextRequest, NextResponse } from 'next/server';
 import { configureBucketCors, getBucketCors } from '@/lib/s3';
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/setup/fix-cors — force-update S3 CORS (temporary, remove after use)
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!isOperator(request)) return operatorForbidden();
   try {
     // Show current CORS
     const before = await getBucketCors();

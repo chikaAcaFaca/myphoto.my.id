@@ -1,3 +1,4 @@
+import { isOperator, operatorForbidden } from '@/lib/operator-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin } from '@/lib/firebase-admin';
 import { credential } from 'firebase-admin';
@@ -71,6 +72,7 @@ const INDEXES = [
 ];
 
 export async function POST(request: NextRequest) {
+  if (!isOperator(request)) return operatorForbidden();
   try {
     initAdmin();
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
-import { generateUploadUrl } from '@/lib/s3';
+import { generateUploadUrl, getObjectMetadata } from '@/lib/s3';
+import { FieldValue } from 'firebase-admin/firestore';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
 import { resolveDiskShareApiKey, enforceDiskApiKeyRateLimit } from '@/lib/disk-share-api-key';
@@ -110,7 +111,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fileId, s3Key, filename, mimeType, size, folderId } = body;
+    const { fileId, s3Key, filename, mimeType, folderId } = body;
     if (apiKey && body.token && body.token !== apiKey.shareToken) {
       return NextResponse.json({ error: 'Token does not match API key' }, { status: 403 });
     }
@@ -134,8 +135,34 @@ export async function PATCH(request: NextRequest) {
     const ownerId = shareData.userId;
     const targetFolderId = folderId || shareData.folderId;
 
+    // This route is unauthenticated (share token only), so everything the
+    // client sends is pinned down: the folder must be inside the share, the
+    // key must be the one POST issued for the owner, the record must be new,
+    // and the size comes from storage.
+    if (targetFolderId !== shareData.folderId) {
+      const isDescendant = await verifyDescendant(targetFolderId, shareData.folderId, ownerId);
+      if (!isDescendant) {
+        return NextResponse.json({ error: 'Folder not in share' }, { status: 403 });
+      }
+    }
+    if (typeof fileId !== 'string' || !/^[a-z0-9-]{6,64}$/i.test(fileId)) {
+      return NextResponse.json({ error: 'Invalid fileId' }, { status: 400 });
+    }
+    const expectedKeyBase = `disk/${ownerId}/${fileId}`;
+    if (typeof s3Key !== 'string' || !(s3Key === expectedKeyBase || s3Key.startsWith(`${expectedKeyBase}.`))) {
+      return NextResponse.json({ error: 'Invalid s3Key' }, { status: 400 });
+    }
+    if ((await db.collection('diskFiles').doc(fileId).get()).exists) {
+      return NextResponse.json({ error: 'File id already in use' }, { status: 409 });
+    }
+    const meta = await getObjectMetadata(s3Key);
+    if (!meta) {
+      return NextResponse.json({ error: 'File not found in storage' }, { status: 404 });
+    }
+    const size = meta.contentLength;
+
     const now = new Date();
-    await db.collection('diskFiles').doc(fileId).set({
+    await db.collection('diskFiles').doc(fileId).create({
       userId: ownerId,
       name: filename,
       s3Key,
@@ -148,10 +175,8 @@ export async function PATCH(request: NextRequest) {
     });
 
     // Update owner's storage used
-    const userDoc = await db.collection('users').doc(ownerId).get();
-    const currentUsed = userDoc.data()?.storageUsed || 0;
     await db.collection('users').doc(ownerId).update({
-      storageUsed: currentUsed + (size || 0),
+      storageUsed: FieldValue.increment(size || 0),
     });
 
     // Fan out the upload's size to every viewer of any share that covers

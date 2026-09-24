@@ -28,7 +28,7 @@ import {
   Share2,
   Lock,
 } from 'lucide-react';
-import { getIdToken } from '@/lib/firebase';
+import { getIdToken, reauthenticate, usesPasswordAuth } from '@/lib/firebase';
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { useStorage, usePWA, useReferralStats } from '@/lib/hooks';
 import { updateUserSettings } from '@/lib/firebase';
@@ -105,12 +105,18 @@ export default function SettingsPage() {
     }
     setSettingPassword(true);
     try {
-      const token = await getIdToken();
-      const res = await fetch('/api/auth/set-password', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPassword }),
-      });
+      const send = (token: string | null) =>
+        fetch('/api/auth/set-password', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: newPassword }),
+        });
+      let res = await send(await getIdToken());
+      // The server wants a sign-in from the last 10 minutes. Google accounts
+      // can re-confirm with a popup; password accounts must sign in again.
+      if (res.status === 403 && !usesPasswordAuth()) {
+        res = await send(await reauthenticate());
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Greška');

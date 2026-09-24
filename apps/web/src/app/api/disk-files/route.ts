@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { generateUploadUrl, copyObject, configureBucketCors } from '@/lib/s3';
+import { generateUploadUrl, copyObject, configureBucketCors, getObjectMetadata } from '@/lib/s3';
+import { FieldValue } from 'firebase-admin/firestore';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { processImageAI } from '@/lib/ai-processing';
 import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
@@ -301,11 +302,43 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Confirm upload (original behavior)
-    const { fileId, s3Key, filename, mimeType, size, folderId = 'root', takenAt } = body;
+    const { fileId, s3Key, filename, mimeType, folderId = 'root', takenAt } = body;
 
     if (!fileId || !s3Key || !filename) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
+
+    // Pin client-supplied identifiers to what POST issued for this user (see
+    // files/confirm-upload): own prefix + matching id, own folder, no
+    // overwriting another record, and the size read from storage.
+    if (typeof fileId !== 'string' || !/^[a-z0-9-]{6,64}$/i.test(fileId)) {
+      return NextResponse.json({ error: 'Invalid fileId' }, { status: 400 });
+    }
+    const expectedKeyBase = `disk/${userId}/${fileId}`;
+    if (typeof s3Key !== 'string' || !(s3Key === expectedKeyBase || s3Key.startsWith(`${expectedKeyBase}.`))) {
+      return NextResponse.json({ error: 'Invalid s3Key' }, { status: 400 });
+    }
+    if (folderId !== 'root') {
+      const folderDoc = await db.collection('folders').doc(String(folderId)).get();
+      if (!folderDoc.exists || folderDoc.data()?.userId !== userId) {
+        return NextResponse.json({ error: 'Folder not found' }, { status: 404 });
+      }
+    }
+    const existingDisk = await db.collection('diskFiles').doc(fileId).get();
+    if (existingDisk.exists) {
+      // A retried confirm (the mobile sync retries on network errors) is
+      // answered idempotently; anything else is an attempt to overwrite.
+      const d = existingDisk.data()!;
+      if (d.userId === userId && d.s3Key === s3Key) {
+        return NextResponse.json({ success: true, fileId, photoFileId: d.photoFileId });
+      }
+      return NextResponse.json({ error: 'File id already in use' }, { status: 409 });
+    }
+    const meta = await getObjectMetadata(s3Key);
+    if (!meta) {
+      return NextResponse.json({ error: 'File not found in storage' }, { status: 404 });
+    }
+    const size = meta.contentLength;
 
     // Auto-rename if a file with the same name exists in this folder
     const finalName = await getUniqueFilename(userId, folderId, filename);
@@ -366,7 +399,7 @@ export async function PATCH(request: NextRequest) {
 
     // Update storage used (file is stored once in S3, so only count once)
     await db.collection('users').doc(userId).update({
-      storageUsed: (await db.collection('users').doc(userId).get()).data()?.storageUsed + (size || 0),
+      storageUsed: FieldValue.increment(size || 0),
     });
 
     // If this file lives under any shared folder (direct or ancestor), bump

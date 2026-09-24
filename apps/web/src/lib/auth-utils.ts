@@ -158,3 +158,21 @@ export async function checkIpRateLimit(
     rateLimitResult,
   };
 }
+
+/**
+ * True when the request's ID token comes from a sign-in (not a silent token
+ * refresh) within the last `maxAgeSeconds`. Use before irreversible or
+ * account-takeover-sensitive actions — password change, account deletion —
+ * so a leaked long-lived session cannot perform them.
+ */
+export async function isRecentLogin(request: NextRequest, maxAgeSeconds = 10 * 60): Promise<boolean> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return false;
+  try {
+    initAdmin();
+    const decoded = await getAuth().verifyIdToken(authHeader.split('Bearer ')[1]);
+    return Math.floor(Date.now() / 1000) - (decoded.auth_time || 0) <= maxAgeSeconds;
+  } catch {
+    return false;
+  }
+}

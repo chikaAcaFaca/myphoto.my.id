@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { objectExists } from '@/lib/s3';
+import { getObjectMetadata } from '@/lib/s3';
 import { getFileType } from '@myphoto/shared';
 import { processImageAI } from '@/lib/ai-processing';
 
@@ -55,13 +55,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify file exists in S3
-    const exists = await objectExists(s3Key);
-    if (!exists) {
+    // Everything below comes from the client, so pin it to what upload-url
+    // issued for THIS user: the id must be a plain id, the key must live under
+    // the caller's own prefix and carry that id, and the thumbnail key must be
+    // the caller's too. Without this a user could register someone else's
+    // object as their own file and then read or delete it through /api/files.
+    if (typeof fileId !== 'string' || !/^[a-z0-9-]{6,64}$/i.test(fileId)) {
+      return NextResponse.json({ error: 'Invalid fileId' }, { status: 400 });
+    }
+    const ownPrefix = `users/${userId}/`;
+    if (
+      typeof s3Key !== 'string' ||
+      !s3Key.startsWith(`${ownPrefix}originals/`) ||
+      !s3Key.includes(`/${fileId}.`) ||
+      s3Key.includes('..')
+    ) {
+      return NextResponse.json({ error: 'Invalid s3Key' }, { status: 400 });
+    }
+    if (
+      thumbnailKey !== undefined &&
+      thumbnailKey !== null &&
+      (typeof thumbnailKey !== 'string' || !thumbnailKey.startsWith(`${ownPrefix}thumbnails/${fileId}`))
+    ) {
+      return NextResponse.json({ error: 'Invalid thumbnailKey' }, { status: 400 });
+    }
+
+    // Verify the object exists and take its size from storage, not the body —
+    // a client-supplied (e.g. negative) size would skew the quota.
+    const meta = await getObjectMetadata(s3Key);
+    if (!meta) {
       return NextResponse.json(
         { error: 'File not found in storage' },
         { status: 404 }
       );
+    }
+    const actualSize = meta.contentLength;
+
+    // Never overwrite an existing record. A retry of the same confirm by the
+    // same user is answered idempotently.
+    const existing = await db.collection('files').doc(fileId).get();
+    if (existing.exists) {
+      if (existing.data()?.userId === userId && existing.data()?.s3Key === s3Key) {
+        return NextResponse.json({ id: fileId, ...existing.data(), duplicateConfirm: true });
+      }
+      return NextResponse.json({ error: 'File id already in use' }, { status: 409 });
     }
 
     // Auto-rename if duplicate name exists
@@ -72,7 +109,7 @@ export async function POST(request: NextRequest) {
       userId,
       type: getFileType(mimeType),
       name: uniqueName,
-      size,
+      size: actualSize,
       mimeType,
       s3Key,
       albumIds: [],
@@ -88,11 +125,11 @@ export async function POST(request: NextRequest) {
       fileData.thumbnailKey = thumbnailKey;
     }
 
-    await db.collection('files').doc(fileId).set(fileData);
+    await db.collection('files').doc(fileId).create(fileData);
 
     // Update user storage
     await db.collection('users').doc(userId).update({
-      storageUsed: FieldValue.increment(size),
+      storageUsed: FieldValue.increment(actualSize),
     });
 
     // Trigger AI processing — await it so the serverless function stays alive

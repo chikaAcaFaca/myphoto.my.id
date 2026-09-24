@@ -1,3 +1,4 @@
+import { isOperator, operatorForbidden } from '@/lib/operator-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { configureBucketCors, getBucketCors } from '@/lib/s3';
@@ -5,6 +6,7 @@ import { configureBucketCors, getBucketCors } from '@/lib/s3';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  if (!isOperator(request)) return operatorForbidden();
   try {
     // Verify auth
     const authResult = await verifyAuthWithRateLimit(request, 'api');
@@ -25,6 +27,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (!isOperator(request)) return operatorForbidden();
   try {
     const authResult = await verifyAuthWithRateLimit(request, 'api');
     if (!authResult.success) {
