@@ -17,6 +17,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import { CAN_SELL_IN_APP } from './distribution';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_TIERS } from '@myphoto/shared';
 import { useAuth } from './auth-context';
@@ -118,7 +119,9 @@ export function StorageGuardProvider({ children }: { children: ReactNode }) {
       `Ostalo ti je svega ${fmtGB(remaining)} prostora. Kad se napuni, nove slike, ` +
       `video i fajlovi neće moći da se sačuvaju u cloud.` +
       (suggestion
-        ? ` Pređi na ${suggestion.name} (${suggestion.storageDisplay}) za ${suggestion.priceYearly.toFixed(2)} €/god.`
+        ? ` Pređi na ${suggestion.name} (${suggestion.storageDisplay})` +
+          // Prices only where the build may sell (never in the Play build).
+          (CAN_SELL_IN_APP ? ` za ${suggestion.priceYearly.toFixed(2)} €/god.` : '.')
         : '');
     cta = suggestion ? `Nadogradi na ${suggestion.name}` : 'Nadogradi plan';
   } else if (shown === 'full') {

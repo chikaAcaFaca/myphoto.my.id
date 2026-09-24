@@ -3,6 +3,7 @@
  * Uses AsyncStorage for local tracking + derives tier from user's storageLimit.
  */
 
+import { CAN_SELL_IN_APP } from './distribution';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_TIERS } from '@myphoto/shared';
 
@@ -95,7 +96,7 @@ export async function checkMemeLimit(storageLimit: number, isAiGenerated: boolea
       if (usage.monthly >= FREE_MONTHLY_LIMIT) {
         return {
           allowed: false,
-          reason: `Dostigli ste mesečni limit od ${FREE_MONTHLY_LIMIT} besplatnih memova. Nadogradite na Mini plan (€0.69/mes) za neograničeno memova!`,
+          reason: `Dostigli ste mesečni limit od ${FREE_MONTHLY_LIMIT} besplatnih memova. Nadogradite na Mini plan${CAN_SELL_IN_APP ? ' (€0.69/mes)' : ''} za neograničeno memova!`,
           remainingDaily: 0,
           remainingMonthly: 0,
         };

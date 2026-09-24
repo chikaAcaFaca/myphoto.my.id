@@ -246,10 +246,13 @@ export interface Subscription {
   currentPeriodEnd: Date;
   paddleCustomerId: string;
   /** Which processor owns this subscription. Absent on legacy Paddle docs. */
-  provider?: 'paddle' | 'freemius';
+  provider?: 'paddle' | 'freemius' | 'creem';
   /** Freemius identifiers — set when provider === 'freemius'. */
   freemiusLicenseId?: string;
   freemiusSubscriptionId?: string;
+  /** Creem identifiers — set when provider === 'creem'. */
+  creemSubscriptionId?: string;
+  creemCustomerId?: string;
   createdAt: Date;
 }
 
@@ -328,6 +331,10 @@ export interface StorageTier {
    *  cycle is selected at checkout time via `billing_cycle`. Empty until the
    *  plan is created in the Freemius dashboard. */
   freemiusPlanId?: string;
+  /** Creem product IDs (prod_…) — Creem models each billing period as its
+   *  own recurring product. Empty until created in the Creem dashboard. */
+  creemMonthlyProductId?: string;
+  creemYearlyProductId?: string;
   features: string[];
   isPopular?: boolean;
   memesPerDay: number;

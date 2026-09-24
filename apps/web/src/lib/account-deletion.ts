@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { FieldValue, type DocumentReference, type Query } from 'firebase-admin/firestore';
 import { db, auth } from '@/lib/firebase-admin';
 import { deleteObject, deletePrefix } from '@/lib/s3';
+import { cancelCreemSubscription } from '@/lib/creem';
 
 /**
  * Permanent account deletion (GDPR art. 17 + Google Play account-deletion
@@ -16,9 +17,9 @@ import { deleteObject, deletePrefix } from '@/lib/s3';
  * partial failure is logged to `accountDeletions` so it can be finished by
  * hand instead of silently leaving data behind.
  *
- * Subscriptions are NOT cancelled at the payment provider here. The record of
- * any still-active subscription id is kept (without personal data) so it can
- * be cancelled — see `activeSubscriptionIds` in the audit record.
+ * Active Creem subscriptions are cancelled immediately at the provider. Any
+ * other still-active subscription (legacy providers, or a failed cancel) is
+ * listed in `activeSubscriptionIds` on the audit record for manual follow-up.
  */
 
 /** Per-user S3 prefixes. Keep in sync with every key template in the app. */
@@ -84,7 +85,19 @@ export async function deleteUserAccount(userId: string): Promise<DeletionReport>
   try {
     const subs = await db.collection('subscriptions').where('userId', '==', userId).get();
     for (const s of subs.docs) {
-      if (s.data().status === 'active') activeSubscriptionIds.push(s.id);
+      const d = s.data();
+      if (d.status !== 'active') continue;
+      // Stop future charges. Creem subscriptions are cancelled right here;
+      // anything else is recorded for manual cancellation.
+      if (d.provider === 'creem' && d.creemSubscriptionId) {
+        try {
+          await cancelCreemSubscription(d.creemSubscriptionId);
+          continue;
+        } catch (e) {
+          note(`cancel creem ${d.creemSubscriptionId}`, e);
+        }
+      }
+      activeSubscriptionIds.push(s.id);
     }
   } catch (e) {
     note('subscriptions lookup', e);

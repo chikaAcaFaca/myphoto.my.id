@@ -26,7 +26,8 @@ import { loadFreemius, openFreemiusCheckout } from '@/lib/freemius-checkout';
 // behavior; set NEXT_PUBLIC_PAYMENT_PROVIDER=freemius to switch the storefront.
 const PAYMENT_PROVIDER = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || 'paddle') as
   | 'paddle'
-  | 'freemius';
+  | 'freemius'
+  | 'creem';
 
 // Paddle's environment used to be hardcoded to 'sandbox', which meant no real
 // money could ever be taken even with valid price ids. It is now driven by env
@@ -94,6 +95,9 @@ function CheckoutContent() {
   }, [router]);
 
   useEffect(() => {
+    // Creem is a hosted redirect checkout — nothing to load in the browser.
+    if (PAYMENT_PROVIDER === 'creem') return;
+
     if (PAYMENT_PROVIDER === 'freemius') {
       loadFreemius()
         .then(() => setFreemiusReady(true))
@@ -135,6 +139,13 @@ function CheckoutContent() {
   // them a button that swallows the click.
   const configError: string | null = (() => {
     if (tier.tier === 0) return null;
+    if (PAYMENT_PROVIDER === 'creem') {
+      const productId = period === 'yearly' ? tier.creemYearlyProductId : tier.creemMonthlyProductId;
+      if (!productId) {
+        return `Plan „${tier.name}" trenutno nije dostupan za kupovinu — nedostaje Creem product ID.`;
+      }
+      return null;
+    }
     if (PAYMENT_PROVIDER === 'freemius') {
       if (!tier.freemiusPlanId) {
         return `Plan „${tier.name}" trenutno nije dostupan za kupovinu — nedostaje Freemius plan ID.`;
@@ -154,6 +165,33 @@ function CheckoutContent() {
   const handleOpenCheckout = () => {
     if (!firebaseUser || !user) return;
     setCheckoutError(null);
+
+    if (PAYMENT_PROVIDER === 'creem') {
+      if (configError) {
+        setCheckoutError(configError);
+        return;
+      }
+      setIsOpeningCheckout(true);
+      firebaseUser
+        .getIdToken()
+        .then((token) =>
+          fetch('/api/checkout/creem', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tier: tier.tier, period }),
+          })
+        )
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok || !data.url) throw new Error(data.error || 'Plaćanje nije moglo da se pokrene.');
+          window.location.href = data.url;
+        })
+        .catch((err: Error) => {
+          setIsOpeningCheckout(false);
+          setCheckoutError(err.message);
+        });
+      return;
+    }
 
     if (PAYMENT_PROVIDER === 'freemius') {
       const planId = tier.freemiusPlanId;
@@ -206,8 +244,10 @@ function CheckoutContent() {
   const priceTotal = getPeriodTotal(tier, period);
   const priceMonthly = getMonthlyEquivalent(tier, period);
 
-  const checkoutReady = PAYMENT_PROVIDER === 'freemius' ? freemiusReady : !!paddle;
-  const providerName = PAYMENT_PROVIDER === 'freemius' ? 'Freemius' : 'Paddle';
+  const checkoutReady =
+    PAYMENT_PROVIDER === 'creem' ? true : PAYMENT_PROVIDER === 'freemius' ? freemiusReady : !!paddle;
+  const providerName =
+    PAYMENT_PROVIDER === 'creem' ? 'Creem' : PAYMENT_PROVIDER === 'freemius' ? 'Freemius' : 'Paddle';
 
   const isLoggedIn = isInitialized && !!user && !!firebaseUser;
   const showAuthLoading = !isInitialized || authLoading;

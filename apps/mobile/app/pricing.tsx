@@ -10,6 +10,8 @@ import { useAuth } from '@/lib/auth-context';
 import { getUserTier } from '@/lib/meme-limits';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { CAN_SELL_IN_APP } from '@/lib/distribution';
+import { formatBytes } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -17,6 +19,49 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 type BillingPeriod = 'monthly' | 'yearly';
 
 export default function PricingScreen() {
+  return CAN_SELL_IN_APP ? <StorePricingScreen /> : <PlanInfoScreen />;
+}
+
+/**
+ * Google Play build: shows the user's plan and usage only. No prices, no
+ * buttons, no links toward a purchase — see src/lib/distribution.ts.
+ */
+function PlanInfoScreen() {
+  const { colors: tc } = useTheme();
+  const { appUser } = useAuth();
+  const currentTier = getUserTier(appUser?.storageLimit || 0);
+  const used = appUser?.storageUsed || 0;
+  const limit = appUser?.storageLimit || 0;
+
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+      <View style={[styles.header, { backgroundColor: tc.primary }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Vaš plan</Text>
+        <View style={{ width: 36 }} />
+      </View>
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
+        <View style={[styles.tierCard, { backgroundColor: tc.bgCard, borderColor: '#22c55e', borderWidth: 2, marginHorizontal: 0 }]}>
+          <View style={styles.tierTop}>
+            <Text style={[styles.tierName, { color: tc.text }]}>{currentTier.name}</Text>
+            <Text style={[styles.tierStorage, { color: tc.text }]}>{currentTier.storageDisplay}</Text>
+          </View>
+          <Text style={{ color: tc.textMuted, marginTop: 8 }}>
+            Iskorišćeno {formatBytes(used)} od {formatBytes(limit)}
+          </Text>
+        </View>
+        <Text style={{ color: tc.textMuted, fontSize: 13, lineHeight: 19 }}>
+          Planom i pretplatom upravljate na našem sajtu, prijavljeni istim nalogom.
+          Promene se ovde pojavljuju automatski.
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function StorePricingScreen() {
   const { colors: tc } = useTheme();
   const { appUser } = useAuth();
   const [billing, setBilling] = useState<BillingPeriod>('yearly');
