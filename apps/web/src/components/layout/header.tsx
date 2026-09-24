@@ -78,6 +78,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}
+          aria-label="Meni"
           className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -88,6 +89,7 @@ export function Header() {
           <div className="flex items-center gap-4">
             <button
               onClick={deselectAll}
+              aria-label="Poništi izbor"
               className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
@@ -127,6 +129,7 @@ export function Header() {
         {/* Mobile search button — hidden, bottom nav handles search */}
         <button
           onClick={openSearch}
+          aria-label="Pretraga"
           className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <Search className="h-5 w-5" />
@@ -142,6 +145,7 @@ export function Header() {
         </button>
         <button
           onClick={openUploadModal}
+          aria-label="Otpremi"
           className="hidden rounded-lg bg-primary-500 p-2 text-white hover:bg-primary-600"
         >
           <Upload className="h-5 w-5" />
@@ -176,7 +180,7 @@ export function Header() {
         </button>
 
         {/* Notifications */}
-        <button className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <button aria-label="Obaveštenja" className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
           <Bell className="h-5 w-5" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
         </button>

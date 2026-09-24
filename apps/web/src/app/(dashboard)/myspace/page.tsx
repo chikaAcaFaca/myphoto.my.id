@@ -1040,6 +1040,7 @@ export default function MySpacePage() {
             ref={fileInputRef}
             type="file"
             multiple
+            aria-label="Izaberi fajlove za upload"
             className="hidden"
             onChange={handleFileUpload}
           />
@@ -1051,6 +1052,7 @@ export default function MySpacePage() {
             // @ts-ignore
             webkitdirectory=""
             directory=""
+            aria-label="Izaberi folder za upload"
             className="hidden"
             onChange={handleFileUpload}
           />
@@ -1152,6 +1154,7 @@ export default function MySpacePage() {
                   }
                 }}
                 placeholder="Naziv foldera..."
+                aria-label="Naziv foldera"
                 className="flex-1 bg-transparent text-sm outline-none"
               />
               <button
@@ -1159,12 +1162,14 @@ export default function MySpacePage() {
                   if (newFolderName.trim()) createFolderMutation.mutate(newFolderName.trim());
                 }}
                 disabled={!newFolderName.trim()}
+                aria-label="Kreiraj folder"
                 className="rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-30"
               >
                 <Check className="h-4 w-4" />
               </button>
               <button
                 onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}
+                aria-label="Otkaži"
                 className="rounded p-1 text-gray-400 hover:bg-gray-100"
               >
                 <X className="h-4 w-4" />
@@ -1225,6 +1230,7 @@ export default function MySpacePage() {
                 if (hasSelection) clearSelection();
                 else selectAll();
               }}
+              aria-label="Izaberi sve"
               className="flex items-center justify-center"
             >
               {hasSelection ? (
@@ -1287,6 +1293,7 @@ export default function MySpacePage() {
               >
                 <button
                   onClick={(e) => toggleFolderSelection(folder.id, e)}
+                  aria-label="Izaberi folder"
                   className="flex items-center justify-center"
                 >
                   {isFolderSelected ? (
@@ -1301,6 +1308,7 @@ export default function MySpacePage() {
                       <Folder className="h-5 w-5 text-yellow-500" />
                       <input
                         autoFocus
+                        aria-label="Novo ime foldera"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -1326,6 +1334,7 @@ export default function MySpacePage() {
                     e.stopPropagation();
                     setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', item: folder });
                   }}
+                  aria-label="Više opcija"
                   className="rounded p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -1365,6 +1374,7 @@ export default function MySpacePage() {
               >
                 <button
                   onClick={(e) => toggleFileSelection(file.id, e)}
+                  aria-label="Izaberi fajl"
                   className="flex items-center justify-center"
                 >
                   {isFileSelected ? (
@@ -1378,6 +1388,7 @@ export default function MySpacePage() {
                   {renamingId === file.id ? (
                     <input
                       autoFocus
+                      aria-label="Novo ime fajla"
                       className="rounded border px-1 py-0.5 text-sm dark:bg-gray-800 dark:border-gray-600"
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
@@ -1407,6 +1418,7 @@ export default function MySpacePage() {
                     e.stopPropagation();
                     setContextMenu({ x: e.clientX, y: e.clientY, type: 'file', item: file });
                   }}
+                  aria-label="Više opcija"
                   className="rounded p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -1758,6 +1770,7 @@ export default function MySpacePage() {
             )}
             <button
               onClick={clearSelection}
+              aria-label="Poništi izbor"
               className="ml-1 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-4 w-4" />
@@ -1823,6 +1836,7 @@ export default function MySpacePage() {
                 </div>
                 <button
                   onClick={() => setShareModal(null)}
+                  aria-label="Zatvori"
                   className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <X className="h-5 w-5" />
@@ -2045,6 +2059,7 @@ export default function MySpacePage() {
                   </button>
                   <button
                     onClick={closePreview}
+                    aria-label="Zatvori"
                     className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <X className="h-5 w-5" />

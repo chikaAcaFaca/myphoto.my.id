@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Referral registrovan. Kreator mema ce dobiti +1GB kada vi uploadujete 500MB i preporucite 5 prijatelja.',
+      message: 'Referral registrovan. Kreator mema ce dobiti popust na godisnju pretplatu kada vi uploadujete 500MB i preporucite 5 prijatelja.',
     });
   } catch (error) {
     console.error('Meme referral error:', error);

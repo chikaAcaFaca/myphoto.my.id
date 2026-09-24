@@ -191,6 +191,7 @@ export function UploadModal() {
             <h2 className="text-lg font-semibold">Upload Files</h2>
             <button
               onClick={closeUploadModal}
+              aria-label="Zatvori"
               className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
@@ -281,6 +282,9 @@ export function UploadModal() {
                     </div>
                     <button
                       onClick={() => handleSettingChange('allowRoaming', !allowRoaming)}
+                      role="switch"
+                      aria-checked={allowRoaming}
+                      aria-label="Dozvoli roming"
                       className={cn(
                         'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                         allowRoaming ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'
@@ -516,6 +520,7 @@ export function UploadModal() {
                         {item.status === 'pending' && (
                           <button
                             onClick={() => handleRemoveItem(item.id)}
+                            aria-label="Ukloni"
                             className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600"
                           >
                             <X className="h-4 w-4" />

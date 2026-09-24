@@ -275,7 +275,7 @@ export default async function BlogPostPage({ params }: Props) {
             Isprobajte MyPhoto besplatno
           </h3>
           <p className="mb-4 text-gray-600 dark:text-gray-400">
-            Do 15GB besplatnog prostora, bez kreditne kartice.
+            2,5GB besplatnog prostora, bez kreditne kartice.
           </p>
           <Link
             href="/register"

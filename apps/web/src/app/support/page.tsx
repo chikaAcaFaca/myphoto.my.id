@@ -45,7 +45,7 @@ const FAQ_CATEGORIES = [
     questions: [
       {
         q: 'Koji su dostupni planovi?',
-        a: 'Nudimo besplatan plan (1GB, do 15GB sa bonusima) i plaćene planove od 150GB do 10TB. Svaki plan je dostupan u Standard i AI Powered verziji. Pogledajte stranicu sa cenama za detalje.',
+        a: 'Nudimo besplatan plan (1GB, do 2,5GB sa bonusima) i više plaćenih planova. Aktuelne veličine i cene su na stranici sa cenama.',
       },
       {
         q: 'Mogu li da otkažem pretplatu?',

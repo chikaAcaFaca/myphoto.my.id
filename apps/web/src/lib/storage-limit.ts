@@ -5,6 +5,7 @@ import {
   DESKTOP_INSTALL_BONUS,
   MAX_REFERRAL_BONUS,
   MAX_MEME_REFERRAL_BONUS,
+  MAX_FREE_STORAGE,
 } from '@myphoto/shared';
 
 /**
@@ -47,8 +48,17 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
     subscriptionStorage += doc.data().storageAmount || 0;
   }
 
-  const totalStorage =
-    FREE_STORAGE_LIMIT + backupBonus + desktopBonus + referralBonus + memeBonus + manualBonus + subscriptionStorage;
+  // Everything obtainable without paying is capped as a whole. Clamping each
+  // bonus on its own left the real ceiling at the SUM of the individual caps
+  // (1 + 1 + 0.5 + 7.5 + 10 = 20GB) — MAX_FREE_STORAGE was declared but never
+  // read, so it enforced nothing. Admin grants and paid subscriptions stack on
+  // top and stay uncapped.
+  const freeAllowance = Math.min(
+    FREE_STORAGE_LIMIT + backupBonus + desktopBonus + referralBonus + memeBonus,
+    MAX_FREE_STORAGE
+  );
+
+  const totalStorage = freeAllowance + manualBonus + subscriptionStorage;
 
   await db.collection('users').doc(userId).update({
     storageLimit: totalStorage,

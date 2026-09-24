@@ -263,6 +263,7 @@ export default function MemeSocial({
             <textarea
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
+              aria-label="Napiši komentar"
               placeholder="Napiši komentar..."
               maxLength={1000}
               rows={2}

@@ -265,6 +265,7 @@ export default function SettingsPage() {
                           <input
                             type="password"
                             placeholder="Nova šifra (min 8 karaktera)"
+                            aria-label="Nova šifra"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
@@ -273,6 +274,7 @@ export default function SettingsPage() {
                           <input
                             type="password"
                             placeholder="Potvrdi šifru"
+                            aria-label="Potvrdi šifru"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
@@ -376,6 +378,7 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             updateSetting('uploadQuality', e.target.value as UserSettings['uploadQuality'])
                           }
+                          aria-label="Kvalitet uploada"
                           className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
                         >
                           <option value="original">Originalni kvalitet</option>
@@ -395,10 +398,10 @@ export default function SettingsPage() {
                       <Gift className="mt-0.5 h-6 w-6 text-green-600 dark:text-green-400" />
                       <div>
                         <p className="font-semibold text-green-800 dark:text-green-300">
-                          Pozovite prijatelje i oboje dobijate +512MB prostora!
+                          Pozovite prijatelje — oboje dobijate 10% popusta na godišnju pretplatu!
                         </p>
                         <p className="mt-1 text-sm text-green-700 dark:text-green-400">
-                          Možete dobiti do 10GB besplatno (1GB registracija + 1GB app + 512MB desktop + 7GB od referrala).
+                          Do 3 prijatelja godišnje, znači do 30% popusta. Besplatno dobijate 2,5GB (1GB registracija + 1GB aplikacija + 512MB desktop).
                         </p>
                       </div>
                     </div>
@@ -459,6 +462,7 @@ export default function SettingsPage() {
                             <input
                               readOnly
                               value={referralStats.referralLink}
+                              aria-label="Referral link"
                               className="flex-1 rounded-lg bg-gray-100 px-3 py-2.5 text-sm dark:bg-gray-700"
                             />
                             <button
@@ -477,7 +481,7 @@ export default function SettingsPage() {
                         <p className="mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">Podeli putem</p>
                         <div className="flex flex-wrap gap-2">
                           <a
-                            href={`https://wa.me/?text=${encodeURIComponent(`Pridruži se MyPhoto i dobij +512MB besplatnog prostora! ${referralStats.referralLink}`)}`}
+                            href={`https://wa.me/?text=${encodeURIComponent(`Pridruži se MyPhoto i oboje dobijamo 10% popusta na godišnju pretplatu! ${referralStats.referralLink}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
@@ -486,7 +490,7 @@ export default function SettingsPage() {
                             WhatsApp
                           </a>
                           <a
-                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Čuvam slike na MyPhoto - privatno i sigurno! Registruj se i oboje dobijamo +512MB: ${referralStats.referralLink}`)}`}
+                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Čuvam slike na MyPhoto - privatno i sigurno! Registruj se i oboje dobijamo 10% popusta: ${referralStats.referralLink}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
@@ -504,7 +508,7 @@ export default function SettingsPage() {
                             Facebook
                           </a>
                           <a
-                            href={`mailto:?subject=${encodeURIComponent('Pridruži se MyPhoto!')}&body=${encodeURIComponent(`Pozivam te na MyPhoto - privatno čuvanje slika u oblaku. Registruj se i oboje dobijamo +512MB besplatnog prostora!\n\n${referralStats.referralLink}`)}`}
+                            href={`mailto:?subject=${encodeURIComponent('Pridruži se MyPhoto!')}&body=${encodeURIComponent(`Pozivam te na MyPhoto - privatno čuvanje slika u oblaku. Registruj se i oboje dobijamo 10% popusta na godišnju pretplatu!\n\n${referralStats.referralLink}`)}`}
                             className="flex items-center gap-2 rounded-lg bg-gray-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600"
                           >
                             <Share2 className="h-4 w-4" />
@@ -533,7 +537,7 @@ export default function SettingsPage() {
                                   <tr key={i} className="border-t border-gray-200 dark:border-gray-700">
                                     <td className="px-4 py-2">{ref.email}</td>
                                     <td className="px-4 py-2 text-gray-500">{ref.date}</td>
-                                    <td className="px-4 py-2 text-right font-medium text-green-600">+1 GB</td>
+                                    <td className="px-4 py-2 text-right font-medium text-green-600">10% popusta</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -556,6 +560,7 @@ export default function SettingsPage() {
                         <ToggleSwitch
                           checked={settings?.autoBackup ?? true}
                           onChange={(v) => updateSetting('autoBackup', v)}
+                          label="Automatski backup"
                         />
                       }
                     />
@@ -569,6 +574,7 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             updateSetting('syncMode', e.target.value as UserSettings['syncMode'])
                           }
+                          aria-label="Upload režim"
                           className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
                         >
                           <option value="wifi_only">Samo WiFi</option>
@@ -585,6 +591,7 @@ export default function SettingsPage() {
                         <ToggleSwitch
                           checked={settings?.allowRoaming ?? false}
                           onChange={(v) => updateSetting('allowRoaming', v)}
+                          label="Upload u romingu"
                         />
                       }
                     />
@@ -625,6 +632,7 @@ export default function SettingsPage() {
                         <ToggleSwitch
                           checked={isDarkMode}
                           onChange={toggleDarkMode}
+                          label="Tamni režim"
                         />
                       }
                     />
@@ -643,6 +651,7 @@ export default function SettingsPage() {
                         <ToggleSwitch
                           checked={settings?.faceRecognition ?? true}
                           onChange={(v) => updateSetting('faceRecognition', v)}
+                          label="Prepoznavanje lica"
                         />
                       }
                     />
@@ -717,10 +726,13 @@ function SettingsRow({
   );
 }
 
-function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleSwitch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) {
   return (
     <button
       onClick={() => onChange(!checked)}
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
       className={cn(
         'relative h-6 w-11 rounded-full transition-colors',
         checked ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'

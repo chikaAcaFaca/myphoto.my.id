@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     template: '%s | MyPhoto',
   },
   description:
-    'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. Up to 15GB free.',
+    'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. 2.5GB free to start.',
   keywords: [
     'google photos alternative',
     'photo backup app',
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     siteName: 'MyPhoto',
     title: 'MyPhoto — Private Cloud Photo Storage & Backup',
     description:
-      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. Up to 15GB free.',
+      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. 2.5GB free to start.',
     images: [
       {
         url: 'https://myphotomy.space/og-image.png',
@@ -48,14 +48,14 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'MyPhoto — Private Cloud Photo Storage & Backup',
     description:
-      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. Up to 15GB free.',
+      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. 2.5GB free to start.',
     images: ['https://myphotomy.space/og-image.png'],
   },
   alternates: {
     canonical: 'https://myphotomy.space',
     languages: {
-      'sr': 'https://myphotomy.space',
-      'en': 'https://myphotomy.space',
+      'sr-RS': 'https://myphotomy.space',
+      'x-default': 'https://myphotomy.space',
     },
   },
   verification: {
@@ -76,7 +76,7 @@ const jsonLd = {
           '@type': 'Offer',
           price: '0',
           priceCurrency: 'USD',
-          description: 'Up to 15GB free storage with auto backup',
+          description: '2.5GB free storage with auto backup',
         },
         {
           '@type': 'Offer',
@@ -92,11 +92,6 @@ const jsonLd = {
       description:
         'Private cloud photo storage with auto backup, original quality, EU servers, and GDPR protection. Google Photos alternative.',
       url: 'https://myphotomy.space',
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.8',
-        ratingCount: '1200',
-      },
       featureList: 'Auto backup, Original quality, EU servers, GDPR compliance, AI search, Album sharing',
     },
     {

@@ -130,6 +130,7 @@ export default function VideosPage() {
           <div className="flex rounded-lg border border-gray-200 p-1 dark:border-gray-700">
             <button
               onClick={() => setViewMode('grid')}
+              aria-label="Prikaz u mreži"
               className={cn(
                 'rounded-md p-1.5',
                 viewMode === 'grid'
@@ -141,6 +142,7 @@ export default function VideosPage() {
             </button>
             <button
               onClick={() => setViewMode('list')}
+              aria-label="Prikaz u listi"
               className={cn(
                 'rounded-md p-1.5',
                 viewMode === 'list'

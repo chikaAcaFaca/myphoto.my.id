@@ -144,6 +144,7 @@ export function SharedGallery({ fileIds, shareToken, albumName, permission = 're
               </a>
               <button
                 onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
+                aria-label="Zatvori"
                 className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
               >
                 <X className="h-5 w-5" />
@@ -170,12 +171,14 @@ export function SharedGallery({ fileIds, shareToken, albumName, permission = 're
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); goPrev(); }}
+                aria-label="Prethodna"
                 className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition-colors hover:bg-white/20"
               >
                 <ChevronLeft className="h-6 w-6" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); goNext(); }}
+                aria-label="Sledeća"
                 className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition-colors hover:bg-white/20"
               >
                 <ChevronRight className="h-6 w-6" />

@@ -105,6 +105,7 @@ export function UploadToast() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setMinimized((m) => !m)}
+                aria-label={minimized ? 'Proširi' : 'Skupi'}
                 className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
               >
                 {minimized ? (
@@ -118,6 +119,7 @@ export function UploadToast() {
                   setDismissed(true);
                   if (allDone) clearCompletedUploads();
                 }}
+                aria-label="Zatvori"
                 className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
               >
                 <X className="h-4 w-4" />

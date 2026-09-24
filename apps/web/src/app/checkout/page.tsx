@@ -12,6 +12,7 @@ import {
   Check,
   CreditCard,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { initializePaddle, CheckoutEventNames } from '@paddle/paddle-js';
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js';
@@ -26,6 +27,13 @@ import { loadFreemius, openFreemiusCheckout } from '@/lib/freemius-checkout';
 const PAYMENT_PROVIDER = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || 'paddle') as
   | 'paddle'
   | 'freemius';
+
+// Paddle's environment used to be hardcoded to 'sandbox', which meant no real
+// money could ever be taken even with valid price ids. It is now driven by env
+// and still defaults to sandbox — charging real cards by accident is the worse
+// failure — but the UI shows a test-mode notice so it cannot ship unnoticed.
+const PADDLE_ENVIRONMENT = (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT ||
+  'sandbox') as 'sandbox' | 'production';
 
 function getPaddlePriceId(tier: StorageTier, period: BillingPeriod): string {
   switch (period) {
@@ -55,6 +63,10 @@ function CheckoutContent() {
   const [paddle, setPaddle] = useState<Paddle | null>(null);
   const [freemiusReady, setFreemiusReady] = useState(false);
   const [isOpeningCheckout, setIsOpeningCheckout] = useState(false);
+  // Anything that stopped the payment overlay from opening. Rendered to the
+  // user — previously every one of these paths was a bare `return`, so the
+  // button either span "Učitavanje..." forever or did nothing at all on click.
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // Parse URL params
   const tierNum = parseInt(searchParams.get('tier') || '1', 10);
@@ -85,30 +97,70 @@ function CheckoutContent() {
     if (PAYMENT_PROVIDER === 'freemius') {
       loadFreemius()
         .then(() => setFreemiusReady(true))
-        .catch((err) => console.error(err));
+        .catch((err) => {
+          console.error('Freemius failed to load:', err);
+          setCheckoutError('Sistem za plaćanje se nije učitao. Osvežite stranicu i pokušajte ponovo.');
+        });
       return;
     }
 
     const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-    if (!token) return;
+    if (!token) {
+      // Config error, not a user error — handled by `configError` below so the
+      // button is never left spinning on a missing environment variable.
+      return;
+    }
 
     initializePaddle({
       token,
-      environment: 'sandbox',
+      environment: PADDLE_ENVIRONMENT,
       eventCallback: handleCheckoutEvent,
-    }).then((paddleInstance) => {
-      if (paddleInstance) {
-        setPaddle(paddleInstance);
-      }
-    });
+    })
+      .then((paddleInstance) => {
+        if (paddleInstance) {
+          setPaddle(paddleInstance);
+        } else {
+          setCheckoutError('Sistem za plaćanje se nije učitao. Osvežite stranicu i pokušajte ponovo.');
+        }
+      })
+      .catch((err) => {
+        console.error('Paddle failed to initialize:', err);
+        setCheckoutError('Sistem za plaćanje se nije učitao. Osvežite stranicu i pokušajte ponovo.');
+      });
   }, [handleCheckoutEvent]);
+
+  // A missing plan/price id or client token means this tier simply cannot be
+  // sold right now. That is a deployment mistake, not something the buyer can
+  // fix, so we say so plainly and point them at support rather than handing
+  // them a button that swallows the click.
+  const configError: string | null = (() => {
+    if (tier.tier === 0) return null;
+    if (PAYMENT_PROVIDER === 'freemius') {
+      if (!tier.freemiusPlanId) {
+        return `Plan „${tier.name}" trenutno nije dostupan za kupovinu — nedostaje Freemius plan ID.`;
+      }
+      return null;
+    }
+    if (!process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN) {
+      return 'Sistem za plaćanje nije podešen na ovom sajtu (nedostaje Paddle client token).';
+    }
+    if (!getPaddlePriceId(tier, period)) {
+      const label = period === 'yearly' ? 'godišnje' : 'mesečno';
+      return `Plan „${tier.name}" trenutno nije dostupan za ${label} plaćanje — nedostaje Paddle price ID.`;
+    }
+    return null;
+  })();
 
   const handleOpenCheckout = () => {
     if (!firebaseUser || !user) return;
+    setCheckoutError(null);
 
     if (PAYMENT_PROVIDER === 'freemius') {
       const planId = tier.freemiusPlanId;
-      if (!planId) return;
+      if (!planId) {
+        setCheckoutError(configError);
+        return;
+      }
 
       setIsOpeningCheckout(true);
       const opened = openFreemiusCheckout({
@@ -118,14 +170,23 @@ function CheckoutContent() {
         onSuccess: () => router.push('/photos?subscribed=true'),
         onClose: () => setIsOpeningCheckout(false),
       });
-      if (!opened) setIsOpeningCheckout(false);
+      if (!opened) {
+        setIsOpeningCheckout(false);
+        setCheckoutError('Prozor za plaćanje se nije otvorio. Proverite da blokator iskačućih prozora nije uključen.');
+      }
       return;
     }
 
-    if (!paddle) return;
+    if (!paddle) {
+      setCheckoutError('Sistem za plaćanje još nije spreman. Sačekajte trenutak i pokušajte ponovo.');
+      return;
+    }
 
     const priceId = getPaddlePriceId(tier, period);
-    if (!priceId) return;
+    if (!priceId) {
+      setCheckoutError(configError);
+      return;
+    }
 
     setIsOpeningCheckout(true);
 
@@ -239,6 +300,30 @@ function CheckoutContent() {
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-primary-500" />
                 </div>
+              ) : isLoggedIn && configError ? (
+                /* This tier cannot be sold — say so instead of showing a button
+                   that does nothing when clicked. */
+                <div>
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                      <div>
+                        <p className="font-semibold text-amber-800 dark:text-amber-300">
+                          Plaćanje trenutno nije moguće
+                        </p>
+                        <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
+                          {configError}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <Link
+                    href="/contact"
+                    className="mt-4 block w-full rounded-lg border-2 border-primary-500 py-3 text-center font-semibold text-primary-600 transition-colors hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20"
+                  >
+                    Javite nam se
+                  </Link>
+                </div>
               ) : isLoggedIn ? (
                 /* Logged in — show checkout button */
                 <div>
@@ -272,6 +357,22 @@ function CheckoutContent() {
                       </>
                     )}
                   </button>
+                  {checkoutError && (
+                    <div
+                      role="alert"
+                      className="mt-3 rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-700 dark:bg-red-900/20"
+                    >
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-400" />
+                        <p className="text-sm text-red-700 dark:text-red-300">{checkoutError}</p>
+                      </div>
+                    </div>
+                  )}
+                  {PAYMENT_PROVIDER === 'paddle' && PADDLE_ENVIRONMENT === 'sandbox' && (
+                    <p className="mt-3 rounded-lg bg-amber-50 py-2 text-center text-xs font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+                      Test režim — pravi novac se ne naplaćuje
+                    </p>
+                  )}
                   <p className="mt-3 text-center text-xs text-gray-500">
                     Plaćanje se obavlja preko sigurne {providerName} platforme
                   </p>

@@ -309,7 +309,7 @@ function PricingContent() {
                 </Link>
                 {isFree && (
                   <p className="mt-3 text-center text-xs text-green-600 dark:text-green-400">
-                    Pozovite prijatelje za do 15 GB besplatno!
+                    Pozovite prijatelje — do 30% popusta na godišnju pretplatu!
                   </p>
                 )}
               </div>

@@ -96,7 +96,7 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
             <h2 className="text-lg font-semibold">
               Dodaj u album ({fileIds.length} {fileIds.length === 1 ? 'fajl' : 'fajlova'})
             </h2>
-            <button onClick={handleClose} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <button onClick={handleClose} aria-label="Zatvori" className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -112,12 +112,13 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
                   onChange={(e) => setNewAlbumName(e.target.value)}
                   className="input flex-1"
                   placeholder="Ime novog albuma"
+                  aria-label="Ime novog albuma"
                   autoFocus
                 />
-                <button type="submit" disabled={!newAlbumName.trim() || isSubmitting} className="btn-primary">
+                <button type="submit" disabled={!newAlbumName.trim() || isSubmitting} aria-label="Sačuvaj" className="btn-primary">
                   <Check className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => setIsCreatingNew(false)} className="btn-secondary">
+                <button type="button" onClick={() => setIsCreatingNew(false)} aria-label="Otkaži" className="btn-secondary">
                   <X className="h-4 w-4" />
                 </button>
               </form>

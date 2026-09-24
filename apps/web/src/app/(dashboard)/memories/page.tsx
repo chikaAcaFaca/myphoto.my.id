@@ -225,6 +225,7 @@ function MemoryModal({
           </div>
           <button
             onClick={onClose}
+            aria-label="Zatvori"
             className="rounded-full bg-black/40 p-2 text-white hover:bg-black/60"
           >
             <X className="h-5 w-5" />
@@ -248,12 +249,14 @@ function MemoryModal({
           <>
             <button
               onClick={() => setCurrentIndex((i) => (i > 0 ? i - 1 : memory.files.length - 1))}
+              aria-label="Prethodna"
               className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-3 text-white hover:bg-black/60"
             >
               <ChevronRight className="h-6 w-6 rotate-180" />
             </button>
             <button
               onClick={() => setCurrentIndex((i) => (i < memory.files.length - 1 ? i + 1 : 0))}
+              aria-label="Sledeća"
               className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-3 text-white hover:bg-black/60"
             >
               <ChevronRight className="h-6 w-6" />
@@ -266,6 +269,7 @@ function MemoryModal({
           {memory.files.slice(0, 10).map((file, index) => (
             <button
               key={file.id}
+              aria-label={`Slika ${index + 1}`}
               onClick={() => setCurrentIndex(index)}
               className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg ${
                 index === currentIndex ? 'ring-2 ring-white' : 'opacity-60'

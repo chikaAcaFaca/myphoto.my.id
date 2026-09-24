@@ -1,5 +1,18 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Cloud, ArrowLeft, Shield, Server, Lock, Check, Scale } from 'lucide-react';
+
+export const metadata: Metadata = {
+  title: 'Politika privatnosti',
+  description:
+    'Politika privatnosti MyPhoto — kako čuvamo i štitimo vaše fotografije. EU serveri, GDPR usklađenost, i nikada ne koristimo vaše slike za AI trening.',
+  alternates: { canonical: 'https://myphotomy.space/privacy' },
+  openGraph: {
+    title: 'Politika privatnosti | MyPhoto',
+    description: 'Kako čuvamo i štitimo vaše fotografije. EU serveri, GDPR, bez AI treninga na vašim slikama.',
+    url: 'https://myphotomy.space/privacy',
+  },
+};
 
 export default function PrivacyPage() {
   return (
@@ -743,7 +756,7 @@ export default function PrivacyPage() {
         <div className="mt-16 rounded-2xl bg-gradient-to-r from-primary-500 to-primary-600 p-8 text-center text-white">
           <h2 className="text-2xl font-bold">Vaša privatnost je naš prioritet</h2>
           <p className="mx-auto mt-2 max-w-xl text-primary-100">
-            Započnite besplatno sa do 15GB — bez kreditne kartice, bez kompromisa.
+            Započnite besplatno sa 2,5GB — bez kreditne kartice, bez kompromisa.
           </p>
           <Link
             href="/register"

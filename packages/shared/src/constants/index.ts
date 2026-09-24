@@ -18,22 +18,50 @@ export const APP_INSTALL_BONUS = 1 * BYTES_PER_GB;
 // Bonus: +512MB for installing Desktop app + enabling sync
 export const DESKTOP_INSTALL_BONUS = 512 * BYTES_PER_MB;
 
-// Referral constants
-export const REFERRAL_BONUS = 512 * BYTES_PER_MB;        // +512MB per referral
-export const MAX_REFERRAL_BONUS = 7.5 * BYTES_PER_GB;      // max 7.5GB bonus (15 referrals × 512MB)
-export const MAX_REFERRALS = 15;                           // max 15 friends
+// Referral constants.
+//
+// Referrals no longer grant storage. Free storage costs money whether or not
+// the referred person ever pays, so the reward is now a discount on the annual
+// subscription — it can only ever be paid out of revenue that would not exist
+// without it, which makes the programme incapable of running at a loss.
+// Both sides get REFERRAL_DISCOUNT_PERCENT off; the referrer can stack at most
+// MAX_REFERRALS_PER_YEAR of them per year.
+export const REFERRAL_DISCOUNT_PERCENT = 10;
+export const MAX_REFERRALS_PER_YEAR = 3;
+export const MAX_REFERRAL_DISCOUNT_PERCENT =
+  REFERRAL_DISCOUNT_PERCENT * MAX_REFERRALS_PER_YEAR; // 30%
+
+// Storage-based referral rewards are retired. Kept at zero rather than deleted
+// so existing call sites keep compiling and grant nothing. Previously banked
+// bytes are NOT preserved — the 2.5GB free ceiling would clamp them away in any
+// case, since registration + app + desktop already reach it exactly.
+export const REFERRAL_BONUS = 0;
+export const MAX_REFERRAL_BONUS = 0;
+export const MAX_REFERRALS = 15;                           // link still tracks who came from whom
 export const REFERRAL_QUALIFICATION_BYTES = 100 * BYTES_PER_MB; // referee must upload 100MB to qualify
 export const MAX_FAMILY_MEMBERS_REFERRAL = 6;
 
 // Meme-wall referral (separate, stricter system — referee must do more to qualify)
-export const MEME_REFERRAL_BONUS = 1 * BYTES_PER_GB;               // +1GB per qualified meme referral
-export const MAX_MEME_REFERRAL_BONUS = 10 * BYTES_PER_GB;          // max 10GB from meme referrals
+// Retired alongside the main referral bonus — see REFERRAL_DISCOUNT_PERCENT.
+export const MEME_REFERRAL_BONUS = 0;
+export const MAX_MEME_REFERRAL_BONUS = 0;
 export const MEME_QUALIFICATION_UPLOAD_BYTES = 500 * BYTES_PER_MB; // referee must upload 500MB
 export const MEME_QUALIFICATION_REFERRALS = 5;                     // referee must refer 5 friends
 
-// Max free storage: 1GB (reg) + 1GB (app) + 512MB (desktop) + 7.5GB (15 referrals) = ~10GB
-// But realistically without all referrals: 1GB + 1GB + 512MB + 512MB = 3GB (enough for MySpace free)
-export const MAX_FREE_STORAGE = 10 * BYTES_PER_GB;
+// Hard ceiling on everything a user can get without paying: the free tier plus
+// every bonus (app install, desktop install, referrals, meme referrals) added
+// together. Enforced in recalculateStorageLimit(); admin-granted storage and
+// paid subscriptions stack on top of it and are deliberately NOT capped.
+//
+// Composition: 1GB registration + 1GB app install + 0.5GB desktop install.
+// Referrals deliberately add nothing here — they pay out as a subscription
+// discount instead (see REFERRAL_DISCOUNT_PERCENT).
+//
+// This used to be declared and never read, so the real ceiling was the sum of
+// the individual caps — 20GB, not 10GB. At full utilisation a 20GB free user
+// costs ~$2.30/year, which needs a ~22% paid conversion rate just to break
+// even; 2.5GB brings that down to ~3.5%, reachable for a freemium product.
+export const MAX_FREE_STORAGE = 2.5 * BYTES_PER_GB;
 
 // Legacy — keep for backward compatibility during migration
 export const BACKUP_BONUS = APP_INSTALL_BONUS;

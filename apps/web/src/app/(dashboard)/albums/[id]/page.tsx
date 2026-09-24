@@ -221,6 +221,7 @@ export default function AlbumDetailPage() {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   className="input text-2xl font-bold"
+                  aria-label="Naziv albuma"
                   autoFocus
                 />
                 <textarea
@@ -228,6 +229,7 @@ export default function AlbumDetailPage() {
                   onChange={(e) => setEditDescription(e.target.value)}
                   className="input min-h-[60px] resize-none text-sm"
                   placeholder="Opis albuma (opciono)"
+                  aria-label="Opis albuma"
                   rows={2}
                 />
                 <div className="flex gap-2">
@@ -316,6 +318,7 @@ export default function AlbumDetailPage() {
                 <button
                   onClick={() => setShowMenu(!showMenu)}
                   className="btn-secondary p-2"
+                  aria-label="Više opcija"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
@@ -354,6 +357,7 @@ export default function AlbumDetailPage() {
               type="text"
               value={shareUrl}
               readOnly
+              aria-label="Link za deljenje"
               className="flex-1 bg-transparent text-sm text-gray-700 outline-none dark:text-gray-300"
             />
             <button

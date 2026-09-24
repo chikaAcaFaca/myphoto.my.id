@@ -31,7 +31,7 @@ const categories = [
     faqs: [
       {
         question: 'Koliko prostora imam besplatno?',
-        answer: 'Svaki nalog dolazi sa 1GB besplatnog prostora, sa mogućnošću do 15GB kroz bonuse. Slike i video se čuvaju u originalnom kvalitetu bez kompresije.',
+        answer: 'Svaki nalog dolazi sa 1GB besplatnog prostora, sa mogućnošću do 2,5GB kroz bonuse (aplikacija +1GB, desktop +512MB). Slike i video se čuvaju u originalnom kvalitetu bez kompresije.',
       },
       {
         question: 'Koji formati su podržani?',
@@ -129,7 +129,7 @@ const categories = [
     faqs: [
       {
         question: 'Koje planove nudite?',
-        answer: 'Nudimo besplatan plan (1GB, do 15GB sa bonusima), Plus plan sa AI (250GB od €4.49/mes), i Pro+ plan (1.25TB od €17.99/mes). Detalji na stranici sa cenama.',
+        answer: 'Nudimo besplatan plan (1GB, do 2,5GB sa bonusima) i više plaćenih planova. Aktuelne cene i veličine su na stranici sa cenama.',
       },
       {
         question: 'Da li mogu da otkažem pretplatu?',

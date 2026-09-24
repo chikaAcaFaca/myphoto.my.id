@@ -50,7 +50,7 @@ MyPhoto je dizajniran sa privatnošću na prvom mestu:
 
 ## Zaključak
 
-Privatnost nije luksuz — to je pravo. Izaberite cloud storage koji poštuje vaše podatke. Isprobajte MyPhoto besplatno sa do 15GB prostora i uverite se sami.
+Privatnost nije luksuz — to je pravo. Izaberite cloud storage koji poštuje vaše podatke. Isprobajte MyPhoto besplatno sa 2,5GB prostora i uverite se sami.
     `.trim(),
   },
   {
@@ -88,9 +88,9 @@ Telefoni se gube, kradu ili kvare. Bez backup-a, gubite godine uspomena. Automat
 - **WiFi + Mobilni** — backup uvek (troši mobilne podatke)
 - **Ručni** — backup samo kada vi pokrenete
 
-## Bonus: Dobijte +4GB besplatno!
+## Bonus: Dobijte +1,5GB besplatno!
 
-Kada instalirate aplikaciju i uključite automatski backup, dobijate **+4GB besplatnog prostora** — ukupno 5GB! Plus, za svakog prijatelja kog pozovete dobijate još +1GB (do 15GB ukupno).
+Kada instalirate aplikaciju i uključite automatski backup, dobijate **+1GB besplatnog prostora**. Desktop aplikacija donosi još 512MB — ukupno 2,5GB. Plus, za svakog prijatelja kog pozovete dobijate **10% popusta** na godišnju pretplatu, do 30%.
 
 ## Šta se backup-uje?
 
@@ -105,7 +105,7 @@ Kada instalirate aplikaciju i uključite automatski backup, dobijate **+4GB besp
 Ne. MyPhoto koristi Android Background Fetch koji je optimizovan za minimalnu potrošnju baterije.
 
 **Šta ako nemam dovoljno prostora?**
-Besplatan plan počinje sa 1GB, a sa aplikacijom i backup-om dobijate 5GB. Pozovite prijatelje za do 15GB besplatno, ili nadogradite na Starter plan (150GB za €2.49/mes).
+Besplatan plan počinje sa 1GB, a sa aplikacijom i desktopom dobijate 2,5GB. Pozovite prijatelje za do 30% popusta na godišnju pretplatu, ili nadogradite na neki od plaćenih planova — aktuelne cene su na stranici sa cenama.
 
 **Da li mogu backup-ovati samo određene foldere?**
 Da! U podešavanjima možete izabrati tačno koje foldere želite da backup-ujete.
@@ -149,7 +149,7 @@ Google Photos je najpopularniji servis za čuvanje slika, ali da li je i najbolj
 
 | Plan | Google One | MyPhoto |
 |---|---|---|
-| Besplatan | 15GB (deljeno) | 1GB + do 14GB bonus |
+| Besplatan | 15GB (deljeno) | 1GB + do 1,5GB bonus |
 | 100-150GB | €1.99/mes | €2.49/mes (150GB) |
 | 200-250GB | €2.99/mes | €3.49/mes (250GB) |
 
@@ -205,7 +205,7 @@ Vaši podaci su na Google-ovim serverima, uglavnom u SAD-u. GDPR zahtevi su teš
 ## Alternativa: MyPhoto
 
 MyPhoto nudi:
-- **1GB besplatno** + do 14GB bonus (app + pozivi prijatelja)
+- **1GB besplatno** + do 1,5GB bonus (aplikacija + desktop)
 - **Originalni kvalitet** — bez kompresije
 - **EU serveri** — GDPR zaštita
 - **Bez AI treniranja** — vaše slike su samo vaše

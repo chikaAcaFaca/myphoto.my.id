@@ -63,7 +63,7 @@ export function SavingsBadge() {
           Uštedeli ste <strong>€{savedPerYear.toFixed(2)} godišnje</strong> sa {period.label.toLowerCase()} planom!
         </p>
       </div>
-      <button onClick={handleDismiss} className="text-green-400 hover:text-green-600">
+      <button onClick={handleDismiss} aria-label="Zatvori" className="text-green-400 hover:text-green-600">
         <X className="h-4 w-4" />
       </button>
     </div>

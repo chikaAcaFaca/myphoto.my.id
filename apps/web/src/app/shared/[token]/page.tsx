@@ -66,7 +66,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? `Album "${shared.albumName}" - Deljeno sa myphotomy.space`
     : `"${shared.fileName}" - Deljeno sa myphotomy.space`;
   const description =
-    'Besplatan cloud storage za vaše slike. Do 15GB besplatno, privatno i sigurno. Prijavite se za 30 sekundi.';
+    'Besplatan cloud storage za vaše slike. 2,5GB besplatno, privatno i sigurno. Prijavite se za 30 sekundi.';
   const coverFileId = isAlbum ? shared.coverFileId : shared.fileId;
   const ogImageUrl = coverFileId
     ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://myphotomy.space'}/api/thumbnail/${coverFileId}?share=${token}`
@@ -340,7 +340,7 @@ function NotFoundPage() {
           href="/register"
           className="rounded-lg bg-primary-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-primary-600"
         >
-          Kreiraj nalog - do 15GB besplatno
+          Kreiraj nalog - 2,5GB besplatno
         </Link>
         <Link
           href="/"

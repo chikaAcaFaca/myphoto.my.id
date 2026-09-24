@@ -220,6 +220,7 @@ export function PhotoLightbox() {
             <>
               {hasPrev && (
                 <button
+                  aria-label="Prethodna"
                   onClick={(e) => {
                     e.stopPropagation();
                     goToPrev();
@@ -234,6 +235,7 @@ export function PhotoLightbox() {
               )}
               {hasNext && (
                 <button
+                  aria-label="Sledeća"
                   onClick={(e) => {
                     e.stopPropagation();
                     goToNext();
@@ -971,6 +973,7 @@ function ToolbarButton({
         onClick();
       }}
       title={label}
+      aria-label={label}
       className="rounded-full p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
     >
       {icon}
@@ -1038,6 +1041,7 @@ function InfoPanel({
             <h3 className="text-sm font-medium text-white">Details</h3>
             <button
               onClick={onClose}
+              aria-label="Zatvori"
               className="rounded-full p-1 text-white/60 hover:bg-white/10 hover:text-white"
             >
               <X className="h-4 w-4" />

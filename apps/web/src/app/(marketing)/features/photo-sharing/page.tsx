@@ -331,7 +331,7 @@ export default function PhotoSharingPage() {
           Počnite da delite uspomene
         </h2>
         <p className="mx-auto mb-6 max-w-md text-blue-100">
-          Sigurno deljenje slika sa porodicom i prijateljima. Do 15GB besplatno.
+          Sigurno deljenje slika sa porodicom i prijateljima. 2,5GB besplatno.
         </p>
         <Link
           href="/register"

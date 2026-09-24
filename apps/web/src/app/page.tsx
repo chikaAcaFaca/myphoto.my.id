@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import Link from 'next/link';
@@ -16,13 +16,10 @@ import {
   Check,
   Search,
   Users,
-  Star,
   Upload,
   Brain,
   Share2,
   X,
-  ChevronLeft,
-  ChevronRight,
   ArrowRight,
 } from 'lucide-react';
 import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
@@ -172,7 +169,6 @@ export default function HomePage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [showStickyCta, setShowStickyCta] = useState(false);
   const pricingSectionRef = useRef<HTMLDivElement>(null);
-  const testimonialRef = useRef<HTMLDivElement>(null);
 
   // Surface the APK download as a top banner when an Android visitor lands
   // on the home page. Hidden once they dismiss it (per session) so it doesn't
@@ -224,20 +220,6 @@ export default function HomePage() {
     if (monthly === 0) return 0;
     return Math.round((1 - getYearlyMonthlyEquiv(tier) / monthly) * 100);
   };
-
-  // Testimonial carousel
-  const [testimonialIndex, setTestimonialIndex] = useState(0);
-  const nextTestimonial = useCallback(() => {
-    setTestimonialIndex((i) => (i + 1) % TESTIMONIALS.length);
-  }, []);
-  const prevTestimonial = useCallback(() => {
-    setTestimonialIndex((i) => (i - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(nextTestimonial, 5000);
-    return () => clearInterval(interval);
-  }, [nextTestimonial]);
 
   if (isLoading) {
     return (
@@ -319,10 +301,8 @@ export default function HomePage() {
         >
           <span className="flex items-center gap-1 animate-pulse-slow">
             <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
-            <span className="font-semibold text-gray-700 dark:text-gray-200">
-              <AnimatedCounter target={1200} suffix="+" />
-            </span>{' '}
-            korisnika čuva uspomene privatno
+            <span className="font-semibold text-gray-700 dark:text-gray-200">Original kvalitet</span>{' '}
+            · EU serveri · GDPR — tvoje slike ostaju samo tvoje
           </span>
         </motion.div>
 
@@ -337,7 +317,7 @@ export default function HomePage() {
             href="/register"
             className="rounded-xl bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-600 hover:shadow-xl hover:shadow-primary-500/40"
           >
-            Započni besplatno — do 15GB
+            Započni besplatno — 2,5GB
           </Link>
           <Link
             href="#pricing"
@@ -377,26 +357,24 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <AnimatedSection>
             <p className="mb-3 text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Koriste fotografski timovi, porodice i profesionalci širom Evrope
+              Napravljeno za fotografe, porodice i sve koji drže do privatnosti
             </p>
             <div className="flex flex-wrap items-center justify-center gap-8">
               <div className="text-center">
                 <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                  <AnimatedCounter target={50000} suffix="+" />
+                  <AnimatedCounter target={15} suffix="GB" />
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">sačuvanih slika</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">besplatno na startu</p>
               </div>
               <div className="h-8 w-px bg-gray-300 dark:bg-gray-600" />
               <div className="text-center">
-                <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                  <AnimatedCounter target={1200} suffix="+" />
-                </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">aktivnih korisnika</p>
+                <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">0%</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">kompresija — original kvalitet</p>
               </div>
               <div className="h-8 w-px bg-gray-300 dark:bg-gray-600" />
               <div className="text-center">
-                <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">99.9%</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">uptime</p>
+                <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">EU</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">serveri · GDPR</p>
               </div>
             </div>
           </AnimatedSection>
@@ -731,95 +709,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ───── 8. Testimonials (carousel) ───── */}
+      {/* ───── 8. Why MyPhoto (honest benefits) ───── */}
       <section className="bg-gray-50 py-20 dark:bg-gray-900/50">
         <div className="container mx-auto px-4">
           <AnimatedSection>
-            <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Šta kažu naši korisnici</h2>
+            <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Zašto ljudi biraju MyPhoto</h2>
             <p className="mb-12 text-center text-gray-600 dark:text-gray-300">
-              Pridružite se korisnicima koji čuvaju svoje uspomene privatno i sigurno
+              Iskrene prednosti — bez sitnih slova i bez kompromisa oko tvoje privatnosti
             </p>
           </AnimatedSection>
 
-          {/* Carousel */}
-          <div ref={testimonialRef} className="relative mx-auto max-w-4xl">
-            <div className="overflow-hidden">
-              <motion.div
-                className="flex gap-6"
-                animate={{ x: `calc(-${testimonialIndex * 100}% - ${testimonialIndex * 24}px)` }}
-                transition={{ type: 'spring', stiffness: 200, damping: 30 }}
-              >
-                {TESTIMONIALS.map((t) => (
-                  <div
-                    key={t.name}
-                    className="w-full flex-shrink-0 rounded-2xl bg-white p-8 shadow-lg dark:bg-gray-800 md:w-[calc(50%-12px)]"
-                  >
-                    <div className="mb-4 flex items-center gap-4">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={t.avatarImg}
-                        alt={t.name}
-                        width={56}
-                        height={56}
-                        className="h-14 w-14 rounded-full object-cover ring-2 ring-primary-200"
-                      />
-                      <div>
-                        <p className="font-semibold text-lg">{t.name}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{t.role}</p>
-                      </div>
-                    </div>
-                    <div className="mb-4 flex gap-0.5">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          className={cn(
-                            'h-5 w-5',
-                            i < t.rating
-                              ? 'fill-yellow-400 text-yellow-400'
-                              : 'fill-gray-200 text-gray-200 dark:fill-gray-600 dark:text-gray-600'
-                          )}
-                        />
-                      ))}
-                    </div>
-                    <p className="text-gray-600 leading-relaxed dark:text-gray-300">
-                      &ldquo;{t.quote}&rdquo;
-                    </p>
+          <StaggerContainer className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-2">
+            {WHY_MYPHOTO.map((item) => (
+              <StaggerItem key={item.title}>
+                <div className="h-full rounded-2xl bg-white p-8 shadow-lg dark:bg-gray-800">
+                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
+                    <item.icon className="h-6 w-6" />
                   </div>
-                ))}
-              </motion.div>
-            </div>
-
-            {/* Navigation arrows */}
-            <button
-              onClick={prevTestimonial}
-              className="absolute -left-4 top-1/2 -translate-y-1/2 rounded-full bg-white p-2 shadow-lg transition-colors hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 hidden md:block"
-              aria-label="Prethodni"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={nextTestimonial}
-              className="absolute -right-4 top-1/2 -translate-y-1/2 rounded-full bg-white p-2 shadow-lg transition-colors hover:bg-gray-50 dark:bg-gray-700 dark:hover:bg-gray-600 hidden md:block"
-              aria-label="Sledeći"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-
-            {/* Dots */}
-            <div className="mt-6 flex justify-center gap-2">
-              {TESTIMONIALS.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setTestimonialIndex(i)}
-                  className={cn(
-                    'h-2 rounded-full transition-all',
-                    i === testimonialIndex ? 'w-6 bg-primary-500' : 'w-2 bg-gray-300 dark:bg-gray-600'
-                  )}
-                  aria-label={`Testimonial ${i + 1}`}
-                />
-              ))}
-            </div>
-          </div>
+                  <h3 className="mb-2 text-lg font-semibold">{item.title}</h3>
+                  <p className="leading-relaxed text-gray-600 dark:text-gray-300">{item.text}</p>
+                </div>
+              </StaggerItem>
+            ))}
+          </StaggerContainer>
 
           <AnimatedSection delay={0.3}>
             <div className="mt-10 text-center">
@@ -842,7 +754,7 @@ export default function HomePage() {
               Započnite za 30 sekundi
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-lg text-primary-100">
-              Do 15GB besplatno. Bez kreditne kartice. Bez obaveza.
+              2,5GB besplatno. Bez kreditne kartice. Bez obaveza.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
@@ -934,7 +846,7 @@ export default function HomePage() {
           href="/register"
           className="block w-full rounded-lg bg-primary-500 py-3 text-center font-semibold text-white"
         >
-          Započni besplatno — do 15GB
+          Započni besplatno — 2,5GB
         </Link>
       </div>
     </div>
@@ -1020,33 +932,26 @@ const STEPS = [
   },
 ];
 
-const TESTIMONIALS = [
+// Honest, verifiable product benefits — replaces fabricated testimonials.
+const WHY_MYPHOTO = [
   {
-    name: 'Marko P.',
-    role: 'Fotograf',
-    avatarImg: 'https://i.pravatar.cc/150?img=12',
-    quote: 'Konačno servis koji ne kompresuje moje slike. Original kvalitet, EU serveri, i niko ne koristi moje fotke za AI trening. Tačno ono što sam tražio.',
-    rating: 5,
+    icon: Image,
+    title: 'Original kvalitet',
+    text: 'Nula kompresije. Fotografije se čuvaju u punoj rezoluciji — tačno onakve kakve si ih napravio.',
   },
   {
-    name: 'Ana S.',
-    role: 'Mama dvoje dece',
-    avatarImg: 'https://i.pravatar.cc/150?img=5',
-    quote: 'Family sharing je savršen — muž i ja delimo storage, a slike ostaju privatne. Deca odrastaju, a uspomene su na sigurnom.',
-    rating: 5,
+    icon: Shield,
+    title: 'Privatno po dizajnu',
+    text: 'Ne treniramo AI na tvojim slikama. EU serveri, GDPR usklađenost i enkripcija podataka.',
   },
   {
-    name: 'Nikola D.',
-    role: 'Softverski inženjer',
-    avatarImg: 'https://i.pravatar.cc/150?img=68',
-    quote: 'AI pretraga je neverovatna — kucam "zalazak sunca na moru" i nađe tačno te slike. A cena? Jeftiniji od Google One za istu količinu prostora.',
-    rating: 5,
+    icon: Brain,
+    title: 'AI pretraga',
+    text: 'Ukucaj „zalazak sunca na moru" i pronađi tačno te slike — bez ručnog označavanja.',
   },
   {
-    name: 'Jelena M.',
-    role: 'Dizajner',
-    avatarImg: 'https://i.pravatar.cc/150?img=9',
-    quote: 'Prešla sam sa Google Photos-a jer su počeli da kompresuju slike. Ovde imam pun kvalitet, GDPR zaštitu i lepši interfejs.',
-    rating: 4,
+    icon: Share2,
+    title: 'Deljenje sa kontrolom',
+    text: 'Deli albume linkom, biraj ko šta vidi, i deli prostor sa porodicom.',
   },
 ];

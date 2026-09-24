@@ -388,6 +388,7 @@ export default function MemeWallPage() {
             {/* Text inputs */}
             <input
               type="text"
+              aria-label="Tekst gore"
               placeholder="Tekst gore..."
               value={topText}
               onChange={(e) => setTopText(e.target.value)}
@@ -399,6 +400,7 @@ export default function MemeWallPage() {
             />
             <input
               type="text"
+              aria-label="Tekst dole"
               placeholder="Tekst dole..."
               value={bottomText}
               onChange={(e) => setBottomText(e.target.value)}

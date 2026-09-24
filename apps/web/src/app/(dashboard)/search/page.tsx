@@ -138,6 +138,7 @@ function SearchContent() {
               value={localQuery}
               onChange={(e) => setLocalQuery(e.target.value)}
               placeholder="npr. Branka u Vranju pre 5 meseci..."
+              aria-label="Pretraga"
               className="input pl-10"
               autoFocus
             />
@@ -148,6 +149,7 @@ function SearchContent() {
                   setLocalQuery('');
                   router.push('/search');
                 }}
+                aria-label="Obriši pretragu"
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
               >
                 <X className="h-4 w-4" />
@@ -160,6 +162,7 @@ function SearchContent() {
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
+            aria-label="Filteri"
             className={`btn-secondary ${showFilters ? 'bg-gray-200 dark:bg-gray-600' : ''}`}
           >
             <Filter className="h-4 w-4" />

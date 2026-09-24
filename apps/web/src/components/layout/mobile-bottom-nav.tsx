@@ -69,6 +69,7 @@ export function MobileBottomNav() {
         {/* Upload FAB */}
         <button
           onClick={openUploadModal}
+          aria-label="Otpremi"
           className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/30 transition-transform active:scale-95"
         >
           <CloudUpload className="h-7 w-7" />

@@ -164,6 +164,7 @@ export function CreateAlbumModal() {
             <h2 className="text-lg font-semibold">Kreiraj album</h2>
             <button
               onClick={handleClose}
+              aria-label="Zatvori"
               className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
@@ -268,6 +269,7 @@ export function CreateAlbumModal() {
                             <button
                               type="button"
                               onClick={() => removeNewFile(index)}
+                              aria-label="Ukloni"
                               className="flex-shrink-0 rounded p-0.5 text-gray-400 hover:text-red-500"
                             >
                               <Trash2 className="h-3.5 w-3.5" />

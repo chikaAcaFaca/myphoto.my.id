@@ -444,7 +444,7 @@ export default function SharedDiskPage() {
               {data.referralCode && (
                 <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-green-700 shadow-sm dark:bg-gray-800 dark:text-green-400">
                   <Gift className="h-4 w-4" />
-                  +1 GB bonus za vas i prijatelja
+                  10% popusta za vas i prijatelja
                 </div>
               )}
             </div>
@@ -544,6 +544,7 @@ export default function SharedDiskPage() {
                 multiple
                 className="hidden"
                 onChange={handleUpload}
+                aria-label="Izaberi fajlove za otpremanje"
               />
             </div>
           )}
@@ -839,7 +840,7 @@ export default function SharedDiskPage() {
                 <div>
                   <p className="text-sm font-bold">Pozovi prijatelje — besplatno</p>
                   <p className="text-xs text-green-700 dark:text-green-300/90">
-                    +512 MB po pozvanom (do 7.5 GB ekstra)
+                    10% popusta po pozvanom (do 30%)
                   </p>
                 </div>
                 <Gift className="h-5 w-5" />
@@ -880,6 +881,7 @@ export default function SharedDiskPage() {
                 <button
                   onClick={closePreview}
                   className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  aria-label="Zatvori"
                 >
                   <X className="h-5 w-5" />
                 </button>

@@ -332,6 +332,7 @@ export default function MemeCreatorPage() {
           <input
             type="text"
             placeholder="Tekst gore..."
+            aria-label="Tekst gore"
             value={topText}
             onChange={(e) => setTopText(e.target.value)}
             style={{
@@ -342,6 +343,7 @@ export default function MemeCreatorPage() {
           <input
             type="text"
             placeholder="Tekst dole..."
+            aria-label="Tekst dole"
             value={bottomText}
             onChange={(e) => setBottomText(e.target.value)}
             style={{

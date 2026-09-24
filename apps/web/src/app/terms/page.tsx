@@ -1,5 +1,18 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Cloud, ArrowLeft, FileText, Check, Scale } from 'lucide-react';
+
+export const metadata: Metadata = {
+  title: 'Uslovi korišćenja',
+  description:
+    'Uslovi korišćenja MyPhoto servisa za privatni cloud storage fotografija. Prava, obaveze i pravila korišćenja naloga, skladišta i deljenja sadržaja.',
+  alternates: { canonical: 'https://myphotomy.space/terms' },
+  openGraph: {
+    title: 'Uslovi korišćenja | MyPhoto',
+    description: 'Prava, obaveze i pravila korišćenja MyPhoto naloga i cloud skladišta fotografija.',
+    url: 'https://myphotomy.space/terms',
+  },
+};
 
 export default function TermsPage() {
   return (
@@ -788,7 +801,7 @@ export default function TermsPage() {
         <div className="mt-16 rounded-2xl bg-gradient-to-r from-primary-500 to-primary-600 p-8 text-center text-white">
           <h2 className="text-2xl font-bold">Spremni da počnete?</h2>
           <p className="mx-auto mt-2 max-w-xl text-primary-100">
-            Do 15GB besplatno. Bez kreditne kartice. Bez obaveza.
+            2,5GB besplatno. Bez kreditne kartice. Bez obaveza.
           </p>
           <Link
             href="/register"

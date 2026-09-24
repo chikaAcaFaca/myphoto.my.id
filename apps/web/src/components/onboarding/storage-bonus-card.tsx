@@ -62,6 +62,7 @@ export function StorageBonusCard() {
     <div className="relative mb-6 overflow-hidden rounded-xl border border-primary-200 bg-gradient-to-r from-primary-50 to-blue-50 p-5 dark:border-primary-800 dark:from-primary-950/30 dark:to-blue-950/30">
       <button
         onClick={handleDismiss}
+        aria-label="Zatvori"
         className="absolute right-3 top-3 rounded-full p-1 text-gray-400 hover:bg-white/50 hover:text-gray-600 dark:hover:bg-gray-800/50"
       >
         <X className="h-4 w-4" />

@@ -141,7 +141,7 @@ function RegisterContent() {
           </Link>
           <h1 className="mt-6 text-2xl font-bold">Create your account</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Počnite besplatno — do 15GB prostora
+            Počnite besplatno — 2,5GB prostora
           </p>
         </div>
 
@@ -149,7 +149,7 @@ function RegisterContent() {
           <div className="mb-4 flex items-center gap-3 rounded-xl bg-green-50 p-4 dark:bg-green-900/20">
             <Gift className="h-5 w-5 flex-shrink-0 text-green-600 dark:text-green-400" />
             <p className="text-sm text-green-700 dark:text-green-300">
-              Pozvani ste! Vi i vaš prijatelj dobijate <strong>+1GB</strong> besplatnog prostora.
+              Pozvani ste! Vi i vaš prijatelj dobijate <strong>10% popusta</strong> na godišnju pretplatu.
             </p>
           </div>
         )}
@@ -216,6 +216,7 @@ function RegisterContent() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Sakrij lozinku' : 'Prikaži lozinku'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}

@@ -577,7 +577,7 @@ function ImageEditorContent() {
           <Crop className="mb-4 h-12 w-12 text-gray-400" />
           <p className="text-lg font-medium">Izaberite sliku za uređivanje</p>
           <p className="mt-1 text-sm text-gray-500">ili prevucite ovde</p>
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} aria-label="Izaberite sliku za uređivanje" />
         </div>
       )}
 
@@ -679,7 +679,7 @@ function ImageEditorContent() {
               <div className="mt-3 flex items-center justify-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
                 <Mic className="h-4 w-4 text-gray-500" />
                 <audio src={audioUrl} controls className="h-8 w-64" />
-                <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }} className="text-xs text-red-500 hover:text-red-700">
+                <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }} className="text-xs text-red-500 hover:text-red-700" aria-label="Ukloni zvuk">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -718,7 +718,7 @@ function ImageEditorContent() {
                     <span className="text-xs font-medium text-gray-400 uppercase">
                       {mt.position === 'top' ? 'Gore' : mt.position === 'bottom' ? 'Dole' : 'Custom'}
                     </span>
-                    <button onClick={(e) => { e.stopPropagation(); deleteMemeText(mt.id); }} className="text-gray-400 hover:text-red-500">
+                    <button onClick={(e) => { e.stopPropagation(); deleteMemeText(mt.id); }} className="text-gray-400 hover:text-red-500" aria-label="Ukloni tekst">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -728,15 +728,16 @@ function ImageEditorContent() {
                     onChange={(e) => updateMemeText(mt.id, { text: e.target.value })}
                     className="mb-2 w-full rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
                     placeholder="Tekst mima..."
+                    aria-label="Tekst mima"
                   />
 
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-gray-500">Veličina</label>
-                    <button onClick={() => updateMemeText(mt.id, { fontSize: Math.max(16, mt.fontSize - 4) })} className="rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600">
+                    <button onClick={() => updateMemeText(mt.id, { fontSize: Math.max(16, mt.fontSize - 4) })} className="rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600" aria-label="Smanji veličinu teksta">
                       <Minus className="h-3.5 w-3.5" />
                     </button>
                     <span className="min-w-[2rem] text-center text-xs">{mt.fontSize}</span>
-                    <button onClick={() => updateMemeText(mt.id, { fontSize: Math.min(120, mt.fontSize + 4) })} className="rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600">
+                    <button onClick={() => updateMemeText(mt.id, { fontSize: Math.min(120, mt.fontSize + 4) })} className="rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600" aria-label="Povećaj veličinu teksta">
                       <Plus className="h-3.5 w-3.5" />
                     </button>
 

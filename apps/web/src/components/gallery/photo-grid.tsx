@@ -604,6 +604,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent">
           <div className="absolute bottom-2 right-2 flex gap-1">
             <button
+              aria-label="Omiljeno"
               onClick={(e) => {
                 e.stopPropagation();
                 handleToggleFavorite();
@@ -617,6 +618,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
             </button>
             <div className="relative">
               <button
+                aria-label="Više opcija"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowMenu(!showMenu);

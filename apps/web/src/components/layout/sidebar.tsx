@@ -170,6 +170,7 @@ export function Sidebar() {
           {isMobile ? (
             <button
               onClick={() => setSidebarOpen(false)}
+              aria-label="Zatvori meni"
               className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
@@ -177,6 +178,7 @@ export function Sidebar() {
           ) : (
             <button
               onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
+              aria-label={isSidebarCollapsed ? 'Proširi meni' : 'Skupi meni'}
               className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               {isSidebarCollapsed ? (

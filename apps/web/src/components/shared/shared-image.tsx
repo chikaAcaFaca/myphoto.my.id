@@ -65,6 +65,7 @@ export function SharedImage({ fileId, fileName, shareToken, isVideo }: SharedIma
               </a>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowLightbox(false); }}
+                aria-label="Zatvori"
                 className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
               >
                 <X className="h-5 w-5" />

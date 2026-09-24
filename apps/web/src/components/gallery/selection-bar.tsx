@@ -42,6 +42,7 @@ export function SelectionBar({ actions }: SelectionBarProps) {
                 key={i}
                 onClick={action.onClick}
                 disabled={action.disabled}
+                aria-label={action.label}
                 className={
                   action.variant === 'danger'
                     ? 'flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-600 transition-colors disabled:opacity-50'
@@ -57,6 +58,7 @@ export function SelectionBar({ actions }: SelectionBarProps) {
 
             <button
               onClick={deselectAll}
+              aria-label="Poništi"
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
             >
               <X className="h-4 w-4" />
