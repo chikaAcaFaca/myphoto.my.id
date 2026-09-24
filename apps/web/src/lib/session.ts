@@ -6,9 +6,14 @@ function getSecret(): string {
   if (process.env.SESSION_SECRET) {
     return process.env.SESSION_SECRET;
   }
-  // Derive from existing Firebase config as fallback
-  const base = process.env.FIREBASE_PRIVATE_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'mycamerabackup-fallback-key';
-  return crypto.createHash('sha256').update(base).digest('hex');
+  // Derive from the Firebase service-account private key (server-only). The
+  // old fallbacks — the PUBLIC web API key, then a hard-coded string — made
+  // media-access cookies forgeable by anyone, so they are gone: with neither
+  // secret present we refuse to sign or verify at all.
+  if (process.env.FIREBASE_PRIVATE_KEY) {
+    return crypto.createHash('sha256').update(process.env.FIREBASE_PRIVATE_KEY).digest('hex');
+  }
+  throw new Error('SESSION_SECRET (or FIREBASE_PRIVATE_KEY) must be set');
 }
 
 /**

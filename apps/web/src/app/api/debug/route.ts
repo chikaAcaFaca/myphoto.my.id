@@ -2,20 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin, db, auth } from '@/lib/firebase-admin';
 import { s3Client, BUCKET_NAME, getBucketCors } from '@/lib/s3';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { isOperator } from '@/lib/operator-guard';
 
 export const dynamic = 'force-dynamic';
 
-// SECURITY: this route exposes admin powers (list every user, change anyone's
-// storageLimit, read infra status). It was completely unauthenticated. Gate it
-// behind a shared secret: callers must send `x-debug-secret` matching the
-// DEBUG_SECRET env var. Secure-by-default — if DEBUG_SECRET isn't set, every
-// request is denied, so the route is closed until an operator opts in.
-function debugAuthorized(request: NextRequest): boolean {
-  const secret = process.env.DEBUG_SECRET;
-  if (!secret) return false;
-  const provided = request.headers.get('x-debug-secret') || '';
-  return provided.length > 0 && provided === secret;
-}
+// SECURITY: operator-only (list every user, change anyone's storageLimit,
+// read infra status). See lib/operator-guard.ts.
+const debugAuthorized = isOperator;
 
 const FORBIDDEN = NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

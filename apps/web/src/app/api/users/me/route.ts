@@ -13,9 +13,9 @@
  * gating worked. Keep this file.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { db, auth } from '@/lib/firebase-admin';
+import { db } from '@/lib/firebase-admin';
 import { deleteUserAccount } from '@/lib/account-deletion';
-import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
+import { verifyAuthWithRateLimit, isRecentLogin } from '@/lib/auth-utils';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
@@ -92,10 +92,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Confirmation required', code: 'confirm-required' }, { status: 400 });
   }
 
-  const token = request.headers.get('Authorization')!.split('Bearer ')[1];
-  const decoded = await auth().verifyIdToken(token);
-  const age = Math.floor(Date.now() / 1000) - (decoded.auth_time || 0);
-  if (age > REAUTH_WINDOW_S) {
+  if (!(await isRecentLogin(request, REAUTH_WINDOW_S))) {
     return NextResponse.json(
       { error: 'Please sign in again to confirm', code: 'reauth-required' },
       { status: 403 }
