@@ -33,7 +33,9 @@ function RegisterContent() {
 
   const getPostAuthRedirect = () => {
     const redirect = searchParams.get('redirect');
-    if (redirect && redirect.startsWith('/')) {
+    // Same-origin paths only: "//host" and "/\host" are protocol-relative
+    // URLs that browsers resolve to another site (open redirect).
+    if (redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/\\')) {
       return redirect;
     }
     const tier = searchParams.get('tier');

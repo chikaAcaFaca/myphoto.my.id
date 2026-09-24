@@ -10,6 +10,9 @@ import {
   User,
   sendPasswordResetEmail,
   updateProfile,
+  reauthenticateWithPopup,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from 'firebase/auth';
 import {
   getFirestore,
@@ -113,6 +116,28 @@ export function onAuthChange(callback: (user: User | null) => void) {
     }
     callback(user);
   });
+}
+
+/**
+ * Re-confirm the signed-in user's identity (needed before account deletion).
+ * Google accounts get a popup; password accounts must pass `password`.
+ * Returns a freshly minted ID token whose auth_time is "now".
+ */
+export async function reauthenticate(password?: string): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not signed in');
+  const usesPassword = user.providerData.some((p) => p.providerId === 'password');
+  if (usesPassword && password) {
+    await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email!, password));
+  } else {
+    await reauthenticateWithPopup(user, googleProvider);
+  }
+  return user.getIdToken(true);
+}
+
+/** Whether the current user signs in with email + password. */
+export function usesPasswordAuth(): boolean {
+  return !!auth.currentUser?.providerData.some((p) => p.providerId === 'password');
 }
 
 export async function getIdToken(): Promise<string | null> {

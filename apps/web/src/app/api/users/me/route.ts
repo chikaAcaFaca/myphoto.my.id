@@ -13,11 +13,14 @@
  * gating worked. Keep this file.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase-admin';
+import { db, auth } from '@/lib/firebase-admin';
+import { deleteUserAccount } from '@/lib/account-deletion';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
+// Deleting a large library (thousands of objects) takes a while.
+export const maxDuration = 300;
 
 function toIso(value: unknown): string | null {
   if (!value) return null;
@@ -61,5 +64,55 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('GET /api/users/me error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/users/me — permanently delete the caller's account and data.
+ *
+ * Guarded twice: the body must carry `{ confirm: 'DELETE' }`, and the ID token
+ * must come from a sign-in in the last REAUTH_WINDOW_S seconds. The second
+ * check means a leaked or long-lived session cannot wipe an account; the
+ * client answers `reauth-required` by asking the user to sign in again.
+ */
+const REAUTH_WINDOW_S = 10 * 60;
+
+export async function DELETE(request: NextRequest) {
+  const authResult = await verifyAuthWithRateLimit(request, 'api');
+  if (!authResult.success) return authResult.response;
+  const { userId } = authResult;
+
+  let body: any = {};
+  try {
+    body = await request.json();
+  } catch {
+    // empty body → falls through to the confirm check
+  }
+  if (body?.confirm !== 'DELETE') {
+    return NextResponse.json({ error: 'Confirmation required', code: 'confirm-required' }, { status: 400 });
+  }
+
+  const token = request.headers.get('Authorization')!.split('Bearer ')[1];
+  const decoded = await auth().verifyIdToken(token);
+  const age = Math.floor(Date.now() / 1000) - (decoded.auth_time || 0);
+  if (age > REAUTH_WINDOW_S) {
+    return NextResponse.json(
+      { error: 'Please sign in again to confirm', code: 'reauth-required' },
+      { status: 403 }
+    );
+  }
+
+  try {
+    const report = await deleteUserAccount(userId);
+    if (report.errors.length) console.error('Account deletion partial errors:', report.errors);
+    return NextResponse.json({
+      deleted: true,
+      objectsDeleted: report.objectsDeleted,
+      docsDeleted: report.docsDeleted,
+      complete: report.errors.length === 0,
+    });
+  } catch (error) {
+    console.error('DELETE /api/users/me error:', error);
+    return NextResponse.json({ error: 'Account deletion failed' }, { status: 500 });
   }
 }

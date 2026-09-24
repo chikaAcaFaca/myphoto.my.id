@@ -36,6 +36,7 @@ import { syncSettingsToIDB } from '@/lib/upload-queue';
 import type { UserSettings } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
 
 type SettingsSection = 'account' | 'storage' | 'referral' | 'sync' | 'appearance' | 'privacy';
 
@@ -48,6 +49,7 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<SettingsSection>('account');
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   useEffect(() => {
     if (user?.settings) {
@@ -677,7 +679,7 @@ export default function SettingsPage() {
                     <p className="mb-4 text-xs text-gray-500">
                       Ove akcije su nepovratne. Dobro razmislite pre nego što nastavite.
                     </p>
-                    <button className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">
+                    <button onClick={() => setShowDeleteAccount(true)} className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">
                       <Trash2 className="h-4 w-4" />
                       Obriši nalog i sve podatke
                     </button>
@@ -688,6 +690,7 @@ export default function SettingsPage() {
           </AnimatePresence>
         </div>
       </div>
+      {showDeleteAccount && <DeleteAccountDialog onClose={() => setShowDeleteAccount(false)} />}
     </motion.div>
   );
 }

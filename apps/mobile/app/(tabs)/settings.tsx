@@ -354,6 +354,11 @@ export default function SettingsScreen() {
         <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
           <Text style={styles.signOutText}>Sign Out</Text>
         </TouchableOpacity>
+
+        {/* Account deletion (Google Play requirement) */}
+        <TouchableOpacity style={styles.deleteAccountBtn} onPress={() => router.push('/delete-account' as never /* typed routes regenerate on next expo start */)}>
+          <Text style={styles.deleteAccountText}>Obriši nalog</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -408,4 +413,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14, alignItems: 'center',
   },
   signOutText: { color: colors.error, fontSize: 14, ...fonts.bold },
+  deleteAccountBtn: { marginHorizontal: 12, marginTop: 8, marginBottom: 24, paddingVertical: 12, alignItems: 'center' },
+  deleteAccountText: { color: colors.textMuted, fontSize: 13, textDecorationLine: 'underline' },
 });

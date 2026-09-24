@@ -15,6 +15,8 @@ import {
   User,
   GoogleAuthProvider,
   signInWithCredential,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   type Auth,
 } from 'firebase/auth';
 import * as SecureStore from 'expo-secure-store';
@@ -78,6 +80,12 @@ interface AuthContextType {
   /** Re-fetch /api/users/me so storageUsed/storageLimit (quota gauge +
    *  upsell) reflect the latest server state. Safe to call often. */
   refreshAppUser: () => Promise<void>;
+  /** Whether the signed-in user logs in with email + password (vs Google). */
+  usesPassword: boolean;
+  /** Re-confirm identity, then permanently delete the account on the server.
+   *  Password users must pass their password; Google users get the Google
+   *  prompt again. Signs out on success. */
+  deleteAccount: (password?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -273,9 +281,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return SecureStore.getItemAsync('auth_token');
   };
 
+  const usesPassword = !!user?.providerData.some((p) => p.providerId === 'password');
+
+  const deleteAccount = async (password?: string) => {
+    const auth = authRef.current || getFirebaseAuth();
+    const current = auth.currentUser;
+    if (!current) throw new Error('Niste prijavljeni');
+    const uid = current.uid;
+
+    // The server only accepts tokens from a sign-in in the last 10 minutes.
+    if (usesPassword) {
+      if (!password) throw new Error('Unesite lozinku');
+      await reauthenticateWithCredential(current, EmailAuthProvider.credential(current.email!, password));
+    } else {
+      await signInWithGoogle();
+      if (auth.currentUser?.uid !== uid) {
+        throw new Error('Izabran je drugi Google nalog');
+      }
+    }
+
+    const token = await auth.currentUser!.getIdToken(true);
+    const res = await fetchWithTimeout(
+      `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE' }),
+      },
+      180000
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Brisanje nije uspelo (HTTP ${res.status})`);
+    }
+    await firebaseSignOut(auth).catch(() => {});
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, appUser, isLoading, error, signIn, signUp, signOut, signInWithGoogle, getToken, refreshAppUser }}
+      value={{ user, appUser, isLoading, error, signIn, signUp, signOut, signInWithGoogle, getToken, refreshAppUser, usesPassword, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>
