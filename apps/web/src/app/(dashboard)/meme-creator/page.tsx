@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
+import { useT } from '@/i18n/client';
 
 type MediaType = 'image' | 'video' | 'gif';
 
@@ -11,6 +12,7 @@ export default function MemeCreatorPage() {
   const { user } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [mediaUrl, setMediaUrl] = useState<string>('');
@@ -143,7 +145,7 @@ export default function MemeCreatorPage() {
 
   const handlePublish = async () => {
     if (!topText && !bottomText) {
-      alert('Dodajte tekst na meme pre objavljivanja.');
+      alert(t('dashboard.memeCreator.addTextFirst'));
       return;
     }
 
@@ -151,7 +153,7 @@ export default function MemeCreatorPage() {
     try {
       const token = await getIdToken();
       if (!token) {
-        alert('Morate biti ulogovani da objavite meme.');
+        alert(t('dashboard.memeCreator.mustLogin'));
         return;
       }
 
@@ -199,14 +201,14 @@ export default function MemeCreatorPage() {
           }
         }
 
-        alert('Meme objavljen na MemeWall!');
+        alert(t('dashboard.memeCreator.published'));
         router.push('/meme-wall');
       } else {
         const errData = await res.json().catch(() => null);
-        alert(errData?.error || 'Objavljivanje nije uspelo.');
+        alert(errData?.error || t('dashboard.memeCreator.publishFailed'));
       }
     } catch {
-      alert('Greska pri objavljivanju.');
+      alert(t('dashboard.memeCreator.publishError'));
     } finally {
       setPublishing(false);
     }
@@ -227,8 +229,8 @@ export default function MemeCreatorPage() {
     if (navigator.share) {
       const f = new File([blob], 'meme.jpg', { type: 'image/jpeg' });
       await navigator.share({
-        title: caption || 'Moj meme',
-        text: `${caption}\n\nNapravljeno na myphotomy.space`,
+        title: caption || t('dashboard.memeCreator.shareTitle'),
+        text: t('dashboard.memeCreator.shareText', { caption }),
         files: [f],
       }).catch(() => {});
     } else {
@@ -242,7 +244,7 @@ export default function MemeCreatorPage() {
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', padding: 20, fontFamily: 'system-ui' }}>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>
-        🎨 Meme Generator
+        {t('dashboard.memeCreator.title')}
       </h1>
 
       {/* Media upload */}
@@ -253,7 +255,7 @@ export default function MemeCreatorPage() {
           backgroundColor: '#f8fafc',
         }}>
           <span style={{ fontSize: 48, marginBottom: 12 }}>📷🎬</span>
-          <span style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>Izaberi sliku ili video</span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>{t('dashboard.memeCreator.pickMedia')}</span>
           <span style={{ fontSize: 13, color: '#9ca3af', marginTop: 4 }}>JPG · PNG · GIF · MP4 · MOV · WebM</span>
           <input type="file" accept="image/*,video/*" onChange={handleFileSelect} style={{ display: 'none' }} />
         </label>
@@ -323,7 +325,7 @@ export default function MemeCreatorPage() {
             </div>
             {isVideo && (
               <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6, textAlign: 'center' }}>
-                Tekst se ne &bdquo;peče&ldquo; u video — prikazuje se kao overlay na MemeWall-u.
+                {t('dashboard.memeCreator.videoNote')}
               </div>
             )}
           </div>
@@ -331,8 +333,8 @@ export default function MemeCreatorPage() {
           {/* Text inputs */}
           <input
             type="text"
-            placeholder="Tekst gore..."
-            aria-label="Tekst gore"
+            placeholder={t('dashboard.memeCreator.topPlaceholder')}
+            aria-label={t('dashboard.memeCreator.topLabel')}
             value={topText}
             onChange={(e) => setTopText(e.target.value)}
             style={{
@@ -342,8 +344,8 @@ export default function MemeCreatorPage() {
           />
           <input
             type="text"
-            placeholder="Tekst dole..."
-            aria-label="Tekst dole"
+            placeholder={t('dashboard.memeCreator.bottomPlaceholder')}
+            aria-label={t('dashboard.memeCreator.bottomLabel')}
             value={bottomText}
             onChange={(e) => setBottomText(e.target.value)}
             style={{
@@ -362,7 +364,7 @@ export default function MemeCreatorPage() {
                 cursor: 'pointer', fontSize: 14,
               }}
             >
-              💾 Sacuvaj
+              {t('dashboard.memeCreator.save')}
             </button>
             <button
               onClick={handlePublish}
@@ -373,7 +375,7 @@ export default function MemeCreatorPage() {
                 cursor: 'pointer', fontSize: 14, opacity: publishing ? 0.6 : 1,
               }}
             >
-              {publishing ? '...' : '🔥 Objavi na MemeWall'}
+              {publishing ? '...' : t('dashboard.memeCreator.publish')}
             </button>
             <button
               onClick={handleShare}
@@ -383,7 +385,7 @@ export default function MemeCreatorPage() {
                 cursor: 'pointer', fontSize: 14,
               }}
             >
-              🔗 Podeli
+              {t('dashboard.memeCreator.share')}
             </button>
           </div>
 
@@ -392,7 +394,7 @@ export default function MemeCreatorPage() {
             display: 'block', textAlign: 'center', marginTop: 12,
             color: '#6b7280', fontSize: 13, cursor: 'pointer',
           }}>
-            Promeni sliku / video
+            {t('dashboard.memeCreator.changeMedia')}
             <input type="file" accept="image/*,video/*" onChange={handleFileSelect} style={{ display: 'none' }} />
           </label>
         </>

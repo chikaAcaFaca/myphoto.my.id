@@ -11,6 +11,8 @@ import { useStorage, useNetworkStatus, useUploadPermission } from '@/lib/hooks';
 import { ALL_SUPPORTED_TYPES, formatBytes, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { updateUserSettings } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n/client';
+import { pluralForm } from '@/components/i18n-static';
 
 export function UploadModal() {
   const { isUploadModalOpen, closeUploadModal, addNotification } = useUIStore();
@@ -23,6 +25,8 @@ export function UploadModal() {
   const [showUpgradeBanner, setShowUpgradeBanner] = useState(false);
   const uploadingRef = useRef(false);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const { t, locale } = useI18n();
+  const fileCountLabel = (n: number) => t(`components.common.fileCount.${pluralForm(n, locale)}`, { count: n });
 
   const networkStatus = useNetworkStatus();
   const uploadPermission = useUploadPermission(user?.settings);
@@ -70,7 +74,7 @@ export function UploadModal() {
         setUploadStatus(
           item.id,
           'error',
-          error instanceof Error ? error.message : 'Upload failed'
+          error instanceof Error ? error.message : t('components.upload.uploadFailed')
         );
       }
     };
@@ -87,8 +91,8 @@ export function UploadModal() {
     if (successCount > 0 && failCount === 0) {
       addNotification({
         type: 'success',
-        title: 'Upload complete',
-        message: `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`,
+        title: t('components.upload.completeTitle'),
+        message: t('components.upload.completeMessage', { files: fileCountLabel(successCount) }),
       });
       // Post-upload upgrade nudge for free users (one-time)
       const isFreeUser = !user?.subscriptionIds?.length;
@@ -97,8 +101,8 @@ export function UploadModal() {
         setTimeout(() => {
           addNotification({
             type: 'info',
-            title: 'Vaše slike su bezbedne!',
-            message: 'Nadogradite za AI pretragu i 15x više prostora — od €2.49/mes',
+            title: t('components.upload.nudgeTitle'),
+            message: t('components.upload.nudgeMessage'),
             duration: 8000,
           });
         }, 1500);
@@ -108,25 +112,25 @@ export function UploadModal() {
     } else if (successCount > 0 && failCount > 0) {
       addNotification({
         type: 'warning',
-        title: 'Upload partially complete',
-        message: `${successCount} uploaded, ${failCount} failed`,
+        title: t('components.upload.partialTitle'),
+        message: t('components.upload.partialMessage', { success: successCount, failed: failCount }),
       });
     } else {
       addNotification({
         type: 'error',
-        title: 'Upload failed',
-        message: `${failCount} file${failCount > 1 ? 's' : ''} failed to upload`,
+        title: t('components.upload.uploadFailed'),
+        message: t('components.upload.failedMessage', { files: fileCountLabel(failCount) }),
       });
     }
-  }, [storage, addNotification, uploadFile, setUploadStatus, updateUploadProgress, closeUploadModal, user]);
+  }, [storage, addNotification, uploadFile, setUploadStatus, updateUploadProgress, closeUploadModal, user, t, locale]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (!uploadPermission.allowed) {
         addNotification({
           type: 'error',
-          title: 'Upload blokiran',
-          message: uploadPermission.reason || 'Upload nije dozvoljen sa trenutnom mrežom',
+          title: t('components.upload.blockedTitle'),
+          message: uploadPermission.reason || t('components.upload.blockedNetwork'),
         });
         return;
       }
@@ -141,7 +145,7 @@ export function UploadModal() {
       // Auto-start upload after adding to queue
       setTimeout(() => handleUploadAll(), 0);
     },
-    [addToUploadQueue, handleUploadAll, uploadPermission, addNotification]
+    [addToUploadQueue, handleUploadAll, uploadPermission, addNotification, t]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -188,10 +192,10 @@ export function UploadModal() {
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-            <h2 className="text-lg font-semibold">Upload Files</h2>
+            <h2 className="text-lg font-semibold">{t('components.upload.title')}</h2>
             <button
               onClick={closeUploadModal}
-              aria-label="Zatvori"
+              aria-label={t('components.common.close')}
               className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
@@ -207,7 +211,7 @@ export function UploadModal() {
                   <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600 dark:text-yellow-400" />
                   <div>
                     <p className="font-medium text-yellow-800 dark:text-yellow-300">
-                      Upload blokiran
+                      {t('components.upload.blockedTitle')}
                     </p>
                     <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-400">
                       {uploadPermission.reason}
@@ -229,20 +233,20 @@ export function UploadModal() {
                 )}
                 <span className="text-gray-600 dark:text-gray-300">
                   {networkStatus.connectionType === 'wifi' && 'WiFi'}
-                  {networkStatus.connectionType === 'cellular' && 'Mobilni podaci'}
+                  {networkStatus.connectionType === 'cellular' && t('components.upload.mobileData')}
                   {networkStatus.connectionType === 'ethernet' && 'Ethernet'}
-                  {networkStatus.connectionType === 'unknown' && 'Povezano'}
-                  {!networkStatus.isOnline && 'Offline'}
+                  {networkStatus.connectionType === 'unknown' && t('components.upload.connected')}
+                  {!networkStatus.isOnline && t('components.upload.offline')}
                 </span>
                 <span className="text-xs text-gray-400">
-                  ({syncMode === 'wifi_only' ? 'Samo WiFi' : syncMode === 'wifi_and_mobile' ? 'WiFi + Mobilni' : 'Ručno'})
+                  ({syncMode === 'wifi_only' ? t('components.upload.wifiOnly') : syncMode === 'wifi_and_mobile' ? t('components.upload.wifiAndMobileShort') : t('components.upload.manual')})
                 </span>
               </div>
               <button
                 onClick={() => setShowNetworkSettings(!showNetworkSettings)}
                 className="flex items-center gap-1 text-xs text-primary-500 hover:text-primary-600"
               >
-                Podešavanja
+                {t('components.upload.settings')}
                 {showNetworkSettings ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               </button>
             </div>
@@ -251,23 +255,23 @@ export function UploadModal() {
             {showNetworkSettings && (
               <div className="mb-4 rounded-lg border border-gray-200 p-4 dark:border-gray-600">
                 <h4 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                  Podešavanja mreže za upload
+                  {t('components.upload.networkSettingsTitle')}
                 </h4>
                 <div className="space-y-3">
                   {/* Sync mode */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Wifi className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Način sinhronizacije</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{t('components.upload.syncMode')}</span>
                     </div>
                     <select
                       value={syncMode}
                       onChange={(e) => handleSettingChange('syncMode', e.target.value)}
                       className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                     >
-                      <option value="wifi_only">Samo WiFi</option>
-                      <option value="wifi_and_mobile">WiFi + Mobilni podaci</option>
-                      <option value="manual">Ručno</option>
+                      <option value="wifi_only">{t('components.upload.wifiOnly')}</option>
+                      <option value="wifi_and_mobile">{t('components.upload.wifiAndMobile')}</option>
+                      <option value="manual">{t('components.upload.manual')}</option>
                     </select>
                   </div>
 
@@ -276,15 +280,15 @@ export function UploadModal() {
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4 text-gray-500" />
                       <div>
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Dozvoli roming</span>
-                        <p className="text-xs text-gray-500">Upload dok ste u romingu</p>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{t('components.upload.allowRoaming')}</span>
+                        <p className="text-xs text-gray-500">{t('components.upload.allowRoamingHint')}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => handleSettingChange('allowRoaming', !allowRoaming)}
                       role="switch"
                       aria-checked={allowRoaming}
-                      aria-label="Dozvoli roming"
+                      aria-label={t('components.upload.allowRoaming')}
                       className={cn(
                         'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
                         allowRoaming ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'
@@ -301,7 +305,7 @@ export function UploadModal() {
 
                   {syncMode === 'wifi_and_mobile' && !allowRoaming && (
                     <p className="rounded-md bg-yellow-50 p-2 text-xs text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400">
-                      Upload preko mobilnih podataka je dozvoljen, ali ne u romingu. Uključite roming ako želite upload i dok ste u inostranstvu.
+                      {t('components.upload.roamingWarning')}
                     </p>
                   )}
 
@@ -310,18 +314,18 @@ export function UploadModal() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Folder className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Backup folderi (mobilna app)</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{t('components.upload.backupFolders')}</span>
                       </div>
                     </div>
                     <div className="mt-2">
                       {(user?.settings?.backupFolders || []).length === 0 ? (
                         <p className="text-xs text-gray-500">
-                          Svi folderi na uređaju se backup-uju. Izaberite specifične foldere u mobilnoj aplikaciji.
+                          {t('components.upload.allFoldersBackedUp')}
                         </p>
                       ) : (
                         <div className="space-y-1">
                           <p className="mb-2 text-xs text-gray-500">
-                            Samo ovi folderi se backup-uju sa mobilnog uređaja:
+                            {t('components.upload.onlyTheseFolders')}
                           </p>
                           {(user?.settings?.backupFolders || []).map((folder) => (
                             <div key={folder} className="flex items-center justify-between rounded-md bg-gray-100 px-3 py-1.5 text-sm dark:bg-gray-600">
@@ -335,7 +339,7 @@ export function UploadModal() {
                                   await handleSettingChange('backupFolders', updated as any);
                                 }}
                                 className="rounded p-0.5 text-gray-400 hover:text-red-500"
-                                title="Ukloni folder"
+                                title={t('components.upload.removeFolder')}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -345,7 +349,7 @@ export function UploadModal() {
                             onClick={() => handleSettingChange('backupFolders', [] as any)}
                             className="mt-1 text-xs text-sky-500 hover:text-sky-600"
                           >
-                            Resetuj na sve foldere
+                            {t('components.upload.resetFolders')}
                           </button>
                         </div>
                       )}
@@ -362,10 +366,10 @@ export function UploadModal() {
                   <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                   <div className="flex-1">
                     <p className="font-semibold text-amber-800 dark:text-amber-300">
-                      Nedovoljno prostora za upload
+                      {t('components.upload.notEnoughSpace')}
                     </p>
                     <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-                      Preostalo vam je {storage?.remainingFormatted || '0 B'}. Izaberite jednu od opcija:
+                      {t('components.upload.remainingChoose', { remaining: storage?.remainingFormatted || '0 B' })}
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Link
@@ -373,20 +377,20 @@ export function UploadModal() {
                         className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
                       >
                         <Crown className="h-4 w-4" />
-                        Nadogradi plan
+                        {t('components.upload.upgradePlan')}
                       </Link>
                       <Link
                         href="/photos?view=trash"
                         className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-600 dark:bg-gray-800 dark:text-amber-300 dark:hover:bg-amber-900/30"
                       >
                         <Trash2 className="h-4 w-4" />
-                        Oslobodi prostor
+                        {t('components.upload.freeUpSpace')}
                       </Link>
                       <button
                         onClick={() => setShowUpgradeBanner(false)}
                         className="text-sm text-amber-600 hover:underline dark:text-amber-400"
                       >
-                        Zatvori
+                        {t('components.common.close')}
                       </button>
                     </div>
                   </div>
@@ -409,17 +413,17 @@ export function UploadModal() {
               <input {...getInputProps()} />
               <Upload className="mx-auto mb-4 h-12 w-12 text-gray-400" />
               {!uploadPermission.allowed ? (
-                <p className="text-gray-500">Upload je trenutno blokiran mrežnim podešavanjima</p>
+                <p className="text-gray-500">{t('components.upload.blockedBySettings')}</p>
               ) : isDragActive ? (
-                <p className="text-primary-600">Pustite fajlove ovde...</p>
+                <p className="text-primary-600">{t('components.upload.dropHere')}</p>
               ) : (
                 <>
                   <p className="text-gray-600 dark:text-gray-300">
-                    Prevucite fajlove ovde ili{' '}
-                    <span className="text-primary-500">izaberite</span>
+                    {t('components.upload.dragOr')}{' '}
+                    <span className="text-primary-500">{t('components.upload.browse')}</span>
                   </p>
                   <p className="mt-2 text-sm text-gray-500">
-                    Fajlovi se automatski uploaduju kada ih izaberete
+                    {t('components.upload.autoUploadHint')}
                   </p>
                 </>
               )}
@@ -448,7 +452,7 @@ export function UploadModal() {
                   className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-200 px-4 py-3 text-sm text-gray-600 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-primary-500"
                 >
                   <Folder className="h-4 w-4" />
-                  Upload ceo folder
+                  {t('components.upload.uploadFolder')}
                 </button>
               </div>
             )}
@@ -457,7 +461,7 @@ export function UploadModal() {
             {storage && (
               <div className="mt-4 flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-sm dark:bg-gray-700">
                 <span className="text-gray-600 dark:text-gray-300">
-                  Available storage: {storage.remainingFormatted}
+                  {t('components.upload.availableStorage', { remaining: storage.remainingFormatted })}
                 </span>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-32 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-600">
@@ -476,18 +480,18 @@ export function UploadModal() {
               <div className="mt-6">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="font-medium">
-                    {isUploading && 'Uploading... '}
-                    {pendingCount > 0 && `${pendingCount} pending`}
+                    {isUploading && `${t('components.upload.uploading')} `}
+                    {pendingCount > 0 && t('components.upload.pendingCount', { count: pendingCount })}
                     {pendingCount > 0 && completedCount > 0 && ' · '}
-                    {completedCount > 0 && `${completedCount} completed`}
-                    {errorCount > 0 && ` · ${errorCount} failed`}
+                    {completedCount > 0 && t('components.upload.completedCount', { count: completedCount })}
+                    {errorCount > 0 && ` · ${t('components.upload.failedCount', { count: errorCount })}`}
                   </h3>
                   {completedCount > 0 && (
                     <button
                       onClick={clearCompletedUploads}
                       className="text-sm text-gray-500 hover:text-gray-700"
                     >
-                      Clear completed
+                      {t('components.upload.clearCompleted')}
                     </button>
                   )}
                 </div>
@@ -520,7 +524,7 @@ export function UploadModal() {
                         {item.status === 'pending' && (
                           <button
                             onClick={() => handleRemoveItem(item.id)}
-                            aria-label="Ukloni"
+                            aria-label={t('components.common.remove')}
                             className="rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600"
                           >
                             <X className="h-4 w-4" />
@@ -552,7 +556,7 @@ export function UploadModal() {
                               onClick={() => handleRemoveItem(item.id)}
                               className="text-xs text-red-500 hover:underline"
                             >
-                              Remove
+                              {t('components.common.remove')}
                             </button>
                           </div>
                         )}
@@ -567,7 +571,7 @@ export function UploadModal() {
           {/* Footer */}
           <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
             <button onClick={closeUploadModal} className="btn-secondary">
-              {isUploading ? 'Close (uploads continue)' : 'Close'}
+              {isUploading ? t('components.upload.closeContinue') : t('components.common.close')}
             </button>
           </div>
         </motion.div>

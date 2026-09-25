@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useT } from '@/i18n/client';
 
 /**
  * Post-login nudge for Android users browsing the site to install the native
@@ -15,6 +16,7 @@ import Link from 'next/link';
  */
 export function AndroidAppBanner() {
   const [show, setShow] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     const ua = navigator.userAgent || '';
@@ -36,20 +38,20 @@ export function AndroidAppBanner() {
       <div className="flex items-center gap-2 text-sm">
         <span className="text-base">📱</span>
         <span>
-          <span className="font-semibold">Instaliraj Android aplikaciju</span> za
-          automatski backup slika u pozadini.{' '}
+          <span className="font-semibold">{t('components.androidBanner.title')}</span>{' '}
+          {t('components.androidBanner.body')}{' '}
           <a href="/api/download/android" className="underline underline-offset-2">
-            Preuzmi APK
+            {t('components.androidBanner.downloadApk')}
           </a>{' '}
           ·{' '}
           <Link href="/download" className="underline underline-offset-2">
-            Uputstvo
+            {t('components.androidBanner.guide')}
           </Link>
         </span>
       </div>
       <button
         onClick={dismiss}
-        aria-label="Zatvori"
+        aria-label={t('components.common.close')}
         className="shrink-0 rounded-md px-2 py-1 text-white/90 hover:bg-white/15"
       >
         ✕

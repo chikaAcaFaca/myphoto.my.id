@@ -1,17 +1,22 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Cloud, ArrowLeft, Trash2 } from 'lucide-react';
+import { getT } from '@/i18n/server';
 import { DeleteAccountAction } from './delete-account-action';
 
 // Public account-deletion page. Google Play requires a URL, reachable without
 // installing the app, that explains how to delete an account and its data.
-export const metadata: Metadata = {
-  title: 'Delete account / Brisanje naloga',
-  description: 'How to permanently delete your MyPhoto account and all associated data.',
-  alternates: { canonical: 'https://myphotomy.space/delete-account' },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: t('pages.deleteAccount.meta.title'),
+    description: t('pages.deleteAccount.meta.description'),
+    alternates: { canonical: 'https://myphotomy.space/delete-account' },
+  };
+}
 
-export default function DeleteAccountPage() {
+export default async function DeleteAccountPage() {
+  const t = await getT();
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800">
       <header className="container mx-auto px-4 py-6">
@@ -22,7 +27,7 @@ export default function DeleteAccountPage() {
           </Link>
           <Link href="/" className="btn-ghost flex items-center">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Home
+            {t('pages.shell.home')}
           </Link>
         </nav>
       </header>
@@ -32,55 +37,37 @@ export default function DeleteAccountPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
             <Trash2 className="h-8 w-8 text-red-600 dark:text-red-400" />
           </div>
-          <h1 className="mb-2 text-3xl font-bold">Delete your MyPhoto account</h1>
-          <p className="text-gray-500">Brisanje MyPhoto naloga</p>
+          <h1 className="mb-2 text-3xl font-bold">{t('pages.deleteAccount.title')}</h1>
         </div>
 
         <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed dark:border-gray-700 dark:bg-gray-800">
           <p>
-            This page applies to the <strong>MyPhoto</strong> app (Android, web and desktop) published by{' '}
+            {t('pages.deleteAccount.appliesBefore')}<strong>MyPhoto</strong>{t('pages.deleteAccount.appliesMiddle')}{' '}
             <strong>NASRM Kapetan Bogdan Studio</strong>.
           </p>
 
-          <h2 className="pt-2 text-base font-semibold">How to delete your account</h2>
+          <h2 className="pt-2 text-base font-semibold">{t('pages.deleteAccount.howTitle')}</h2>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>In the Android app: <em>Settings → Delete account</em>.</li>
-            <li>On the web: <em>Settings → Privacy → Delete account and all data</em>, or use the button below.</li>
+            <li>{t('pages.deleteAccount.howApp')} <em>{t('pages.deleteAccount.howAppPath')}</em>.</li>
+            <li>{t('pages.deleteAccount.howWeb')} <em>{t('pages.deleteAccount.howWebPath')}</em>{t('pages.deleteAccount.howWebAfter')}</li>
             <li>
-              If you can no longer sign in, email{' '}
+              {t('pages.deleteAccount.howEmail')}{' '}
               <a href="mailto:support@myphotomy.space?subject=Account%20deletion" className="text-primary-500 hover:underline">
                 support@myphotomy.space
               </a>{' '}
-              from the address registered on your account. We complete these requests within 30 days.
+              {t('pages.deleteAccount.howEmailAfter')}
             </li>
           </ol>
 
-          <h2 className="pt-2 text-base font-semibold">What is deleted</h2>
-          <p>
-            Immediately and permanently: all photos, videos and files (originals and thumbnails), albums, MySpace folders,
-            memes and comments, share links, device registrations, AI tags and face groups, your profile and your login.
-          </p>
+          <h2 className="pt-2 text-base font-semibold">{t('pages.deleteAccount.deletedTitle')}</h2>
+          <p>{t('pages.deleteAccount.deletedText')}</p>
 
-          <h2 className="pt-2 text-base font-semibold">What is kept</h2>
-          <p>
-            Payment and invoice records are held by our payment provider (merchant of record) for the period required by tax
-            law. We keep an anonymous log entry (no name, email or content) that a deletion took place. Encrypted backups
-            roll over and are fully purged within 30 days.
-          </p>
+          <h2 className="pt-2 text-base font-semibold">{t('pages.deleteAccount.keptTitle')}</h2>
+          <p>{t('pages.deleteAccount.keptText')}</p>
 
           <div className="pt-4">
             <DeleteAccountAction />
           </div>
-        </section>
-
-        <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed dark:border-gray-700 dark:bg-gray-800">
-          <h2 className="text-base font-semibold">Srpski</h2>
-          <p className="mt-2">
-            Nalog možete obrisati u aplikaciji (<em>Podešavanja → Obriši nalog</em>), na sajtu (<em>Podešavanja → Privatnost</em>)
-            ili dugmetom iznad. Ako ne možete da se prijavite, pišite na support@myphotomy.space sa adrese naloga. Brišu se
-            sve fotografije, fajlovi, albumi, memovi, linkovi i sam nalog. Evidencija plaćanja ostaje kod platnog provajdera
-            koliko zakon nalaže.
-          </p>
         </section>
       </main>
     </div>

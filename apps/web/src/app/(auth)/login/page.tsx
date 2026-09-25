@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
+import { useT } from '@/i18n/client';
 
 export default function LoginPage() {
   return (
@@ -25,6 +26,7 @@ function LoginContent() {
   const { signInWithEmail, signInWithGoogle } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useT();
 
   const getPostAuthRedirect = () => {
     const redirect = searchParams.get('redirect');
@@ -45,7 +47,7 @@ function LoginContent() {
       await signInWithEmail(email, password);
       router.push(getPostAuthRedirect());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in');
+      setError(err instanceof Error ? err.message : t('pages.auth.login.errorSignIn'));
     } finally {
       setIsSubmitting(false);
     }
@@ -59,7 +61,7 @@ function LoginContent() {
       await signInWithGoogle();
       router.push(getPostAuthRedirect());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
+      setError(err instanceof Error ? err.message : t('pages.auth.login.errorGoogle'));
     } finally {
       setIsSubmitting(false);
     }
@@ -79,9 +81,9 @@ function LoginContent() {
               priority
             />
           </Link>
-          <h1 className="mt-6 text-2xl font-bold">Welcome back</h1>
+          <h1 className="mt-6 text-2xl font-bold">{t('pages.auth.login.title')}</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Sign in to access your photos
+            {t('pages.auth.login.subtitle')}
           </p>
         </div>
 
@@ -95,7 +97,7 @@ function LoginContent() {
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div>
               <label htmlFor="email" className="mb-1 block text-sm font-medium">
-                Email
+                {t('pages.auth.emailLabel')}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -113,7 +115,7 @@ function LoginContent() {
 
             <div>
               <label htmlFor="password" className="mb-1 block text-sm font-medium">
-                Password
+                {t('pages.auth.passwordLabel')}
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
@@ -129,7 +131,7 @@ function LoginContent() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Sakrij lozinku' : 'Prikaži lozinku'}
+                  aria-label={showPassword ? t('pages.auth.hidePassword') : t('pages.auth.showPassword')}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -140,13 +142,13 @@ function LoginContent() {
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2">
                 <input type="checkbox" className="rounded border-gray-300" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">Remember me</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('pages.auth.login.rememberMe')}</span>
               </label>
               <Link
                 href="/forgot-password"
                 className="text-sm text-primary-500 hover:underline"
               >
-                Forgot password?
+                {t('pages.auth.login.forgotPassword')}
               </Link>
             </div>
 
@@ -155,13 +157,13 @@ function LoginContent() {
               disabled={isSubmitting}
               className="btn-primary w-full"
             >
-              {isSubmitting ? 'Signing in...' : 'Sign in'}
+              {isSubmitting ? t('pages.auth.login.submitting') : t('pages.auth.login.submit')}
             </button>
           </form>
 
           <div className="my-6 flex items-center gap-4">
             <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-            <span className="text-sm text-gray-500">or</span>
+            <span className="text-sm text-gray-500">{t('pages.auth.or')}</span>
             <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
           </div>
 
@@ -188,14 +190,14 @@ function LoginContent() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Continue with Google
+            {t('pages.auth.continueWithGoogle')}
           </button>
         </div>
 
         <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          Don't have an account?{' '}
+          {t('pages.auth.login.noAccount')}{' '}
           <Link href="/register" className="text-primary-500 hover:underline">
-            Sign up free
+            {t('pages.auth.login.signUpFree')}
           </Link>
         </p>
       </div>

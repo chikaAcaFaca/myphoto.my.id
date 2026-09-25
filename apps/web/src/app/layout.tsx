@@ -4,6 +4,7 @@ import './globals.css';
 import { Providers } from './providers';
 import { I18nProvider } from '@/i18n/client';
 import { getLocale } from '@/i18n/server';
+import { DICTIONARIES } from '@/i18n/dictionaries';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -131,7 +132,7 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <I18nProvider locale={locale}>
+        <I18nProvider locale={locale} messages={DICTIONARIES[locale]}>
           <Providers>{children}</Providers>
         </I18nProvider>
       </body>

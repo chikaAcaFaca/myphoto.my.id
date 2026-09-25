@@ -3,8 +3,10 @@
 import { motion } from 'framer-motion';
 import { Users, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { useT } from '@/i18n/client';
 
 export default function PeoplePage() {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -13,9 +15,9 @@ export default function PeoplePage() {
       className="min-h-full"
     >
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Osobe</h1>
+        <h1 className="text-2xl font-bold">{t('dashboard.people.title')}</h1>
         <p className="text-sm text-gray-500">
-          Automatsko grupisanje slika po osobama
+          {t('dashboard.people.subtitle')}
         </p>
       </div>
 
@@ -33,14 +35,13 @@ export default function PeoplePage() {
             <Sparkles className="h-4 w-4 text-yellow-500" />
           </div>
         </div>
-        <h2 className="text-xl font-semibold">AI prepoznavanje lica</h2>
+        <h2 className="text-xl font-semibold">{t('dashboard.people.aiTitle')}</h2>
         <p className="mt-2 max-w-md text-gray-500">
-          Ova funkcija koristi AI da automatski prepozna i grupiše lica na vašim slikama.
-          Dostupna je uz Plus i Pro+ planove.
+          {t('dashboard.people.aiText')}
         </p>
         <Link href="/pricing" className="btn-primary mt-6">
           <Sparkles className="mr-2 h-4 w-4" />
-          Nadogradi plan
+          {t('dashboard.people.upgrade')}
         </Link>
       </motion.div>
     </motion.div>

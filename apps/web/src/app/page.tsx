@@ -22,10 +22,12 @@ import {
   X,
   ArrowRight,
 } from 'lucide-react';
-import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
+import { STORAGE_TIERS, ALL_FEATURES } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import { motion, useInView, useMotionValue, useTransform, animate } from 'framer-motion';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/landing/animated-section';
+import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { useI18n } from '@/i18n/client';
 
 // Hero cards: skip the yearly-only storage-only tier (MyDisk Lite) — it
 // has its own messaging on the full /pricing page and breaks the
@@ -36,8 +38,9 @@ const HERO_TIERS = STORAGE_TIERS.filter((t) => !t.yearlyOnly).slice(0, 3);
 function AnimatedCounter({ target, duration = 2, suffix = '' }: { target: number; duration?: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true });
+  const { intlLocale } = useI18n();
   const motionVal = useMotionValue(0);
-  const rounded = useTransform(motionVal, (v) => Math.round(v).toLocaleString());
+  const rounded = useTransform(motionVal, (v) => Math.round(v).toLocaleString(intlLocale));
 
   useEffect(() => {
     if (isInView) {
@@ -58,8 +61,9 @@ function AnimatedCounter({ target, duration = 2, suffix = '' }: { target: number
 
 // ── Word-by-word hero animation ───────────────────────────────────
 function AnimatedHeadline() {
-  const words = ['Vaše', 'slike.'];
-  const gradientWords = ['Samo', 'vaše.'];
+  const { t } = useI18n();
+  const words = [t('marketing.home.hero.word1'), t('marketing.home.hero.word2')];
+  const gradientWords = [t('marketing.home.hero.gradient1'), t('marketing.home.hero.gradient2')];
 
   return (
     <h1 className="mb-4 text-4xl font-bold leading-tight md:text-6xl lg:text-7xl">
@@ -166,6 +170,10 @@ function TypingAnimation({ text, delay = 1 }: { text: string; delay?: number }) 
 export default function HomePage() {
   const { user, isLoading } = useAuthStore();
   const router = useRouter();
+  const { t, intlLocale } = useI18n();
+  const fmtPrice = (n: number) =>
+    new Intl.NumberFormat(intlLocale, { style: 'currency', currency: 'USD' }).format(n);
+  const cell = (v: string | boolean) => (v === 'partial' ? t('marketing.home.comparison.partial') : v);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [showStickyCta, setShowStickyCta] = useState(false);
   const pricingSectionRef = useRef<HTMLDivElement>(null);
@@ -237,19 +245,19 @@ export default function HomePage() {
           <div className="flex items-center gap-2 text-sm">
             <span className="text-base">📱</span>
             <span>
-              <span className="font-semibold">Android aplikacija je tu.</span>{' '}
+              <span className="font-semibold">{t('marketing.home.androidBanner.title')}</span>{' '}
               <a href="/api/download/android" className="underline underline-offset-2">
-                Preuzmi APK
+                {t('marketing.home.androidBanner.download')}
               </a>{' '}
               ·{' '}
               <Link href="/download" className="underline underline-offset-2">
-                Uputstvo za instalaciju
+                {t('marketing.home.androidBanner.guide')}
               </Link>
             </span>
           </div>
           <button
             onClick={dismissAndroidBanner}
-            aria-label="Zatvori"
+            aria-label={t('marketing.home.androidBanner.close')}
             className="rounded-md px-2 py-1 text-white/90 hover:bg-white/15"
           >
             ✕
@@ -269,11 +277,12 @@ export default function HomePage() {
             priority
           />
           <div className="flex items-center gap-4">
+            <LanguageSwitcher />
             <Link href="/login" className="btn-ghost">
-              Prijava
+              {t('marketing.home.header.login')}
             </Link>
             <Link href="/register" className="btn-primary">
-              Započni besplatno
+              {t('marketing.home.header.startFree')}
             </Link>
           </div>
         </nav>
@@ -289,7 +298,7 @@ export default function HomePage() {
           transition={{ delay: 0.7, duration: 0.5 }}
           className="mx-auto mb-6 max-w-xl text-lg text-gray-600 dark:text-gray-300"
         >
-          Privatni cloud storage sa AI funkcijama. Bez kompresije, bez kompromisa.
+          {t('marketing.home.hero.subtitle')}
         </motion.p>
 
         {/* Social proof line */}
@@ -301,8 +310,8 @@ export default function HomePage() {
         >
           <span className="flex items-center gap-1 animate-pulse-slow">
             <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
-            <span className="font-semibold text-gray-700 dark:text-gray-200">Original kvalitet</span>{' '}
-            · EU serveri · GDPR — tvoje slike ostaju samo tvoje
+            <span className="font-semibold text-gray-700 dark:text-gray-200">{t('marketing.home.hero.proofStrong')}</span>{' '}
+            {t('marketing.home.hero.proofRest')}
           </span>
         </motion.div>
 
@@ -317,13 +326,13 @@ export default function HomePage() {
             href="/register"
             className="rounded-xl bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-600 hover:shadow-xl hover:shadow-primary-500/40"
           >
-            Započni besplatno — 2,5GB
+            {t('marketing.home.hero.ctaPrimary')}
           </Link>
           <Link
             href="#pricing"
             className="rounded-xl border-2 border-primary-300 px-8 py-4 text-lg font-semibold text-primary-600 transition-colors hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-900/20"
           >
-            Pogledaj planove
+            {t('marketing.home.hero.ctaSecondary')}
           </Link>
         </motion.div>
 
@@ -336,15 +345,15 @@ export default function HomePage() {
         >
           <span className="flex items-center gap-2 rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
             <Shield className="h-4 w-4" />
-            Ne koristimo slike za AI trening
+            {t('marketing.home.hero.badgeNoAi')}
           </span>
           <span className="flex items-center gap-2 rounded-full bg-blue-100 px-4 py-2 text-sm font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
             <Server className="h-4 w-4" />
-            EU Serveri
+            {t('marketing.home.hero.badgeEu')}
           </span>
           <span className="flex items-center gap-2 rounded-full bg-purple-100 px-4 py-2 text-sm font-medium text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
             <Lock className="h-4 w-4" />
-            GDPR Compliant
+            {t('marketing.home.hero.badgeGdpr')}
           </span>
         </motion.div>
 
@@ -357,24 +366,24 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <AnimatedSection>
             <p className="mb-3 text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Napravljeno za fotografe, porodice i sve koji drže do privatnosti
+              {t('marketing.home.proof.tagline')}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-8">
               <div className="text-center">
                 <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
                   <AnimatedCounter target={15} suffix="GB" />
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">besplatno na startu</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('marketing.home.proof.freeLabel')}</p>
               </div>
               <div className="h-8 w-px bg-gray-300 dark:bg-gray-600" />
               <div className="text-center">
                 <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">0%</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">kompresija — original kvalitet</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('marketing.home.proof.compressionLabel')}</p>
               </div>
               <div className="h-8 w-px bg-gray-300 dark:bg-gray-600" />
               <div className="text-center">
                 <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">EU</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">serveri · GDPR</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{t('marketing.home.proof.euLabel')}</p>
               </div>
             </div>
           </AnimatedSection>
@@ -384,9 +393,9 @@ export default function HomePage() {
       {/* ───── 3. Comparison Table ───── */}
       <section className="container mx-auto px-4 py-20">
         <AnimatedSection>
-          <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Zašto MyPhoto?</h2>
+          <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">{t('marketing.home.comparison.title')}</h2>
           <p className="mb-12 text-center text-gray-600 dark:text-gray-300">
-            Uporedite nas sa konkurencijom
+            {t('marketing.home.comparison.subtitle')}
           </p>
         </AnimatedSection>
 
@@ -396,7 +405,7 @@ export default function HomePage() {
               <thead>
                 <tr>
                   <th className="border-b border-gray-200 px-4 py-3 text-sm font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                    Funkcija
+                    {t('marketing.home.comparison.feature')}
                   </th>
                   <th className="border-b border-gray-200 px-4 py-3 text-center dark:border-gray-700">
                     <span className="rounded-full bg-primary-100 px-3 py-1 text-sm font-bold text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
@@ -413,17 +422,17 @@ export default function HomePage() {
               </thead>
               <tbody>
                 {COMPARISON_ROWS.map((row) => {
-                  const isPricePerGb = row.feature === 'Cena po GB';
+                  const isPricePerGb = row.key === 'pricePerGb';
                   return (
-                  <tr key={row.feature} className={cn('border-b border-gray-100 dark:border-gray-800', isPricePerGb && 'font-semibold')}>
+                  <tr key={row.key} className={cn('border-b border-gray-100 dark:border-gray-800', isPricePerGb && 'font-semibold')}>
                     <td className={cn('px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300', isPricePerGb && 'font-bold')}>
-                      {row.feature}
+                      {t(`marketing.home.comparison.rows.${row.key}`)}
                     </td>
                     <td className={cn('px-4 py-3 text-center', isPricePerGb && 'rounded-md bg-green-50 dark:bg-green-900/20')}>
                       {row.myphoto === true ? (
                         <Check className="mx-auto h-5 w-5 text-green-500" />
                       ) : (
-                        <span className={cn('text-sm font-medium', isPricePerGb ? 'text-green-700 dark:text-green-300' : 'text-green-600 dark:text-green-400')}>{row.myphoto}</span>
+                        <span className={cn('text-sm font-medium', isPricePerGb ? 'text-green-700 dark:text-green-300' : 'text-green-600 dark:text-green-400')}>{cell(row.myphoto)}</span>
                       )}
                     </td>
                     <td className={cn('px-4 py-3 text-center', isPricePerGb && 'rounded-md bg-red-50 dark:bg-red-900/20')}>
@@ -432,7 +441,7 @@ export default function HomePage() {
                       ) : row.google === false ? (
                         <X className="mx-auto h-5 w-5 text-red-400" />
                       ) : (
-                        <span className={cn('text-sm', isPricePerGb ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-500')}>{row.google}</span>
+                        <span className={cn('text-sm', isPricePerGb ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-500')}>{cell(row.google)}</span>
                       )}
                     </td>
                     <td className={cn('px-4 py-3 text-center', isPricePerGb && 'rounded-md bg-red-50 dark:bg-red-900/20')}>
@@ -441,7 +450,7 @@ export default function HomePage() {
                       ) : row.icloud === false ? (
                         <X className="mx-auto h-5 w-5 text-red-400" />
                       ) : (
-                        <span className={cn('text-sm', isPricePerGb ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-500')}>{row.icloud}</span>
+                        <span className={cn('text-sm', isPricePerGb ? 'font-medium text-red-600 dark:text-red-400' : 'text-gray-500')}>{cell(row.icloud)}</span>
                       )}
                     </td>
                   </tr>
@@ -455,7 +464,7 @@ export default function HomePage() {
               href="/register"
               className="inline-flex items-center gap-2 text-lg font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400"
             >
-              Prebacite se danas <ArrowRight className="h-5 w-5" />
+              {t('marketing.home.comparison.cta')} <ArrowRight className="h-5 w-5" />
             </Link>
           </div>
         </AnimatedSection>
@@ -465,21 +474,21 @@ export default function HomePage() {
       <section className="bg-gray-50 py-20 dark:bg-gray-900/50">
         <div className="container mx-auto px-4">
           <AnimatedSection>
-            <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Sve što vam treba</h2>
+            <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">{t('marketing.home.features.title')}</h2>
             <p className="mb-12 text-center text-gray-600 dark:text-gray-300">
-              Vaše uspomene nisu naš proizvod
+              {t('marketing.home.features.subtitle')}
             </p>
           </AnimatedSection>
 
           <StaggerContainer className="mx-auto grid max-w-5xl gap-6 md:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
-              <StaggerItem key={f.title}>
+              <StaggerItem key={f.key}>
                 <div className="group rounded-2xl bg-white p-6 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:bg-gray-800">
                   <div className={cn('mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br', f.gradient)}>
                     <f.icon className="h-7 w-7 text-white" />
                   </div>
-                  <h3 className="mb-2 text-lg font-semibold">{f.title}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">{f.description}</p>
+                  <h3 className="mb-2 text-lg font-semibold">{t(`marketing.home.features.${f.key}.title`)}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">{t(`marketing.home.features.${f.key}.description`)}</p>
                 </div>
               </StaggerItem>
             ))}
@@ -491,22 +500,22 @@ export default function HomePage() {
       <section className="container mx-auto px-4 py-20">
         <AnimatedSection>
           <h2 className="mb-2 text-center text-3xl font-bold md:text-4xl">
-            Pretražite slike <span className="gradient-text">rečima</span>
+            {t('marketing.home.aiDemo.titleStart')} <span className="gradient-text">{t('marketing.home.aiDemo.titleGradient')}</span>
           </h2>
           <p className="mb-10 text-center text-gray-600 dark:text-gray-300">
-            AI pretraga razume prirodni jezik — opišite sliku i pronađite je
+            {t('marketing.home.aiDemo.subtitle')}
           </p>
         </AnimatedSection>
 
         <div className="mx-auto max-w-2xl">
-          <TypingAnimation text="zalazak sunca na moru" delay={0.5} />
+          <TypingAnimation text={t('marketing.home.aiDemo.query')} delay={0.5} />
 
           <StaggerContainer className="mt-6 grid grid-cols-2 gap-4" staggerDelay={0.2}>
             {AI_DEMO_RESULTS.map((r) => (
-              <StaggerItem key={r.label}>
+              <StaggerItem key={r.key}>
                 <div className={cn('aspect-video rounded-xl bg-gradient-to-br p-4 flex items-end', r.gradient)}>
                   <span className="rounded-full bg-black/30 px-3 py-1 text-xs font-medium text-white backdrop-blur">
-                    {r.label}
+                    {t(`marketing.home.aiDemo.results.${r.key}`)}
                   </span>
                 </div>
               </StaggerItem>
@@ -520,7 +529,7 @@ export default function HomePage() {
                 className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:shadow-xl"
               >
                 <Sparkles className="h-5 w-5" />
-                Probajte AI — besplatno
+                {t('marketing.home.aiDemo.cta')}
               </Link>
             </div>
           </AnimatedSection>
@@ -531,9 +540,9 @@ export default function HomePage() {
       <section className="bg-gray-50 py-20 dark:bg-gray-900/50">
         <div className="container mx-auto px-4">
           <AnimatedSection>
-            <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Kako funkcioniše?</h2>
+            <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">{t('marketing.home.steps.title')}</h2>
             <p className="mb-16 text-center text-gray-600 dark:text-gray-300">
-              Tri jednostavna koraka do sigurnog čuvanja
+              {t('marketing.home.steps.subtitle')}
             </p>
           </AnimatedSection>
 
@@ -551,8 +560,8 @@ export default function HomePage() {
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center">
                       <step.icon className="h-8 w-8 text-primary-500" />
                     </div>
-                    <h3 className="mb-2 text-lg font-semibold">{step.title}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">{step.description}</p>
+                    <h3 className="mb-2 text-lg font-semibold">{t(`marketing.home.steps.${step.key}.title`)}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">{t(`marketing.home.steps.${step.key}.description`)}</p>
                   </div>
                 </StaggerItem>
               ))}
@@ -565,7 +574,7 @@ export default function HomePage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-xl bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-600 hover:shadow-xl"
               >
-                Započnite za 30 sekundi <ArrowRight className="h-5 w-5" />
+                {t('marketing.home.steps.cta')} <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
           </AnimatedSection>
@@ -575,9 +584,9 @@ export default function HomePage() {
       {/* ───── 7. Pricing ───── */}
       <section id="pricing" ref={pricingSectionRef} className="container mx-auto px-4 py-20">
         <AnimatedSection>
-          <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Izaberite plan</h2>
+          <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">{t('marketing.home.pricing.title')}</h2>
           <p className="mb-8 text-center text-gray-600 dark:text-gray-300">
-            Započnite besplatno, nadogradite kad poželite
+            {t('marketing.home.pricing.subtitle')}
           </p>
         </AnimatedSection>
 
@@ -593,7 +602,7 @@ export default function HomePage() {
                   : 'text-gray-600 dark:text-gray-400'
               )}
             >
-              {BILLING_PERIODS.monthly.label}
+              {t('marketing.home.pricing.monthly')}
             </button>
             <button
               onClick={() => setBillingCycle('yearly')}
@@ -604,9 +613,9 @@ export default function HomePage() {
                   : 'text-gray-600 dark:text-gray-400'
               )}
             >
-              {BILLING_PERIODS.yearly.label}
+              {t('marketing.home.pricing.yearly')}
               <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                2 mes. gratis
+                {t('marketing.home.pricing.twoMonthsFree')}
               </span>
             </button>
           </div>
@@ -634,7 +643,7 @@ export default function HomePage() {
                 >
                   {isPopular && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-yellow-900">
-                      NAJPOPULARNIJI
+                      {t('marketing.home.pricing.mostPopular')}
                     </div>
                   )}
 
@@ -645,27 +654,27 @@ export default function HomePage() {
 
                   <div className="mt-3 mb-4">
                     {isFree ? (
-                      <p className="text-3xl font-bold">Besplatno</p>
+                      <p className="text-3xl font-bold">{t('marketing.home.pricing.free')}</p>
                     ) : billingCycle === 'monthly' ? (
                       <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
-                        ${monthlyPrice.toFixed(2)}
+                        {fmtPrice(monthlyPrice)}
                         <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
-                          /mes
+                          {t('marketing.home.pricing.perMonth')}
                         </span>
                       </p>
                     ) : (
                       <div>
                         <p className={cn('text-lg line-through', isPopular ? 'text-primary-200' : 'text-gray-400')}>
-                          ${monthlyPrice.toFixed(2)}/mes
+                          {fmtPrice(monthlyPrice)}{t('marketing.home.pricing.perMonth')}
                         </p>
                         <p className="text-3xl font-bold text-green-500">
-                          ${yearlyEquiv.toFixed(2)}
+                          {fmtPrice(yearlyEquiv)}
                           <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
-                            /mes
+                            {t('marketing.home.pricing.perMonth')}
                           </span>
                         </p>
                         <p className={cn('text-sm', isPopular ? 'text-primary-100' : 'text-gray-500')}>
-                          ${yearlyTotal.toFixed(2)}/god
+                          {fmtPrice(yearlyTotal)}{t('marketing.home.pricing.perYear')}
                           {savings > 0 && (
                             <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
                               -{savings}%
@@ -680,7 +689,7 @@ export default function HomePage() {
                     {tier.features.slice(0, 3).map((feature, i) => (
                       <li key={i} className={cn('flex items-center gap-2 text-sm', isPopular ? 'text-primary-50' : 'text-gray-600 dark:text-gray-300')}>
                         <Check className={cn('h-4 w-4 flex-shrink-0', isPopular ? 'text-primary-100' : 'text-primary-500')} />
-                        {feature}
+                        {tier.features === ALL_FEATURES ? t(`marketing.home.pricing.tierFeatures.${TIER_FEATURE_KEYS[i]}`) : feature}
                       </li>
                     ))}
                   </ul>
@@ -694,7 +703,7 @@ export default function HomePage() {
                         : 'bg-primary-500 text-white hover:bg-primary-600'
                     )}
                   >
-                    {isFree ? 'Započni besplatno' : 'Izaberi plan'}
+                    {isFree ? t('marketing.home.pricing.startFree') : t('marketing.home.pricing.choosePlan')}
                   </Link>
                 </div>
               </StaggerItem>
@@ -704,7 +713,7 @@ export default function HomePage() {
 
         <div className="mt-6 text-center">
           <Link href="/pricing" className="inline-flex items-center gap-2 text-primary-500 hover:underline">
-            Pogledaj sve planove <ArrowRight className="h-4 w-4" />
+            {t('marketing.home.pricing.seeAll')} <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>
@@ -713,21 +722,21 @@ export default function HomePage() {
       <section className="bg-gray-50 py-20 dark:bg-gray-900/50">
         <div className="container mx-auto px-4">
           <AnimatedSection>
-            <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">Zašto ljudi biraju MyPhoto</h2>
+            <h2 className="mb-4 text-center text-3xl font-bold md:text-4xl">{t('marketing.home.why.title')}</h2>
             <p className="mb-12 text-center text-gray-600 dark:text-gray-300">
-              Iskrene prednosti — bez sitnih slova i bez kompromisa oko tvoje privatnosti
+              {t('marketing.home.why.subtitle')}
             </p>
           </AnimatedSection>
 
           <StaggerContainer className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-2">
             {WHY_MYPHOTO.map((item) => (
-              <StaggerItem key={item.title}>
+              <StaggerItem key={item.key}>
                 <div className="h-full rounded-2xl bg-white p-8 shadow-lg dark:bg-gray-800">
                   <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400">
                     <item.icon className="h-6 w-6" />
                   </div>
-                  <h3 className="mb-2 text-lg font-semibold">{item.title}</h3>
-                  <p className="leading-relaxed text-gray-600 dark:text-gray-300">{item.text}</p>
+                  <h3 className="mb-2 text-lg font-semibold">{t(`marketing.home.why.${item.key}.title`)}</h3>
+                  <p className="leading-relaxed text-gray-600 dark:text-gray-300">{t(`marketing.home.why.${item.key}.text`)}</p>
                 </div>
               </StaggerItem>
             ))}
@@ -739,7 +748,7 @@ export default function HomePage() {
                 href="/register"
                 className="inline-flex items-center gap-2 rounded-xl bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-primary-500/30 transition-all hover:bg-primary-600 hover:shadow-xl"
               >
-                Pridružite se — besplatno
+                {t('marketing.home.why.cta')}
               </Link>
             </div>
           </AnimatedSection>
@@ -751,23 +760,23 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <AnimatedSection>
             <h2 className="mb-4 text-3xl font-bold text-white md:text-5xl">
-              Započnite za 30 sekundi
+              {t('marketing.home.finalCta.title')}
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-lg text-primary-100">
-              2,5GB besplatno. Bez kreditne kartice. Bez obaveza.
+              {t('marketing.home.finalCta.subtitle')}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link
                 href="/register"
                 className="rounded-xl bg-white px-8 py-4 text-lg font-bold text-primary-600 shadow-lg transition-all hover:bg-primary-50 hover:shadow-xl"
               >
-                Započni besplatno
+                {t('marketing.home.finalCta.start')}
               </Link>
               <Link
                 href="/pricing"
                 className="rounded-xl border-2 border-white/50 px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-white/10"
               >
-                Uporedi planove
+                {t('marketing.home.finalCta.compare')}
               </Link>
             </div>
           </AnimatedSection>
@@ -788,48 +797,48 @@ export default function HomePage() {
                 className="mb-4 h-12 w-auto"
               />
               <p className="max-w-xs text-sm text-gray-500 dark:text-gray-400">
-                Privatni cloud storage za vaše slike i video zapise. Bez kompresije, sa AI funkcijama i GDPR zaštitom.
+                {t('marketing.home.footer.description')}
               </p>
             </div>
 
             {/* Proizvod */}
             <div>
               <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-900 dark:text-white">
-                Proizvod
+                {t('marketing.home.footer.product')}
               </h4>
               <ul className="space-y-2">
-                <li><Link href="/pricing" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">Cene</Link></li>
-                <li><Link href="/register" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">Registracija</Link></li>
-                <li><Link href="/login" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">Prijava</Link></li>
+                <li><Link href="/pricing" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.pricing')}</Link></li>
+                <li><Link href="/register" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.register')}</Link></li>
+                <li><Link href="/login" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.login')}</Link></li>
               </ul>
             </div>
 
             {/* Podrška */}
             <div>
               <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-900 dark:text-white">
-                Podrška
+                {t('marketing.home.footer.support')}
               </h4>
               <ul className="space-y-2">
-                <li><Link href="/support" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">Pomoć</Link></li>
-                <li><Link href="/contact" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">Kontakt</Link></li>
+                <li><Link href="/support" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.help')}</Link></li>
+                <li><Link href="/contact" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.contact')}</Link></li>
               </ul>
             </div>
 
             {/* Legal */}
             <div>
               <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider text-gray-900 dark:text-white">
-                Legal
+                {t('marketing.home.footer.legal')}
               </h4>
               <ul className="space-y-2">
-                <li><Link href="/privacy" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">Privatnost</Link></li>
-                <li><Link href="/terms" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">Uslovi korišćenja</Link></li>
+                <li><Link href="/privacy" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.privacy')}</Link></li>
+                <li><Link href="/terms" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.terms')}</Link></li>
               </ul>
             </div>
           </div>
 
           <div className="mt-10 border-t border-gray-200 pt-6 dark:border-gray-700">
             <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-              &copy; {new Date().getFullYear()} MyPhoto — Sva prava zadržana.
+              &copy; {new Date().getFullYear()} {t('marketing.home.footer.rights')}
             </p>
           </div>
         </div>
@@ -846,7 +855,7 @@ export default function HomePage() {
           href="/register"
           className="block w-full rounded-lg bg-primary-500 py-3 text-center font-semibold text-white"
         >
-          Započni besplatno — 2,5GB
+          {t('marketing.home.stickyCta')}
         </Link>
       </div>
     </div>
@@ -854,104 +863,53 @@ export default function HomePage() {
 }
 
 // ── Static Data ───────────────────────────────────────────────────
+// Labels live in the i18n dictionary (marketing.home.*); only keys, icons,
+// styling and raw figures stay here. 'partial' is translated at render time.
 
-const COMPARISON_ROWS: { feature: string; myphoto: boolean | string; google: boolean | string; icloud: boolean | string }[] = [
-  { feature: 'Original kvalitet (bez kompresije)', myphoto: true, google: false, icloud: true },
-  { feature: 'EU serveri', myphoto: true, google: false, icloud: false },
-  { feature: 'GDPR usklađenost', myphoto: true, google: 'Delimično', icloud: 'Delimično' },
-  { feature: 'Bez AI treninga na vašim slikama', myphoto: true, google: false, icloud: true },
-  { feature: 'Početni plan', myphoto: '150 GB — €2.49', google: '100 GB — €2.10', icloud: '50 GB — €0.99' },
-  { feature: 'Cena po GB', myphoto: '€0.017/GB', google: '€0.021/GB', icloud: '€0.020/GB' },
-  { feature: 'Family sharing', myphoto: true, google: true, icloud: true },
+// First three lines of ALL_FEATURES, as shown on the homepage pricing cards.
+const TIER_FEATURE_KEYS = ['backup', 'myspace', 'ai'] as const;
+
+const COMPARISON_ROWS: {
+  key: 'original' | 'eu' | 'gdpr' | 'noAi' | 'starter' | 'pricePerGb' | 'family';
+  myphoto: boolean | string;
+  google: boolean | string;
+  icloud: boolean | string;
+}[] = [
+  { key: 'original', myphoto: true, google: false, icloud: true },
+  { key: 'eu', myphoto: true, google: false, icloud: false },
+  { key: 'gdpr', myphoto: true, google: 'partial', icloud: 'partial' },
+  { key: 'noAi', myphoto: true, google: false, icloud: true },
+  { key: 'starter', myphoto: '150 GB — €2.49', google: '100 GB — €2.10', icloud: '50 GB — €0.99' },
+  { key: 'pricePerGb', myphoto: '€0.017/GB', google: '€0.021/GB', icloud: '€0.020/GB' },
+  { key: 'family', myphoto: true, google: true, icloud: true },
 ];
 
 const FEATURES = [
-  {
-    icon: Cloud,
-    title: 'Siguran Cloud Storage',
-    description: 'Vaši fajlovi su enkriptovani i čuvani na enterprise-grade infrastrukturi u EU.',
-    gradient: 'from-sky-400 to-blue-500',
-  },
-  {
-    icon: Image,
-    title: 'Original Kvalitet',
-    description: 'Bez kompresije. Svaki piksel sačuvan. RAW format podrška.',
-    gradient: 'from-orange-400 to-rose-500',
-  },
-  {
-    icon: Shield,
-    title: 'GDPR Compliant',
-    description: 'Podaci na EU serverima. Pravo na brisanje garantovano.',
-    gradient: 'from-emerald-400 to-teal-500',
-  },
-  {
-    icon: Brain,
-    title: 'AI Pretraga',
-    description: 'Pretražujte slike prirodnim jezikom. "Plaža u Hrvatskoj" — AI pronalazi.',
-    gradient: 'from-purple-400 to-violet-500',
-  },
-  {
-    icon: Users,
-    title: 'Family Sharing',
-    description: 'Delite storage sa porodicom. Svako ima privatni prostor.',
-    gradient: 'from-pink-400 to-fuchsia-500',
-  },
-  {
-    icon: Zap,
-    title: 'Brza Sinhronizacija',
-    description: 'Upload i pristup slikama munjevitom brzinom sa bilo kog uređaja.',
-    gradient: 'from-amber-400 to-orange-500',
-  },
-];
+  { icon: Cloud, key: 'cloud', gradient: 'from-sky-400 to-blue-500' },
+  { icon: Image, key: 'original', gradient: 'from-orange-400 to-rose-500' },
+  { icon: Shield, key: 'gdpr', gradient: 'from-emerald-400 to-teal-500' },
+  { icon: Brain, key: 'ai', gradient: 'from-purple-400 to-violet-500' },
+  { icon: Users, key: 'family', gradient: 'from-pink-400 to-fuchsia-500' },
+  { icon: Zap, key: 'sync', gradient: 'from-amber-400 to-orange-500' },
+] as const;
 
 const AI_DEMO_RESULTS = [
-  { label: 'Zalazak sunca — Dubrovnik', gradient: 'from-orange-400 to-rose-500' },
-  { label: 'More — Zlatni rat', gradient: 'from-cyan-400 to-blue-500' },
-  { label: 'Plaža — Crna Gora', gradient: 'from-amber-300 to-orange-400' },
-  { label: 'Sumrak — Zadar', gradient: 'from-violet-400 to-purple-600' },
-];
+  { key: 'dubrovnik', gradient: 'from-orange-400 to-rose-500' },
+  { key: 'zlatniRat', gradient: 'from-cyan-400 to-blue-500' },
+  { key: 'montenegro', gradient: 'from-amber-300 to-orange-400' },
+  { key: 'zadar', gradient: 'from-violet-400 to-purple-600' },
+] as const;
 
 const STEPS = [
-  {
-    number: 1,
-    icon: Upload,
-    title: 'Upload',
-    description: 'Prevucite slike ili koristite auto-sync. Sve u originalnom kvalitetu.',
-  },
-  {
-    number: 2,
-    icon: Brain,
-    title: 'AI Organizuje',
-    description: 'AI automatski taguje, prepoznaje lica i kategorizuje vaše slike.',
-  },
-  {
-    number: 3,
-    icon: Share2,
-    title: 'Delite & Čuvajte',
-    description: 'Sigurno deljenje sa porodicom. Vaše uspomene, zauvek sačuvane.',
-  },
-];
+  { number: 1, icon: Upload, key: 'upload' },
+  { number: 2, icon: Brain, key: 'organize' },
+  { number: 3, icon: Share2, key: 'share' },
+] as const;
 
 // Honest, verifiable product benefits — replaces fabricated testimonials.
 const WHY_MYPHOTO = [
-  {
-    icon: Image,
-    title: 'Original kvalitet',
-    text: 'Nula kompresije. Fotografije se čuvaju u punoj rezoluciji — tačno onakve kakve si ih napravio.',
-  },
-  {
-    icon: Shield,
-    title: 'Privatno po dizajnu',
-    text: 'Ne treniramo AI na tvojim slikama. EU serveri, GDPR usklađenost i enkripcija podataka.',
-  },
-  {
-    icon: Brain,
-    title: 'AI pretraga',
-    text: 'Ukucaj „zalazak sunca na moru" i pronađi tačno te slike — bez ručnog označavanja.',
-  },
-  {
-    icon: Share2,
-    title: 'Deljenje sa kontrolom',
-    text: 'Deli albume linkom, biraj ko šta vidi, i deli prostor sa porodicom.',
-  },
-];
+  { icon: Image, key: 'original' },
+  { icon: Shield, key: 'private' },
+  { icon: Brain, key: 'ai' },
+  { icon: Share2, key: 'sharing' },
+] as const;

@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { tStatic } from '@/components/i18n-static';
 import { useAuthStore } from '../stores';
 import { formatBytes, formatStoragePercentage } from '@myphoto/shared';
 
@@ -12,13 +13,13 @@ export function useStorage() {
   return useQuery({
     queryKey: ['storage', user?.id],
     queryFn: async () => {
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       const userRef = doc(db, 'users', user.id);
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        throw new Error('User not found');
+        throw new Error(tStatic('components.errors.userNotFound'));
       }
 
       const userData = userSnap.data();

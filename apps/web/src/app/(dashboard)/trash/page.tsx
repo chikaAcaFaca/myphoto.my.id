@@ -9,6 +9,7 @@ import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
 import { getIdToken } from '@/lib/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useI18n, useT } from '@/i18n/client';
 
 const getFileIcon = (mimeType: string) => {
   if (mimeType?.startsWith('image/')) return FileImage;
@@ -27,13 +28,14 @@ const formatSize = (bytes: number) => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
-const formatDate = (d: string | Date) => {
+const formatDate = (d: string | Date, locale: string) => {
   const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toLocaleDateString('sr-Latn', { day: 'numeric', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
 export default function TrashPage() {
   const [tab, setTab] = useState<'photos' | 'disk'>('photos');
+  const { t, intlLocale } = useI18n();
   const { data, isLoading } = useFiles({ isTrashed: true });
   const { selectedFiles, deselectAll } = useFilesStore();
   const { addNotification } = useUIStore();
@@ -77,7 +79,7 @@ export default function TrashPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['disk-trash'] });
       queryClient.invalidateQueries({ queryKey: ['myspace'] });
-      addNotification({ type: 'success', title: 'Vraćeno iz korpe' });
+      addNotification({ type: 'success', title: t('dashboard.trash.restoredFromTrash') });
     },
   });
 
@@ -94,7 +96,7 @@ export default function TrashPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['disk-trash'] });
-      addNotification({ type: 'success', title: 'Trajno obrisano' });
+      addNotification({ type: 'success', title: t('dashboard.trash.permanentlyDeleted') });
     },
   });
 
@@ -103,7 +105,7 @@ export default function TrashPage() {
     fileIds.forEach((id) => {
       restoreFile(id, {
         onSuccess: () => {
-          addNotification({ type: 'success', title: 'File restored' });
+          addNotification({ type: 'success', title: t('dashboard.trash.fileRestored') });
         },
       });
     });
@@ -115,7 +117,7 @@ export default function TrashPage() {
     fileIds.forEach((id) => {
       permanentlyDelete(id, {
         onSuccess: () => {
-          addNotification({ type: 'success', title: 'File permanently deleted' });
+          addNotification({ type: 'success', title: t('dashboard.trash.filePermanentlyDeleted') });
         },
       });
     });
@@ -130,7 +132,7 @@ export default function TrashPage() {
       diskFolders.forEach((f) => deleteDiskMutation.mutate({ id: f.id, type: 'folder' }));
     }
     setShowEmptyConfirm(false);
-    addNotification({ type: 'success', title: 'Korpa ispražnjena' });
+    addNotification({ type: 'success', title: t('dashboard.trash.emptied') });
   };
 
   const photoCount = files.length;
@@ -146,9 +148,9 @@ export default function TrashPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Korpa</h1>
+          <h1 className="text-2xl font-bold">{t('dashboard.trash.title')}</h1>
           <p className="text-sm text-gray-500">
-            Fajlovi u korpi se trajno brišu nakon 30 dana
+            {t('dashboard.trash.subtitle')}
           </p>
         </div>
         {((tab === 'photos' && photoCount > 0) || (tab === 'disk' && diskCount > 0)) && (
@@ -157,7 +159,7 @@ export default function TrashPage() {
             className="btn-danger"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Isprazni korpu
+            {t('dashboard.trash.emptyTrash')}
           </button>
         )}
       </div>
@@ -170,7 +172,7 @@ export default function TrashPage() {
             tab === 'photos' ? 'bg-white shadow dark:bg-gray-700' : 'text-gray-500'
           }`}
         >
-          Slike ({photoCount})
+          {t('dashboard.trash.tabPhotos', { count: photoCount })}
         </button>
         <button
           onClick={() => setTab('disk')}
@@ -178,7 +180,7 @@ export default function TrashPage() {
             tab === 'disk' ? 'bg-white shadow dark:bg-gray-700' : 'text-gray-500'
           }`}
         >
-          MySpace ({diskCount})
+          {t('dashboard.trash.tabDisk', { count: diskCount })}
         </button>
       </div>
 
@@ -186,14 +188,14 @@ export default function TrashPage() {
       {tab === 'photos' && (
         <>
           {!isLoading && files.length === 0 ? (
-            <EmptyState message="Nema obrisanih slika" />
+            <EmptyState message={t('dashboard.trash.noPhotos')} />
           ) : (
             <PhotoGrid files={files} isLoading={isLoading} />
           )}
           <SelectionBar
             actions={[
-              { label: 'Vrati', icon: <RefreshCw className="h-4 w-4" />, onClick: handleRestore },
-              { label: 'Obriši zauvek', icon: <Trash2 className="h-4 w-4" />, onClick: handlePermanentDelete, variant: 'danger' },
+              { label: t('dashboard.shared.restore'), icon: <RefreshCw className="h-4 w-4" />, onClick: handleRestore },
+              { label: t('dashboard.trash.deleteForever'), icon: <Trash2 className="h-4 w-4" />, onClick: handlePermanentDelete, variant: 'danger' },
             ]}
           />
         </>
@@ -203,7 +205,7 @@ export default function TrashPage() {
       {tab === 'disk' && (
         <>
           {!diskLoading && diskCount === 0 ? (
-            <EmptyState message="Nema obrisanih fajlova sa MySpace-a" />
+            <EmptyState message={t('dashboard.trash.noDiskFiles')} />
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
               {diskFolders.map((folder) => (
@@ -217,19 +219,19 @@ export default function TrashPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-400">
-                      {folder.trashedAt ? formatDate(folder.trashedAt) : ''}
+                      {folder.trashedAt ? formatDate(folder.trashedAt, intlLocale) : ''}
                     </span>
                     <button
                       onClick={() => restoreDiskMutation.mutate({ id: folder.id, type: 'folder' })}
                       className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                     >
-                      Vrati
+                      {t('dashboard.shared.restore')}
                     </button>
                     <button
                       onClick={() => deleteDiskMutation.mutate({ id: folder.id, type: 'folder' })}
                       className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                     >
-                      Obriši
+                      {t('dashboard.shared.delete')}
                     </button>
                   </div>
                 </div>
@@ -248,19 +250,19 @@ export default function TrashPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-400">
-                        {file.trashedAt ? formatDate(file.trashedAt) : ''}
+                        {file.trashedAt ? formatDate(file.trashedAt, intlLocale) : ''}
                       </span>
                       <button
                         onClick={() => restoreDiskMutation.mutate({ id: file.id, type: 'file' })}
                         className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                       >
-                        Vrati
+                        {t('dashboard.shared.restore')}
                       </button>
                       <button
                         onClick={() => deleteDiskMutation.mutate({ id: file.id, type: 'file' })}
                         className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
-                        Obriši
+                        {t('dashboard.shared.delete')}
                       </button>
                     </div>
                   </div>
@@ -293,17 +295,17 @@ export default function TrashPage() {
                 <div className="rounded-full bg-red-100 p-2 dark:bg-red-900/30">
                   <AlertTriangle className="h-6 w-6 text-red-600" />
                 </div>
-                <h2 className="text-lg font-semibold">Isprazni korpu?</h2>
+                <h2 className="text-lg font-semibold">{t('dashboard.trash.confirmTitle')}</h2>
               </div>
               <p className="mb-6 text-gray-600 dark:text-gray-300">
-                Ovo će trajno obrisati sve fajlove iz korpe. Ova akcija se ne može poništiti.
+                {t('dashboard.trash.confirmText')}
               </p>
               <div className="flex justify-end gap-3">
                 <button onClick={() => setShowEmptyConfirm(false)} className="btn-secondary">
-                  Otkaži
+                  {t('dashboard.shared.cancel')}
                 </button>
                 <button onClick={handleEmptyTrash} className="btn-danger">
-                  Isprazni korpu
+                  {t('dashboard.trash.emptyTrash')}
                 </button>
               </div>
             </motion.div>
@@ -315,6 +317,7 @@ export default function TrashPage() {
 }
 
 function EmptyState({ message }: { message: string }) {
+  const t = useT();
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
@@ -327,7 +330,7 @@ function EmptyState({ message }: { message: string }) {
       </div>
       <h2 className="text-xl font-semibold">{message}</h2>
       <p className="mt-2 max-w-md text-gray-500">
-        Obrisani fajlovi ostaju ovde 30 dana pre trajnog brisanja
+        {t('dashboard.trash.emptyStateText')}
       </p>
     </motion.div>
   );

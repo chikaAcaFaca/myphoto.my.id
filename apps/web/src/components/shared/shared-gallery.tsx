@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X, Download, ZoomIn, FolderDown } from 'lucide-react';
 import JSZip from 'jszip';
+import { useT } from '@/i18n/client';
 
 interface SharedGalleryProps {
   fileIds: string[];
@@ -14,6 +15,7 @@ interface SharedGalleryProps {
 export function SharedGallery({ fileIds, shareToken, albumName, permission = 'read' }: SharedGalleryProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const t = useT();
 
   const openLightbox = (index: number) => setLightboxIndex(index);
   const closeLightbox = () => setLightboxIndex(null);
@@ -95,7 +97,7 @@ export function SharedGallery({ fileIds, shareToken, albumName, permission = 're
           ) : (
             <FolderDown className="h-4 w-4" />
           )}
-          {isDownloadingAll ? 'Preuzimanje...' : `Preuzmi sve (${fileIds.length})`}
+          {isDownloadingAll ? t('components.shared.downloading') : t('components.shared.downloadAll', { count: fileIds.length })}
         </button>
       )}
 
@@ -138,13 +140,13 @@ export function SharedGallery({ fileIds, shareToken, albumName, permission = 're
                 download
                 onClick={(e) => e.stopPropagation()}
                 className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-                title="Preuzmi"
+                title={t('components.shared.download')}
               >
                 <Download className="h-5 w-5" />
               </a>
               <button
                 onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
-                aria-label="Zatvori"
+                aria-label={t('components.common.close')}
                 className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
               >
                 <X className="h-5 w-5" />
@@ -171,14 +173,14 @@ export function SharedGallery({ fileIds, shareToken, albumName, permission = 're
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); goPrev(); }}
-                aria-label="Prethodna"
+                aria-label={t('components.common.previous')}
                 className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition-colors hover:bg-white/20"
               >
                 <ChevronLeft className="h-6 w-6" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); goNext(); }}
-                aria-label="Sledeća"
+                aria-label={t('components.common.next')}
                 className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white transition-colors hover:bg-white/20"
               >
                 <ChevronRight className="h-6 w-6" />

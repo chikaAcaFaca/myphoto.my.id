@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
+import { useI18n } from '@/i18n/client';
+import type { MessageKey, TParams } from '@/i18n/translate';
 
 interface Comment {
   id: string;
@@ -23,20 +25,24 @@ interface MemeSocialProps {
   initialCommentCount: number;
 }
 
-function relativeTime(iso: string | null): string {
+function relativeTime(
+  iso: string | null,
+  t: (key: MessageKey, params?: TParams) => string,
+  intlLocale: string
+): string {
   if (!iso) return '';
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
   const diff = Date.now() - then;
   const sec = Math.round(diff / 1000);
-  if (sec < 60) return 'upravo sad';
+  if (sec < 60) return t('pages.meme.justNow');
   const min = Math.round(sec / 60);
-  if (min < 60) return `pre ${min} min`;
+  if (min < 60) return t('pages.meme.minutesAgo', { n: min });
   const hr = Math.round(min / 60);
-  if (hr < 24) return `pre ${hr} h`;
+  if (hr < 24) return t('pages.meme.hoursAgo', { n: hr });
   const days = Math.round(hr / 24);
-  if (days < 30) return `pre ${days} d`;
-  return new Date(iso).toLocaleDateString();
+  if (days < 30) return t('pages.meme.daysAgo', { n: days });
+  return new Date(iso).toLocaleDateString(intlLocale);
 }
 
 export default function MemeSocial({
@@ -49,6 +55,7 @@ export default function MemeSocial({
 }: MemeSocialProps) {
   const { user } = useAuthStore();
   const router = useRouter();
+  const { t, intlLocale } = useI18n();
 
   const [likes, setLikes] = useState(initialLikes);
   const [dislikes, setDislikes] = useState(initialDislikes);
@@ -160,10 +167,10 @@ export default function MemeSocial({
     const url = `${window.location.origin}/meme/${memeId}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: caption, text: `${caption} — Napravljeno u MyPhoto`, url });
+        await navigator.share({ title: caption, text: t('pages.meme.shareText', { caption }), url });
       } else {
         await navigator.clipboard.writeText(url);
-        alert('Link kopiran!');
+        alert(t('pages.meme.linkCopied'));
       }
     } catch {
       return;
@@ -199,10 +206,10 @@ export default function MemeSocial({
         setCommentText('');
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.error || 'Slanje komentara nije uspelo.');
+        alert(err?.error || t('pages.meme.commentFailed'));
       }
     } catch {
-      alert('Greška pri slanju komentara.');
+      alert(t('pages.meme.commentError'));
     } finally {
       setSubmitting(false);
     }
@@ -256,15 +263,15 @@ export default function MemeSocial({
 
       {/* Comments */}
       <div id="comments" style={{ marginBottom: 24, scrollMarginTop: 16 }}>
-        <h3 style={{ fontSize: 16, marginBottom: 12 }}>Komentari ({commentCount})</h3>
+        <h3 style={{ fontSize: 16, marginBottom: 12 }}>{t('pages.meme.commentsTitle', { count: commentCount })}</h3>
 
         {user ? (
           <form onSubmit={handleSubmitComment} style={{ marginBottom: 16 }}>
             <textarea
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              aria-label="Napiši komentar"
-              placeholder="Napiši komentar..."
+              aria-label={t('pages.meme.commentLabel')}
+              placeholder={t('pages.meme.commentPlaceholder')}
               maxLength={1000}
               rows={2}
               style={{
@@ -283,7 +290,7 @@ export default function MemeSocial({
                 cursor: (submitting || !commentText.trim()) ? 'default' : 'pointer',
               }}
             >
-              {submitting ? 'Šaljem...' : 'Objavi komentar'}
+              {submitting ? t('pages.meme.commentSending') : t('pages.meme.commentSubmit')}
             </button>
           </form>
         ) : (
@@ -292,16 +299,16 @@ export default function MemeSocial({
             padding: 14, marginBottom: 16, fontSize: 14, color: '#94a3b8',
           }}>
             <Link href={`/login?redirect=/meme/${memeId}`} style={{ color: '#f97316', fontWeight: 600 }}>
-              Prijavi se
+              {t('pages.meme.signIn')}
             </Link>{' '}
-            da ostaviš komentar.
+            {t('pages.meme.signInToComment')}
           </div>
         )}
 
         {commentsLoading ? (
-          <p style={{ color: '#64748b', fontSize: 14 }}>Učitavanje komentara...</p>
+          <p style={{ color: '#64748b', fontSize: 14 }}>{t('pages.meme.commentsLoading')}</p>
         ) : comments.length === 0 ? (
-          <p style={{ color: '#64748b', fontSize: 14 }}>Još nema komentara. Budi prvi!</p>
+          <p style={{ color: '#64748b', fontSize: 14 }}>{t('pages.meme.noComments')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {comments.map((c) => (
@@ -323,7 +330,7 @@ export default function MemeSocial({
                   ) : (
                     <span style={{ color: '#94a3b8', fontWeight: 600, fontSize: 13 }}>@{c.authorName}</span>
                   )}
-                  <span style={{ color: '#64748b', fontSize: 12 }}>{relativeTime(c.createdAt)}</span>
+                  <span style={{ color: '#64748b', fontSize: 12 }}>{relativeTime(c.createdAt, t, intlLocale)}</span>
                 </div>
                 <p style={{ fontSize: 14, color: '#e2e8f0', margin: 0, lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
                   {c.text}

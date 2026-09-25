@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import { INTL_LOCALE, LOCALE_COOKIE, type Locale } from './config';
-import { DICTIONARIES, FALLBACK_MESSAGES } from './dictionaries';
+import { setActiveMessages } from './active';
 import { translate, type MessageKey, type TParams } from './translate';
 
 interface I18nValue {
@@ -15,10 +15,25 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
-export function I18nProvider({ locale, children }: { locale: Locale; children: ReactNode }) {
+/**
+ * `messages` is the active language's dictionary only, passed down from the
+ * server layout — importing every dictionary here would ship all languages
+ * to every page. The Serbian dictionary is type-checked complete against
+ * English, so no client-side fallback is needed.
+ */
+export function I18nProvider({
+  locale,
+  messages,
+  children,
+}: {
+  locale: Locale;
+  messages: unknown;
+  children: ReactNode;
+}) {
+  setActiveMessages(locale, messages);
   const t = useCallback(
-    (key: MessageKey, params?: TParams) => translate(DICTIONARIES[locale], FALLBACK_MESSAGES, key, params),
-    [locale]
+    (key: MessageKey, params?: TParams) => translate(messages, null, key, params),
+    [messages]
   );
 
   const setLocale = useCallback((next: Locale) => {

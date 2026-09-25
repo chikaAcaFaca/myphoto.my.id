@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertCircle, AlertTriangle, Info } from 'lucide-react';
 import { useUIStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/client';
 
 const icons = {
   success: CheckCircle,
@@ -63,6 +64,7 @@ function Notification({
   onClose,
 }: NotificationProps) {
   const Icon = icons[type];
+  const t = useT();
 
   useEffect(() => {
     if (duration > 0) {
@@ -91,7 +93,7 @@ function Notification({
       </div>
       <button
         onClick={onClose}
-        aria-label="Zatvori"
+        aria-label={t('components.common.close')}
         className="flex-shrink-0 rounded p-1 opacity-60 hover:opacity-100"
       >
         <X className="h-4 w-4" />

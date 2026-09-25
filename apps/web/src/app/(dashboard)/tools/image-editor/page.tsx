@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/client';
 
 export default function ImageEditorPage() {
   return (
@@ -60,6 +61,7 @@ function ImageEditorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { addNotification } = useUIStore();
+  const t = useT();
   const fileId = searchParams.get('fileId');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -111,10 +113,10 @@ function ImageEditorContent() {
         pushHistory({ rotation: 0, flipH: false, flipV: false, cropArea: null, memeTexts: [] });
       };
       img.onerror = () => {
-        addNotification({ type: 'error', title: 'Ne mogu da učitam sliku' });
+        addNotification({ type: 'error', title: t('myspace.imageEditor.toast.loadError') });
       };
     }
-  }, [fileId, addNotification]);
+  }, [fileId, addNotification, t]);
 
   const pushHistory = useCallback((state: HistoryState) => {
     setHistory(prev => {
@@ -343,7 +345,7 @@ function ImageEditorContent() {
   const addMemeText = (position: 'top' | 'bottom') => {
     const newText: MemeText = {
       id: Math.random().toString(36).slice(2),
-      text: position === 'top' ? 'GORNJI TEKST' : 'DONJI TEKST',
+      text: position === 'top' ? t('myspace.imageEditor.topDefault') : t('myspace.imageEditor.bottomDefault'),
       x: 0,
       y: 0,
       fontSize: 48,
@@ -361,12 +363,12 @@ function ImageEditorContent() {
   };
 
   const updateMemeText = (id: string, updates: Partial<MemeText>) => {
-    const newTexts = memeTexts.map(t => t.id === id ? { ...t, ...updates } : t);
+    const newTexts = memeTexts.map(mt => mt.id === id ? { ...mt, ...updates } : mt);
     setMemeTexts(newTexts);
   };
 
   const deleteMemeText = (id: string) => {
-    const newTexts = memeTexts.filter(t => t.id !== id);
+    const newTexts = memeTexts.filter(mt => mt.id !== id);
     setMemeTexts(newTexts);
     setSelectedTextId(null);
     setEditingTextId(null);
@@ -390,13 +392,13 @@ function ImageEditorContent() {
         setAudioBlob(blob);
         if (audioUrl) URL.revokeObjectURL(audioUrl);
         setAudioUrl(URL.createObjectURL(blob));
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach(track => track.stop());
       };
 
       mediaRecorder.start();
       setIsRecording(true);
     } catch {
-      addNotification({ type: 'error', title: 'Mikrofon nije dostupan' });
+      addNotification({ type: 'error', title: t('myspace.imageEditor.toast.micUnavailable') });
     }
   };
 
@@ -482,14 +484,14 @@ function ImageEditorContent() {
     link.click();
     document.body.removeChild(link);
 
-    addNotification({ type: 'success', title: 'Slika preuzeta' });
+    addNotification({ type: 'success', title: t('myspace.imageEditor.toast.imageDownloaded') });
   };
 
   // Export meme with audio as video
   const handleExportMemeVideo = async () => {
     if (!audioBlob || !canvasRef.current) return;
 
-    addNotification({ type: 'success', title: 'Preuzimanje slike i zvuka...' });
+    addNotification({ type: 'success', title: t('myspace.imageEditor.toast.downloadingMeme') });
 
     // Download image
     handleExport();
@@ -507,7 +509,7 @@ function ImageEditorContent() {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith('image/')) {
-      addNotification({ type: 'error', title: 'Samo slike su podržane' });
+      addNotification({ type: 'error', title: t('myspace.imageEditor.toast.onlyImages') });
       return;
     }
     const url = URL.createObjectURL(file);
@@ -528,7 +530,7 @@ function ImageEditorContent() {
     e.target.value = '';
   };
 
-  const selectedText = memeTexts.find(t => t.id === selectedTextId);
+  const selectedText = memeTexts.find(mt => mt.id === selectedTextId);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -537,24 +539,24 @@ function ImageEditorContent() {
         className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
       >
         <ArrowLeft className="h-4 w-4" />
-        Nazad
+        {t('myspace.imageEditor.back')}
       </button>
 
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <Crop className="h-6 w-6 text-primary-500" />
-            Uredi sliku
+            {t('myspace.imageEditor.title')}
           </h1>
           <p className="mt-1 text-sm text-gray-500">
-            Rotiraj, iseci, dodaj tekst za mim + snimi zvuk
+            {t('myspace.imageEditor.subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
           {audioBlob && (
             <button onClick={handleExportMemeVideo} className="btn-secondary text-sm">
               <Download className="mr-1.5 h-4 w-4" />
-              Preuzmi mim + zvuk
+              {t('myspace.imageEditor.downloadMemeAudio')}
             </button>
           )}
           <button
@@ -563,7 +565,7 @@ function ImageEditorContent() {
             className="btn-primary text-sm"
           >
             <Download className="mr-1.5 h-4 w-4" />
-            Preuzmi PNG
+            {t('myspace.imageEditor.downloadPng')}
           </button>
         </div>
       </div>
@@ -575,9 +577,9 @@ function ImageEditorContent() {
           className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-12 hover:border-primary-400 dark:border-gray-600"
         >
           <Crop className="mb-4 h-12 w-12 text-gray-400" />
-          <p className="text-lg font-medium">Izaberite sliku za uređivanje</p>
-          <p className="mt-1 text-sm text-gray-500">ili prevucite ovde</p>
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} aria-label="Izaberite sliku za uređivanje" />
+          <p className="text-lg font-medium">{t('myspace.imageEditor.chooseImage')}</p>
+          <p className="mt-1 text-sm text-gray-500">{t('myspace.imageEditor.orDrop')}</p>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} aria-label={t('myspace.imageEditor.chooseImage')} />
         </div>
       )}
 
@@ -586,28 +588,28 @@ function ImageEditorContent() {
           {/* Toolbar */}
           <div className="flex flex-row gap-1 overflow-x-auto rounded-xl border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-800 lg:w-16 lg:flex-col lg:overflow-x-visible">
             {/* Undo/Redo */}
-            <button onClick={undo} disabled={historyIndex <= 0} title="Poništi" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-700">
+            <button onClick={undo} disabled={historyIndex <= 0} title={t('myspace.imageEditor.undo')} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-700">
               <Undo2 className="h-5 w-5" />
             </button>
-            <button onClick={redo} disabled={historyIndex >= history.length - 1} title="Ponovi" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-700">
+            <button onClick={redo} disabled={historyIndex >= history.length - 1} title={t('myspace.imageEditor.redo')} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-30 dark:hover:bg-gray-700">
               <Redo2 className="h-5 w-5" />
             </button>
 
             <div className="mx-1 h-px w-full bg-gray-200 dark:bg-gray-700 lg:h-auto lg:w-px" />
 
             {/* Rotate */}
-            <button onClick={() => handleRotate(-90)} title="Rotiraj levo" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <button onClick={() => handleRotate(-90)} title={t('myspace.imageEditor.rotateLeft')} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
               <RotateCcw className="h-5 w-5" />
             </button>
-            <button onClick={() => handleRotate(90)} title="Rotiraj desno" className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <button onClick={() => handleRotate(90)} title={t('myspace.imageEditor.rotateRight')} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
               <RotateCw className="h-5 w-5" />
             </button>
 
             {/* Flip */}
-            <button onClick={handleFlipH} title="Okreni horizontalno" className={cn('rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700', flipH ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30' : 'text-gray-500')}>
+            <button onClick={handleFlipH} title={t('myspace.imageEditor.flipH')} className={cn('rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700', flipH ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30' : 'text-gray-500')}>
               <FlipHorizontal className="h-5 w-5" />
             </button>
-            <button onClick={handleFlipV} title="Okreni vertikalno" className={cn('rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700', flipV ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30' : 'text-gray-500')}>
+            <button onClick={handleFlipV} title={t('myspace.imageEditor.flipV')} className={cn('rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700', flipV ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/30' : 'text-gray-500')}>
               <FlipVertical className="h-5 w-5" />
             </button>
 
@@ -616,7 +618,7 @@ function ImageEditorContent() {
             {/* Crop */}
             <button
               onClick={() => setActiveTool(activeTool === 'crop' ? 'none' : 'crop')}
-              title="Iseci"
+              title={t('myspace.imageEditor.crop')}
               className={cn('rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700', activeTool === 'crop' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' : 'text-gray-500')}
             >
               <Crop className="h-5 w-5" />
@@ -625,7 +627,7 @@ function ImageEditorContent() {
             {/* Meme */}
             <button
               onClick={() => setActiveTool(activeTool === 'meme' ? 'none' : 'meme')}
-              title="Dodaj tekst (mim)"
+              title={t('myspace.imageEditor.addText')}
               className={cn('rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700', activeTool === 'meme' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30' : 'text-gray-500')}
             >
               <Type className="h-5 w-5" />
@@ -634,7 +636,7 @@ function ImageEditorContent() {
             {/* Audio */}
             <button
               onClick={isRecording ? stopRecording : startRecording}
-              title={isRecording ? 'Zaustavi snimanje' : 'Snimi zvuk'}
+              title={isRecording ? t('myspace.imageEditor.stopRecording') : t('myspace.imageEditor.recordAudio')}
               className={cn('rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700', isRecording ? 'animate-pulse bg-red-100 text-red-600 dark:bg-red-900/30' : 'text-gray-500')}
             >
               {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -661,14 +663,14 @@ function ImageEditorContent() {
               <div className="mt-3 flex items-center justify-center gap-3">
                 <button onClick={applyCrop} className="btn-primary text-sm">
                   <Crop className="mr-1.5 h-4 w-4" />
-                  Primeni isecanje
+                  {t('myspace.imageEditor.applyCrop')}
                 </button>
                 <button onClick={() => { setCropStart(null); setCropEnd(null); }} className="btn-secondary text-sm">
-                  Poništi
+                  {t('myspace.imageEditor.cancel')}
                 </button>
                 {appliedCrop && (
                   <button onClick={resetCrop} className="text-sm text-red-500 hover:text-red-700">
-                    Vrati original
+                    {t('myspace.imageEditor.restoreOriginal')}
                   </button>
                 )}
               </div>
@@ -679,7 +681,7 @@ function ImageEditorContent() {
               <div className="mt-3 flex items-center justify-center gap-3 rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
                 <Mic className="h-4 w-4 text-gray-500" />
                 <audio src={audioUrl} controls className="h-8 w-64" />
-                <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }} className="text-xs text-red-500 hover:text-red-700" aria-label="Ukloni zvuk">
+                <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }} className="text-xs text-red-500 hover:text-red-700" aria-label={t('myspace.imageEditor.removeAudio')}>
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -691,17 +693,17 @@ function ImageEditorContent() {
             <div className="w-full space-y-3 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 lg:w-72">
               <h3 className="flex items-center gap-2 font-semibold">
                 <Type className="h-4 w-4 text-yellow-500" />
-                Mim tekst
+                {t('myspace.imageEditor.memeText')}
               </h3>
 
               <div className="flex gap-2">
                 <button onClick={() => addMemeText('top')} className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700">
                   <Plus className="mr-1 inline h-3.5 w-3.5" />
-                  Gornji tekst
+                  {t('myspace.imageEditor.topText')}
                 </button>
                 <button onClick={() => addMemeText('bottom')} className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700">
                   <Plus className="mr-1 inline h-3.5 w-3.5" />
-                  Donji tekst
+                  {t('myspace.imageEditor.bottomText')}
                 </button>
               </div>
 
@@ -716,9 +718,9 @@ function ImageEditorContent() {
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-medium text-gray-400 uppercase">
-                      {mt.position === 'top' ? 'Gore' : mt.position === 'bottom' ? 'Dole' : 'Custom'}
+                      {mt.position === 'top' ? t('myspace.imageEditor.top') : mt.position === 'bottom' ? t('myspace.imageEditor.bottom') : t('myspace.imageEditor.custom')}
                     </span>
-                    <button onClick={(e) => { e.stopPropagation(); deleteMemeText(mt.id); }} className="text-gray-400 hover:text-red-500" aria-label="Ukloni tekst">
+                    <button onClick={(e) => { e.stopPropagation(); deleteMemeText(mt.id); }} className="text-gray-400 hover:text-red-500" aria-label={t('myspace.imageEditor.removeText')}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
@@ -727,17 +729,17 @@ function ImageEditorContent() {
                     value={mt.text}
                     onChange={(e) => updateMemeText(mt.id, { text: e.target.value })}
                     className="mb-2 w-full rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700"
-                    placeholder="Tekst mima..."
-                    aria-label="Tekst mima"
+                    placeholder={t('myspace.imageEditor.memeTextPlaceholder')}
+                    aria-label={t('myspace.imageEditor.memeTextAria')}
                   />
 
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-gray-500">Veličina</label>
-                    <button onClick={() => updateMemeText(mt.id, { fontSize: Math.max(16, mt.fontSize - 4) })} className="rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600" aria-label="Smanji veličinu teksta">
+                    <label className="text-xs text-gray-500">{t('myspace.imageEditor.size')}</label>
+                    <button onClick={() => updateMemeText(mt.id, { fontSize: Math.max(16, mt.fontSize - 4) })} className="rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600" aria-label={t('myspace.imageEditor.decreaseSize')}>
                       <Minus className="h-3.5 w-3.5" />
                     </button>
                     <span className="min-w-[2rem] text-center text-xs">{mt.fontSize}</span>
-                    <button onClick={() => updateMemeText(mt.id, { fontSize: Math.min(120, mt.fontSize + 4) })} className="rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600" aria-label="Povećaj veličinu teksta">
+                    <button onClick={() => updateMemeText(mt.id, { fontSize: Math.min(120, mt.fontSize + 4) })} className="rounded p-0.5 hover:bg-gray-200 dark:hover:bg-gray-600" aria-label={t('myspace.imageEditor.increaseSize')}>
                       <Plus className="h-3.5 w-3.5" />
                     </button>
 
@@ -747,14 +749,14 @@ function ImageEditorContent() {
                         value={mt.color}
                         onChange={(e) => updateMemeText(mt.id, { color: e.target.value })}
                         className="h-6 w-6 cursor-pointer rounded border-0"
-                        title="Boja teksta"
+                        title={t('myspace.imageEditor.textColor')}
                       />
                       <input
                         type="color"
                         value={mt.strokeColor}
                         onChange={(e) => updateMemeText(mt.id, { strokeColor: e.target.value })}
                         className="h-6 w-6 cursor-pointer rounded border-0"
-                        title="Boja okvira"
+                        title={t('myspace.imageEditor.strokeColor')}
                       />
                     </div>
                   </div>
@@ -763,7 +765,7 @@ function ImageEditorContent() {
 
               {memeTexts.length === 0 && (
                 <p className="text-center text-sm text-gray-400">
-                  Dodajte gornji ili donji tekst za mim
+                  {t('myspace.imageEditor.emptyHint')}
                 </p>
               )}
             </div>

@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { db, Timestamp } from '../firebase';
+import { tStatic } from '@/components/i18n-static';
 import {
   collection,
   query,
@@ -47,7 +48,7 @@ export function useFiles(params?: FilesQueryParams) {
   return useInfiniteQuery({
     queryKey: ['files', user?.id, params],
     queryFn: async ({ pageParam = 0 }) => {
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       // Simple query - only filter by userId (no composite index needed)
       const q = query(
@@ -106,7 +107,7 @@ export function useFile(fileId: string) {
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        throw new Error('File not found');
+        throw new Error(tStatic('components.errors.fileNotFound'));
       }
 
       return docToFile(docSnap);
@@ -121,10 +122,10 @@ export function useUploadFile() {
 
   return useMutation({
     mutationFn: async (file: File): Promise<FileMetadata | { queued: true }> => {
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       const token = await getIdToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       // If offline, queue for background upload
       if (!navigator.onLine) {
@@ -133,7 +134,7 @@ export function useUploadFile() {
           await requestBackgroundSync();
           return { queued: true };
         }
-        throw new Error('Offline and unable to queue file');
+        throw new Error(tStatic('components.errors.offlineQueueFailed'));
       }
 
       try {
@@ -153,7 +154,7 @@ export function useUploadFile() {
 
         if (!urlRes.ok) {
           const err = await urlRes.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to get upload URL');
+          throw new Error(err.error || tStatic('components.errors.uploadUrlFailed'));
         }
 
         const { uploadUrl, fileId, s3Key, thumbnailUploadUrl, thumbnailKey } = await urlRes.json();
@@ -168,7 +169,7 @@ export function useUploadFile() {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload file to storage');
+          throw new Error(tStatic('components.errors.storageUploadFailed'));
         }
 
         // 2.5. Extract thumbnail and upload it (for both images and videos)
@@ -215,7 +216,7 @@ export function useUploadFile() {
 
         if (!confirmRes.ok) {
           const err = await confirmRes.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to confirm upload');
+          throw new Error(err.error || tStatic('components.errors.confirmUploadFailed'));
         }
 
         const result = await confirmRes.json() as FileMetadata;
@@ -300,7 +301,7 @@ export function useDeleteFile() {
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        throw new Error('File not found');
+        throw new Error(tStatic('components.errors.fileNotFound'));
       }
 
       // Move to trash (soft delete)
@@ -322,7 +323,7 @@ export function usePermanentlyDeleteFile() {
   return useMutation({
     mutationFn: async (fileId: string) => {
       const token = await getIdToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       const res = await fetch('/api/files/delete', {
         method: 'POST',
@@ -335,12 +336,12 @@ export function usePermanentlyDeleteFile() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to delete file');
+        throw new Error(data.error || tStatic('components.errors.deleteFailed'));
       }
 
       const result = await res.json();
       if (!result.success) {
-        throw new Error('Failed to delete file');
+        throw new Error(tStatic('components.errors.deleteFailed'));
       }
     },
     onSuccess: () => {
@@ -406,7 +407,7 @@ export function useGetDownloadUrl() {
         },
         body: JSON.stringify({ s3Key }),
       });
-      if (!res.ok) throw new Error('Failed to get download URL');
+      if (!res.ok) throw new Error(tStatic('components.errors.downloadUrlFailed'));
       const data = await res.json();
       return data.downloadUrl;
     },

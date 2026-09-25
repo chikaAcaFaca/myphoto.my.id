@@ -8,10 +8,12 @@ import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import type { Memory, FileMetadata } from '@myphoto/shared';
 import Image from 'next/image';
+import { useT } from '@/i18n/client';
 
 export default function MemoriesPage() {
   const { user } = useAuthStore();
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
+  const t = useT();
 
   const { data, isLoading } = useQuery({
     queryKey: ['memories', user?.id],
@@ -60,14 +62,14 @@ export default function MemoriesPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-bold">Memories</h1>
-        <p className="text-gray-500">Rediscover your favorite moments</p>
+        <h1 className="text-2xl font-bold">{t('dashboard.memories.title')}</h1>
+        <p className="text-gray-500">{t('dashboard.memories.subtitle')}</p>
       </div>
 
       {/* On This Day */}
       {onThisDay.length > 0 && (
         <MemorySection
-          title="On This Day"
+          title={t('dashboard.memories.onThisDay')}
           icon={<Clock className="h-5 w-5 text-primary-500" />}
           memories={onThisDay}
           onSelect={setSelectedMemory}
@@ -77,7 +79,7 @@ export default function MemoriesPage() {
       {/* Trips */}
       {trips.length > 0 && (
         <MemorySection
-          title="Your Trips"
+          title={t('dashboard.memories.trips')}
           icon={<MapPin className="h-5 w-5 text-green-500" />}
           memories={trips}
           onSelect={setSelectedMemory}
@@ -87,7 +89,7 @@ export default function MemoriesPage() {
       {/* People */}
       {people.length > 0 && (
         <MemorySection
-          title="People"
+          title={t('dashboard.memories.people')}
           icon={<Users className="h-5 w-5 text-purple-500" />}
           memories={people}
           onSelect={setSelectedMemory}
@@ -97,7 +99,7 @@ export default function MemoriesPage() {
       {/* Best Of */}
       {bestOf.length > 0 && (
         <MemorySection
-          title="Highlights"
+          title={t('dashboard.memories.highlights')}
           icon={<Star className="h-5 w-5 text-yellow-500" />}
           memories={bestOf}
           onSelect={setSelectedMemory}
@@ -110,10 +112,9 @@ export default function MemoriesPage() {
           <div className="mb-6 rounded-full bg-primary-50 p-6 dark:bg-primary-900/20">
             <Clock className="h-12 w-12 text-primary-500" />
           </div>
-          <h2 className="text-xl font-semibold">No memories yet</h2>
+          <h2 className="text-xl font-semibold">{t('dashboard.memories.emptyTitle')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Keep uploading photos and we'll create personalized memories for you.
-            Check back on significant dates!
+            {t('dashboard.memories.emptyText')}
           </p>
         </div>
       )}
@@ -165,6 +166,7 @@ function MemoryCard({
   onClick: () => void;
 }) {
   const coverFile = memory.files[0];
+  const t = useT();
 
   return (
     <motion.button
@@ -187,7 +189,7 @@ function MemoryCard({
         <p className="text-sm text-white/80">{memory.description}</p>
       </div>
       <div className="absolute right-2 top-2 rounded-full bg-black/40 px-2 py-1 text-xs text-white">
-        {memory.files.length} photos
+        {t('dashboard.memories.photoCount', { count: memory.files.length })}
       </div>
     </motion.button>
   );
@@ -201,6 +203,7 @@ function MemoryModal({
   onClose: () => void;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const t = useT();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -225,7 +228,7 @@ function MemoryModal({
           </div>
           <button
             onClick={onClose}
-            aria-label="Zatvori"
+            aria-label={t('dashboard.memories.close')}
             className="rounded-full bg-black/40 p-2 text-white hover:bg-black/60"
           >
             <X className="h-5 w-5" />
@@ -249,14 +252,14 @@ function MemoryModal({
           <>
             <button
               onClick={() => setCurrentIndex((i) => (i > 0 ? i - 1 : memory.files.length - 1))}
-              aria-label="Prethodna"
+              aria-label={t('dashboard.memories.previous')}
               className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-3 text-white hover:bg-black/60"
             >
               <ChevronRight className="h-6 w-6 rotate-180" />
             </button>
             <button
               onClick={() => setCurrentIndex((i) => (i < memory.files.length - 1 ? i + 1 : 0))}
-              aria-label="Sledeća"
+              aria-label={t('dashboard.memories.next')}
               className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-3 text-white hover:bg-black/60"
             >
               <ChevronRight className="h-6 w-6" />
@@ -269,7 +272,7 @@ function MemoryModal({
           {memory.files.slice(0, 10).map((file, index) => (
             <button
               key={file.id}
-              aria-label={`Slika ${index + 1}`}
+              aria-label={t('dashboard.memories.photoN', { n: index + 1 })}
               onClick={() => setCurrentIndex(index)}
               className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg ${
                 index === currentIndex ? 'ring-2 ring-white' : 'opacity-60'

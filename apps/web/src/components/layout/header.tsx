@@ -18,6 +18,8 @@ import {
 import { useAuthStore, useUIStore, useFilesStore } from '@/lib/stores';
 import { usePWA } from '@/lib/hooks/use-pwa';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/client';
+import { LanguageSwitcher } from './language-switcher';
 
 export function Header() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -28,6 +30,7 @@ export function Header() {
   const { selectedFiles, deselectAll } = useFilesStore();
   const { isInstallable, isInstalled, isIOS, installApp } = usePWA();
   const router = useRouter();
+  const t = useT();
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -78,7 +81,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}
-          aria-label="Meni"
+          aria-label={t('components.header.menu')}
           className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -89,13 +92,13 @@ export function Header() {
           <div className="flex items-center gap-4">
             <button
               onClick={deselectAll}
-              aria-label="Poništi izbor"
+              aria-label={t('components.header.clearSelection')}
               className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
             </button>
             <span className="text-sm font-medium">
-              {selectedFiles.size} izabrano
+              {t('components.header.selectedCount', { count: selectedFiles.size })}
             </span>
           </div>
         ) : (
@@ -109,7 +112,7 @@ export function Header() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
-              placeholder="Pretraži slike..."
+              placeholder={t('components.header.searchPlaceholder')}
               className={cn(
                 'w-64 rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-4 text-sm transition-all focus:w-96 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-gray-600 dark:bg-gray-700 dark:focus:bg-gray-600',
                 isSearchFocused && 'w-96'
@@ -129,7 +132,7 @@ export function Header() {
         {/* Mobile search button — hidden, bottom nav handles search */}
         <button
           onClick={openSearch}
-          aria-label="Pretraga"
+          aria-label={t('components.header.search')}
           className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <Search className="h-5 w-5" />
@@ -141,11 +144,11 @@ export function Header() {
           className="btn-primary hidden sm:flex"
         >
           <Upload className="mr-2 h-4 w-4" />
-          Upload
+          {t('components.header.upload')}
         </button>
         <button
           onClick={openUploadModal}
-          aria-label="Otpremi"
+          aria-label={t('components.header.upload')}
           className="hidden rounded-lg bg-primary-500 p-2 text-white hover:bg-primary-600"
         >
           <Upload className="h-5 w-5" />
@@ -163,24 +166,26 @@ export function Header() {
               }
             }}
             className="hidden items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95 dark:border-primary-800 dark:bg-primary-900/20 dark:text-primary-400 sm:flex"
-            title="Instaliraj aplikaciju"
+            title={t('components.header.installApp')}
           >
             <Download className="h-3.5 w-3.5" />
-            Instaliraj
+            {t('components.header.install')}
           </button>
         )}
+
+        <LanguageSwitcher />
 
         {/* Dark mode toggle */}
         <button
           onClick={toggleDarkMode}
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-          title={isDarkMode ? 'Svetli režim' : 'Tamni režim'}
+          title={isDarkMode ? t('components.header.lightMode') : t('components.header.darkMode')}
         >
           {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
 
         {/* Notifications */}
-        <button aria-label="Obaveštenja" className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+        <button aria-label={t('components.header.notifications')} className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
           <Bell className="h-5 w-5" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
         </button>
@@ -219,7 +224,7 @@ export function Header() {
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <Settings className="h-4 w-4" />
-                  Podešavanja
+                  {t('components.header.settings')}
                 </button>
                 <button
                   onClick={() => {
@@ -229,7 +234,7 @@ export function Header() {
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <User className="h-4 w-4" />
-                  Nalog
+                  {t('components.header.account')}
                 </button>
               </div>
               <div className="border-t border-gray-100 py-1 dark:border-gray-700">
@@ -238,7 +243,7 @@ export function Header() {
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
                   <LogOut className="h-4 w-4" />
-                  Odjavi se
+                  {t('components.header.signOut')}
                 </button>
               </div>
             </div>

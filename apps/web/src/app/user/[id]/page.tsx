@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
+import { useT } from '@/i18n/client';
 
 interface Profile {
   id: string;
@@ -29,6 +30,7 @@ export default function UserProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuthStore();
   const router = useRouter();
+  const t = useT();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [memes, setMemes] = useState<Meme[]>([]);
@@ -133,7 +135,7 @@ export default function UserProfilePage() {
   if (loading) {
     return (
       <div style={wrapStyle}>
-        <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>Učitavanje profila...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>{t('pages.user.loading')}</div>
       </div>
     );
   }
@@ -143,8 +145,8 @@ export default function UserProfilePage() {
       <div style={{ ...wrapStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: 48, margin: 0 }}>404</h1>
-          <p>Korisnik nije pronađen</p>
-          <Link href="/meme-wall" style={{ color: '#f97316' }}>Idi na MemeWall</Link>
+          <p>{t('pages.user.notFound')}</p>
+          <Link href="/meme-wall" style={{ color: '#f97316' }}>{t('pages.user.goMemeWall')}</Link>
         </div>
       </div>
     );
@@ -173,9 +175,9 @@ export default function UserProfilePage() {
             <div style={{ flex: 1, minWidth: 160 }}>
               <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0 }}>{profile.displayName}</h1>
               <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>
-                <span><strong>{profile.memeCount}</strong> memova</span>
-                <span><strong>{profile.followerCount}</strong> pratilaca</span>
-                <span><strong>{profile.followingCount}</strong> prati</span>
+                <span><strong>{profile.memeCount}</strong> {t('pages.user.memes')}</span>
+                <span><strong>{profile.followerCount}</strong> {t('pages.user.followers')}</span>
+                <span><strong>{profile.followingCount}</strong> {t('pages.user.following')}</span>
               </div>
             </div>
             {!profile.isSelf && (
@@ -190,7 +192,7 @@ export default function UserProfilePage() {
                   cursor: following ? 'wait' : 'pointer', fontSize: 15,
                 }}
               >
-                {profile.isFollowing ? 'Otprati' : 'Zaprati'}
+                {profile.isFollowing ? t('pages.user.unfollow') : t('pages.user.follow')}
               </button>
             )}
           </div>
@@ -199,13 +201,13 @@ export default function UserProfilePage() {
 
       {/* Public memes grid */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
-        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Javni memovi</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 16 }}>{t('pages.user.publicMemes')}</h2>
         {memesLoading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Učitavanje memova...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>{t('pages.user.memesLoading')}</div>
         ) : memes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>🎨</div>
-            <p>Ovaj korisnik još nije objavio nijedan meme.</p>
+            <p>{t('pages.user.noMemes')}</p>
           </div>
         ) : (
           <div style={{

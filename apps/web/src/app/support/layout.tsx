@@ -1,16 +1,19 @@
 import type { Metadata } from 'next';
+import { getT } from '@/i18n/server';
 
-export const metadata: Metadata = {
-  title: 'Podrška i pomoć',
-  description:
-    'Pomoć i podrška za MyPhoto — uputstva za backup fotografija, deljenje albuma, plaćanje i privatnost. Pronađite odgovore ili kontaktirajte naš tim.',
-  alternates: { canonical: 'https://myphotomy.space/support' },
-  openGraph: {
-    title: 'Podrška i pomoć | MyPhoto',
-    description: 'Uputstva za backup, deljenje albuma, plaćanje i privatnost. Tu smo da pomognemo.',
-    url: 'https://myphotomy.space/support',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return {
+    title: t('pages.support.meta.title'),
+    description: t('pages.support.meta.description'),
+    alternates: { canonical: 'https://myphotomy.space/support' },
+    openGraph: {
+      title: t('pages.support.meta.ogTitle'),
+      description: t('pages.support.meta.ogDescription'),
+      url: 'https://myphotomy.space/support',
+    },
+  };
+}
 
 export default function SupportLayout({ children }: { children: any }) {
   return children;

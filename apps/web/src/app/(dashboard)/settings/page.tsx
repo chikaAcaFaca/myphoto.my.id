@@ -37,6 +37,7 @@ import type { UserSettings } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
+import { useI18n } from '@/i18n/client';
 
 type SettingsSection = 'account' | 'storage' | 'referral' | 'sync' | 'appearance' | 'privacy';
 
@@ -50,6 +51,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const { t, locale, setLocale } = useI18n();
 
   useEffect(() => {
     if (user?.settings) {
@@ -72,10 +74,10 @@ export default function SettingsPage() {
           autoBackup: newSettings.autoBackup,
         });
       }
-      addNotification({ type: 'success', title: 'Sačuvano', message: 'Podešavanje je ažurirano' });
+      addNotification({ type: 'success', title: t('dashboard.settings.saved'), message: t('dashboard.settings.savedMsg') });
     } catch {
       setSettings(settings); // revert
-      addNotification({ type: 'error', title: 'Greška', message: 'Nije moguće sačuvati podešavanje' });
+      addNotification({ type: 'error', title: t('dashboard.shared.error'), message: t('dashboard.settings.saveFailed') });
     } finally {
       setSaving(false);
     }
@@ -98,11 +100,11 @@ export default function SettingsPage() {
   const [settingPassword, setSettingPassword] = useState(false);
   const handleSetPassword = async () => {
     if (newPassword.length < 8) {
-      addNotification({ type: 'error', title: 'Lozinka prekratka', message: 'Najmanje 8 karaktera.' });
+      addNotification({ type: 'error', title: t('dashboard.settings.passwordTooShort'), message: t('dashboard.settings.passwordMin') });
       return;
     }
     if (newPassword !== confirmPassword) {
-      addNotification({ type: 'error', title: 'Lozinke se ne poklapaju' });
+      addNotification({ type: 'error', title: t('dashboard.settings.passwordMismatch') });
       return;
     }
     setSettingPassword(true);
@@ -121,26 +123,26 @@ export default function SettingsPage() {
       }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Greška');
+        throw new Error(err.error || t('dashboard.shared.error'));
       }
-      addNotification({ type: 'success', title: 'Šifra postavljena', message: 'Sada možeš da se prijaviš email + šifrom na desktop i mobile.' });
+      addNotification({ type: 'success', title: t('dashboard.settings.passwordSet'), message: t('dashboard.settings.passwordSetMsg') });
       setNewPassword('');
       setConfirmPassword('');
       setShowPasswordCard(false);
     } catch (e) {
-      addNotification({ type: 'error', title: 'Greška', message: e instanceof Error ? e.message : 'Nepoznata greška' });
+      addNotification({ type: 'error', title: t('dashboard.shared.error'), message: e instanceof Error ? e.message : t('dashboard.settings.unknownError') });
     } finally {
       setSettingPassword(false);
     }
   };
 
   const sections: { id: SettingsSection; label: string; icon: any }[] = [
-    { id: 'account', label: 'Nalog', icon: User },
-    { id: 'storage', label: 'Skladište', icon: HardDrive },
-    { id: 'referral', label: 'Pozovi prijatelje', icon: Gift },
-    { id: 'sync', label: 'Sinhronizacija', icon: Cloud },
-    { id: 'appearance', label: 'Izgled', icon: Palette },
-    { id: 'privacy', label: 'Privatnost', icon: Shield },
+    { id: 'account', label: t('dashboard.settings.sectionAccount'), icon: User },
+    { id: 'storage', label: t('dashboard.settings.sectionStorage'), icon: HardDrive },
+    { id: 'referral', label: t('dashboard.settings.sectionReferral'), icon: Gift },
+    { id: 'sync', label: t('dashboard.settings.sectionSync'), icon: Cloud },
+    { id: 'appearance', label: t('dashboard.settings.sectionAppearance'), icon: Palette },
+    { id: 'privacy', label: t('dashboard.settings.sectionPrivacy'), icon: Shield },
   ];
 
   return (
@@ -150,7 +152,7 @@ export default function SettingsPage() {
       transition={{ duration: 0.3 }}
       className="min-h-full"
     >
-      <h1 className="mb-6 text-2xl font-bold">Podešavanja</h1>
+      <h1 className="mb-6 text-2xl font-bold">{t('dashboard.settings.title')}</h1>
 
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* Section nav */}
@@ -186,7 +188,7 @@ export default function SettingsPage() {
               transition={{ duration: 0.2 }}
             >
               {activeSection === 'account' && (
-                <SettingsCard title="Nalog">
+                <SettingsCard title={t('dashboard.settings.sectionAccount')}>
                   {/* Profile */}
                   <div className="flex items-center gap-4">
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 text-2xl font-bold text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
@@ -211,13 +213,13 @@ export default function SettingsPage() {
                     {/* Plan info */}
                     <SettingsRow
                       icon={Crown}
-                      label="Plan"
+                      label={t('dashboard.settings.plan')}
                       value={
                         <Link
                           href="/pricing"
                           className="flex items-center gap-1 text-sm font-medium text-primary-500 hover:text-primary-600"
                         >
-                          {(user?.role as string) === 'admin' ? 'Admin' : 'Free'}
+                          {(user?.role as string) === 'admin' ? t('dashboard.settings.planAdmin') : t('dashboard.settings.planFree')}
                           <ChevronRight className="h-4 w-4" />
                         </Link>
                       }
@@ -227,13 +229,13 @@ export default function SettingsPage() {
                     {!isInstalled && isInstallable && (
                       <SettingsRow
                         icon={Download}
-                        label="Instaliraj aplikaciju"
+                        label={t('dashboard.settings.installApp')}
                         value={
                           <button
                             onClick={installApp}
                             className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-primary-600 active:scale-95"
                           >
-                            Instaliraj
+                            {t('dashboard.settings.install')}
                           </button>
                         }
                       />
@@ -241,10 +243,10 @@ export default function SettingsPage() {
                     {isInstalled && (
                       <SettingsRow
                         icon={Smartphone}
-                        label="PWA status"
+                        label={t('dashboard.settings.pwaStatus')}
                         value={
                           <span className="flex items-center gap-1 text-sm text-green-600">
-                            <Check className="h-4 w-4" /> Instalirano
+                            <Check className="h-4 w-4" /> {t('dashboard.settings.installed')}
                           </span>
                         }
                       />
@@ -260,20 +262,20 @@ export default function SettingsPage() {
                           className="flex items-center gap-2 text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
                         >
                           <Lock className="h-4 w-4" />
-                          Postavi / promeni šifru za desktop
+                          {t('dashboard.settings.setPassword')}
                         </button>
                       ) : (
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
                           <div className="mb-3 flex items-start gap-2">
                             <Lock className="mt-0.5 h-4 w-4 text-primary-500" />
                             <div className="text-xs text-gray-600 dark:text-gray-400">
-                              Šifra ti treba samo za prijavu na desktop / starije mobilne klijente. Web koristi tvoj Google nalog kao pre.
+                              {t('dashboard.settings.passwordHint')}
                             </div>
                           </div>
                           <input
                             type="password"
-                            placeholder="Nova šifra (min 8 karaktera)"
-                            aria-label="Nova šifra"
+                            placeholder={t('dashboard.settings.newPasswordPlaceholder')}
+                            aria-label={t('dashboard.settings.newPasswordLabel')}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
@@ -281,8 +283,8 @@ export default function SettingsPage() {
                           />
                           <input
                             type="password"
-                            placeholder="Potvrdi šifru"
-                            aria-label="Potvrdi šifru"
+                            placeholder={t('dashboard.settings.confirmPassword')}
+                            aria-label={t('dashboard.settings.confirmPassword')}
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
@@ -294,7 +296,7 @@ export default function SettingsPage() {
                               disabled={settingPassword || !newPassword || !confirmPassword}
                               className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600 disabled:opacity-50"
                             >
-                              {settingPassword ? 'Snimanje…' : 'Sačuvaj šifru'}
+                              {settingPassword ? t('dashboard.settings.savingPassword') : t('dashboard.settings.savePassword')}
                             </button>
                             <button
                               onClick={() => {
@@ -304,7 +306,7 @@ export default function SettingsPage() {
                               }}
                               className="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-600"
                             >
-                              Otkaži
+                              {t('dashboard.shared.cancel')}
                             </button>
                           </div>
                         </div>
@@ -318,7 +320,7 @@ export default function SettingsPage() {
                         className="flex items-center gap-2 text-sm text-red-500 transition-colors hover:text-red-600"
                       >
                         <LogOut className="h-4 w-4" />
-                        Odjavi se
+                        {t('dashboard.settings.signOut')}
                       </button>
                     </div>
                   </div>
@@ -326,12 +328,12 @@ export default function SettingsPage() {
               )}
 
               {activeSection === 'storage' && (
-                <SettingsCard title="Skladište">
+                <SettingsCard title={t('dashboard.settings.sectionStorage')}>
                   {/* Storage bar */}
                   {storage && (
                     <div className="rounded-2xl bg-gray-50 p-5 dark:bg-gray-800/50">
                       <div className="mb-3 flex items-center justify-between">
-                        <span className="text-sm font-medium">Iskorišćeno</span>
+                        <span className="text-sm font-medium">{t('dashboard.settings.used')}</span>
                         <span className="text-sm font-bold">{storage.percentage}%</span>
                       </div>
                       <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -350,8 +352,8 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
-                        <span>{storage.usedFormatted} korišćeno</span>
-                        <span>{storage.limitFormatted} ukupno</span>
+                        <span>{t('dashboard.settings.usedAmount', { amount: storage.usedFormatted })}</span>
+                        <span>{t('dashboard.settings.totalAmount', { amount: storage.limitFormatted })}</span>
                       </div>
                     </div>
                   )}
@@ -365,10 +367,10 @@ export default function SettingsPage() {
                         <Crown className="h-5 w-5 text-primary-500" />
                         <div>
                           <p className="text-sm font-semibold text-primary-700 dark:text-primary-400">
-                            Nadogradi plan
+                            {t('dashboard.settings.upgradePlan')}
                           </p>
                           <p className="text-xs text-primary-600/70 dark:text-primary-400/70">
-                            Do 2TB skladišta + AI funkcije
+                            {t('dashboard.settings.upgradeDesc')}
                           </p>
                         </div>
                       </div>
@@ -379,19 +381,19 @@ export default function SettingsPage() {
                   <div className="mt-6 space-y-1">
                     <SettingsRow
                       icon={Camera}
-                      label="Kvalitet uploada"
+                      label={t('dashboard.settings.uploadQuality')}
                       value={
                         <select
                           value={settings?.uploadQuality || 'original'}
                           onChange={(e) =>
                             updateSetting('uploadQuality', e.target.value as UserSettings['uploadQuality'])
                           }
-                          aria-label="Kvalitet uploada"
+                          aria-label={t('dashboard.settings.uploadQuality')}
                           className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
                         >
-                          <option value="original">Originalni kvalitet</option>
-                          <option value="high">Visoki kvalitet</option>
-                          <option value="medium">Srednji kvalitet</option>
+                          <option value="original">{t('dashboard.settings.qualityOriginal')}</option>
+                          <option value="high">{t('dashboard.settings.qualityHigh')}</option>
+                          <option value="medium">{t('dashboard.settings.qualityMedium')}</option>
                         </select>
                       }
                     />
@@ -400,16 +402,16 @@ export default function SettingsPage() {
               )}
 
               {activeSection === 'referral' && (
-                <SettingsCard title="Pozovi prijatelje">
+                <SettingsCard title={t('dashboard.settings.sectionReferral')}>
                   <div className="mb-6 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 p-5 dark:from-green-900/20 dark:to-emerald-900/20">
                     <div className="flex items-start gap-3">
                       <Gift className="mt-0.5 h-6 w-6 text-green-600 dark:text-green-400" />
                       <div>
                         <p className="font-semibold text-green-800 dark:text-green-300">
-                          Pozovite prijatelje — oboje dobijate 10% popusta na godišnju pretplatu!
+                          {t('dashboard.settings.referralHeadline')}
                         </p>
                         <p className="mt-1 text-sm text-green-700 dark:text-green-400">
-                          Do 3 prijatelja godišnje, znači do 30% popusta. Besplatno dobijate 2,5GB (1GB registracija + 1GB aplikacija + 512MB desktop).
+                          {t('dashboard.settings.referralBody')}
                         </p>
                       </div>
                     </div>
@@ -421,10 +423,10 @@ export default function SettingsPage() {
                       <div className="mb-6 rounded-xl bg-gray-50 p-5 dark:bg-gray-800/50">
                         <div className="mb-2 flex items-center justify-between text-sm">
                           <span className="font-medium">
-                            {referralStats.referralCount}/{referralStats.maxReferrals} prijatelja
+                            {t('dashboard.settings.referralFriends', { count: referralStats.referralCount, max: referralStats.maxReferrals })}
                           </span>
                           <span className="font-bold text-green-600">
-                            +{referralStats.bonusFormatted} bonus
+                            {t('dashboard.settings.referralBonus', { amount: referralStats.bonusFormatted })}
                           </span>
                         </div>
                         <div className="h-3 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
@@ -438,7 +440,7 @@ export default function SettingsPage() {
                           />
                         </div>
                         <p className="mt-2 text-xs text-gray-500">
-                          {referralStats.bonusFormatted} od {referralStats.maxBonusFormatted} bonusa
+                          {t('dashboard.settings.referralBonusOf', { amount: referralStats.bonusFormatted, max: referralStats.maxBonusFormatted })}
                         </p>
                       </div>
 
@@ -446,7 +448,7 @@ export default function SettingsPage() {
                       <div className="space-y-3">
                         <div>
                           <label className="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">
-                            Tvoj referral kod
+                            {t('dashboard.settings.referralCode')}
                           </label>
                           <div className="flex items-center gap-2">
                             <code className="flex-1 rounded-lg bg-gray-100 px-4 py-2.5 text-lg font-bold tracking-widest dark:bg-gray-700">
@@ -457,20 +459,20 @@ export default function SettingsPage() {
                               className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-2.5 text-sm font-medium transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
                             >
                               {copied === 'code' ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                              {copied === 'code' ? 'Kopirano!' : 'Kopiraj'}
+                              {copied === 'code' ? t('dashboard.shared.copied') : t('dashboard.shared.copy')}
                             </button>
                           </div>
                         </div>
 
                         <div>
                           <label className="mb-1 block text-sm font-medium text-gray-600 dark:text-gray-400">
-                            Tvoj referral link
+                            {t('dashboard.settings.referralLink')}
                           </label>
                           <div className="flex items-center gap-2">
                             <input
                               readOnly
                               value={referralStats.referralLink}
-                              aria-label="Referral link"
+                              aria-label={t('dashboard.settings.referralLinkLabel')}
                               className="flex-1 rounded-lg bg-gray-100 px-3 py-2.5 text-sm dark:bg-gray-700"
                             />
                             <button
@@ -478,7 +480,7 @@ export default function SettingsPage() {
                               className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-600"
                             >
                               {copied === 'link' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                              {copied === 'link' ? 'Kopirano!' : 'Kopiraj link'}
+                              {copied === 'link' ? t('dashboard.shared.copied') : t('dashboard.settings.copyLink')}
                             </button>
                           </div>
                         </div>
@@ -486,10 +488,10 @@ export default function SettingsPage() {
 
                       {/* Share buttons */}
                       <div className="mt-6">
-                        <p className="mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">Podeli putem</p>
+                        <p className="mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">{t('dashboard.settings.shareVia')}</p>
                         <div className="flex flex-wrap gap-2">
                           <a
-                            href={`https://wa.me/?text=${encodeURIComponent(`Pridruži se MyPhoto i oboje dobijamo 10% popusta na godišnju pretplatu! ${referralStats.referralLink}`)}`}
+                            href={`https://wa.me/?text=${encodeURIComponent(t('dashboard.settings.shareWhatsApp', { link: referralStats.referralLink }))}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-600"
@@ -498,7 +500,7 @@ export default function SettingsPage() {
                             WhatsApp
                           </a>
                           <a
-                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Čuvam slike na MyPhoto - privatno i sigurno! Registruj se i oboje dobijamo 10% popusta: ${referralStats.referralLink}`)}`}
+                            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(t('dashboard.settings.shareTwitter', { link: referralStats.referralLink }))}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500"
@@ -516,7 +518,7 @@ export default function SettingsPage() {
                             Facebook
                           </a>
                           <a
-                            href={`mailto:?subject=${encodeURIComponent('Pridruži se MyPhoto!')}&body=${encodeURIComponent(`Pozivam te na MyPhoto - privatno čuvanje slika u oblaku. Registruj se i oboje dobijamo 10% popusta na godišnju pretplatu!\n\n${referralStats.referralLink}`)}`}
+                            href={`mailto:?subject=${encodeURIComponent(t('dashboard.settings.shareEmailSubject'))}&body=${encodeURIComponent(t('dashboard.settings.shareEmailBody', { link: referralStats.referralLink }))}`}
                             className="flex items-center gap-2 rounded-lg bg-gray-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-600"
                           >
                             <Share2 className="h-4 w-4" />
@@ -529,15 +531,15 @@ export default function SettingsPage() {
                       {referralStats.referrals.length > 0 && (
                         <div className="mt-6">
                           <p className="mb-3 text-sm font-medium text-gray-600 dark:text-gray-400">
-                            Tvoji referrali ({referralStats.referralCount})
+                            {t('dashboard.settings.yourReferrals', { count: referralStats.referralCount })}
                           </p>
                           <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
                             <table className="w-full text-sm">
                               <thead>
                                 <tr className="bg-gray-50 dark:bg-gray-800">
-                                  <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Email</th>
-                                  <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-400">Datum</th>
-                                  <th className="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-400">Bonus</th>
+                                  <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-400">{t('dashboard.settings.colEmail')}</th>
+                                  <th className="px-4 py-2 text-left font-medium text-gray-600 dark:text-gray-400">{t('dashboard.settings.colDate')}</th>
+                                  <th className="px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-400">{t('dashboard.settings.colBonus')}</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -545,7 +547,7 @@ export default function SettingsPage() {
                                   <tr key={i} className="border-t border-gray-200 dark:border-gray-700">
                                     <td className="px-4 py-2">{ref.email}</td>
                                     <td className="px-4 py-2 text-gray-500">{ref.date}</td>
-                                    <td className="px-4 py-2 text-right font-medium text-green-600">10% popusta</td>
+                                    <td className="px-4 py-2 text-right font-medium text-green-600">{t('dashboard.settings.discount10')}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -559,47 +561,47 @@ export default function SettingsPage() {
               )}
 
               {activeSection === 'sync' && (
-                <SettingsCard title="Sinhronizacija i backup">
+                <SettingsCard title={t('dashboard.settings.syncTitle')}>
                   <div className="space-y-1">
                     <SettingsRow
                       icon={Cloud}
-                      label="Automatski backup"
+                      label={t('dashboard.settings.autoBackup')}
                       value={
                         <ToggleSwitch
                           checked={settings?.autoBackup ?? true}
                           onChange={(v) => updateSetting('autoBackup', v)}
-                          label="Automatski backup"
+                          label={t('dashboard.settings.autoBackup')}
                         />
                       }
                     />
 
                     <SettingsRow
                       icon={Wifi}
-                      label="Upload režim"
+                      label={t('dashboard.settings.uploadMode')}
                       value={
                         <select
                           value={settings?.syncMode || 'wifi_only'}
                           onChange={(e) =>
                             updateSetting('syncMode', e.target.value as UserSettings['syncMode'])
                           }
-                          aria-label="Upload režim"
+                          aria-label={t('dashboard.settings.uploadMode')}
                           className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
                         >
-                          <option value="wifi_only">Samo WiFi</option>
-                          <option value="wifi_and_mobile">WiFi + Mobilni</option>
-                          <option value="manual">Ručni upload</option>
+                          <option value="wifi_only">{t('dashboard.settings.wifiOnly')}</option>
+                          <option value="wifi_and_mobile">{t('dashboard.settings.wifiAndMobile')}</option>
+                          <option value="manual">{t('dashboard.settings.manualUpload')}</option>
                         </select>
                       }
                     />
 
                     <SettingsRow
                       icon={Globe}
-                      label="Upload u romingu"
+                      label={t('dashboard.settings.roamingUpload')}
                       value={
                         <ToggleSwitch
                           checked={settings?.allowRoaming ?? false}
                           onChange={(v) => updateSetting('allowRoaming', v)}
-                          label="Upload u romingu"
+                          label={t('dashboard.settings.roamingUpload')}
                         />
                       }
                     />
@@ -610,18 +612,18 @@ export default function SettingsPage() {
                     <div className="flex items-start gap-3">
                       <Smartphone className="mt-0.5 h-5 w-5 text-gray-400" />
                       <div>
-                        <p className="text-sm font-medium">Background Sync</p>
+                        <p className="text-sm font-medium">{t('dashboard.settings.backgroundSync')}</p>
                         <p className="mt-1 text-xs text-gray-500">
                           {isInstalled
-                            ? 'Background sync je aktivan. Fajlovi će se uploadovati i kada nije aktivan tab.'
-                            : 'Instalirajte aplikaciju kao PWA za automatski background sync čak i kada je pretraživač zatvoren.'}
+                            ? t('dashboard.settings.bgSyncActive')
+                            : t('dashboard.settings.bgSyncInstall')}
                         </p>
                         {!isInstalled && isInstallable && (
                           <button
                             onClick={installApp}
                             className="mt-2 text-xs font-semibold text-primary-500 hover:text-primary-600"
                           >
-                            Instaliraj PWA
+                            {t('dashboard.settings.installPwa')}
                           </button>
                         )}
                       </div>
@@ -631,17 +633,32 @@ export default function SettingsPage() {
               )}
 
               {activeSection === 'appearance' && (
-                <SettingsCard title="Izgled">
+                <SettingsCard title={t('dashboard.settings.sectionAppearance')}>
                   <div className="space-y-1">
                     <SettingsRow
                       icon={isDarkMode ? Moon : Sun}
-                      label="Tamni režim"
+                      label={t('dashboard.settings.darkMode')}
                       value={
                         <ToggleSwitch
                           checked={isDarkMode}
                           onChange={toggleDarkMode}
-                          label="Tamni režim"
+                          label={t('dashboard.settings.darkMode')}
                         />
+                      }
+                    />
+                    <SettingsRow
+                      icon={Globe}
+                      label={t('dashboard.settings.language')}
+                      value={
+                        <select
+                          value={locale}
+                          onChange={(e) => setLocale(e.target.value as typeof locale)}
+                          aria-label={t('dashboard.settings.language')}
+                          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800"
+                        >
+                          <option value="en">English</option>
+                          <option value="sr">Srpski</option>
+                        </select>
                       }
                     />
                   </div>
@@ -649,17 +666,17 @@ export default function SettingsPage() {
               )}
 
               {activeSection === 'privacy' && (
-                <SettingsCard title="Privatnost i sigurnost">
+                <SettingsCard title={t('dashboard.settings.privacyTitle')}>
                   <div className="space-y-1">
                     <SettingsRow
                       icon={Shield}
-                      label="Prepoznavanje lica"
-                      description="Automatsko grupisanje slika po osobama"
+                      label={t('dashboard.settings.faceRecognition')}
+                      description={t('dashboard.settings.faceRecognitionDesc')}
                       value={
                         <ToggleSwitch
                           checked={settings?.faceRecognition ?? true}
                           onChange={(v) => updateSetting('faceRecognition', v)}
-                          label="Prepoznavanje lica"
+                          label={t('dashboard.settings.faceRecognition')}
                         />
                       }
                     />
@@ -670,24 +687,24 @@ export default function SettingsPage() {
                       href="/privacy"
                       className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                     >
-                      Politika privatnosti <ChevronRight className="h-4 w-4" />
+                      {t('dashboard.settings.privacyPolicy')} <ChevronRight className="h-4 w-4" />
                     </Link>
                     <Link
                       href="/terms"
                       className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
                     >
-                      Uslovi korišćenja <ChevronRight className="h-4 w-4" />
+                      {t('dashboard.settings.terms')} <ChevronRight className="h-4 w-4" />
                     </Link>
                   </div>
 
                   <div className="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
-                    <h4 className="mb-2 text-sm font-semibold text-red-600">Zona opasnosti</h4>
+                    <h4 className="mb-2 text-sm font-semibold text-red-600">{t('dashboard.settings.dangerZone')}</h4>
                     <p className="mb-4 text-xs text-gray-500">
-                      Ove akcije su nepovratne. Dobro razmislite pre nego što nastavite.
+                      {t('dashboard.settings.dangerText')}
                     </p>
                     <button onClick={() => setShowDeleteAccount(true)} className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20">
                       <Trash2 className="h-4 w-4" />
-                      Obriši nalog i sve podatke
+                      {t('dashboard.settings.deleteAccount')}
                     </button>
                   </div>
                 </SettingsCard>

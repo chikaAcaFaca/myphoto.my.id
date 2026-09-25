@@ -41,6 +41,7 @@ import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 import { StorageLimitBanner } from '@/components/onboarding/storage-limit-banner';
+import { useI18n, useT } from '@/i18n/client';
 // API returns dates as strings, so we use local types instead of shared ones
 interface DiskFolder {
   id: string;
@@ -75,16 +76,20 @@ const getFileIcon = (mimeType: string) => {
   return File;
 };
 
-const formatSize = (bytes: number) => {
+const formatSize = (bytes: number, locale?: string) => {
+  const num = (n: number, digits: number) =>
+    locale
+      ? n.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })
+      : n.toFixed(digits);
   if (bytes === 0) return '0 B';
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  if (bytes < 1024 * 1024) return `${num(bytes / 1024, 1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${num(bytes / (1024 * 1024), 1)} MB`;
+  return `${num(bytes / (1024 * 1024 * 1024), 2)} GB`;
 };
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('sr-Latn', {
+const formatDate = (date: string, locale: string) => {
+  return new Date(date).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -96,6 +101,7 @@ const formatDate = (date: string) => {
 export default function MySpacePage() {
   const { user } = useAuthStore();
   const { addNotification } = useUIStore();
+  const { t, intlLocale } = useI18n();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -248,7 +254,7 @@ export default function MySpacePage() {
       setNewFolderName('');
     },
     onError: (err: Error) => {
-      addNotification({ type: 'error', title: 'Greška', message: err.message });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.error'), message: err.message });
     },
   });
 
@@ -264,7 +270,7 @@ export default function MySpacePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myspace'] });
-      addNotification({ type: 'success', title: 'Folder obrisan' });
+      addNotification({ type: 'success', title: t('myspace.disk.toast.folderDeleted') });
     },
   });
 
@@ -314,7 +320,7 @@ export default function MySpacePage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myspace'] });
-      addNotification({ type: 'success', title: 'Fajl obrisan' });
+      addNotification({ type: 'success', title: t('myspace.disk.toast.fileDeleted') });
     },
   });
 
@@ -335,11 +341,11 @@ export default function MySpacePage() {
       });
       if (!res.ok) throw new Error('Move failed');
       queryClient.invalidateQueries({ queryKey: ['myspace'] });
-      addNotification({ type: 'success', title: `${selectionCount} stavki premešteno` });
+      addNotification({ type: 'success', title: t('myspace.disk.toast.itemsMoved', { count: selectionCount }) });
       clearSelection();
       setShowMoveModal(false);
     } catch {
-      addNotification({ type: 'error', title: 'Greška pri premeštanju' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.moveError') });
     } finally {
       setMoving(false);
     }
@@ -364,12 +370,12 @@ export default function MySpacePage() {
         });
       }
       queryClient.invalidateQueries({ queryKey: ['myspace'] });
-      addNotification({ type: 'success', title: `${count} stavki obrisano` });
+      addNotification({ type: 'success', title: t('myspace.disk.toast.itemsDeleted', { count }) });
       clearSelection();
     } catch {
-      addNotification({ type: 'error', title: 'Greška pri brisanju' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.deleteError') });
     }
-  }, [selectedFiles, selectedFolders, queryClient, addNotification, clearSelection]);
+  }, [selectedFiles, selectedFolders, queryClient, addNotification, clearSelection, t]);
 
   // Copy/cut selected items to clipboard
   const handleCopy = useCallback((action: 'copy' | 'cut') => {
@@ -378,8 +384,8 @@ export default function MySpacePage() {
     const clipFiles = files.filter((f) => selectedFiles.has(f.id));
     const clipFolders = folders.filter((f) => selectedFolders.has(f.id));
     setClipboard({ action, files: clipFiles, folders: clipFolders });
-    addNotification({ type: 'success', title: `${count} stavki ${action === 'copy' ? 'kopirano' : 'isečeno'}` });
-  }, [selectedFiles, selectedFolders, files, folders, addNotification]);
+    addNotification({ type: 'success', title: action === 'copy' ? t('myspace.disk.toast.itemsCopied', { count }) : t('myspace.disk.toast.itemsCut', { count }) });
+  }, [selectedFiles, selectedFolders, files, folders, addNotification, t]);
 
   // Paste from clipboard
   const handlePaste = useCallback(async () => {
@@ -413,11 +419,11 @@ export default function MySpacePage() {
       setClipboard(null);
       clearSelection();
       queryClient.invalidateQueries({ queryKey: ['myspace'] });
-      addNotification({ type: 'success', title: clipboard.action === 'cut' ? 'Stavke premeštene' : 'Fajlovi kopirani' });
+      addNotification({ type: 'success', title: clipboard.action === 'cut' ? t('myspace.disk.toast.pasteMoved') : t('myspace.disk.toast.pasteCopied') });
     } catch {
-      addNotification({ type: 'error', title: 'Greška pri lepljenju' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.pasteError') });
     }
-  }, [clipboard, currentFolderId, clearSelection, queryClient, addNotification]);
+  }, [clipboard, currentFolderId, clearSelection, queryClient, addNotification, t]);
 
   // Open share modal for a file or folder
   const handleShare = useCallback(async (type: 'file' | 'folder', item: any) => {
@@ -475,11 +481,11 @@ export default function MySpacePage() {
       });
       setShareCopied(false);
     } catch {
-      addNotification({ type: 'error', title: 'Greška pri deljenju' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.shareError') });
     } finally {
       setShareLoading(false);
     }
-  }, [shareModal, addNotification]);
+  }, [shareModal, addNotification, t]);
 
   // Update share permission
   const handleUpdateSharePermission = useCallback(async (permission: 'read' | 'readwrite') => {
@@ -493,11 +499,11 @@ export default function MySpacePage() {
       });
       if (!res.ok) throw new Error('Failed');
       setShareData((prev) => prev ? { ...prev, permission } : null);
-      addNotification({ type: 'success', title: `Dozvola ažurirana: ${permission === 'read' ? 'Čitanje' : 'Čitanje i pisanje'}` });
+      addNotification({ type: 'success', title: t('myspace.disk.toast.permissionUpdated', { permission: permission === 'read' ? t('myspace.disk.share.readOnly') : t('myspace.disk.share.readWrite') }) });
     } catch {
-      addNotification({ type: 'error', title: 'Greška pri ažuriranju' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.updateError') });
     }
-  }, [shareData, addNotification]);
+  }, [shareData, addNotification, t]);
 
   // Revoke share
   const handleRevokeShare = useCallback(async () => {
@@ -511,11 +517,11 @@ export default function MySpacePage() {
       });
       if (!res.ok) throw new Error('Failed');
       setShareData(null);
-      addNotification({ type: 'success', title: 'Deljenje ukinuto' });
+      addNotification({ type: 'success', title: t('myspace.disk.toast.shareRevoked') });
     } catch {
-      addNotification({ type: 'error', title: 'Greška' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.error') });
     }
-  }, [shareData, addNotification]);
+  }, [shareData, addNotification, t]);
 
   // Copy share link to clipboard
   const handleCopyShareLink = useCallback(async () => {
@@ -585,7 +591,7 @@ export default function MySpacePage() {
       const { downloadUrl } = await res.json();
       window.open(downloadUrl, '_blank');
     } catch {
-      addNotification({ type: 'error', title: 'Ne mogu da otvorim fajl' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.cannotOpenFile') });
     }
   };
 
@@ -610,11 +616,11 @@ export default function MySpacePage() {
         }),
       });
     } catch (e: any) {
-      throw new Error(`Greška pri povezivanju sa serverom: ${e.message}`);
+      throw new Error(t('myspace.disk.upload.serverConnectError', { error: e.message }));
     }
     if (!urlRes.ok) {
       const err = await urlRes.json().catch(() => ({}));
-      throw new Error(err.error || `Server greška: ${urlRes.status}`);
+      throw new Error(err.error || t('myspace.disk.upload.serverError', { status: urlRes.status }));
     }
     const { uploadUrl, fileId, s3Key } = await urlRes.json();
 
@@ -630,10 +636,10 @@ export default function MySpacePage() {
       };
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) resolve();
-        else reject(new Error(`Cloud storage greška: ${xhr.status} ${xhr.statusText}`));
+        else reject(new Error(t('myspace.disk.upload.cloudError', { status: `${xhr.status} ${xhr.statusText}` })));
       };
-      xhr.onerror = () => reject(new Error('Upload na cloud nije uspeo (mrežna greška)'));
-      xhr.onabort = () => reject(new Error('Upload otkazan'));
+      xhr.onerror = () => reject(new Error(t('myspace.disk.upload.networkError')));
+      xhr.onabort = () => reject(new Error(t('myspace.disk.upload.aborted')));
       xhr.send(file);
     });
 
@@ -646,11 +652,11 @@ export default function MySpacePage() {
         body: JSON.stringify({ fileId, s3Key, filename: file.name, mimeType: file.type || 'application/octet-stream', size: file.size, folderId: targetFolderId }),
       });
     } catch (e: any) {
-      throw new Error(`Potvrda uploada nije uspela: ${e.message}`);
+      throw new Error(t('myspace.disk.upload.confirmFailed', { error: e.message }));
     }
     if (!confirmRes.ok) {
       const err = await confirmRes.json().catch(() => ({}));
-      throw new Error(err.error || `Potvrda greška: ${confirmRes.status}`);
+      throw new Error(err.error || t('myspace.disk.upload.confirmError', { status: confirmRes.status }));
     }
   };
 
@@ -730,11 +736,11 @@ export default function MySpacePage() {
       queryClient.invalidateQueries({ queryKey: ['myspace'] });
       addNotification({
         type: 'success',
-        title: 'Upload završen',
-        message: `${total} fajl(ova) uspešno uploadovano`,
+        title: t('myspace.disk.upload.doneTitle'),
+        message: t('myspace.disk.upload.doneMessage', { count: total }),
       });
     } catch (err: any) {
-      addNotification({ type: 'error', title: 'Upload greška', message: err.message || 'Upload nije uspeo' });
+      addNotification({ type: 'error', title: t('myspace.disk.upload.errorTitle'), message: err.message || t('myspace.disk.upload.failed') });
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -835,7 +841,7 @@ export default function MySpacePage() {
       const { downloadUrl } = await res.json();
       setPreviewUrl(downloadUrl);
     } catch {
-      addNotification({ type: 'error', title: 'Ne mogu da otvorim fajl' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.cannotOpenFile') });
       setPreviewFile(null);
     } finally {
       setPreviewLoading(false);
@@ -863,7 +869,7 @@ export default function MySpacePage() {
       a.click();
       document.body.removeChild(a);
     } catch {
-      addNotification({ type: 'error', title: 'Download greška' });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.downloadError') });
     }
   };
 
@@ -915,14 +921,14 @@ export default function MySpacePage() {
       // Try File System Access API first (preserves real folder structure)
       if ('showDirectoryPicker' in window) {
         try {
-          addNotification({ type: 'info', title: `Izaberite gde želite da sačuvate "${folder.name}"` });
+          addNotification({ type: 'info', title: t('myspace.disk.toast.chooseSaveLocation', { name: folder.name }) });
           const rootHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
           const folderHandle = await rootHandle.getDirectoryHandle(folder.name, { create: true });
 
-          addNotification({ type: 'success', title: `Preuzimanje "${folder.name}"...` });
+          addNotification({ type: 'success', title: t('myspace.disk.toast.downloadingFolder', { name: folder.name }) });
           await downloadFolderToFS(folder.id, folderHandle, authToken);
 
-          addNotification({ type: 'success', title: `"${folder.name}" je preuzet` });
+          addNotification({ type: 'success', title: t('myspace.disk.toast.folderDownloaded', { name: folder.name }) });
           return;
         } catch (err: any) {
           // User cancelled picker or API failed — fall through to ZIP
@@ -931,7 +937,7 @@ export default function MySpacePage() {
       }
 
       // Fallback: ZIP download
-      addNotification({ type: 'success', title: `Priprema ZIP-a za "${folder.name}"...` });
+      addNotification({ type: 'success', title: t('myspace.disk.toast.preparingZip', { name: folder.name }) });
 
       const zip = new JSZip();
 
@@ -980,9 +986,9 @@ export default function MySpacePage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      addNotification({ type: 'success', title: `"${folder.name}.zip" preuzet` });
+      addNotification({ type: 'success', title: t('myspace.disk.toast.zipDownloaded', { name: folder.name }) });
     } catch (err: any) {
-      addNotification({ type: 'error', title: 'Greška pri preuzimanju foldera', message: err.message });
+      addNotification({ type: 'error', title: t('myspace.disk.toast.folderDownloadError'), message: err.message });
     }
   };
 
@@ -1008,9 +1014,9 @@ export default function MySpacePage() {
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
             <HardDrive className="h-6 w-6 text-primary-500" />
-            MySpace
+            {t('myspace.disk.title')}
           </h1>
-          <p className="text-sm text-gray-500">Vaši fajlovi organizovani po folderima</p>
+          <p className="text-sm text-gray-500">{t('myspace.disk.subtitle')}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -1018,7 +1024,7 @@ export default function MySpacePage() {
             className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
           >
             <FolderPlus className="h-4 w-4" />
-            Novi folder
+            {t('myspace.disk.newFolder')}
           </button>
           <button
             onClick={() => folderInputRef.current?.click()}
@@ -1026,7 +1032,7 @@ export default function MySpacePage() {
             className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700"
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderPlus className="h-4 w-4" />}
-            Upload folder
+            {t('myspace.disk.uploadFolder')}
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -1034,13 +1040,13 @@ export default function MySpacePage() {
             className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Upload fajlove
+            {t('myspace.disk.uploadFiles')}
           </button>
           <input
             ref={fileInputRef}
             type="file"
             multiple
-            aria-label="Izaberi fajlove za upload"
+            aria-label={t('myspace.disk.chooseFilesAria')}
             className="hidden"
             onChange={handleFileUpload}
           />
@@ -1052,7 +1058,7 @@ export default function MySpacePage() {
             // @ts-ignore
             webkitdirectory=""
             directory=""
-            aria-label="Izaberi folder za upload"
+            aria-label={t('myspace.disk.chooseFolderAria')}
             className="hidden"
             onChange={handleFileUpload}
           />
@@ -1067,8 +1073,8 @@ export default function MySpacePage() {
           <div className="mb-1 flex justify-between gap-2 text-sm">
             <span className="truncate">
               {uploadStatus
-                ? `Fajl ${uploadStatus.current}/${uploadStatus.total}: ${uploadStatus.fileName}`
-                : 'Pripremam upload...'}
+                ? t('myspace.disk.upload.fileOf', { current: uploadStatus.current, total: uploadStatus.total, name: uploadStatus.fileName })
+                : t('myspace.disk.upload.preparing')}
             </span>
             <span className="shrink-0 font-medium">{uploadProgress}%</span>
           </div>
@@ -1083,7 +1089,7 @@ export default function MySpacePage() {
           {uploadStatus && (
             <>
               <div className="mb-1 mt-2 flex justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span>Trenutni fajl</span>
+                <span>{t('myspace.disk.upload.currentFile')}</span>
                 <span>{uploadStatus.fileProgress}%</span>
               </div>
               <div className="h-1 overflow-hidden rounded-full bg-primary-200/60 dark:bg-primary-800/60">
@@ -1109,7 +1115,7 @@ export default function MySpacePage() {
           )}
         >
           <HardDrive className="h-3.5 w-3.5" />
-          C:
+          {t('myspace.disk.rootDrive')}
         </button>
         {breadcrumbs.map((bc, i) => (
           <div key={bc.id} className="flex items-center gap-1">
@@ -1153,8 +1159,8 @@ export default function MySpacePage() {
                     setNewFolderName('');
                   }
                 }}
-                placeholder="Naziv foldera..."
-                aria-label="Naziv foldera"
+                placeholder={t('myspace.disk.folderNamePlaceholder')}
+                aria-label={t('myspace.disk.folderNameAria')}
                 className="flex-1 bg-transparent text-sm outline-none"
               />
               <button
@@ -1162,14 +1168,14 @@ export default function MySpacePage() {
                   if (newFolderName.trim()) createFolderMutation.mutate(newFolderName.trim());
                 }}
                 disabled={!newFolderName.trim()}
-                aria-label="Kreiraj folder"
+                aria-label={t('myspace.disk.createFolderAria')}
                 className="rounded p-1 text-green-600 hover:bg-green-100 disabled:opacity-30"
               >
                 <Check className="h-4 w-4" />
               </button>
               <button
                 onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}
-                aria-label="Otkaži"
+                aria-label={t('myspace.disk.cancel')}
                 className="rounded p-1 text-gray-400 hover:bg-gray-100"
               >
                 <X className="h-4 w-4" />
@@ -1194,11 +1200,11 @@ export default function MySpacePage() {
           <div className="mb-6 rounded-full bg-gray-100 p-6 dark:bg-gray-800">
             <HardDrive className="h-12 w-12 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold">Prazan folder</h2>
+          <h2 className="text-xl font-semibold">{t('myspace.disk.empty.title')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
             {currentFolderId === 'root'
-              ? 'Kreirajte foldere, uploadujte fajlove ili prevucite foldere sa računara'
-              : 'Prevucite foldere i fajlove ovde ili koristite dugmad iznad.'}
+              ? t('myspace.disk.empty.root')
+              : t('myspace.disk.empty.sub')}
           </p>
           <div className="mt-6 flex gap-3">
             <button
@@ -1206,14 +1212,14 @@ export default function MySpacePage() {
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
             >
               <FolderPlus className="h-4 w-4" />
-              Novi folder
+              {t('myspace.disk.newFolder')}
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
             >
               <Upload className="h-4 w-4" />
-              Upload fajlove
+              {t('myspace.disk.uploadFiles')}
             </button>
           </div>
         </div>
@@ -1230,7 +1236,7 @@ export default function MySpacePage() {
                 if (hasSelection) clearSelection();
                 else selectAll();
               }}
-              aria-label="Izaberi sve"
+              aria-label={t('myspace.disk.table.selectAll')}
               className="flex items-center justify-center"
             >
               {hasSelection ? (
@@ -1239,9 +1245,9 @@ export default function MySpacePage() {
                 <Square className="h-4 w-4 text-gray-400" />
               )}
             </button>
-            <span>Naziv</span>
-            <span>Veličina</span>
-            <span>Izmenjeno</span>
+            <span>{t('myspace.disk.table.name')}</span>
+            <span>{t('myspace.disk.table.size')}</span>
+            <span>{t('myspace.disk.table.modified')}</span>
             <span />
           </div>
 
@@ -1293,7 +1299,7 @@ export default function MySpacePage() {
               >
                 <button
                   onClick={(e) => toggleFolderSelection(folder.id, e)}
-                  aria-label="Izaberi folder"
+                  aria-label={t('myspace.disk.table.selectFolder')}
                   className="flex items-center justify-center"
                 >
                   {isFolderSelected ? (
@@ -1308,7 +1314,7 @@ export default function MySpacePage() {
                       <Folder className="h-5 w-5 text-yellow-500" />
                       <input
                         autoFocus
-                        aria-label="Novo ime foldera"
+                        aria-label={t('myspace.disk.table.newFolderName')}
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         onKeyDown={(e) => {
@@ -1328,13 +1334,13 @@ export default function MySpacePage() {
                   )}
                 </span>
                 <span className="text-gray-400">—</span>
-                <span className="text-gray-500">{formatDate(folder.createdAt)}</span>
+                <span className="text-gray-500">{formatDate(folder.createdAt, intlLocale)}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setContextMenu({ x: e.clientX, y: e.clientY, type: 'folder', item: folder });
                   }}
-                  aria-label="Više opcija"
+                  aria-label={t('myspace.disk.table.moreOptions')}
                   className="rounded p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -1374,7 +1380,7 @@ export default function MySpacePage() {
               >
                 <button
                   onClick={(e) => toggleFileSelection(file.id, e)}
-                  aria-label="Izaberi fajl"
+                  aria-label={t('myspace.disk.table.selectFile')}
                   className="flex items-center justify-center"
                 >
                   {isFileSelected ? (
@@ -1388,7 +1394,7 @@ export default function MySpacePage() {
                   {renamingId === file.id ? (
                     <input
                       autoFocus
-                      aria-label="Novo ime fajla"
+                      aria-label={t('myspace.disk.table.newFileName')}
                       className="rounded border px-1 py-0.5 text-sm dark:bg-gray-800 dark:border-gray-600"
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
@@ -1411,14 +1417,14 @@ export default function MySpacePage() {
                     <span className="truncate">{file.name}</span>
                   )}
                 </span>
-                <span className="text-gray-500">{formatSize(file.size)}</span>
-                <span className="text-gray-500">{formatDate(file.createdAt)}</span>
+                <span className="text-gray-500">{formatSize(file.size, intlLocale)}</span>
+                <span className="text-gray-500">{formatDate(file.createdAt, intlLocale)}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setContextMenu({ x: e.clientX, y: e.clientY, type: 'file', item: file });
                   }}
-                  aria-label="Više opcija"
+                  aria-label={t('myspace.disk.table.moreOptions')}
                   className="rounded p-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -1479,19 +1485,19 @@ export default function MySpacePage() {
                   onClick={() => { setShowNewFolder(true); setContextMenu(null); }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <FolderPlus className="h-4 w-4" /> Novi folder
+                  <FolderPlus className="h-4 w-4" /> {t('myspace.disk.newFolder')}
                 </button>
                 <button
                   onClick={() => { folderInputRef.current?.click(); setContextMenu(null); }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <FolderPlus className="h-4 w-4" /> Upload folder
+                  <FolderPlus className="h-4 w-4" /> {t('myspace.disk.uploadFolder')}
                 </button>
                 <button
                   onClick={() => { fileInputRef.current?.click(); setContextMenu(null); }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Upload className="h-4 w-4" /> Upload fajlove
+                  <Upload className="h-4 w-4" /> {t('myspace.disk.uploadFiles')}
                 </button>
                 {clipboard && (
                   <>
@@ -1500,7 +1506,7 @@ export default function MySpacePage() {
                       onClick={() => { handlePaste(); setContextMenu(null); }}
                       className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                     >
-                      <FolderInput className="h-4 w-4" /> Nalepi ({clipboard.files.length + clipboard.folders.length})
+                      <FolderInput className="h-4 w-4" /> {t('myspace.disk.menu.paste', { count: clipboard.files.length + clipboard.folders.length })}
                     </button>
                   </>
                 )}
@@ -1511,7 +1517,7 @@ export default function MySpacePage() {
                   onClick={() => { navigateToFolder(contextMenu.item); setContextMenu(null); }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Folder className="h-4 w-4" /> Otvori
+                  <Folder className="h-4 w-4" /> {t('myspace.disk.menu.open')}
                 </button>
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                 <button
@@ -1519,12 +1525,12 @@ export default function MySpacePage() {
                     setSelectedFolders(new Set([contextMenu.item.id]));
                     setSelectedFiles(new Set());
                     setClipboard({ action: 'cut', files: [], folders: [contextMenu.item] });
-                    addNotification({ type: 'success', title: 'Folder isečen' });
+                    addNotification({ type: 'success', title: t('myspace.disk.toast.folderCut') });
                     setContextMenu(null);
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Scissors className="h-4 w-4" /> Iseci
+                  <Scissors className="h-4 w-4" /> {t('myspace.disk.menu.cut')}
                 </button>
                 <button
                   onClick={() => {
@@ -1535,7 +1541,7 @@ export default function MySpacePage() {
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <FolderInput className="h-4 w-4" /> Premesti u...
+                  <FolderInput className="h-4 w-4" /> {t('myspace.disk.menu.moveTo')}
                 </button>
                 <button
                   onClick={() => {
@@ -1544,7 +1550,7 @@ export default function MySpacePage() {
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
                 >
-                  <Share2 className="h-4 w-4" /> Podeli
+                  <Share2 className="h-4 w-4" /> {t('myspace.disk.menu.share')}
                 </button>
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                 <button
@@ -1555,14 +1561,14 @@ export default function MySpacePage() {
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Pencil className="h-4 w-4" /> Preimenuj
+                  <Pencil className="h-4 w-4" /> {t('myspace.disk.menu.rename')}
                 </button>
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                 <button
                   onClick={() => { handleDownloadFolder(contextMenu.item); setContextMenu(null); }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Download className="h-4 w-4" /> Preuzmi kao ZIP
+                  <Download className="h-4 w-4" /> {t('myspace.disk.menu.downloadZip')}
                 </button>
                 <button
                   // If the right-clicked row is part of a multi-selection,
@@ -1581,8 +1587,8 @@ export default function MySpacePage() {
                 >
                   <Trash2 className="h-4 w-4" />
                   {selectedFolders.has(contextMenu.item.id) && selectionCount > 1
-                    ? `Obriši ${selectionCount} stavki`
-                    : 'Obriši'}
+                    ? t('myspace.disk.menu.deleteCount', { count: selectionCount })
+                    : t('myspace.disk.menu.delete')}
                 </button>
               </>
             ) : (
@@ -1591,13 +1597,13 @@ export default function MySpacePage() {
                   onClick={() => { handleOpenFile(contextMenu.item); setContextMenu(null); }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <File className="h-4 w-4" /> Otvori pregled
+                  <File className="h-4 w-4" /> {t('myspace.disk.menu.openPreview')}
                 </button>
                 <button
                   onClick={() => { handleOpenFileDirect(contextMenu.item); setContextMenu(null); }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Download className="h-4 w-4" /> Otvori fajl
+                  <Download className="h-4 w-4" /> {t('myspace.disk.menu.openFile')}
                 </button>
                 {(contextMenu.item.mimeType?.startsWith('image/') || contextMenu.item.mimeType?.startsWith('video/')) && (
                   <>
@@ -1607,7 +1613,7 @@ export default function MySpacePage() {
                         onClick={() => { window.location.href = `/photos?highlight=${contextMenu.item.photoFileId}`; setContextMenu(null); }}
                         className="flex w-full items-center gap-2 px-3 py-2 text-sm text-sky-600 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-900/20"
                       >
-                        <FileImage className="h-4 w-4" /> Vidi u galeriji
+                        <FileImage className="h-4 w-4" /> {t('myspace.disk.menu.viewInGallery')}
                       </button>
                     )}
                     {contextMenu.item.mimeType?.startsWith('image/') && (
@@ -1616,13 +1622,13 @@ export default function MySpacePage() {
                           onClick={() => { window.open(`/tools/image-editor?fileId=${contextMenu.item.id}`, '_blank'); setContextMenu(null); }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
                         >
-                          <Crop className="h-4 w-4" /> Uredi / Napravi mim
+                          <Crop className="h-4 w-4" /> {t('myspace.disk.menu.editMeme')}
                         </button>
                         <button
                           onClick={() => { window.open(`/tools/remove-bg?fileId=${contextMenu.item.id}`, '_blank'); setContextMenu(null); }}
                           className="flex w-full items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/20"
                         >
-                          <Eraser className="h-4 w-4" /> Ukloni pozadinu
+                          <Eraser className="h-4 w-4" /> {t('myspace.disk.menu.removeBg')}
                         </button>
                       </>
                     )}
@@ -1632,22 +1638,22 @@ export default function MySpacePage() {
                 <button
                   onClick={() => {
                     setClipboard({ action: 'copy', files: [contextMenu.item], folders: [] });
-                    addNotification({ type: 'success', title: 'Fajl kopiran' });
+                    addNotification({ type: 'success', title: t('myspace.disk.toast.fileCopied') });
                     setContextMenu(null);
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Copy className="h-4 w-4" /> Kopiraj
+                  <Copy className="h-4 w-4" /> {t('myspace.disk.menu.copy')}
                 </button>
                 <button
                   onClick={() => {
                     setClipboard({ action: 'cut', files: [contextMenu.item], folders: [] });
-                    addNotification({ type: 'success', title: 'Fajl isečen' });
+                    addNotification({ type: 'success', title: t('myspace.disk.toast.fileCut') });
                     setContextMenu(null);
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Scissors className="h-4 w-4" /> Iseci
+                  <Scissors className="h-4 w-4" /> {t('myspace.disk.menu.cut')}
                 </button>
                 <button
                   onClick={() => {
@@ -1658,7 +1664,7 @@ export default function MySpacePage() {
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <FolderInput className="h-4 w-4" /> Premesti u...
+                  <FolderInput className="h-4 w-4" /> {t('myspace.disk.menu.moveTo')}
                 </button>
                 <button
                   onClick={() => {
@@ -1667,7 +1673,7 @@ export default function MySpacePage() {
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
                 >
-                  <Share2 className="h-4 w-4" /> Podeli
+                  <Share2 className="h-4 w-4" /> {t('myspace.disk.menu.share')}
                 </button>
                 <button
                   onClick={() => {
@@ -1677,14 +1683,14 @@ export default function MySpacePage() {
                   }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Pencil className="h-4 w-4" /> Preimenuj
+                  <Pencil className="h-4 w-4" /> {t('myspace.disk.menu.rename')}
                 </button>
                 <div className="my-1 h-px bg-gray-200 dark:bg-gray-700" />
                 <button
                   onClick={() => { handleDownload(contextMenu.item); setContextMenu(null); }}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <Download className="h-4 w-4" /> Preuzmi
+                  <Download className="h-4 w-4" /> {t('myspace.disk.menu.download')}
                 </button>
                 <button
                   // If this row is part of a multi-selection, the user
@@ -1704,8 +1710,8 @@ export default function MySpacePage() {
                 >
                   <Trash2 className="h-4 w-4" />
                   {selectedFiles.has(contextMenu.item.id) && selectionCount > 1
-                    ? `Obriši ${selectionCount} stavki`
-                    : 'Obriši'}
+                    ? t('myspace.disk.menu.deleteCount', { count: selectionCount })
+                    : t('myspace.disk.menu.delete')}
                 </button>
               </>
             )}
@@ -1730,47 +1736,47 @@ export default function MySpacePage() {
             className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 shadow-xl sm:bottom-6 sm:gap-2 sm:px-4 sm:py-2.5 dark:border-gray-700 dark:bg-gray-800"
           >
             <span className="mr-1 shrink-0 text-xs font-medium sm:mr-2 sm:text-sm">
-              {selectionCount} <span className="hidden sm:inline">izabrano</span>
+              {selectionCount} <span className="hidden sm:inline">{t('myspace.disk.selection.selected')}</span>
             </span>
             <button
               onClick={() => setShowMoveModal(true)}
-              aria-label="Premesti"
+              aria-label={t('myspace.disk.selection.move')}
               className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary-500 px-2.5 py-1.5 text-sm font-medium text-white hover:bg-primary-600 sm:px-3"
             >
-              <FolderInput className="h-4 w-4" /> <span className="hidden sm:inline">Premesti</span>
+              <FolderInput className="h-4 w-4" /> <span className="hidden sm:inline">{t('myspace.disk.selection.move')}</span>
             </button>
             <button
               onClick={handleDeleteSelected}
-              aria-label={`Obriši ${selectionCount} stavki`}
+              aria-label={t('myspace.disk.selection.deleteAria', { count: selectionCount })}
               className="flex shrink-0 items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-2.5 py-1.5 text-sm font-medium text-red-600 hover:bg-red-100 sm:px-3 dark:border-red-800 dark:bg-red-900/20 dark:hover:bg-red-900/40"
             >
-              <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Obriši</span>
+              <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">{t('myspace.disk.selection.delete')}</span>
             </button>
             <button
               onClick={() => handleCopy('copy')}
-              aria-label="Kopiraj"
+              aria-label={t('myspace.disk.selection.copy')}
               className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm font-medium hover:bg-gray-50 sm:px-3 dark:border-gray-600 dark:hover:bg-gray-700"
             >
-              <Copy className="h-4 w-4" /> <span className="hidden sm:inline">Kopiraj</span>
+              <Copy className="h-4 w-4" /> <span className="hidden sm:inline">{t('myspace.disk.selection.copy')}</span>
             </button>
             <button
               onClick={() => handleCopy('cut')}
-              aria-label="Iseci"
+              aria-label={t('myspace.disk.selection.cut')}
               className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm font-medium hover:bg-gray-50 sm:px-3 dark:border-gray-600 dark:hover:bg-gray-700"
             >
-              <Scissors className="h-4 w-4" /> <span className="hidden sm:inline">Iseci</span>
+              <Scissors className="h-4 w-4" /> <span className="hidden sm:inline">{t('myspace.disk.selection.cut')}</span>
             </button>
             {clipboard && (
               <button
                 onClick={handlePaste}
                 className="flex items-center gap-1.5 rounded-lg border border-green-300 px-3 py-1.5 text-sm font-medium text-green-600 hover:bg-green-50 dark:border-green-800 dark:hover:bg-green-900/20"
               >
-                <ClipboardPaste className="h-4 w-4" /> Nalepi
+                <ClipboardPaste className="h-4 w-4" /> {t('myspace.disk.selection.paste')}
               </button>
             )}
             <button
               onClick={clearSelection}
-              aria-label="Poništi izbor"
+              aria-label={t('myspace.disk.selection.clear')}
               className="ml-1 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-4 w-4" />
@@ -1797,8 +1803,8 @@ export default function MySpacePage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="border-b border-gray-200 px-5 py-4 dark:border-gray-700">
-                <h3 className="text-lg font-semibold">Premesti u folder</h3>
-                <p className="text-sm text-gray-500">{selectionCount} stavki</p>
+                <h3 className="text-lg font-semibold">{t('myspace.disk.move.title')}</h3>
+                <p className="text-sm text-gray-500">{t('myspace.disk.move.count', { count: selectionCount })}</p>
               </div>
               <FolderPicker
                 currentFolderId={currentFolderId}
@@ -1832,11 +1838,11 @@ export default function MySpacePage() {
               <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
                 <div className="flex items-center gap-2">
                   <Share2 className="h-5 w-5 text-blue-500" />
-                  <h3 className="text-lg font-semibold">Podeli</h3>
+                  <h3 className="text-lg font-semibold">{t('myspace.disk.share.title')}</h3>
                 </div>
                 <button
                   onClick={() => setShareModal(null)}
-                  aria-label="Zatvori"
+                  aria-label={t('myspace.disk.close')}
                   className="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   <X className="h-5 w-5" />
@@ -1855,7 +1861,7 @@ export default function MySpacePage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{shareModal.item.name}</p>
                     <p className="text-xs text-gray-500">
-                      {shareModal.type === 'folder' ? 'Folder' : formatSize(shareModal.item.size)}
+                      {shareModal.type === 'folder' ? t('myspace.disk.share.folder') : formatSize(shareModal.item.size, intlLocale)}
                     </p>
                   </div>
                 </div>
@@ -1868,7 +1874,7 @@ export default function MySpacePage() {
                   <>
                     {/* Share link */}
                     <div className="mb-4">
-                      <label className="mb-1.5 block text-xs font-medium text-gray-500">Link za deljenje</label>
+                      <label className="mb-1.5 block text-xs font-medium text-gray-500">{t('myspace.disk.share.link')}</label>
                       <div className="flex gap-2">
                         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 dark:border-gray-600 dark:bg-gray-700">
                           <Link2 className="h-4 w-4 flex-shrink-0 text-gray-400" />
@@ -1882,14 +1888,14 @@ export default function MySpacePage() {
                           )}
                         >
                           {shareCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                          {shareCopied ? 'Kopirano!' : 'Kopiraj'}
+                          {shareCopied ? t('myspace.disk.share.copied') : t('myspace.disk.share.copy')}
                         </button>
                       </div>
                     </div>
 
                     {/* Permission selector */}
                     <div className="mb-4">
-                      <label className="mb-1.5 block text-xs font-medium text-gray-500">Dozvola</label>
+                      <label className="mb-1.5 block text-xs font-medium text-gray-500">{t('myspace.disk.share.permission')}</label>
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleUpdateSharePermission('read')}
@@ -1901,7 +1907,7 @@ export default function MySpacePage() {
                           )}
                         >
                           <Globe className="h-4 w-4" />
-                          Samo čitanje
+                          {t('myspace.disk.share.readOnly')}
                         </button>
                         <button
                           onClick={() => handleUpdateSharePermission('readwrite')}
@@ -1913,13 +1919,13 @@ export default function MySpacePage() {
                           )}
                         >
                           <Pencil className="h-4 w-4" />
-                          Čitanje i pisanje
+                          {t('myspace.disk.share.readWrite')}
                         </button>
                       </div>
                       <p className="mt-1.5 text-xs text-gray-400">
                         {shareData.permission === 'read'
-                          ? 'Korisnici mogu da pregledaju i preuzmu sadržaj.'
-                          : 'Korisnici mogu da pregledaju, preuzmu i uploaduju fajlove.'}
+                          ? t('myspace.disk.share.readDesc')
+                          : t('myspace.disk.share.readWriteDesc')}
                       </p>
                     </div>
 
@@ -1931,7 +1937,7 @@ export default function MySpacePage() {
                       className="mb-4 flex items-center gap-2 text-sm text-primary-500 hover:text-primary-600"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      Otvori deljeni link
+                      {t('myspace.disk.share.openLink')}
                     </a>
 
                     {/* Revoke share */}
@@ -1940,14 +1946,14 @@ export default function MySpacePage() {
                       className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
                     >
                       <Trash2 className="h-4 w-4" />
-                      Ukini deljenje
+                      {t('myspace.disk.share.revoke')}
                     </button>
                   </>
                 ) : (
                   <>
                     {/* No share exists yet — create one */}
                     <p className="mb-4 text-sm text-gray-500">
-                      Kreirajte link za deljenje koji bilo ko sa linkom može da koristi.
+                      {t('myspace.disk.share.createHint')}
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -1956,7 +1962,7 @@ export default function MySpacePage() {
                         className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-700"
                       >
                         <Globe className="h-4 w-4" />
-                        Samo čitanje
+                        {t('myspace.disk.share.readOnly')}
                       </button>
                       <button
                         onClick={() => handleCreateShare('readwrite')}
@@ -1964,7 +1970,7 @@ export default function MySpacePage() {
                         className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-500 px-3 py-2.5 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
                       >
                         <Pencil className="h-4 w-4" />
-                        Čitanje i pisanje
+                        {t('myspace.disk.share.readWrite')}
                       </button>
                     </div>
                   </>
@@ -1978,10 +1984,10 @@ export default function MySpacePage() {
       {/* Summary bar */}
       {!isLoading && (folders.length > 0 || files.length > 0) && (
         <div className="text-xs text-gray-500">
-          {folders.length > 0 && `${folders.length} folder(a)`}
+          {folders.length > 0 && t('myspace.disk.summary.folders', { count: folders.length })}
           {folders.length > 0 && files.length > 0 && ' · '}
-          {files.length > 0 && `${files.length} fajl(ova)`}
-          {files.length > 0 && ` · ${formatSize(files.reduce((sum, f) => sum + f.size, 0))}`}
+          {files.length > 0 && t('myspace.disk.summary.files', { count: files.length })}
+          {files.length > 0 && ` · ${formatSize(files.reduce((sum, f) => sum + f.size, 0), intlLocale)}`}
         </div>
       )}
 
@@ -1990,7 +1996,7 @@ export default function MySpacePage() {
         <div className="mt-6">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-500 uppercase tracking-wide">
             <Share2 className="h-4 w-4" />
-            Deljeno sa mnom
+            {t('myspace.disk.sharedWithMe.title')}
           </h2>
           <div className="overflow-hidden rounded-xl border border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-900/10">
             {sharedWithMe.map((share, i) => (
@@ -2010,11 +2016,11 @@ export default function MySpacePage() {
                   )}
                   <span className="truncate">{share.itemName}</span>
                   <span className="flex-shrink-0 rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-600 dark:bg-blue-900/40 dark:text-blue-400">
-                    od {share.ownerName}
+                    {t('myspace.disk.sharedWithMe.from', { name: share.ownerName })}
                   </span>
                 </span>
                 <span className="text-xs text-gray-500">
-                  {share.permission === 'readwrite' ? 'Citanje i pisanje' : 'Samo citanje'}
+                  {share.permission === 'readwrite' ? t('myspace.disk.share.readWrite') : t('myspace.disk.share.readOnly')}
                 </span>
                 <span className="flex items-center justify-end">
                   <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
@@ -2047,19 +2053,19 @@ export default function MySpacePage() {
                 <div className="flex items-center gap-2 truncate">
                   {(() => { const Icon = getFileIcon(previewFile.mimeType); return <Icon className="h-5 w-5 text-gray-400" />; })()}
                   <span className="truncate font-medium">{previewFile.name}</span>
-                  <span className="text-xs text-gray-400">{formatSize(previewFile.size)}</span>
+                  <span className="text-xs text-gray-400">{formatSize(previewFile.size, intlLocale)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleDownload(previewFile)}
                     className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                    title="Preuzmi"
+                    title={t('myspace.disk.preview.download')}
                   >
                     <Download className="h-4 w-4" />
                   </button>
                   <button
                     onClick={closePreview}
-                    aria-label="Zatvori"
+                    aria-label={t('myspace.disk.close')}
                     className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <X className="h-5 w-5" />
@@ -2086,6 +2092,7 @@ export default function MySpacePage() {
 }
 
 function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
+  const t = useT();
   const mime = file.mimeType;
 
   // Images
@@ -2131,7 +2138,7 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
         <FileText className="h-16 w-16 text-gray-400" />
         <p className="text-lg font-medium">{file.name}</p>
         <p className="text-sm text-gray-500">
-          Office dokumenti se mogu preuzeti i otvoriti lokalno
+          {t('myspace.disk.preview.officeHint')}
         </p>
         <div className="flex gap-3">
           <a
@@ -2141,7 +2148,7 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
             className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
           >
             <ExternalLink className="h-4 w-4" />
-            Otvori u aplikaciji
+            {t('myspace.disk.preview.openInApp')}
           </a>
           <a
             href={url}
@@ -2149,7 +2156,7 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
             className="flex items-center gap-2 rounded-lg border border-gray-300 px-6 py-3 font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
           >
             <Download className="h-4 w-4" />
-            Preuzmi
+            {t('myspace.disk.preview.download')}
           </a>
         </div>
       </div>
@@ -2161,7 +2168,7 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
     <div className="flex flex-col items-center justify-center gap-4 py-16">
       <File className="h-16 w-16 text-gray-400" />
       <p className="text-lg font-medium">{file.name}</p>
-      <p className="text-sm text-gray-500">Pregled ovog tipa fajla nije podržan</p>
+      <p className="text-sm text-gray-500">{t('myspace.disk.preview.unsupported')}</p>
       <div className="flex gap-3">
         <a
           href={url}
@@ -2170,7 +2177,7 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
           className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
         >
           <ExternalLink className="h-4 w-4" />
-          Otvori u aplikaciji
+          {t('myspace.disk.preview.openInApp')}
         </a>
         <a
           href={url}
@@ -2178,7 +2185,7 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
           className="flex items-center gap-2 rounded-lg border border-gray-300 px-6 py-3 font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
         >
           <Download className="h-4 w-4" />
-          Preuzmi
+          {t('myspace.disk.preview.download')}
         </a>
       </div>
     </div>
@@ -2186,6 +2193,7 @@ function FilePreviewContent({ file, url }: { file: DiskFile; url: string }) {
 }
 
 function VideoPreview({ file, url }: { file: DiskFile; url: string }) {
+  const t = useT();
   const [error, setError] = useState(false);
 
   if (error) {
@@ -2194,7 +2202,7 @@ function VideoPreview({ file, url }: { file: DiskFile; url: string }) {
         <FileVideo className="h-16 w-16 text-gray-500" />
         <p className="text-lg font-medium text-white">{file.name}</p>
         <p className="text-sm text-gray-400">
-          Ovaj video format nije podržan u pregledaču.
+          {t('myspace.disk.preview.videoUnsupported')}
         </p>
         <div className="flex gap-3">
           <a
@@ -2204,7 +2212,7 @@ function VideoPreview({ file, url }: { file: DiskFile; url: string }) {
             className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
           >
             <ExternalLink className="h-4 w-4" />
-            Otvori u video playeru
+            {t('myspace.disk.preview.openInVideoPlayer')}
           </a>
           <a
             href={url}
@@ -2212,7 +2220,7 @@ function VideoPreview({ file, url }: { file: DiskFile; url: string }) {
             className="flex items-center gap-2 rounded-lg border border-gray-600 px-6 py-3 font-medium text-white hover:bg-gray-800"
           >
             <Download className="h-4 w-4" />
-            Preuzmi
+            {t('myspace.disk.preview.download')}
           </a>
         </div>
       </div>
@@ -2229,7 +2237,7 @@ function VideoPreview({ file, url }: { file: DiskFile; url: string }) {
         className="max-h-[75vh] max-w-full"
         onError={() => setError(true)}
       >
-        Vaš pregledač ne podržava ovaj video format.
+        {t('myspace.disk.preview.videoFallback')}
       </video>
       <div className="flex items-center gap-3 py-2">
         <a
@@ -2239,7 +2247,7 @@ function VideoPreview({ file, url }: { file: DiskFile; url: string }) {
           className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          Otvori u video playeru
+          {t('myspace.disk.preview.openInVideoPlayer')}
         </a>
       </div>
     </div>
@@ -2247,6 +2255,7 @@ function VideoPreview({ file, url }: { file: DiskFile; url: string }) {
 }
 
 function AudioPreview({ file, url }: { file: DiskFile; url: string }) {
+  const { t, intlLocale } = useI18n();
   const [error, setError] = useState(false);
   const ext = file.name.split('.').pop()?.toUpperCase() || 'AUDIO';
 
@@ -2258,7 +2267,7 @@ function AudioPreview({ file, url }: { file: DiskFile; url: string }) {
         </div>
         <p className="text-lg font-semibold">{file.name}</p>
         <p className="text-sm text-gray-500">
-          {ext} format nije podržan u pregledaču.
+          {t('myspace.disk.preview.audioUnsupported', { ext })}
         </p>
         <div className="flex gap-3">
           <a
@@ -2268,7 +2277,7 @@ function AudioPreview({ file, url }: { file: DiskFile; url: string }) {
             className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600"
           >
             <ExternalLink className="h-4 w-4" />
-            Otvori u music playeru
+            {t('myspace.disk.preview.openInMusicPlayer')}
           </a>
           <a
             href={url}
@@ -2276,7 +2285,7 @@ function AudioPreview({ file, url }: { file: DiskFile; url: string }) {
             className="flex items-center gap-2 rounded-lg border border-gray-300 px-6 py-3 font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
           >
             <Download className="h-4 w-4" />
-            Preuzmi
+            {t('myspace.disk.preview.download')}
           </a>
         </div>
       </div>
@@ -2290,7 +2299,7 @@ function AudioPreview({ file, url }: { file: DiskFile; url: string }) {
       </div>
       <div className="text-center">
         <p className="text-lg font-semibold">{file.name}</p>
-        <p className="text-xs text-gray-400">{ext} · {formatSize(file.size)}</p>
+        <p className="text-xs text-gray-400">{ext} · {formatSize(file.size, intlLocale)}</p>
       </div>
       <audio
         src={url}
@@ -2306,7 +2315,7 @@ function AudioPreview({ file, url }: { file: DiskFile; url: string }) {
         className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-primary-500"
       >
         <ExternalLink className="h-3.5 w-3.5" />
-        Otvori u music playeru na uređaju
+        {t('myspace.disk.preview.openInMusicPlayerDevice')}
       </a>
     </div>
   );
@@ -2324,6 +2333,7 @@ function FolderPicker({
   moving: boolean;
 }) {
   const { user } = useAuthStore();
+  const t = useT();
   const [browseFolderId, setBrowseFolderId] = useState('root');
   const [browsePath, setBrowsePath] = useState<{ id: string; name: string }[]>([]);
 
@@ -2350,7 +2360,7 @@ function FolderPicker({
           onClick={() => { setBrowseFolderId('root'); setBrowsePath([]); }}
           className={cn('rounded px-2 py-0.5 font-medium', browseFolderId === 'root' ? 'text-primary-600' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700')}
         >
-          C:
+          {t('myspace.disk.rootDrive')}
         </button>
         {browsePath.map((bp, i) => (
           <div key={bp.id} className="flex items-center gap-1">
@@ -2388,7 +2398,7 @@ function FolderPicker({
           </button>
         )}
         {pickerFolders.length === 0 && browseFolderId === 'root' && (
-          <p className="px-3 py-4 text-center text-sm text-gray-400">Nema foldera</p>
+          <p className="px-3 py-4 text-center text-sm text-gray-400">{t('myspace.disk.move.noFolders')}</p>
         )}
         {pickerFolders.map((folder) => (
           <button
@@ -2408,14 +2418,14 @@ function FolderPicker({
       {/* Actions */}
       <div className="flex items-center justify-between border-t border-gray-200 px-5 py-3 dark:border-gray-700">
         <span className="text-xs text-gray-400">
-          Odredište: {browseFolderId === 'root' ? 'C:' : browsePath[browsePath.length - 1]?.name}
+          {t('myspace.disk.move.destination', { name: (browseFolderId === 'root' ? t('myspace.disk.rootDrive') : browsePath[browsePath.length - 1]?.name) ?? '' })}
         </span>
         <button
           onClick={() => onSelect(browseFolderId)}
           disabled={moving || browseFolderId === currentFolderId}
           className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
         >
-          {moving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Premesti ovde'}
+          {moving ? <Loader2 className="h-4 w-4 animate-spin" /> : t('myspace.disk.move.moveHere')}
         </button>
       </div>
     </div>
@@ -2423,6 +2433,7 @@ function FolderPicker({
 }
 
 function TextFilePreview({ url }: { url: string }) {
+  const t = useT();
   const [text, setText] = useState('');
   const [loaded, setLoaded] = useState(false);
 
@@ -2430,8 +2441,8 @@ function TextFilePreview({ url }: { url: string }) {
     fetch(url)
       .then((r) => r.text())
       .then((t) => { setText(t); setLoaded(true); })
-      .catch(() => { setText('Greška pri učitavanju fajla'); setLoaded(true); });
-  }, [url]);
+      .catch(() => { setText(t('myspace.disk.preview.textLoadError')); setLoaded(true); });
+  }, [url, t]);
 
   if (!loaded) return <div className="p-8 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div>;
 

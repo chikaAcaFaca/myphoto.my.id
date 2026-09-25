@@ -5,12 +5,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useFilesStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/i18n/client';
+import { pluralForm } from '@/components/i18n-static';
 
 export function UploadToast() {
   const { uploadQueue, clearCompletedUploads } = useFilesStore();
   const [dismissed, setDismissed] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const { t, locale } = useI18n();
+  const fileCountLabel = (n: number) => t(`components.common.fileCount.${pluralForm(n, locale)}`, { count: n });
 
   const activeItems = uploadQueue.filter(
     (item) => item.status === 'uploading' || item.status === 'pending' || item.status === 'processing'
@@ -87,16 +91,16 @@ export function UploadToast() {
             <div className="flex-1 min-w-0">
               {showSuccess ? (
                 <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                  {completedItems.length} file{completedItems.length !== 1 ? 's' : ''} uploaded
+                  {t('components.uploadToast.uploaded', { files: fileCountLabel(completedItems.length) })}
                 </p>
               ) : (
                 <>
                   <p className="text-sm font-medium truncate">
-                    Uploading {activeItems.length} file{activeItems.length !== 1 ? 's' : ''}...
+                    {t('components.uploadToast.uploading', { files: fileCountLabel(activeItems.length) })}
                     {' '}{overallProgress}%
                   </p>
                   {errorItems.length > 0 && (
-                    <p className="text-xs text-red-500">{errorItems.length} failed</p>
+                    <p className="text-xs text-red-500">{t('components.uploadToast.failedCount', { count: errorItems.length })}</p>
                   )}
                 </>
               )}
@@ -105,7 +109,7 @@ export function UploadToast() {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setMinimized((m) => !m)}
-                aria-label={minimized ? 'Proširi' : 'Skupi'}
+                aria-label={minimized ? t('components.uploadToast.expand') : t('components.uploadToast.collapse')}
                 className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
               >
                 {minimized ? (
@@ -119,7 +123,7 @@ export function UploadToast() {
                   setDismissed(true);
                   if (allDone) clearCompletedUploads();
                 }}
-                aria-label="Zatvori"
+                aria-label={t('components.common.close')}
                 className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
               >
                 <X className="h-4 w-4" />
@@ -157,10 +161,10 @@ export function UploadToast() {
                     <span className="text-gray-400">{item.progress}%</span>
                   )}
                   {item.status === 'error' && (
-                    <span className="text-red-500">Failed</span>
+                    <span className="text-red-500">{t('components.uploadToast.failed')}</span>
                   )}
                   {item.status === 'pending' && (
-                    <span className="text-gray-400">Pending</span>
+                    <span className="text-gray-400">{t('components.uploadToast.pending')}</span>
                   )}
                 </div>
               ))}

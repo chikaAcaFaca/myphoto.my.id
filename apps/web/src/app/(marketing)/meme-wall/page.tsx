@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
+import { useT } from '@/i18n/client';
 
 interface Meme {
   id: string;
@@ -27,6 +28,7 @@ interface Meme {
 export default function MemeWallPage() {
   const { user } = useAuthStore();
   const router = useRouter();
+  const t = useT();
   const [memes, setMemes] = useState<Meme[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -129,11 +131,11 @@ export default function MemeWallPage() {
 
   const handlePublish = async () => {
     if (!topText && !bottomText) {
-      alert('Dodaj tekst na meme.');
+      alert(t('marketing.memeWall.alerts.addText'));
       return;
     }
     if (!imageUrl) {
-      alert('Izaberi sliku za meme.');
+      alert(t('marketing.memeWall.alerts.chooseImage'));
       return;
     }
 
@@ -141,7 +143,7 @@ export default function MemeWallPage() {
     try {
       const token = await getIdToken();
       if (!token) {
-        alert('Morate biti ulogovani.');
+        alert(t('marketing.memeWall.alerts.mustLogin'));
         return;
       }
 
@@ -184,10 +186,10 @@ export default function MemeWallPage() {
         fetchMemes(1);
       } else {
         const errData = await res.json().catch(() => null);
-        alert(errData?.error || 'Objavljivanje nije uspelo.');
+        alert(errData?.error || t('marketing.memeWall.alerts.publishFailed'));
       }
     } catch {
-      alert('Greska pri objavljivanju.');
+      alert(t('marketing.memeWall.alerts.publishError'));
     } finally {
       setPublishing(false);
     }
@@ -199,12 +201,12 @@ export default function MemeWallPage() {
       if (navigator.share) {
         await navigator.share({
           title: meme.caption,
-          text: `${meme.caption} — Napravljeno u MyPhoto`,
+          text: t('marketing.memeWall.shareText', { caption: meme.caption }),
           url,
         });
       } else {
         await navigator.clipboard.writeText(url);
-        alert('Link kopiran!');
+        alert(t('marketing.memeWall.alerts.linkCopied'));
       }
     } catch {
       // User cancelled the share sheet — don't count it.
@@ -278,7 +280,7 @@ export default function MemeWallPage() {
             <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0 }}>MemeWall</h1>
           </div>
           <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 16, margin: 0 }}>
-            Javni zid memova — napravi, podeli, osvoji lajkove!
+            {t('marketing.memeWall.subtitle')}
           </p>
           <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
             {user ? (
@@ -290,7 +292,7 @@ export default function MemeWallPage() {
                   cursor: 'pointer', fontSize: 15,
                 }}
               >
-                {showCreator ? 'Zatvori kreator' : 'Napravi svoj meme'}
+                {showCreator ? t('marketing.memeWall.closeCreator') : t('marketing.memeWall.makeYourMeme')}
               </button>
             ) : (
               <Link
@@ -300,7 +302,7 @@ export default function MemeWallPage() {
                   padding: '10px 24px', borderRadius: 10, textDecoration: 'none',
                 }}
               >
-                Prijavi se i napravi meme
+                {t('marketing.memeWall.loginToMake')}
               </Link>
             )}
             <Link
@@ -310,7 +312,7 @@ export default function MemeWallPage() {
                 padding: '10px 24px', borderRadius: 10, textDecoration: 'none',
               }}
             >
-              O MyPhoto
+              {t('marketing.memeWall.about')}
             </Link>
           </div>
         </div>
@@ -334,7 +336,7 @@ export default function MemeWallPage() {
                 backgroundColor: '#0f172a',
               }}>
                 <span style={{ fontSize: 40, marginBottom: 8 }}>📷</span>
-                <span style={{ fontSize: 15, fontWeight: 600, color: '#e2e8f0' }}>Izaberi sliku</span>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#e2e8f0' }}>{t('marketing.memeWall.chooseImage')}</span>
                 <span style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>JPG, PNG, GIF</span>
                 <input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: 'none' }} />
               </label>
@@ -379,7 +381,7 @@ export default function MemeWallPage() {
                   display: 'block', textAlign: 'center', marginBottom: 12,
                   color: '#64748b', fontSize: 12, cursor: 'pointer',
                 }}>
-                  Promeni sliku
+                  {t('marketing.memeWall.changeImage')}
                   <input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: 'none' }} />
                 </label>
               </>
@@ -388,8 +390,8 @@ export default function MemeWallPage() {
             {/* Text inputs */}
             <input
               type="text"
-              aria-label="Tekst gore"
-              placeholder="Tekst gore..."
+              aria-label={t('marketing.memeWall.topText')}
+              placeholder={t('marketing.memeWall.topTextPlaceholder')}
               value={topText}
               onChange={(e) => setTopText(e.target.value)}
               style={{
@@ -400,8 +402,8 @@ export default function MemeWallPage() {
             />
             <input
               type="text"
-              aria-label="Tekst dole"
-              placeholder="Tekst dole..."
+              aria-label={t('marketing.memeWall.bottomText')}
+              placeholder={t('marketing.memeWall.bottomTextPlaceholder')}
               value={bottomText}
               onChange={(e) => setBottomText(e.target.value)}
               style={{
@@ -422,7 +424,7 @@ export default function MemeWallPage() {
                 fontSize: 15,
               }}
             >
-              {publishing ? 'Objavljujem...' : '🔥 Objavi na MemeWall'}
+              {publishing ? t('marketing.memeWall.publishing') : t('marketing.memeWall.publish')}
             </button>
           </div>
         </div>
@@ -432,13 +434,13 @@ export default function MemeWallPage() {
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
-            Ucitavanje memova...
+            {t('marketing.memeWall.loading')}
           </div>
         ) : memes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60 }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>🎨</div>
-            <h2 style={{ fontSize: 24, marginBottom: 8 }}>MemeWall je prazan!</h2>
-            <p style={{ color: '#64748b', marginBottom: 24 }}>Budi prvi koji ce objaviti meme.</p>
+            <h2 style={{ fontSize: 24, marginBottom: 8 }}>{t('marketing.memeWall.emptyTitle')}</h2>
+            <p style={{ color: '#64748b', marginBottom: 24 }}>{t('marketing.memeWall.emptyText')}</p>
             {user ? (
               <button
                 onClick={() => setShowCreator(true)}
@@ -448,7 +450,7 @@ export default function MemeWallPage() {
                   cursor: 'pointer', fontSize: 15,
                 }}
               >
-                Napravi meme
+                {t('marketing.memeWall.makeMeme')}
               </button>
             ) : (
               <Link
@@ -458,7 +460,7 @@ export default function MemeWallPage() {
                   padding: '12px 32px', borderRadius: 10, textDecoration: 'none',
                 }}
               >
-                Prijavi se i napravi meme
+                {t('marketing.memeWall.loginToMake')}
               </Link>
             )}
           </div>
@@ -543,7 +545,7 @@ export default function MemeWallPage() {
                       <button
                         onClick={() => handleReact(meme, 'like')}
                         disabled={reactingId === meme.id}
-                        title={user ? 'Sviđa mi se' : 'Prijavi se da reaguješ'}
+                        title={user ? t('marketing.memeWall.like') : t('marketing.memeWall.loginToReact')}
                         style={{
                           background: 'none', border: 'none',
                           color: meme.userReaction === 'like' ? '#f97316' : '#94a3b8',
@@ -557,7 +559,7 @@ export default function MemeWallPage() {
                       <button
                         onClick={() => handleReact(meme, 'dislike')}
                         disabled={reactingId === meme.id}
-                        title={user ? 'Ne sviđa mi se' : 'Prijavi se da reaguješ'}
+                        title={user ? t('marketing.memeWall.dislike') : t('marketing.memeWall.loginToReact')}
                         style={{
                           background: 'none', border: 'none',
                           color: meme.userReaction === 'dislike' ? '#f97316' : '#94a3b8',
@@ -570,7 +572,7 @@ export default function MemeWallPage() {
                       </button>
                       <Link
                         href={`/meme/${meme.id}#comments`}
-                        title="Komentari"
+                        title={t('marketing.memeWall.comments')}
                         style={{
                           color: '#94a3b8', fontSize: 13, textDecoration: 'none',
                           display: 'flex', alignItems: 'center', gap: 4, padding: '2px 4px',
@@ -580,7 +582,7 @@ export default function MemeWallPage() {
                       </Link>
                       <button
                         onClick={() => handleShare(meme)}
-                        title="Podeli"
+                        title={t('marketing.memeWall.share')}
                         style={{
                           background: 'none', border: 'none', color: '#94a3b8',
                           cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center',
@@ -606,7 +608,7 @@ export default function MemeWallPage() {
                       fontWeight: 600, fontSize: 14,
                     }}
                   >
-                    Ucitaj vise
+                    {t('marketing.memeWall.loadMore')}
                   </button>
                 </div>
               )
@@ -619,10 +621,10 @@ export default function MemeWallPage() {
               }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>📱</div>
                 <h3 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8, color: '#fff' }}>
-                  Video si 10 najboljih!
+                  {t('marketing.memeWall.gateTitle')}
                 </h3>
                 <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, marginBottom: 20, maxWidth: 460, marginLeft: 'auto', marginRight: 'auto' }}>
-                  Skini MyPhoto aplikaciju da vidiš sve memove, praviš svoje, lajkuješ i pratiš autore — sve na jednom mestu.
+                  {t('marketing.memeWall.gateText')}
                 </p>
                 <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
                   <a
@@ -634,7 +636,7 @@ export default function MemeWallPage() {
                       padding: '12px 28px', borderRadius: 10, textDecoration: 'none', fontSize: 15,
                     }}
                   >
-                    📱 Skini aplikaciju
+                    {t('marketing.memeWall.getApp')}
                   </a>
                   <Link
                     href="/register"
@@ -643,7 +645,7 @@ export default function MemeWallPage() {
                       padding: '12px 28px', borderRadius: 10, textDecoration: 'none', fontSize: 15,
                     }}
                   >
-                    Ili otvori na webu
+                    {t('marketing.memeWall.openWeb')}
                   </Link>
                 </div>
               </div>
@@ -659,9 +661,9 @@ export default function MemeWallPage() {
         textAlign: 'center',
         marginTop: 40,
       }}>
-        <h3 style={{ fontSize: 18, marginBottom: 8 }}>Preuzmi MyPhoto aplikaciju</h3>
+        <h3 style={{ fontSize: 18, marginBottom: 8 }}>{t('marketing.memeWall.footerTitle')}</h3>
         <p style={{ color: '#64748b', fontSize: 14, marginBottom: 16 }}>
-          Auto-backup slika, cloud storage, meme generator i jos mnogo toga.
+          {t('marketing.memeWall.footerText')}
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
           {user ? (
@@ -672,7 +674,7 @@ export default function MemeWallPage() {
                 padding: '10px 24px', borderRadius: 10, border: 'none', cursor: 'pointer',
               }}
             >
-              Napravi meme
+              {t('marketing.memeWall.makeMeme')}
             </button>
           ) : (
             <Link
@@ -682,7 +684,7 @@ export default function MemeWallPage() {
                 padding: '10px 24px', borderRadius: 10, textDecoration: 'none',
               }}
             >
-              Registruj se besplatno
+              {t('marketing.memeWall.registerFree')}
             </Link>
           )}
         </div>

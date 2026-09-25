@@ -5,6 +5,7 @@ import { AlertTriangle, Coffee, Gift, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
 import { useStorage } from '@/lib/hooks';
 import Link from 'next/link';
+import { useT } from '@/i18n/client';
 
 type WarningLevel = '80' | '95' | '100' | null;
 
@@ -25,6 +26,7 @@ export function StorageLimitBanner() {
   const user = useAuthStore((state) => state.user);
   const { data: storage } = useStorage();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const t = useT();
 
   useEffect(() => {
     const d = new Set<string>();
@@ -56,10 +58,10 @@ export function StorageLimitBanner() {
           <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
           <div>
             <p className="font-medium text-red-800 dark:text-red-200">
-              Vaš prostor je pun
+              {t('components.limitBanner.fullTitle')}
             </p>
             <p className="text-sm text-red-600 dark:text-red-400">
-              Ne možete upload-ovati nove fajlove. Nadogradite ili pozovite prijatelje za više prostora.
+              {t('components.limitBanner.fullBody')}
             </p>
           </div>
         </div>
@@ -68,13 +70,13 @@ export function StorageLimitBanner() {
             href="/pricing"
             className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
           >
-            Nadogradi plan
+            {t('components.limitBanner.upgradePlan')}
           </Link>
           <button
             onClick={scrollToBonus}
             className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/30"
           >
-            Besplatan prostor
+            {t('components.limitBanner.freeSpace')}
           </button>
         </div>
       </div>
@@ -88,10 +90,10 @@ export function StorageLimitBanner() {
           <TrendingUp className="h-5 w-5 shrink-0 text-orange-500" />
           <div>
             <p className="font-medium text-orange-800 dark:text-orange-200">
-              Skoro ste popunili prostor!
+              {t('components.limitBanner.almostFullTitle')}
             </p>
             <p className="text-sm text-orange-600 dark:text-orange-400">
-              Ostalo vam je samo {storage.remainingFormatted}. Nadogradite za cenu jedne kafe mesečno.
+              {t('components.limitBanner.almostFullBody', { remaining: storage.remainingFormatted })}
             </p>
           </div>
         </div>
@@ -101,13 +103,13 @@ export function StorageLimitBanner() {
             className="flex items-center gap-1.5 rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
           >
             <Coffee className="h-3.5 w-3.5" />
-            Od €0.82/mes
+            {t('components.limitBanner.fromPrice')}
           </Link>
           <button
             onClick={handleDismiss}
             className="rounded-lg border border-orange-300 px-3 py-2 text-sm text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:text-orange-300 dark:hover:bg-orange-900/30"
           >
-            Kasnije
+            {t('components.limitBanner.later')}
           </button>
         </div>
       </div>
@@ -121,10 +123,10 @@ export function StorageLimitBanner() {
         <Gift className="h-5 w-5 shrink-0 text-amber-500" />
         <div>
           <p className="font-medium text-amber-800 dark:text-amber-200">
-            Ostalo vam je {storage.remainingFormatted}
+            {t('components.limitBanner.remainingTitle', { remaining: storage.remainingFormatted })}
           </p>
           <p className="text-sm text-amber-600 dark:text-amber-400">
-            Pozovite prijatelja i dobijte +1 GB besplatno, ili nadogradite za cenu jedne kafe!
+            {t('components.limitBanner.remainingBody')}
           </p>
         </div>
       </div>
@@ -134,20 +136,20 @@ export function StorageLimitBanner() {
           className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600"
         >
           <Gift className="h-3.5 w-3.5" />
-          Besplatan GB
+          {t('components.limitBanner.freeGb')}
         </button>
         <Link
           href="/pricing"
           className="flex items-center gap-1.5 rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
         >
           <Coffee className="h-3.5 w-3.5" />
-          Od €0.82/mes
+          {t('components.limitBanner.fromPrice')}
         </Link>
         <button
           onClick={handleDismiss}
           className="text-sm text-amber-500 underline hover:text-amber-700"
         >
-          Kasnije
+          {t('components.limitBanner.later')}
         </button>
       </div>
     </div>

@@ -10,6 +10,7 @@ import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
 import type { FileMetadata } from '@myphoto/shared';
+import { useT } from '@/i18n/client';
 
 export default function AlbumDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -22,6 +23,7 @@ export default function AlbumDetailPage() {
   const { addNotification } = useUIStore();
   const { selectedFiles, deselectAll } = useFilesStore();
   const { mutate: bulkDelete } = useBulkDeleteFiles();
+  const t = useT();
 
   const handleBulkDelete = () => {
     const ids = Array.from(selectedFiles);
@@ -29,8 +31,8 @@ export default function AlbumDetailPage() {
       onSuccess: () => {
         addNotification({
           type: 'success',
-          title: 'Premesteno u korpu',
-          message: `${ids.length} fajlova premesteno u korpu`,
+          title: t('dashboard.shared.movedToTrash'),
+          message: t('dashboard.shared.movedToTrashMsg', { count: ids.length }),
         });
         deselectAll();
       },
@@ -62,15 +64,15 @@ export default function AlbumDetailPage() {
       setTimeout(() => setCopied(false), 2000);
       addNotification({
         type: 'success',
-        title: 'Link kopiran',
+        title: t('dashboard.albumDetail.linkCopied'),
         message: permToUse === 'readwrite'
-          ? 'Link za deljenje (sa pravom izmene) kopiran u clipboard'
-          : 'Link za deljenje (samo pregled) kopiran u clipboard',
+          ? t('dashboard.albumDetail.linkCopiedEdit')
+          : t('dashboard.albumDetail.linkCopiedView'),
       });
     } catch (error: any) {
       addNotification({
         type: 'error',
-        title: 'Greška pri deljenju',
+        title: t('dashboard.albumDetail.shareError'),
         message: error.message,
       });
     }
@@ -84,19 +86,19 @@ export default function AlbumDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!album || !confirm(`Obrisati album "${album.name}"? Slike neće biti obrisane.`)) return;
+    if (!album || !confirm(t('dashboard.albumDetail.confirmDelete', { name: album.name }))) return;
     try {
       await deleteAlbum(album.id);
       addNotification({
         type: 'success',
-        title: 'Album obrisan',
-        message: `"${album.name}" je obrisan`,
+        title: t('dashboard.albumDetail.deleted'),
+        message: t('dashboard.albumDetail.deletedMsg', { name: album.name }),
       });
       router.push('/albums');
     } catch (error: any) {
       addNotification({
         type: 'error',
-        title: 'Greška',
+        title: t('dashboard.shared.error'),
         message: error.message,
       });
     }
@@ -123,13 +125,13 @@ export default function AlbumDetailPage() {
       setIsEditing(false);
       addNotification({
         type: 'success',
-        title: 'Album ažuriran',
-        message: `"${editName.trim()}" je sačuvan`,
+        title: t('dashboard.albumDetail.updated'),
+        message: t('dashboard.albumDetail.updatedMsg', { name: editName.trim() }),
       });
     } catch (error: any) {
       addNotification({
         type: 'error',
-        title: 'Greška',
+        title: t('dashboard.shared.error'),
         message: error.message,
       });
     }
@@ -155,7 +157,7 @@ export default function AlbumDetailPage() {
       }
 
       if (downloaded === 0) {
-        addNotification({ type: 'error', title: 'Greška', message: 'Nije moguće preuzeti slike' });
+        addNotification({ type: 'error', title: t('dashboard.shared.error'), message: t('dashboard.albumDetail.downloadFailed') });
         return;
       }
 
@@ -171,11 +173,11 @@ export default function AlbumDetailPage() {
 
       addNotification({
         type: 'success',
-        title: 'Preuzimanje završeno',
-        message: `"${album.name}.zip" sa ${downloaded} fajlova`,
+        title: t('dashboard.albumDetail.downloadDone'),
+        message: t('dashboard.albumDetail.downloadDoneMsg', { file: `${album.name}.zip`, count: downloaded }),
       });
     } catch (error: any) {
-      addNotification({ type: 'error', title: 'Greška', message: error.message });
+      addNotification({ type: 'error', title: t('dashboard.shared.error'), message: error.message });
     } finally {
       setIsDownloading(false);
     }
@@ -192,9 +194,9 @@ export default function AlbumDetailPage() {
   if (!album) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <h2 className="text-xl font-semibold">Album nije pronađen</h2>
+        <h2 className="text-xl font-semibold">{t('dashboard.albumDetail.notFound')}</h2>
         <button onClick={() => router.push('/albums')} className="btn-primary mt-4">
-          Nazad na albume
+          {t('dashboard.albumDetail.backToAlbums')}
         </button>
       </div>
     );
@@ -209,7 +211,7 @@ export default function AlbumDetailPage() {
           className="mb-3 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
           <ArrowLeft className="h-4 w-4" />
-          Albumi
+          {t('dashboard.albums.title')}
         </button>
 
         <div className="flex items-start justify-between gap-4">
@@ -221,23 +223,23 @@ export default function AlbumDetailPage() {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   className="input text-2xl font-bold"
-                  aria-label="Naziv albuma"
+                  aria-label={t('dashboard.albumDetail.nameLabel')}
                   autoFocus
                 />
                 <textarea
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                   className="input min-h-[60px] resize-none text-sm"
-                  placeholder="Opis albuma (opciono)"
-                  aria-label="Opis albuma"
+                  placeholder={t('dashboard.albumDetail.descPlaceholder')}
+                  aria-label={t('dashboard.albumDetail.descLabel')}
                   rows={2}
                 />
                 <div className="flex gap-2">
                   <button onClick={handleSaveEdit} className="btn-primary text-sm">
-                    Sačuvaj
+                    {t('dashboard.shared.save')}
                   </button>
                   <button onClick={() => setIsEditing(false)} className="btn-secondary text-sm">
-                    Otkaži
+                    {t('dashboard.shared.cancel')}
                   </button>
                 </div>
               </div>
@@ -248,7 +250,7 @@ export default function AlbumDetailPage() {
                   <p className="mt-1 text-sm text-gray-500">{album.description}</p>
                 )}
                 <p className="mt-1 text-sm text-gray-400">
-                  {files.length} {files.length === 1 ? 'fajl' : 'fajlova'}
+                  {t(files.length === 1 ? 'dashboard.shared.fileOne' : 'dashboard.shared.fileMany', { count: files.length })}
                 </p>
               </>
             )}
@@ -261,14 +263,14 @@ export default function AlbumDetailPage() {
                 onClick={handleDownloadAlbum}
                 disabled={isDownloading || files.length === 0}
                 className="btn-secondary flex items-center gap-2"
-                title="Preuzmi ceo album kao ZIP"
+                title={t('dashboard.albumDetail.downloadZipTitle')}
               >
                 {isDownloading ? (
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-500 border-t-transparent" />
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                Preuzmi
+                {t('dashboard.shared.download')}
               </button>
 
               {/* Share button with permission options */}
@@ -283,7 +285,7 @@ export default function AlbumDetailPage() {
                   ) : (
                     <Share2 className="h-4 w-4" />
                   )}
-                  Podeli
+                  {t('dashboard.shared.share')}
                 </button>
 
                 {showShareOptions && (
@@ -295,8 +297,8 @@ export default function AlbumDetailPage() {
                         className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Samo pregled</p>
-                          <p className="text-xs text-gray-500">Može da gleda i preuzme slike</p>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('dashboard.albumDetail.viewOnly')}</p>
+                          <p className="text-xs text-gray-500">{t('dashboard.albumDetail.viewOnlyDesc')}</p>
                         </div>
                       </button>
                       <button
@@ -304,8 +306,8 @@ export default function AlbumDetailPage() {
                         className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Pregled i izmena</p>
-                          <p className="text-xs text-gray-500">Može da dodaje i briše slike</p>
+                          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{t('dashboard.albumDetail.viewEdit')}</p>
+                          <p className="text-xs text-gray-500">{t('dashboard.albumDetail.viewEditDesc')}</p>
                         </div>
                       </button>
                     </div>
@@ -318,7 +320,7 @@ export default function AlbumDetailPage() {
                 <button
                   onClick={() => setShowMenu(!showMenu)}
                   className="btn-secondary p-2"
-                  aria-label="Više opcija"
+                  aria-label={t('dashboard.albumDetail.moreOptions')}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
@@ -332,14 +334,14 @@ export default function AlbumDetailPage() {
                         className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                       >
                         <Pencil className="h-4 w-4" />
-                        Izmeni album
+                        {t('dashboard.albumDetail.edit')}
                       </button>
                       <button
                         onClick={() => { setShowMenu(false); handleDelete(); }}
                         className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                       >
                         <Trash2 className="h-4 w-4" />
-                        Obriši album
+                        {t('dashboard.albumDetail.delete')}
                       </button>
                     </div>
                   </>
@@ -357,7 +359,7 @@ export default function AlbumDetailPage() {
               type="text"
               value={shareUrl}
               readOnly
-              aria-label="Link za deljenje"
+              aria-label={t('dashboard.albumDetail.shareLinkLabel')}
               className="flex-1 bg-transparent text-sm text-gray-700 outline-none dark:text-gray-300"
             />
             <button
@@ -365,7 +367,7 @@ export default function AlbumDetailPage() {
               className="flex items-center gap-1 rounded-md bg-sky-100 px-3 py-1 text-sm text-sky-700 hover:bg-sky-200 dark:bg-sky-800 dark:text-sky-300"
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? 'Kopirano!' : 'Kopiraj'}
+              {copied ? t('dashboard.shared.copied') : t('dashboard.shared.copy')}
             </button>
           </div>
         )}
@@ -377,9 +379,9 @@ export default function AlbumDetailPage() {
           <div className="mb-6 rounded-full bg-gray-100 p-6 dark:bg-gray-800">
             <Plus className="h-12 w-12 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold">Album je prazan</h2>
+          <h2 className="text-xl font-semibold">{t('dashboard.albumDetail.emptyTitle')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Dodajte slike u ovaj album iz galerije
+            {t('dashboard.albumDetail.emptyText')}
           </p>
         </div>
       ) : (
@@ -389,7 +391,7 @@ export default function AlbumDetailPage() {
       <SelectionBar
         actions={[
           {
-            label: 'Obrisi',
+            label: t('dashboard.shared.delete'),
             icon: <Trash2 className="h-4 w-4" />,
             onClick: handleBulkDelete,
             variant: 'danger',
