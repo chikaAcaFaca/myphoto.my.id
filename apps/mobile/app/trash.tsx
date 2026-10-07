@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -26,6 +27,7 @@ function daysRemaining(trashedAt: string): number {
 
 export default function TrashScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { getToken } = useAuth();
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,12 +58,12 @@ export default function TrashScreen() {
   const handleEmptyTrash = () => {
     if (files.length === 0) return;
     Alert.alert(
-      'Isprazni korpu?',
-      `Svi fajlovi (${files.length}) ce biti trajno obrisani. Ova akcija je nepovratna.`,
+      t('trash.emptyConfirmTitle'),
+      t('trash.emptyConfirmMessage', { count: files.length }),
       [
-        { text: 'Otkazi', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Isprazni', style: 'destructive', onPress: async () => {
+          text: t('trash.emptyAction'), style: 'destructive', onPress: async () => {
             try {
               const token = await getToken();
               await fetch(`${API_URL}/api/files/empty-trash`, {
@@ -70,7 +72,7 @@ export default function TrashScreen() {
               });
               setFiles([]);
             } catch (e) {
-              Alert.alert('Greska', 'Nije moguce isprazniti korpu.');
+              Alert.alert(t('common.error'), t('trash.emptyFailed'));
             }
           },
         },
@@ -94,7 +96,7 @@ export default function TrashScreen() {
       />
       {item.trashedAt && (
         <View style={styles.daysBadge}>
-          <Text style={styles.daysText}>{daysRemaining(item.trashedAt)}d</Text>
+          <Text style={styles.daysText}>{t('trash.daysLeft', { days: daysRemaining(item.trashedAt) })}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -107,16 +109,16 @@ export default function TrashScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Korpa</Text>
+          <Text style={styles.headerTitle}>{t('trash.title')}</Text>
           <TouchableOpacity onPress={handleEmptyTrash}>
-            <Text style={styles.emptyBtn}>Isprazni</Text>
+            <Text style={styles.emptyBtn}>{t('trash.emptyAction')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.notice}>
         <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
-        <Text style={styles.noticeText}>Fajlovi se automatski brisu nakon 30 dana</Text>
+        <Text style={styles.noticeText}>{t('trash.notice')}</Text>
       </View>
 
       {loading ? (
@@ -126,8 +128,8 @@ export default function TrashScreen() {
       ) : files.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="trash-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Korpa je prazna</Text>
-          <Text style={styles.emptySubtext}>Obrisani fajlovi ce se pojaviti ovde</Text>
+          <Text style={styles.emptyText}>{t('trash.empty')}</Text>
+          <Text style={styles.emptySubtext}>{t('trash.emptyHint')}</Text>
         </View>
       ) : (
         <FlatList

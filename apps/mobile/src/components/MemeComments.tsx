@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { fonts, radius } from '@/lib/theme';
+import { useT } from '@/lib/i18n';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
@@ -35,6 +36,7 @@ export function MemeComments({
   onPosted?: () => void;
 }) {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { user, getToken } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -65,10 +67,10 @@ export function MemeComments({
   }, [visible, memeId, load]);
 
   const submit = useCallback(async () => {
-    const t = text.trim();
-    if (!t || !memeId) return;
+    const body = text.trim();
+    if (!body || !memeId) return;
     if (!user) {
-      Alert.alert('Prijava', 'Prijavi se da bi komentarisao.');
+      Alert.alert(t('meme.comments.signInTitle'), t('meme.comments.signInToComment'));
       return;
     }
     setPosting(true);
@@ -77,21 +79,21 @@ export function MemeComments({
       const res = await fetch(`${API_URL}/api/meme-wall/${memeId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ text: t }),
+        body: JSON.stringify({ text: body }),
       });
       if (res.ok) {
         setText('');
         await load();
         onPosted?.();
       } else {
-        Alert.alert('Greška', 'Komentar nije poslat. Pokušaj ponovo.');
+        Alert.alert(t('common.error'), t('meme.comments.postFailed'));
       }
     } catch {
-      Alert.alert('Greška', 'Komentar nije poslat. Pokušaj ponovo.');
+      Alert.alert(t('common.error'), t('meme.comments.postFailed'));
     } finally {
       setPosting(false);
     }
-  }, [text, memeId, user, getToken, load, onPosted]);
+  }, [text, memeId, user, getToken, load, onPosted, t]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -100,11 +102,11 @@ export function MemeComments({
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={[styles.sheet, { backgroundColor: tc.bgCard }]}>
             <View style={[styles.handle, { backgroundColor: tc.border }]} />
-            <Text style={[styles.title, { color: tc.text }]}>Komentari</Text>
+            <Text style={[styles.title, { color: tc.text }]}>{t('meme.comments.title')}</Text>
             {loading ? (
               <ActivityIndicator color={tc.primary} style={{ marginVertical: 24 }} />
             ) : comments.length === 0 ? (
-              <Text style={[styles.empty, { color: tc.textMuted }]}>Budi prvi koji komentariše!</Text>
+              <Text style={[styles.empty, { color: tc.textMuted }]}>{t('meme.comments.empty')}</Text>
             ) : (
               <FlatList
                 data={comments}
@@ -127,7 +129,7 @@ export function MemeComments({
             <View style={styles.inputRow}>
               <TextInput
                 style={[styles.input, { backgroundColor: tc.bgInput, color: tc.text, borderColor: tc.border }]}
-                placeholder={user ? 'Napiši komentar…' : 'Prijavi se da komentarišeš'}
+                placeholder={user ? t('meme.comments.placeholder') : t('meme.comments.placeholderSignedOut')}
                 placeholderTextColor={tc.textMuted}
                 value={text}
                 onChangeText={setText}

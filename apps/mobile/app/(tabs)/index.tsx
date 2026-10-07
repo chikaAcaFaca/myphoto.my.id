@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  RefreshControl, Image, Dimensions, AppState,
+  RefreshControl, Image, Dimensions, AppState, type ViewToken,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,8 +9,11 @@ import { router } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import { useAuth } from '@/lib/auth-context';
 import { useSync } from '@/lib/sync-context';
+import { setViewerPhotos } from '@/lib/photo-list-store';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { VideoFlipbook } from '@/components/VideoFlipbook';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -30,6 +33,7 @@ interface LocalPhoto {
 
 export default function MyPhotoScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { getToken } = useAuth();
   const { isSyncing, syncProgress, pendingCount, startSync, settings } = useSync();
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
@@ -39,6 +43,55 @@ export default function MyPhotoScreen() {
   const [uploadedIds, setUploadedIds] = useState<Set<string>>(new Set());
   const endCursorRef = useRef<string | undefined>(undefined);
   const appState = useRef(AppState.currentState);
+
+  // Inline "moving picture" preview in the home grid. Real <Video> players
+  // here crashed the app (many live native decoders + upload I/O = OOM), so
+  // we now use VideoFlipbook — a few still frames cross-faded on a timer, with
+  // NO persistent decoder. That removes the crash entirely, so we no longer
+  // pause during sync and can afford a slightly larger visible set. The cap
+  // just bounds how many frame extractions run at once.
+  const MAX_ACTIVE_PREVIEWS = 4;
+  const [visibleVideoIds, setVisibleVideoIds] = useState<string[]>([]);
+  const resolvedVideoUrisRef = useRef<Map<string, string>>(new Map());
+  const [, setResolvedTick] = useState(0);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50, waitForInteraction: false }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    // Order-preserving so we can take the TOP N and stay deterministic as
+    // the user scrolls. (A Set lost ordering and we ended up picking
+    // arbitrary tiles to play.)
+    const ordered: string[] = [];
+    for (const v of viewableItems) {
+      if (!v.isViewable) continue;
+      const it = v.item as LocalPhoto;
+      if (it.mediaType === 'video') ordered.push(it.id);
+    }
+    setVisibleVideoIds(ordered.slice(0, MAX_ACTIVE_PREVIEWS));
+  }).current;
+
+  // Resolve file:// URIs for the (capped) visible-video set. content://
+  // (the default from MediaLibrary.getAssetsAsync) mounts on expo-av's
+  // Video but never plays — we have to go through getAssetInfoAsync.
+  // Serial (await loop) instead of fan-out so a fast scroll doesn't queue
+  // 50 parallel native IPCs.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const id of visibleVideoIds) {
+        if (cancelled) return;
+        if (resolvedVideoUrisRef.current.has(id)) continue;
+        try {
+          const info = await MediaLibrary.getAssetInfoAsync(id);
+          const file = info?.localUri || info?.uri;
+          if (file) {
+            resolvedVideoUrisRef.current.set(id, file);
+            if (!cancelled) setResolvedTick((t) => t + 1);
+          }
+        } catch { /* fall back to the static thumbnail */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [visibleVideoIds]);
 
   // Load uploaded asset IDs from AsyncStorage (sync state)
   const loadUploadedIds = useCallback(async () => {
@@ -141,54 +194,88 @@ export default function MyPhotoScreen() {
 
   const uploadedCount = photos.filter(p => p.isUploaded).length;
 
-  const renderPhoto = ({ item }: { item: LocalPhoto }) => (
-    <TouchableOpacity
-      style={styles.cell}
-      activeOpacity={0.8}
-      delayPressIn={100}
-      onPress={() => router.push({
-        pathname: '/photo-viewer',
-        params: {
-          id: item.id,
-          name: item.filename,
-          type: item.mediaType === 'video' ? 'video' : 'image',
-          isFavorite: '0',
-          localUri: item.uri,
-          // Tells the viewer whether the device id also has a cloud
-          // record — without this it can't tell device-only photos
-          // from backed-up ones and every cloud API call 404s.
-          isUploaded: item.isUploaded ? '1' : '0',
-        },
-      })}
-    >
-      <Image
-        source={{ uri: item.uri }}
-        style={styles.cellImage}
-        resizeMode="cover"
-      />
+  const renderPhoto = ({ item }: { item: LocalPhoto }) => {
+    const isVideo = item.mediaType === 'video';
+    const previewUri = isVideo ? resolvedVideoUrisRef.current.get(item.id) : undefined;
+    // Animate the tile when it's a visible video with a resolved file:// URI.
+    // No decoder is involved (frames only), so this is safe even mid-sync.
+    const shouldPreview =
+      isVideo && visibleVideoIds.includes(item.id) && !!previewUri;
 
-      {/* Cloud status badge */}
-      <View style={[styles.cloudBadge, item.isUploaded ? styles.cloudBadgeUploaded : styles.cloudBadgePending]}>
-        <Ionicons
-          name={item.isUploaded ? 'checkmark' : 'cloud-upload-outline'}
-          size={10}
-          color="#fff"
-        />
-      </View>
+    return (
+      <TouchableOpacity
+        style={styles.cell}
+        activeOpacity={0.8}
+        delayPressIn={100}
+        onPress={() => {
+          // Seed the viewer with the whole ordered grid so it can swipe
+          // left/right through every photo, starting on the tapped one.
+          setViewerPhotos(photos.map((p) => ({
+            id: p.id,
+            name: p.filename,
+            type: p.mediaType === 'video' ? 'video' : 'image',
+            localUri: p.uri,
+            isUploaded: p.isUploaded ? '1' : '0',
+          })));
+          router.push({
+            pathname: '/photo-viewer',
+            params: {
+              id: item.id,
+              name: item.filename,
+              type: isVideo ? 'video' : 'image',
+              isFavorite: '0',
+              localUri: item.uri,
+              // Tells the viewer whether the device id also has a cloud
+              // record — without this it can't tell device-only photos
+              // from backed-up ones and every cloud API call 404s.
+              isUploaded: item.isUploaded ? '1' : '0',
+            },
+          });
+        }}
+      >
+        {isVideo && previewUri ? (
+          // Frame-flipbook "moving picture" — reads as motion without a live
+          // decoder. Falls back to the device thumbnail until frames extract.
+          // Tapping still opens the full-screen viewer (with sound).
+          <VideoFlipbook
+            videoUri={previewUri}
+            fallbackUri={item.uri}
+            durationMs={item.duration ? item.duration * 1000 : undefined}
+            active={shouldPreview}
+            style={styles.cellImage}
+          />
+        ) : (
+          <Image
+            source={{ uri: item.uri }}
+            style={styles.cellImage}
+            resizeMode="cover"
+          />
+        )}
 
-      {/* Video duration badge */}
-      {item.mediaType === 'video' && (
-        <View style={styles.videoBadge}>
-          <Ionicons name="play" size={10} color="#fff" />
-          {item.duration > 0 && (
-            <Text style={styles.duration}>
-              {Math.floor(item.duration / 60)}:{String(Math.floor(item.duration % 60)).padStart(2, '0')}
-            </Text>
-          )}
+        {/* Cloud status badge */}
+        <View style={[styles.cloudBadge, item.isUploaded ? styles.cloudBadgeUploaded : styles.cloudBadgePending]}>
+          <Ionicons
+            name={item.isUploaded ? 'checkmark' : 'cloud-upload-outline'}
+            size={10}
+            color="#fff"
+          />
         </View>
-      )}
-    </TouchableOpacity>
-  );
+
+        {/* Video duration badge — keep this even while previewing so the
+            tile still reads as a video (and the duration is informative). */}
+        {isVideo && (
+          <View style={styles.videoBadge}>
+            <Ionicons name="play" size={10} color="#fff" />
+            {item.duration > 0 && (
+              <Text style={styles.duration}>
+                {Math.floor(item.duration / 60)}:{String(Math.floor(item.duration % 60)).padStart(2, '0')}
+              </Text>
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
@@ -229,14 +316,14 @@ export default function MyPhotoScreen() {
             <>
               <ActivityIndicator size="small" color="#fff" />
               <Text style={styles.syncText}>
-                Sinhronizacija... {Math.round(syncProgress)}%
+                {t('home.syncing', { percent: Math.round(syncProgress) })}
               </Text>
             </>
           ) : (
             <>
               <Ionicons name="cloud-upload-outline" size={14} color="#fff" />
               <Text style={styles.syncText}>
-                {pendingCount} fajlova čeka upload
+                {tp('home.pendingUpload', pendingCount)}
               </Text>
             </>
           )}
@@ -250,7 +337,7 @@ export default function MyPhotoScreen() {
       {!isSyncing && pendingCount === 0 && photos.length > 0 && (
         <View style={[styles.syncBar, { backgroundColor: '#22c55e' }]}>
           <Ionicons name="checkmark-circle" size={14} color="#fff" />
-          <Text style={styles.syncText}>{photos.length} slika na uređaju · {uploadedCount} u cloudu</Text>
+          <Text style={styles.syncText}>{t('home.deviceSummary', { device: photos.length, cloud: uploadedCount })}</Text>
         </View>
       )}
 
@@ -258,14 +345,14 @@ export default function MyPhotoScreen() {
       {loading && photos.length === 0 ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.emptySubtext, { color: tc.textMuted, marginTop: 12 }]}>Učitavanje slika...</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textMuted, marginTop: 12 }]}>{t('home.loadingPhotos')}</Text>
         </View>
       ) : photos.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={64} color={tc.textMuted} />
-          <Text style={[styles.emptyText, { color: tc.text }]}>Nema slika</Text>
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('home.noPhotos')}</Text>
           <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>
-            Dozvolite pristup slikama u Settings
+            {t('home.allowAccess')}
           </Text>
         </View>
       ) : (
@@ -283,6 +370,8 @@ export default function MyPhotoScreen() {
           maxToRenderPerBatch={30}
           windowSize={10}
           initialNumToRender={30}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
         />
       )}
     </SafeAreaView>

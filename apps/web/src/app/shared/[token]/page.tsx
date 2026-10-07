@@ -18,6 +18,9 @@ import {
 } from 'lucide-react';
 import { SharedGallery } from '@/components/shared/shared-gallery';
 import { SharedImage } from '@/components/shared/shared-image';
+import { getT } from '@/i18n/server';
+
+type T = Awaited<ReturnType<typeof getT>>;
 
 interface PageProps {
   params: Promise<{ token: string }>;
@@ -54,19 +57,19 @@ async function getUserReferralCode(userId: string): Promise<string | null> {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { token } = await params;
   const shared = await getSharedLink(token);
+  const t = await getT();
 
   if (!shared) {
     return {
-      title: 'Link nije pronađen - myphotomy.space',
+      title: t('pages.shared.link.meta.notFoundTitle'),
     };
   }
 
   const isAlbum = shared.type === 'album';
   const title = isAlbum
-    ? `Album "${shared.albumName}" - Deljeno sa myphotomy.space`
-    : `"${shared.fileName}" - Deljeno sa myphotomy.space`;
-  const description =
-    'Besplatan cloud storage za vaše slike. Do 15GB besplatno, privatno i sigurno. Prijavite se za 30 sekundi.';
+    ? t('pages.shared.link.meta.albumTitle', { name: shared.albumName })
+    : t('pages.shared.link.meta.fileTitle', { name: shared.fileName });
+  const description = t('pages.shared.link.meta.description');
   const coverFileId = isAlbum ? shared.coverFileId : shared.fileId;
   const ogImageUrl = coverFileId
     ? `${process.env.NEXT_PUBLIC_APP_URL || 'https://myphotomy.space'}/api/thumbnail/${coverFileId}?share=${token}`
@@ -103,9 +106,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function SharedPhotoPage({ params }: PageProps) {
   const { token } = await params;
   const shared = await getSharedLink(token);
+  const t = await getT();
 
   if (!shared) {
-    return <NotFoundPage />;
+    return <NotFoundPage t={t} />;
   }
 
   // Increment view count (fire-and-forget)
@@ -132,7 +136,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
       {/* Section A: Shared Content */}
       <section className="relative flex min-h-[70vh] flex-col items-center justify-center px-4 py-8">
         <p className="mb-4 text-sm text-gray-400">
-          Deljeno sa{' '}
+          {t('pages.shared.link.sharedVia')}{' '}
           <Link href="/" className="text-primary-400 hover:underline">
             myphotomy.space
           </Link>
@@ -148,7 +152,7 @@ export default async function SharedPhotoPage({ params }: PageProps) {
               <p className="mb-6 max-w-2xl text-center text-gray-400">{shared.albumDescription}</p>
             )}
             <p className="mb-6 text-sm text-gray-500">
-              {shared.albumFileCount || shared.albumFileIds?.length || 0} fajlova u albumu
+              {t('pages.shared.link.albumFileCount', { count: shared.albumFileCount || shared.albumFileIds?.length || 0 })}
             </p>
             <SharedGallery
               fileIds={shared.albumFileIds || []}
@@ -181,27 +185,27 @@ export default async function SharedPhotoPage({ params }: PageProps) {
         {/* Value Props */}
         <div className="mx-auto max-w-4xl px-4 py-16">
           <h2 className="mb-2 text-center text-2xl font-bold text-white md:text-3xl">
-            Čuvajte svoje slike privatno i sigurno
+            {t('pages.shared.link.heroTitle')}
           </h2>
           <p className="mb-12 text-center text-gray-400">
-            Besplatan cloud storage koji poštuje vašu privatnost
+            {t('pages.shared.link.heroSubtitle')}
           </p>
 
           <div className="grid gap-8 md:grid-cols-3">
             <ValueProp
               icon={<div className="relative"><Cloud className="h-7 w-7 text-green-400" /><Lock className="absolute -bottom-1 -right-1 h-4 w-4 text-green-300" /></div>}
-              title="Privatno i sigurno"
-              description="Vaše slike ostaju samo vaše. Ne koristimo ih za AI trening niti skeniramo za reklame."
+              title={t('pages.shared.link.valuePrivateTitle')}
+              description={t('pages.shared.link.valuePrivateDesc')}
             />
             <ValueProp
               icon={<Zap className="h-7 w-7 text-yellow-400" />}
-              title="Jednostavna prijava"
-              description="Google nalog ili email - registracija za 30 sekundi. Bez kreditne kartice."
+              title={t('pages.shared.link.valueSignupTitle')}
+              description={t('pages.shared.link.valueSignupDesc')}
             />
             <ValueProp
               icon={<Upload className="h-7 w-7 text-blue-400" />}
-              title="Upload sa bilo kog uređaja"
-              description="Telefon, tablet, računar - pristupite slikama sa bilo kog mesta."
+              title={t('pages.shared.link.valueUploadTitle')}
+              description={t('pages.shared.link.valueUploadDesc')}
             />
           </div>
         </div>
@@ -209,18 +213,18 @@ export default async function SharedPhotoPage({ params }: PageProps) {
         {/* Coming Soon */}
         <div className="mx-auto max-w-4xl px-4 pb-16">
           <h3 className="mb-6 text-center text-lg font-semibold text-gray-300">
-            Uskoro
+            {t('pages.shared.link.comingSoon')}
           </h3>
           <div className="grid gap-6 md:grid-cols-2">
             <ComingSoonCard
               icon={<FolderSync className="h-6 w-6 text-purple-400" />}
-              title="Automatska sinhronizacija foldera"
-              description="Povežite foldere na uređajima - slike se automatski čuvaju u oblaku."
+              title={t('pages.shared.link.soonSyncTitle')}
+              description={t('pages.shared.link.soonSyncDesc')}
             />
             <ComingSoonCard
               icon={<HardDrive className="h-6 w-6 text-orange-400" />}
-              title="Svi fajlovi na jednom mestu"
-              description="Slike, video, dokumenti - kao Dropbox, ali sa fokusom na privatnost."
+              title={t('pages.shared.link.soonAllFilesTitle')}
+              description={t('pages.shared.link.soonAllFilesDesc')}
             />
           </div>
         </div>
@@ -231,10 +235,10 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             href={registerUrl}
             className="inline-block rounded-xl bg-primary-500 px-10 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-primary-600 hover:shadow-xl"
           >
-            Započni besplatno - do 10GB
+            {t('pages.shared.link.cta')}
           </Link>
           <p className="mt-3 text-sm text-gray-500">
-            Bez kreditne kartice. Bez obaveza. Otkažite bilo kada.
+            {t('pages.shared.link.ctaNote')}
           </p>
         </div>
 
@@ -242,48 +246,51 @@ export default async function SharedPhotoPage({ params }: PageProps) {
         <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-3 px-4 pb-12">
           <div className="flex items-center gap-2 rounded-full bg-gray-700/50 px-4 py-2 text-xs text-gray-300">
             <Server className="h-3.5 w-3.5" />
-            EU Serveri
+            {t('pages.shared.link.badgeEuServers')}
           </div>
           <div className="flex items-center gap-2 rounded-full bg-gray-700/50 px-4 py-2 text-xs text-gray-300">
             <Shield className="h-3.5 w-3.5" />
-            GDPR Compliant
+            {t('pages.shared.link.badgeGdpr')}
           </div>
           <div className="flex items-center gap-2 rounded-full bg-gray-700/50 px-4 py-2 text-xs text-gray-300">
             <Lock className="h-3.5 w-3.5" />
-            Ne koristimo slike za AI trening
+            {t('pages.shared.link.badgeNoAi')}
           </div>
         </div>
 
         {/* Compact Pricing */}
         <div className="mx-auto max-w-4xl px-4 pb-16">
           <h3 className="mb-8 text-center text-xl font-bold text-white">
-            Fleksibilni planovi
+            {t('pages.shared.link.plansTitle')}
           </h3>
           <div className="grid gap-4 md:grid-cols-3">
             <PricingCard
               name="Free"
               price="€0"
               storage="1 GB"
-              features={['Web & mobile pristup', 'Deljenje slika']}
+              features={[t('pages.shared.link.featureWebMobile'), t('pages.shared.link.featureSharing')]}
+              perMonth={t('pages.shared.link.perMonth')}
             />
             <PricingCard
               name="Plus + AI"
               price="€4.49"
               storage="250 GB"
-              features={['Smart search', 'Face recognition', 'Family sharing']}
+              features={[t('pages.shared.link.featureSmartSearch'), t('pages.shared.link.featureFaceRecognition'), t('pages.shared.link.featureFamilySharing')]}
+              perMonth={t('pages.shared.link.perMonth')}
               highlighted
-              badge="Najpopularniji"
+              badge={t('pages.shared.link.mostPopular')}
             />
             <PricingCard
               name="Pro+ + AI"
               price="€17.99"
               storage="1.25 TB"
-              features={['Unlimited AI', 'Premium support', 'API pristup']}
+              features={[t('pages.shared.link.featureUnlimitedAi'), t('pages.shared.link.featurePremiumSupport'), t('pages.shared.link.featureApiAccess')]}
+              perMonth={t('pages.shared.link.perMonth')}
             />
           </div>
           <div className="mt-6 text-center">
             <Link href={referralCode ? `/pricing?ref=${referralCode}&via=share&st=${token}` : `/pricing?via=share&st=${token}`} className="text-sm text-primary-400 hover:underline">
-              Pogledaj sve planove &rarr;
+              {t('pages.shared.link.seeAllPlans')} &rarr;
             </Link>
           </div>
         </div>
@@ -300,19 +307,19 @@ export default async function SharedPhotoPage({ params }: PageProps) {
             />
             <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-500">
               <Link href="/pricing" className="hover:text-gray-300">
-                Cene
+                {t('pages.shared.link.footerPricing')}
               </Link>
               <Link href="/privacy" className="hover:text-gray-300">
-                Privatnost
+                {t('pages.shared.link.footerPrivacy')}
               </Link>
               <Link href="/terms" className="hover:text-gray-300">
-                Uslovi
+                {t('pages.shared.link.footerTerms')}
               </Link>
               <Link href="/contact" className="hover:text-gray-300">
-                Kontakt
+                {t('pages.shared.link.footerContact')}
               </Link>
               <Link href="/support" className="hover:text-gray-300">
-                Podrška
+                {t('pages.shared.link.footerSupport')}
               </Link>
             </div>
             <p className="text-xs text-gray-600">
@@ -325,28 +332,28 @@ export default async function SharedPhotoPage({ params }: PageProps) {
   );
 }
 
-function NotFoundPage() {
+function NotFoundPage({ t }: { t: T }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-900 px-4 text-center">
       <div className="mb-6 text-6xl">🔗</div>
       <h1 className="mb-3 text-2xl font-bold text-white">
-        Link nije pronađen
+        {t('pages.shared.link.notFoundTitle')}
       </h1>
       <p className="mb-8 max-w-md text-gray-400">
-        Ovaj link za deljenje ne postoji ili je istekao. Možda je vlasnik uklonio deljenje.
+        {t('pages.shared.link.notFoundDesc')}
       </p>
       <div className="flex flex-col gap-3 sm:flex-row">
         <Link
           href="/register"
           className="rounded-lg bg-primary-500 px-6 py-3 font-semibold text-white transition-colors hover:bg-primary-600"
         >
-          Kreiraj nalog - do 15GB besplatno
+          {t('pages.shared.link.notFoundCta')}
         </Link>
         <Link
           href="/"
           className="rounded-lg border border-gray-600 px-6 py-3 font-semibold text-gray-300 transition-colors hover:bg-gray-800"
         >
-          Početna strana
+          {t('pages.shared.link.home')}
         </Link>
       </div>
     </div>
@@ -400,6 +407,7 @@ function PricingCard({
   features,
   highlighted,
   badge,
+  perMonth,
 }: {
   name: string;
   price: string;
@@ -407,6 +415,7 @@ function PricingCard({
   features: string[];
   highlighted?: boolean;
   badge?: string;
+  perMonth: string;
 }) {
   return (
     <div
@@ -425,7 +434,7 @@ function PricingCard({
       <div className="mb-1 mt-2">
         <span className="text-2xl font-bold">{price}</span>
         <span className={highlighted ? 'text-primary-100' : 'text-gray-500'}>
-          /mes
+          {perMonth}
         </span>
       </div>
       <p

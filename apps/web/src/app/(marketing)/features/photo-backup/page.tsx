@@ -5,163 +5,102 @@ import {
   Cloud,
   Shield,
   Smartphone,
-  Check,
   Zap,
   Lock,
   Server,
 } from 'lucide-react';
+import { getLocale, getT } from '@/i18n/server';
 
-export function generateMetadata(): Metadata {
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  const locale = await getLocale();
   return {
-    title: 'Auto Backup All Your Photos & Videos | MyPhoto',
-    description:
-      'Automatic photo backup app that saves all your photos and videos to a secure cloud. Auto backup photos to cloud with original quality, no compression. EU servers, GDPR compliant.',
+    title: t('marketing.photoBackup.meta.title'),
+    description: t('marketing.photoBackup.meta.description'),
     alternates: {
       canonical: 'https://myphotomy.space/features/photo-backup',
     },
     openGraph: {
-      title: 'Auto Backup All Your Photos & Videos | MyPhoto',
-      description:
-        'Automatic photo backup app that saves all your photos and videos to a secure cloud. Original quality, EU servers.',
+      title: t('marketing.photoBackup.meta.title'),
+      description: t('marketing.photoBackup.meta.ogDescription'),
       url: 'https://myphotomy.space/features/photo-backup',
       siteName: 'MyPhoto',
       type: 'website',
-      locale: 'sr_RS',
+      locale: locale === 'sr' ? 'sr_RS' : 'en_US',
       images: [
         {
           url: 'https://myphotomy.space/og-image.png',
           width: 1200,
           height: 630,
-          alt: 'MyPhoto - Auto Photo Backup',
+          alt: t('marketing.photoBackup.meta.ogAlt'),
         },
       ],
     },
   };
 }
 
-const jsonLd = {
-  '@context': 'https://schema.org',
-  '@graph': [
-    {
-      '@type': 'SoftwareApplication',
-      name: 'MyPhoto',
-      applicationCategory: 'PhotographyApplication',
-      operatingSystem: 'Android, Web',
-      description:
-        'Automatic photo backup app with secure cloud storage. Original quality, EU servers, GDPR compliant.',
-      offers: {
-        '@type': 'Offer',
-        price: '0',
-        priceCurrency: 'USD',
-      },
-      url: 'https://myphotomy.space',
-    },
-    {
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        {
-          '@type': 'ListItem',
-          position: 1,
-          name: 'Pocetna',
-          item: 'https://myphotomy.space',
-        },
-        {
-          '@type': 'ListItem',
-          position: 2,
-          name: 'Features',
-          item: 'https://myphotomy.space/features',
-        },
-        {
-          '@type': 'ListItem',
-          position: 3,
-          name: 'Photo Backup',
-          item: 'https://myphotomy.space/features/photo-backup',
-        },
-      ],
-    },
-  ],
-};
-
 const STEPS = [
-  {
-    icon: Smartphone,
-    title: 'Instalirajte aplikaciju',
-    description:
-      'Preuzmite MyPhoto aplikaciju sa Google Play Store-a i prijavite se na svoj nalog.',
-  },
-  {
-    icon: Upload,
-    title: 'Uključite auto backup',
-    description:
-      'Jednim klikom aktivirajte automatski backup svih slika i videa sa vašeg telefona.',
-  },
-  {
-    icon: Cloud,
-    title: 'Uživajte u sigurnosti',
-    description:
-      'Vaše slike se automatski čuvaju u originalnom kvalitetu na sigurnim EU serverima.',
-  },
-];
+  { icon: Smartphone, key: 'install' },
+  { icon: Upload, key: 'enable' },
+  { icon: Cloud, key: 'enjoy' },
+] as const;
 
 const FEATURES = [
-  {
-    icon: Zap,
-    title: 'Automatski u pozadini',
-    description:
-      'Backup se pokreće automatski kada ste na Wi-Fi mreži. Bez baterijske potrošnje.',
-  },
-  {
-    icon: Shield,
-    title: 'Original kvalitet',
-    description:
-      'Svaki piksel sačuvan. Bez kompresije, bez gubitka kvaliteta. RAW podrška.',
-  },
-  {
-    icon: Lock,
-    title: 'Enkripcija u prenosu',
-    description:
-      'TLS enkripcija tokom prenosa i AES-256 enkripcija na serveru.',
-  },
-  {
-    icon: Server,
-    title: 'EU serveri',
-    description:
-      'Podaci se čuvaju isključivo na serverima u Evropskoj Uniji (Frankfurt).',
-  },
-  {
-    icon: Smartphone,
-    title: 'Višestruki uređaji',
-    description:
-      'Backup sa svih vaših uređaja na jedan nalog. Telefon, tablet, desktop.',
-  },
-  {
-    icon: Cloud,
-    title: 'Pristup svuda',
-    description:
-      'Pristupite svim slikama sa bilo kog uređaja putem web pregledača ili aplikacije.',
-  },
-];
+  { icon: Zap, key: 'background' },
+  { icon: Shield, key: 'original' },
+  { icon: Lock, key: 'encryption' },
+  { icon: Server, key: 'eu' },
+  { icon: Smartphone, key: 'devices' },
+  { icon: Cloud, key: 'anywhere' },
+] as const;
 
-const FAQS = [
-  {
-    q: 'Da li backup troši puno baterije?',
-    a: 'Ne. MyPhoto koristi optimizovane pozadinske procese koji minimalno utiču na bateriju. Backup se podrazumevano pokreće samo na Wi-Fi mreži.',
-  },
-  {
-    q: 'Da li se slike kompresuju prilikom backup-a?',
-    a: 'Ne. Sve slike i videi se čuvaju u originalnom kvalitetu, bez ikakve kompresije ili smanjenja rezolucije.',
-  },
-  {
-    q: 'Šta se dešava ako izgubim telefon?',
-    a: 'Sve vaše slike su sigurno sačuvane u cloud-u. Prijavite se na novi uređaj i pristupite svim uspomenama.',
-  },
-  {
-    q: 'Koliko prostora dobijem besplatno?',
-    a: 'Besplatni plan počinje sa 1GB, a instalacijom aplikacije i uključivanjem backup-a dobijate ukupno 5GB. Pozivanjem prijatelja možete dobiti do 15GB besplatno.',
-  },
-];
+const FAQS = ['battery', 'compression', 'lostPhone', 'freeSpace'] as const;
 
-export default function PhotoBackupPage() {
+export default async function PhotoBackupPage() {
+  const t = await getT();
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'SoftwareApplication',
+        name: 'MyPhoto',
+        applicationCategory: 'PhotographyApplication',
+        operatingSystem: 'Android, Web',
+        description: t('marketing.photoBackup.meta.jsonLdDescription'),
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+        },
+        url: 'https://myphotomy.space',
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: t('marketing.shared.breadcrumbHome'),
+            item: 'https://myphotomy.space',
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: t('marketing.shared.breadcrumbFeatures'),
+            item: 'https://myphotomy.space/features',
+          },
+          {
+            '@type': 'ListItem',
+            position: 3,
+            name: t('marketing.photoBackup.meta.breadcrumb'),
+            item: 'https://myphotomy.space/features/photo-backup',
+          },
+        ],
+      },
+    ],
+  };
+
   return (
     <>
       <script
@@ -176,18 +115,17 @@ export default function PhotoBackupPage() {
             <Upload className="h-8 w-8 text-primary-600 dark:text-primary-400" />
           </div>
           <h1 className="mb-4 text-4xl font-bold text-gray-900 dark:text-white md:text-5xl">
-            Auto Backup All Your Photos &amp; Videos
+            {t('marketing.photoBackup.hero.title')}
           </h1>
           <p className="mx-auto mb-8 max-w-xl text-lg text-gray-600 dark:text-gray-300">
-            Nikad više ne brinite o izgubljenim slikama. MyPhoto automatski
-            čuva svaki momenat u originalnom kvalitetu na sigurnim EU serverima.
+            {t('marketing.photoBackup.hero.subtitle')}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
               href="/register"
               className="rounded-lg bg-primary-600 px-6 py-3 font-semibold text-white hover:bg-primary-700"
             >
-              Započnite besplatno
+              {t('marketing.photoBackup.hero.cta')}
             </Link>
             <a
               href="https://play.google.com/store"
@@ -205,15 +143,15 @@ export default function PhotoBackupPage() {
       {/* How it works */}
       <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <h2 className="mb-4 text-center text-3xl font-bold text-gray-900 dark:text-white">
-          Kako funkcioniše?
+          {t('marketing.photoBackup.how.title')}
         </h2>
         <p className="mb-12 text-center text-gray-600 dark:text-gray-300">
-          Tri jednostavna koraka do potpune sigurnosti vaših uspomena
+          {t('marketing.photoBackup.how.subtitle')}
         </p>
         <div className="grid gap-8 md:grid-cols-3">
           {STEPS.map((step, i) => (
             <article
-              key={step.title}
+              key={step.key}
               className="relative rounded-2xl bg-white p-6 text-center shadow-lg dark:bg-gray-800"
             >
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-xl font-bold text-white">
@@ -221,10 +159,10 @@ export default function PhotoBackupPage() {
               </div>
               <step.icon className="mx-auto mb-3 h-8 w-8 text-primary-500" />
               <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-                {step.title}
+                {t(`marketing.photoBackup.steps.${step.key}.title`)}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                {step.description}
+                {t(`marketing.photoBackup.steps.${step.key}.description`)}
               </p>
             </article>
           ))}
@@ -235,20 +173,20 @@ export default function PhotoBackupPage() {
       <section className="bg-gray-50 px-4 py-20 dark:bg-gray-900/50 sm:px-6">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-12 text-center text-3xl font-bold text-gray-900 dark:text-white">
-            Zašto izabrati MyPhoto za backup?
+            {t('marketing.photoBackup.whyTitle')}
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map((f) => (
               <article
-                key={f.title}
+                key={f.key}
                 className="rounded-2xl bg-white p-6 shadow-lg dark:bg-gray-800"
               >
                 <f.icon className="mb-3 h-8 w-8 text-primary-500" />
                 <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-                  {f.title}
+                  {t(`marketing.photoBackup.features.${f.key}.title`)}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {f.description}
+                  {t(`marketing.photoBackup.features.${f.key}.description`)}
                 </p>
               </article>
             ))}
@@ -261,11 +199,10 @@ export default function PhotoBackupPage() {
         <div className="rounded-2xl bg-gradient-to-r from-primary-500 to-primary-600 p-8 text-center text-white md:p-12">
           <Smartphone className="mx-auto mb-4 h-12 w-12" />
           <h2 className="mb-2 text-3xl font-bold">
-            Preuzmite Android aplikaciju
+            {t('marketing.photoBackup.android.title')}
           </h2>
           <p className="mx-auto mb-6 max-w-lg text-primary-100">
-            Instalirajte MyPhoto na vaš Android telefon i aktivirajte automatski
-            backup za sve vaše slike i video zapise.
+            {t('marketing.photoBackup.android.text')}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <a
@@ -274,13 +211,13 @@ export default function PhotoBackupPage() {
               rel="noopener noreferrer"
               className="rounded-lg bg-white px-6 py-3 font-semibold text-primary-600 hover:bg-primary-50"
             >
-              Preuzmite sa Google Play
+              {t('marketing.photoBackup.android.play')}
             </a>
             <Link
               href="/register"
               className="rounded-lg border-2 border-white px-6 py-3 font-semibold text-white hover:bg-white/10"
             >
-              Ili započnite na webu
+              {t('marketing.photoBackup.android.web')}
             </Link>
           </div>
         </div>
@@ -289,22 +226,22 @@ export default function PhotoBackupPage() {
       {/* FAQ */}
       <section className="mx-auto max-w-3xl px-4 pb-20 sm:px-6">
         <h2 className="mb-8 text-center text-3xl font-bold text-gray-900 dark:text-white">
-          Često postavljana pitanja
+          {t('marketing.shared.faqTitle')}
         </h2>
         <div className="space-y-4">
           {FAQS.map((faq) => (
             <details
-              key={faq.q}
+              key={faq}
               className="group rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800"
             >
               <summary className="flex cursor-pointer items-center justify-between font-medium text-gray-900 dark:text-white">
-                {faq.q}
+                {t(`marketing.photoBackup.faqs.${faq}.q`)}
                 <span className="ml-4 text-gray-400 transition-transform group-open:rotate-45">
                   +
                 </span>
               </summary>
               <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
-                {faq.a}
+                {t(`marketing.photoBackup.faqs.${faq}.a`)}
               </p>
             </details>
           ))}
@@ -314,16 +251,16 @@ export default function PhotoBackupPage() {
       {/* Final CTA */}
       <section className="bg-gray-50 px-4 py-16 text-center dark:bg-gray-900/50">
         <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">
-          Sačuvajte vaše uspomene danas
+          {t('marketing.photoBackup.final.title')}
         </h2>
         <p className="mx-auto mb-6 max-w-md text-gray-600 dark:text-gray-300">
-          Do 15GB besplatno. Bez kreditne kartice. Bez obaveza.
+          {t('marketing.shared.freeNoCard')}
         </p>
         <Link
           href="/register"
           className="inline-block rounded-lg bg-primary-600 px-6 py-3 font-semibold text-white hover:bg-primary-700"
         >
-          Započnite besplatno
+          {t('marketing.photoBackup.final.cta')}
         </Link>
       </section>
     </>

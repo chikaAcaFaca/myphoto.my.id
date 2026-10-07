@@ -88,6 +88,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     success: true,
     bonusBytes: REFERRAL_BONUS,
-    message: 'Referral registrovan. Bonus se aktivira nakon što uploadujete 100MB sadržaja.',
+    message: 'Preporuka je zabeležena. Prijatelj koji vas je pozvao dobija 250 MB kada uploadujete prvih 100 MB.',
   });
 }

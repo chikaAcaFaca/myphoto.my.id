@@ -1,0 +1,32 @@
+const pricing = {
+  yourPlan: 'Your plan',
+  usedOf: '{used} of {limit} used',
+  manageOnWeb:
+    'You manage your plan and subscription on our website, signed in with the same account. Changes show up here automatically.',
+  choosePlan: 'Choose a plan',
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+  twoMonthsFree: '2 months free',
+  noAiTraining: 'No AI training',
+  euServers: 'EU servers',
+  mostPopular: 'MOST POPULAR',
+  yourPlanBadge: 'YOUR PLAN',
+  aiPerDay: '{count} AI/day',
+  noAi: '0 AI',
+  manualNone: '0 manual',
+  manualUnlimited: 'unlimited manual',
+  perMonthShort: '{count}/mo',
+  free: 'Free',
+  perMonth: '/mo',
+  select: 'Choose {name}',
+  allPlansInclude: 'All plans include',
+  featureBackup: 'Photo and video auto-backup',
+  featureAiSearch: 'AI search and auto-tagging',
+  featureOriginal: 'Original quality, no compression',
+  featureSharing: 'Album and folder sharing',
+  featureMemes: 'Meme Creator and MemeWall',
+  featureEu: 'EU servers, GDPR protection',
+  featureCancel: 'Cancel anytime',
+};
+
+export default pricing;

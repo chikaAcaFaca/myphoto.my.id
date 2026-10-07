@@ -9,6 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -19,6 +20,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function PersonDetailScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
   const { getToken } = useAuth();
   const [photos, setPhotos] = useState<FileMetadata[]>([]);
@@ -71,7 +73,7 @@ export default function PersonDetailScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{name || 'Osoba'}</Text>
+          <Text style={styles.headerTitle}>{name || t('people.person')}</Text>
           <View style={{ width: 32 }} />
         </View>
       </View>
@@ -83,7 +85,7 @@ export default function PersonDetailScreen() {
       ) : photos.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Nema slika</Text>
+          <Text style={styles.emptyText}>{t('people.noPhotos')}</Text>
         </View>
       ) : (
         <FlatList
@@ -95,7 +97,7 @@ export default function PersonDetailScreen() {
           contentContainerStyle={{ paddingBottom: 80 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListHeaderComponent={
-            <Text style={styles.countText}>{photos.length} slika</Text>
+            <Text style={styles.countText}>{tp('common.photos', photos.length)}</Text>
           }
         />
       )}

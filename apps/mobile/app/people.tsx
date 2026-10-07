@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -26,6 +27,7 @@ interface Person {
 
 export default function PeopleScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { getToken } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,7 +73,7 @@ export default function PeopleScreen() {
       setRenaming(null);
       setNewName('');
     } catch (e) {
-      Alert.alert('Greska', 'Preimenovanje nije uspelo.');
+      Alert.alert(t('common.error'), t('people.renameFailed'));
     }
   };
 
@@ -95,8 +97,8 @@ export default function PeopleScreen() {
           <Ionicons name="person" size={32} color={colors.textMuted} />
         )}
       </View>
-      <Text style={styles.personName} numberOfLines={1}>{item.name || 'Nepoznato'}</Text>
-      <Text style={styles.personCount}>{item.photoCount} slika</Text>
+      <Text style={styles.personName} numberOfLines={1}>{item.name || t('people.unknown')}</Text>
+      <Text style={styles.personCount}>{tp('common.photos', item.photoCount)}</Text>
     </TouchableOpacity>
   );
 
@@ -107,7 +109,7 @@ export default function PeopleScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Ljudi</Text>
+          <Text style={styles.headerTitle}>{t('people.title')}</Text>
           <View style={{ width: 32 }} />
         </View>
       </View>
@@ -119,8 +121,8 @@ export default function PeopleScreen() {
       ) : people.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="people-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Nema prepoznatih lica</Text>
-          <Text style={styles.emptySubtext}>Lica ce biti automatski prepoznata iz vasih slika</Text>
+          <Text style={styles.emptyText}>{t('people.emptyTitle')}</Text>
+          <Text style={styles.emptySubtext}>{t('people.emptySubtitle')}</Text>
         </View>
       ) : (
         <FlatList
@@ -138,21 +140,21 @@ export default function PeopleScreen() {
       <Modal visible={!!renaming} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: tc.bgCard }]}>
-            <Text style={styles.modalTitle}>Preimenuj osobu</Text>
+            <Text style={styles.modalTitle}>{t('people.renameTitle')}</Text>
             <TextInput
               style={[styles.modalInput, { borderColor: tc.border, color: tc.text }]}
               value={newName}
               onChangeText={setNewName}
-              placeholder="Ime osobe"
+              placeholder={t('people.namePlaceholder')}
               placeholderTextColor={colors.textMuted}
               autoFocus
             />
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={() => setRenaming(null)} style={styles.modalCancelBtn}>
-                <Text style={styles.modalCancelText}>Otkazi</Text>
+                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={handleRename} style={styles.modalSaveBtn}>
-                <Text style={styles.modalSaveText}>Sacuvaj</Text>
+                <Text style={styles.modalSaveText}>{t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </View>

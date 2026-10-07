@@ -16,6 +16,7 @@ import { SavingsBadge } from '@/components/dashboard/savings-badge';
 import { AddToAlbumModal } from '@/components/modals/add-to-album-modal';
 import { ALL_SUPPORTED_TYPES } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/client';
 
 export default function PhotosPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useFiles({
@@ -30,6 +31,7 @@ export default function PhotosPage() {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showAlbumModal, setShowAlbumModal] = useState(false);
+  const t = useT();
   const [uploadQueue, setUploadQueue] = useState<{ name: string; status: 'uploading' | 'done' | 'error' }[]>([]);
 
   const handleBulkShare = async () => {
@@ -47,20 +49,20 @@ export default function PhotosPage() {
           }
           try {
             await navigator.clipboard.writeText(fullUrl);
-            addNotification({ type: 'success', title: 'Link kopiran!' });
+            addNotification({ type: 'success', title: t('dashboard.shared.linkCopied') });
           } catch {
-            addNotification({ type: 'error', title: 'Kopiranje nije uspelo' });
+            addNotification({ type: 'error', title: t('dashboard.shared.copyFailed') });
           }
         },
         onError: () => {
-          addNotification({ type: 'error', title: 'Greška pri deljenju' });
+          addNotification({ type: 'error', title: t('dashboard.shared.shareError') });
         },
       });
     } else {
       addNotification({
         type: 'info',
-        title: 'Saveti',
-        message: 'Za deljenje više fajlova, dodajte ih u album pa podelite album.',
+        title: t('dashboard.photos.tipTitle'),
+        message: t('dashboard.photos.tipShareMultiple'),
       });
     }
   };
@@ -71,8 +73,8 @@ export default function PhotosPage() {
       onSuccess: () => {
         addNotification({
           type: 'success',
-          title: 'Premesteno u korpu',
-          message: `${ids.length} fajlova premesteno u korpu`,
+          title: t('dashboard.shared.movedToTrash'),
+          message: t('dashboard.shared.movedToTrashMsg', { count: ids.length }),
         });
         deselectAll();
       },
@@ -223,10 +225,10 @@ export default function PhotosPage() {
             <div className="flex-1">
               <p className="text-sm font-medium text-gray-900 dark:text-white">
                 {uploadQueue.some((e) => e.status === 'uploading')
-                  ? `Upload ${uploadQueue.filter((e) => e.status === 'done').length}/${uploadQueue.length}...`
+                  ? t('dashboard.photos.uploadProgress', { done: uploadQueue.filter((e) => e.status === 'done').length, total: uploadQueue.length })
                   : uploadQueue.every((e) => e.status === 'done')
-                    ? `${uploadQueue.length} ${uploadQueue.length === 1 ? 'fajl uploadovan' : 'fajlova uploadovano'}`
-                    : `${uploadQueue.filter((e) => e.status === 'error').length} neuspešno`
+                    ? t(uploadQueue.length === 1 ? 'dashboard.photos.uploadedOne' : 'dashboard.photos.uploadedMany', { count: uploadQueue.length })
+                    : t('dashboard.photos.uploadFailed', { count: uploadQueue.filter((e) => e.status === 'error').length })
                 }
               </p>
               {uploadQueue.some((e) => e.status === 'uploading') && (
@@ -247,7 +249,7 @@ export default function PhotosPage() {
                 onClick={() => setUploadQueue([])}
                 className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               >
-                Zatvori
+                {t('dashboard.shared.close')}
               </button>
             )}
           </div>
@@ -257,9 +259,9 @@ export default function PhotosPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Slike</h1>
+          <h1 className="text-2xl font-bold">{t('dashboard.photos.title')}</h1>
           <p className="text-sm text-gray-500">
-            {files.length} {files.length === 1 ? 'slika' : 'slika'}
+            {t(files.length === 1 ? 'dashboard.photos.countOne' : 'dashboard.photos.countMany', { count: files.length })}
           </p>
         </div>
 
@@ -269,12 +271,13 @@ export default function PhotosPage() {
             className="btn-primary"
           >
             <Upload className="mr-2 h-4 w-4" />
-            Upload
+            {t('dashboard.photos.upload')}
           </button>
 
           <div className="flex rounded-lg border border-gray-200 p-1 dark:border-gray-700">
             <button
               onClick={() => setViewMode('grid')}
+              aria-label={t('dashboard.photos.gridView')}
               className={cn(
                 'rounded-md p-1.5',
                 viewMode === 'grid'
@@ -286,6 +289,7 @@ export default function PhotosPage() {
             </button>
             <button
               onClick={() => setViewMode('list')}
+              aria-label={t('dashboard.photos.listView')}
               className={cn(
                 'rounded-md p-1.5',
                 viewMode === 'list'
@@ -304,8 +308,8 @@ export default function PhotosPage() {
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-primary-500/10 backdrop-blur-sm">
           <div className="rounded-2xl bg-white p-8 text-center shadow-2xl dark:bg-gray-800">
             <Upload className="mx-auto mb-4 h-12 w-12 text-primary-500" />
-            <p className="text-lg font-medium">Prevucite fajlove za upload</p>
-            <p className="text-sm text-gray-500">Otpustite da započnete upload</p>
+            <p className="text-lg font-medium">{t('dashboard.photos.dropTitle')}</p>
+            <p className="text-sm text-gray-500">{t('dashboard.photos.dropHint')}</p>
           </div>
         </div>
       )}
@@ -323,7 +327,7 @@ export default function PhotosPage() {
               onClick={() => fetchNextPage()}
               className="btn-secondary"
             >
-              Učitaj još
+              {t('dashboard.shared.loadMore')}
             </button>
           )}
         </div>
@@ -340,32 +344,32 @@ export default function PhotosPage() {
           <div className="mb-6 rounded-full bg-primary-50 p-6 dark:bg-primary-900/20">
             <Upload className="h-12 w-12 text-primary-500" />
           </div>
-          <h2 className="text-xl font-semibold">Nema slika</h2>
+          <h2 className="text-xl font-semibold">{t('dashboard.photos.emptyTitle')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Prevucite slike ovde ili kliknite dugme Upload. Vaše uspomene vas čekaju!
+            {t('dashboard.photos.emptyText')}
           </p>
           <button onClick={() => fileInputRef.current?.click()} className="btn-primary mt-6">
             <Upload className="mr-2 h-4 w-4" />
-            Upload slika
+            {t('dashboard.photos.uploadPhotos')}
           </button>
         </motion.div>
       )}
       <SelectionBar
         actions={[
           {
-            label: 'Podeli',
+            label: t('dashboard.shared.share'),
             icon: <Share2 className="h-4 w-4" />,
             onClick: handleBulkShare,
             disabled: isSharing,
             variant: 'primary',
           },
           {
-            label: 'Album',
+            label: t('dashboard.shared.album'),
             icon: <FolderPlus className="h-4 w-4" />,
             onClick: () => setShowAlbumModal(true),
           },
           {
-            label: 'Obriši',
+            label: t('dashboard.shared.delete'),
             icon: <Trash2 className="h-4 w-4" />,
             onClick: handleBulkDelete,
             variant: 'danger',

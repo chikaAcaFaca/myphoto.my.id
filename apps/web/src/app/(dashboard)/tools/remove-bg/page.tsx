@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Download, Loader2, Upload, Eraser, Undo2 } from 'lucide-react';
 import { useUIStore } from '@/lib/stores';
+import { useT } from '@/i18n/client';
 
 export default function RemoveBgPage() {
   return (
@@ -17,6 +18,7 @@ function RemoveBgContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { addNotification } = useUIStore();
+  const t = useT();
   const fileId = searchParams.get('fileId');
 
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
@@ -40,7 +42,7 @@ function RemoveBgContent() {
   const loadLibrary = useCallback(async () => {
     if (removeBackgroundRef.current) return removeBackgroundRef.current;
 
-    setProgressText('Učitavam AI biblioteku...');
+    setProgressText(t('myspace.removeBg.progress.loadingLibrary'));
     setProgress(5);
 
     try {
@@ -54,20 +56,20 @@ function RemoveBgContent() {
       return removeBackgroundRef.current;
     } catch (err) {
       console.error('Failed to load background removal library:', err);
-      throw new Error('Ne mogu učitati AI biblioteku. Proverite internet konekciju.');
+      throw new Error(t('myspace.removeBg.toast.libraryLoadError'));
     }
-  }, []);
+  }, [t]);
 
   const processWithAI = useCallback(async (imageSource: string | File) => {
     setIsProcessing(true);
     setProgress(0);
-    setProgressText('Priprema...');
+    setProgressText(t('myspace.removeBg.progress.preparing'));
     setResultUrl(null);
 
     try {
       const removeBackground = await loadLibrary();
 
-      setProgressText('Učitavam sliku...');
+      setProgressText(t('myspace.removeBg.progress.loadingImage'));
       setProgress(10);
 
       // Convert URL to blob if needed
@@ -79,7 +81,7 @@ function RemoveBgContent() {
         input = imageSource;
       }
 
-      setProgressText('AI analizira sliku...');
+      setProgressText(t('myspace.removeBg.progress.analyzing'));
       setProgress(20);
 
       // Run AI background removal
@@ -87,17 +89,17 @@ function RemoveBgContent() {
         progress: (key: string, current: number, total: number) => {
           const pct = total > 0 ? Math.round((current / total) * 100) : 0;
           if (key.includes('fetch') || key.includes('download')) {
-            setProgressText('Preuzimam AI model...');
+            setProgressText(t('myspace.removeBg.progress.downloadingModel'));
             setProgress(10 + Math.round(pct * 0.3));
           } else if (key.includes('compute') || key.includes('inference')) {
-            setProgressText('AI prepoznaje objekte i uklanja pozadinu...');
+            setProgressText(t('myspace.removeBg.progress.removing'));
             setProgress(40 + Math.round(pct * 0.55));
           }
         },
       });
 
       setProgress(98);
-      setProgressText('Završavam...');
+      setProgressText(t('myspace.removeBg.progress.finishing'));
 
       const url = URL.createObjectURL(resultBlob);
       setResultUrl(url);
@@ -106,19 +108,19 @@ function RemoveBgContent() {
       console.error('Background removal error:', err);
       addNotification({
         type: 'error',
-        title: 'Greška',
-        message: err.message || 'AI obrada nije uspela',
+        title: t('myspace.removeBg.toast.error'),
+        message: err.message || t('myspace.removeBg.toast.processingFailed'),
       });
     } finally {
       setIsProcessing(false);
     }
-  }, [addNotification, loadLibrary]);
+  }, [addNotification, loadLibrary, t]);
 
   const handleDownload = () => {
     if (!resultUrl) return;
     const link = document.createElement('a');
     link.href = resultUrl;
-    link.download = 'bez-pozadine.png';
+    link.download = t('myspace.removeBg.downloadFileName');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -128,7 +130,7 @@ function RemoveBgContent() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      addNotification({ type: 'error', title: 'Samo slike su podržane' });
+      addNotification({ type: 'error', title: t('myspace.removeBg.toast.onlyImages') });
       return;
     }
     const url = URL.createObjectURL(file);
@@ -144,16 +146,16 @@ function RemoveBgContent() {
         className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
       >
         <ArrowLeft className="h-4 w-4" />
-        Nazad
+        {t('myspace.removeBg.back')}
       </button>
 
       <div className="mb-6">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <Eraser className="h-6 w-6 text-primary-500" />
-          Ukloni pozadinu
+          {t('myspace.removeBg.title')}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          AI automatski prepoznaje osobe i objekte i uklanja pozadinu
+          {t('myspace.removeBg.subtitle')}
         </p>
       </div>
 
@@ -164,8 +166,8 @@ function RemoveBgContent() {
           className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-12 hover:border-primary-400 dark:border-gray-600"
         >
           <Upload className="mb-4 h-12 w-12 text-gray-400" />
-          <p className="text-lg font-medium">Prevucite sliku ovde</p>
-          <p className="mt-1 text-sm text-gray-500">ili kliknite za upload</p>
+          <p className="text-lg font-medium">{t('myspace.removeBg.dropHere')}</p>
+          <p className="mt-1 text-sm text-gray-500">{t('myspace.removeBg.orClick')}</p>
           <input
             ref={fileInputRef}
             type="file"
@@ -192,8 +194,7 @@ function RemoveBgContent() {
           </div>
           {progress < 40 && (
             <p className="mt-4 max-w-md text-center text-xs text-gray-400">
-              Prvo učitavanje AI modela može potrajati 30-60 sekundi.
-              Naredna korišćenja će biti brža jer se model kešira u pregledaču.
+              {t('myspace.removeBg.firstLoadHint')}
             </p>
           )}
         </div>
@@ -205,15 +206,15 @@ function RemoveBgContent() {
           <div className="grid gap-4 md:grid-cols-2">
             {/* Original */}
             <div>
-              <p className="mb-2 text-sm font-medium text-gray-500">Original</p>
+              <p className="mb-2 text-sm font-medium text-gray-500">{t('myspace.removeBg.original')}</p>
               <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={originalUrl!} alt="Original" className="w-full" />
+                <img src={originalUrl!} alt={t('myspace.removeBg.original')} className="w-full" />
               </div>
             </div>
             {/* Result */}
             <div>
-              <p className="mb-2 text-sm font-medium text-gray-500">Bez pozadine</p>
+              <p className="mb-2 text-sm font-medium text-gray-500">{t('myspace.removeBg.noBackground')}</p>
               <div
                 className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700"
                 style={{
@@ -222,7 +223,7 @@ function RemoveBgContent() {
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={resultUrl} alt="Bez pozadine" className="w-full" />
+                <img src={resultUrl} alt={t('myspace.removeBg.noBackground')} className="w-full" />
               </div>
             </div>
           </div>
@@ -231,21 +232,21 @@ function RemoveBgContent() {
           <div className="mt-6 flex flex-wrap gap-3">
             <button onClick={handleDownload} className="btn-primary">
               <Download className="mr-2 h-4 w-4" />
-              Preuzmi PNG
+              {t('myspace.removeBg.downloadPng')}
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               className="btn-secondary"
             >
               <Upload className="mr-2 h-4 w-4" />
-              Nova slika
+              {t('myspace.removeBg.newImage')}
             </button>
             <button
               onClick={() => originalUrl && processWithAI(originalUrl)}
               className="btn-secondary"
             >
               <Undo2 className="mr-2 h-4 w-4" />
-              Ponovi
+              {t('myspace.removeBg.retry')}
             </button>
             <input
               ref={fileInputRef}

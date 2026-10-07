@@ -29,6 +29,7 @@ import {
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
+import { useI18n, useT } from '@/i18n/client';
 
 interface SharedFile {
   id: string;
@@ -90,8 +91,8 @@ const formatSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 };
 
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleDateString('sr-Latn', {
+const formatDate = (date: string, intlLocale: string) => {
+  return new Date(date).toLocaleDateString(intlLocale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -106,6 +107,7 @@ export default function SharedDiskPage() {
   const token = params.token as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, isInitialized } = useAuthStore();
+  const { t, intlLocale } = useI18n();
 
   const [data, setData] = useState<BrowseData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,11 +146,11 @@ export default function SharedDiskPage() {
       setData(result);
       if (result.currentFolderId) setCurrentFolderId(result.currentFolderId);
     } catch (err: any) {
-      setError(err.message || 'Greska pri ucitavanju');
+      setError(err.message || t('pages.shared.disk.errorLoading'));
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, t]);
 
   // Fetch on mount and when auth state changes
   useEffect(() => {
@@ -194,7 +196,7 @@ export default function SharedDiskPage() {
       a.click();
       document.body.removeChild(a);
     } catch {
-      alert('Greska pri preuzimanju fajla');
+      alert(t('pages.shared.disk.errorDownload'));
     } finally {
       setDownloading(null);
     }
@@ -226,7 +228,7 @@ export default function SharedDiskPage() {
       const { downloadUrl } = await res.json();
       setPreviewUrl(downloadUrl);
     } catch {
-      alert('Ne mogu da otvorim fajl');
+      alert(t('pages.shared.disk.errorOpen'));
       setPreviewFile(null);
     } finally {
       setPreviewLoading(false);
@@ -300,7 +302,7 @@ export default function SharedDiskPage() {
       // Refresh
       fetchData(currentFolderId || undefined);
     } catch (err: any) {
-      alert(err.message || 'Upload greska');
+      alert(err.message || t('pages.shared.disk.errorUpload'));
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -325,20 +327,20 @@ export default function SharedDiskPage() {
           <Lock className="h-12 w-12 text-red-400" />
         </div>
         <h1 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
-          {error === 'Share not found' ? 'Link nije pronadjen' :
-           error === 'Share link expired' ? 'Link je istekao' :
-           'Greska'}
+          {error === 'Share not found' ? t('pages.shared.disk.notFoundTitle') :
+           error === 'Share link expired' ? t('pages.shared.disk.expiredTitle') :
+           t('pages.shared.disk.errorTitle')}
         </h1>
         <p className="mb-8 max-w-md text-gray-500">
-          {error === 'Share not found' ? 'Ovaj link za deljenje ne postoji ili je uklonjen.' :
-           error === 'Share link expired' ? 'Vlasnik je ukinuo deljenje ovog sadrzaja.' :
+          {error === 'Share not found' ? t('pages.shared.disk.notFoundDesc') :
+           error === 'Share link expired' ? t('pages.shared.disk.expiredDesc') :
            error}
         </p>
         <Link
           href="/"
           className="rounded-lg bg-primary-500 px-6 py-3 font-semibold text-white hover:bg-primary-600"
         >
-          Pocetna strana
+          {t('pages.shared.disk.home')}
         </Link>
       </div>
     );
@@ -366,13 +368,13 @@ export default function SharedDiskPage() {
                 href={loginUrl}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
-                Prijavi se
+                {t('pages.shared.disk.signIn')}
               </Link>
               <Link
                 href={registerUrl}
                 className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
               >
-                Registruj se
+                {t('pages.shared.disk.signUp')}
               </Link>
             </div>
           </div>
@@ -391,7 +393,7 @@ export default function SharedDiskPage() {
 
           {data.ownerName && (
             <p className="mb-2 text-sm text-gray-500">
-              <span className="font-medium text-gray-700 dark:text-gray-300">{data.ownerName}</span> deli sa vama:
+              <span className="font-medium text-gray-700 dark:text-gray-300">{data.ownerName}</span> {t('pages.shared.disk.sharesWithYou')}
             </p>
           )}
 
@@ -400,13 +402,13 @@ export default function SharedDiskPage() {
           </h1>
 
           <p className="mb-2 text-gray-500">
-            {data.type === 'folder' ? 'Deljeni folder' : 'Deljeni fajl'}
+            {data.type === 'folder' ? t('pages.shared.disk.sharedFolder') : t('pages.shared.disk.sharedFile')}
             {' · '}
-            {data.permission === 'readwrite' ? 'Citanje i pisanje' : 'Samo citanje'}
+            {data.permission === 'readwrite' ? t('pages.shared.disk.readWrite') : t('pages.shared.disk.readOnly')}
           </p>
 
           <p className="mb-8 text-sm text-gray-400">
-            Registrujte se da pristupite sadrzaju i dobijete besplatan prostor na cloud-u.
+            {t('pages.shared.disk.signUpPrompt')}
           </p>
 
           {/* CTA Buttons */}
@@ -416,13 +418,13 @@ export default function SharedDiskPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary-500 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:bg-primary-600 hover:shadow-xl sm:w-auto"
             >
               <Gift className="h-5 w-5" />
-              Registruj se besplatno
+              {t('pages.shared.disk.signUpFree')}
             </Link>
             <Link
               href={loginUrl}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 px-8 py-4 text-lg font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700 sm:w-auto"
             >
-              Vec imam nalog
+              {t('pages.shared.disk.haveAccount')}
             </Link>
           </div>
 
@@ -430,23 +432,21 @@ export default function SharedDiskPage() {
           <div className="mb-12 rounded-2xl border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/20">
             <div className="mb-3 flex items-center justify-center gap-2 text-green-700 dark:text-green-400">
               <Gift className="h-5 w-5" />
-              <span className="font-semibold">Dobijate odmah besplatno:</span>
+              <span className="font-semibold">{t('pages.shared.disk.bonusTitle')}</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-green-700 shadow-sm dark:bg-gray-800 dark:text-green-400">
                 <Cloud className="h-4 w-4" />
-                1 GB cloud prostora
+                {t('pages.shared.disk.bonusStorage')}
               </div>
               <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-green-700 shadow-sm dark:bg-gray-800 dark:text-green-400">
                 <Users className="h-4 w-4" />
-                Pristup deljenom {data.type === 'folder' ? 'folderu' : 'fajlu'}
+                {data.type === 'folder' ? t('pages.shared.disk.bonusAccessFolder') : t('pages.shared.disk.bonusAccessFile')}
               </div>
-              {data.referralCode && (
-                <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-green-700 shadow-sm dark:bg-gray-800 dark:text-green-400">
-                  <Gift className="h-4 w-4" />
-                  +1 GB bonus za vas i prijatelja
-                </div>
-              )}
+              <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-green-700 shadow-sm dark:bg-gray-800 dark:text-green-400">
+                <Gift className="h-4 w-4" />
+                {t('pages.shared.disk.bonusReferral')}
+              </div>
             </div>
           </div>
 
@@ -454,18 +454,18 @@ export default function SharedDiskPage() {
           <div className="grid gap-6 text-left sm:grid-cols-3">
             <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <Shield className="mb-3 h-8 w-8 text-blue-500" />
-              <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">Privatno i sigurno</h3>
-              <p className="text-sm text-gray-500">Vasi fajlovi su enkriptovani i privatni. Ne koristimo ih za AI trening.</p>
+              <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">{t('pages.shared.disk.valuePrivateTitle')}</h3>
+              <p className="text-sm text-gray-500">{t('pages.shared.disk.valuePrivateDesc')}</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <HardDrive className="mb-3 h-8 w-8 text-purple-500" />
-              <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">MySpace storage</h3>
-              <p className="text-sm text-gray-500">Skladistite fajlove, foldere i dokumente. Pristupite sa bilo kog uredjaja.</p>
+              <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">{t('pages.shared.disk.valueStorageTitle')}</h3>
+              <p className="text-sm text-gray-500">{t('pages.shared.disk.valueStorageDesc')}</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
               <Users className="mb-3 h-8 w-8 text-green-500" />
-              <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">Delite sa drugima</h3>
-              <p className="text-sm text-gray-500">Delite fajlove i foldere sa prijateljima i kolegama jednim klikom.</p>
+              <h3 className="mb-1 font-semibold text-gray-900 dark:text-white">{t('pages.shared.disk.valueShareTitle')}</h3>
+              <p className="text-sm text-gray-500">{t('pages.shared.disk.valueShareDesc')}</p>
             </div>
           </div>
         </div>
@@ -473,7 +473,7 @@ export default function SharedDiskPage() {
         {/* Footer */}
         <footer className="border-t border-gray-200 py-6 text-center dark:border-gray-700">
           <p className="text-xs text-gray-400">
-            &copy; {new Date().getFullYear()} myphotomy.space — Besplatan cloud storage
+            &copy; {new Date().getFullYear()} myphotomy.space — {t('pages.shared.disk.footerTagline')}
           </p>
         </footer>
       </div>
@@ -498,7 +498,7 @@ export default function SharedDiskPage() {
             <span className="text-gray-300 dark:text-gray-600">|</span>
             <div className="flex items-center gap-1.5 text-sm text-gray-500">
               <Eye className="h-3.5 w-3.5" />
-              Deljeni {isFolder ? 'folder' : 'fajl'}
+              {isFolder ? t('pages.shared.disk.sharedFolder') : t('pages.shared.disk.sharedFile')}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -507,13 +507,13 @@ export default function SharedDiskPage() {
                 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                 : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
             }`}>
-              {canWrite ? 'Citanje i pisanje' : 'Samo citanje'}
+              {canWrite ? t('pages.shared.disk.readWrite') : t('pages.shared.disk.readOnly')}
             </span>
             <Link
               href="/myspace"
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              Moj space
+              {t('pages.shared.disk.mySpace')}
             </Link>
           </div>
         </div>
@@ -536,7 +536,7 @@ export default function SharedDiskPage() {
                 className="flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50"
               >
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                Upload fajlove
+                {t('pages.shared.disk.uploadFiles')}
               </button>
               <input
                 ref={fileInputRef}
@@ -544,6 +544,7 @@ export default function SharedDiskPage() {
                 multiple
                 className="hidden"
                 onChange={handleUpload}
+                aria-label={t('pages.shared.disk.chooseFilesAria')}
               />
             </div>
           )}
@@ -553,7 +554,7 @@ export default function SharedDiskPage() {
         {uploading && (
           <div className="mb-4 rounded-lg border border-primary-200 bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
             <div className="mb-1 flex justify-between text-sm">
-              <span>Uploading...</span>
+              <span>{t('pages.shared.disk.uploading')}</span>
               <span>{uploadProgress}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-primary-200 dark:bg-primary-800">
@@ -572,14 +573,14 @@ export default function SharedDiskPage() {
             <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">{data.file.name}</h2>
             <p className="mb-1 text-sm text-gray-500">{formatSize(data.file.size)}</p>
             {data.file.createdAt && (
-              <p className="mb-6 text-sm text-gray-400">{formatDate(data.file.createdAt)}</p>
+              <p className="mb-6 text-sm text-gray-400">{formatDate(data.file.createdAt, intlLocale)}</p>
             )}
             <div className="flex justify-center gap-3">
               <button
                 onClick={() => handlePreview(data.file!)}
                 className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
               >
-                <Eye className="h-4 w-4" /> Pregledaj
+                <Eye className="h-4 w-4" /> {t('pages.shared.disk.preview')}
               </button>
               <button
                 onClick={() => handleDownload(data.file!.id, data.file!.name)}
@@ -591,7 +592,7 @@ export default function SharedDiskPage() {
                 ) : (
                   <Download className="h-4 w-4" />
                 )}
-                Preuzmi
+                {t('pages.shared.disk.download')}
               </button>
             </div>
           </div>
@@ -609,17 +610,18 @@ export default function SharedDiskPage() {
                 <Lock className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                    Premali prostor za sve fajlove iz ovog deljenja
+                    {t('pages.shared.disk.overQuotaTitle')}
                   </p>
                   <p className="mt-0.5 text-xs text-amber-800 dark:text-amber-300/90">
-                    Vidi{'š '}
-                    {formatSize(data.quota.freeForShare)} od ukupno{' '}
-                    {formatSize(data.quota.shareCharged)}. Preostalo {data.lockedFileIds!.length}{' '}
-                    fajl(ova) zaključano — nadogradi plan ili pozovi prijatelje za dodatni prostor.
+                    {t('pages.shared.disk.overQuotaDesc', {
+                      free: formatSize(data.quota.freeForShare),
+                      total: formatSize(data.quota.shareCharged),
+                      count: data.lockedFileIds!.length,
+                    })}
                   </p>
                 </div>
                 <span className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white">
-                  Nadogradi
+                  {t('pages.shared.disk.upgrade')}
                 </span>
               </button>
             )}
@@ -654,9 +656,9 @@ export default function SharedDiskPage() {
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
               {/* Table header */}
               <div className="grid grid-cols-[1fr_100px_140px_80px] gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800/50">
-                <span>Naziv</span>
-                <span>Velicina</span>
-                <span>Datum</span>
+                <span>{t('pages.shared.disk.colName')}</span>
+                <span>{t('pages.shared.disk.colSize')}</span>
+                <span>{t('pages.shared.disk.colDate')}</span>
                 <span />
               </div>
 
@@ -688,7 +690,7 @@ export default function SharedDiskPage() {
                     {folder.name}
                   </span>
                   <span className="text-gray-400">&mdash;</span>
-                  <span className="text-gray-500">{formatDate(folder.createdAt)}</span>
+                  <span className="text-gray-500">{formatDate(folder.createdAt, intlLocale)}</span>
                   <span />
                 </div>
               ))}
@@ -717,17 +719,17 @@ export default function SharedDiskPage() {
                       {isLocked && (
                         <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                           <Lock className="h-3 w-3" />
-                          Zaključano
+                          {t('pages.shared.disk.locked')}
                         </span>
                       )}
                     </span>
                     <span className="text-gray-500">{formatSize(file.size)}</span>
-                    <span className="text-gray-500">{formatDate(file.createdAt)}</span>
+                    <span className="text-gray-500">{formatDate(file.createdAt, intlLocale)}</span>
                     {isLocked ? (
                       <button
                         onClick={() => setShowUpsell(true)}
                         className="flex items-center justify-center rounded p-1 text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
-                        title="Nadogradi plan da otključaš"
+                        title={t('pages.shared.disk.upgradeToUnlock')}
                       >
                         <Lock className="h-4 w-4" />
                       </button>
@@ -736,7 +738,7 @@ export default function SharedDiskPage() {
                         onClick={() => handleDownload(file.id, file.name)}
                         disabled={downloading === file.id}
                         className="flex items-center justify-center rounded p-1 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700"
-                        title="Preuzmi"
+                        title={t('pages.shared.disk.download')}
                       >
                         {downloading === file.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -753,14 +755,14 @@ export default function SharedDiskPage() {
               {(!data.folders || data.folders.length === 0) && (!data.files || data.files.length === 0) && (
                 <div className="py-12 text-center">
                   <Folder className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-                  <p className="text-gray-500">Prazan folder</p>
+                  <p className="text-gray-500">{t('pages.shared.disk.emptyFolder')}</p>
                   {canWrite && (
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
                     >
                       <Upload className="h-4 w-4" />
-                      Upload fajlove
+                      {t('pages.shared.disk.uploadFiles')}
                     </button>
                   )}
                 </div>
@@ -770,9 +772,9 @@ export default function SharedDiskPage() {
             {/* Summary */}
             {((data.folders?.length || 0) > 0 || (data.files?.length || 0) > 0) && (
               <div className="mt-2 text-xs text-gray-500">
-                {(data.folders?.length || 0) > 0 && `${data.folders!.length} folder(a)`}
+                {(data.folders?.length || 0) > 0 && t('pages.shared.disk.folderCount', { count: data.folders!.length })}
                 {(data.folders?.length || 0) > 0 && (data.files?.length || 0) > 0 && ' · '}
-                {(data.files?.length || 0) > 0 && `${data.files!.length} fajl(ova)`}
+                {(data.files?.length || 0) > 0 && t('pages.shared.disk.fileCount', { count: data.files!.length })}
                 {(data.files?.length || 0) > 0 && ` · ${formatSize(data.files!.reduce((sum, f) => sum + f.size, 0))}`}
               </div>
             )}
@@ -797,7 +799,7 @@ export default function SharedDiskPage() {
             <button
               onClick={() => setShowUpsell(false)}
               className="absolute right-3 top-3 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-              aria-label="Zatvori"
+              aria-label={t('pages.shared.disk.close')}
             >
               <X className="h-5 w-5" />
             </button>
@@ -807,15 +809,13 @@ export default function SharedDiskPage() {
             </div>
 
             <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">
-              Otključajte sve fajlove iz ovog deljenja
+              {t('pages.shared.disk.upsellTitle')}
             </h2>
 
             <p className="mb-5 text-sm text-gray-600 dark:text-gray-300">
-              Ovaj deljeni{' '}
-              {data.type === 'folder' ? 'folder' : 'fajl'} zauzima{' '}
-              <strong>{formatSize(data.quota?.shareCharged || 0)}</strong>, a vi imate slobodno{' '}
-              <strong>{formatSize(data.quota?.freeForShare || 0)}</strong>. Sve preko toga je
-              sakriveno dok ne dobijete više prostora.
+              {data.type === 'folder' ? t('pages.shared.disk.upsellFolder') : t('pages.shared.disk.upsellFile')}{' '}
+              <strong>{formatSize(data.quota?.shareCharged || 0)}</strong>{t('pages.shared.disk.upsellYouHave')}{' '}
+              <strong>{formatSize(data.quota?.freeForShare || 0)}</strong>{t('pages.shared.disk.upsellRest')}
             </p>
 
             <div className="space-y-3">
@@ -824,9 +824,9 @@ export default function SharedDiskPage() {
                 className="flex w-full items-center justify-between rounded-xl bg-primary-500 px-4 py-3 text-left text-white shadow-md transition-all hover:bg-primary-600"
               >
                 <div>
-                  <p className="text-sm font-bold">Nadogradi plan</p>
+                  <p className="text-sm font-bold">{t('pages.shared.disk.upsellUpgradeTitle')}</p>
                   <p className="text-xs text-primary-100">
-                    64 GB od 0.99 €/mes — vidiš sve odmah
+                    {t('pages.shared.disk.upsellUpgradeDesc')}
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5" />
@@ -837,9 +837,9 @@ export default function SharedDiskPage() {
                 className="flex w-full items-center justify-between rounded-xl border-2 border-green-200 bg-green-50 px-4 py-3 text-left text-green-900 transition-colors hover:bg-green-100 dark:border-green-800 dark:bg-green-900/20 dark:text-green-200 dark:hover:bg-green-900/30"
               >
                 <div>
-                  <p className="text-sm font-bold">Pozovi prijatelje — besplatno</p>
+                  <p className="text-sm font-bold">{t('pages.shared.disk.upsellInviteTitle')}</p>
                   <p className="text-xs text-green-700 dark:text-green-300/90">
-                    +512 MB po pozvanom (do 7.5 GB ekstra)
+                    {t('pages.shared.disk.upsellInviteDesc')}
                   </p>
                 </div>
                 <Gift className="h-5 w-5" />
@@ -847,7 +847,7 @@ export default function SharedDiskPage() {
             </div>
 
             <p className="mt-4 text-center text-xs text-gray-400">
-              Vlasnik deljenja nije ograničen — naknada važi samo za goste.
+              {t('pages.shared.disk.upsellOwnerNote')}
             </p>
           </div>
         </div>
@@ -873,13 +873,14 @@ export default function SharedDiskPage() {
                 <button
                   onClick={() => handleDownload(previewFile.id, previewFile.name)}
                   className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  title="Preuzmi"
+                  title={t('pages.shared.disk.download')}
                 >
                   <Download className="h-4 w-4" />
                 </button>
                 <button
                   onClick={closePreview}
                   className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  aria-label={t('pages.shared.disk.close')}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -903,6 +904,7 @@ export default function SharedDiskPage() {
 }
 
 function SharedPreviewContent({ file, url }: { file: SharedFile; url: string }) {
+  const t = useT();
   const mime = file.mimeType;
   const [mediaError, setMediaError] = useState(false);
   const ext = file.name.split('.').pop()?.toUpperCase() || '';
@@ -922,13 +924,13 @@ function SharedPreviewContent({ file, url }: { file: SharedFile; url: string }) 
         <div className="flex flex-col items-center justify-center gap-4 bg-black py-16">
           <FileVideo className="h-16 w-16 text-gray-500" />
           <p className="text-lg font-medium text-white">{file.name}</p>
-          <p className="text-sm text-gray-400">Ovaj video format nije podrzan u pregledacu.</p>
+          <p className="text-sm text-gray-400">{t('pages.shared.disk.videoUnsupported')}</p>
           <div className="flex gap-3">
             <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600">
-              <ExternalLink className="h-4 w-4" /> Otvori u video playeru
+              <ExternalLink className="h-4 w-4" /> {t('pages.shared.disk.openInVideoPlayer')}
             </a>
             <a href={url} download={file.name} className="flex items-center gap-2 rounded-lg border border-gray-600 px-6 py-3 font-medium text-white hover:bg-gray-800">
-              <Download className="h-4 w-4" /> Preuzmi
+              <Download className="h-4 w-4" /> {t('pages.shared.disk.download')}
             </a>
           </div>
         </div>
@@ -937,10 +939,10 @@ function SharedPreviewContent({ file, url }: { file: SharedFile; url: string }) 
     return (
       <div className="flex flex-col items-center bg-black">
         <video src={url} controls autoPlay playsInline className="max-h-[75vh] max-w-full" onError={() => setMediaError(true)}>
-          Vas pregledac ne podrzava ovaj video format.
+          {t('pages.shared.disk.videoTagFallback')}
         </video>
         <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 py-2 text-xs text-gray-400 hover:text-white">
-          <ExternalLink className="h-3.5 w-3.5" /> Otvori u video playeru
+          <ExternalLink className="h-3.5 w-3.5" /> {t('pages.shared.disk.openInVideoPlayer')}
         </a>
       </div>
     );
@@ -954,13 +956,13 @@ function SharedPreviewContent({ file, url }: { file: SharedFile; url: string }) 
             <FileAudio className="h-12 w-12 text-purple-500" />
           </div>
           <p className="text-lg font-semibold">{file.name}</p>
-          <p className="text-sm text-gray-500">{ext} format nije podrzan u pregledacu.</p>
+          <p className="text-sm text-gray-500">{t('pages.shared.disk.audioUnsupported', { ext })}</p>
           <div className="flex gap-3">
             <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600">
-              <ExternalLink className="h-4 w-4" /> Otvori u music playeru
+              <ExternalLink className="h-4 w-4" /> {t('pages.shared.disk.openInMusicPlayer')}
             </a>
             <a href={url} download={file.name} className="flex items-center gap-2 rounded-lg border border-gray-300 px-6 py-3 font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700">
-              <Download className="h-4 w-4" /> Preuzmi
+              <Download className="h-4 w-4" /> {t('pages.shared.disk.download')}
             </a>
           </div>
         </div>
@@ -977,7 +979,7 @@ function SharedPreviewContent({ file, url }: { file: SharedFile; url: string }) 
         </div>
         <audio src={url} controls autoPlay className="w-full max-w-md" onError={() => setMediaError(true)} />
         <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-primary-500">
-          <ExternalLink className="h-3.5 w-3.5" /> Otvori u music playeru na uredjaju
+          <ExternalLink className="h-3.5 w-3.5" /> {t('pages.shared.disk.openInMusicPlayerDevice')}
         </a>
       </div>
     );
@@ -995,13 +997,13 @@ function SharedPreviewContent({ file, url }: { file: SharedFile; url: string }) 
     <div className="flex flex-col items-center justify-center gap-4 py-16">
       <File className="h-16 w-16 text-gray-400" />
       <p className="text-lg font-medium">{file.name}</p>
-      <p className="text-sm text-gray-500">Pregled ovog tipa fajla nije podrzan</p>
+      <p className="text-sm text-gray-500">{t('pages.shared.disk.previewUnsupported')}</p>
       <div className="flex gap-3">
         <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg bg-primary-500 px-6 py-3 font-medium text-white hover:bg-primary-600">
-          <ExternalLink className="h-4 w-4" /> Otvori u aplikaciji
+          <ExternalLink className="h-4 w-4" /> {t('pages.shared.disk.openInApp')}
         </a>
         <a href={url} download={file.name} className="flex items-center gap-2 rounded-lg border border-gray-300 px-6 py-3 font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700">
-          <Download className="h-4 w-4" /> Preuzmi
+          <Download className="h-4 w-4" /> {t('pages.shared.disk.download')}
         </a>
       </div>
     </div>
@@ -1009,6 +1011,7 @@ function SharedPreviewContent({ file, url }: { file: SharedFile; url: string }) 
 }
 
 function SharedTextPreview({ url }: { url: string }) {
+  const tr = useT();
   const [text, setText] = useState('');
   const [loaded, setLoaded] = useState(false);
 
@@ -1016,8 +1019,8 @@ function SharedTextPreview({ url }: { url: string }) {
     fetch(url)
       .then((r) => r.text())
       .then((t) => { setText(t); setLoaded(true); })
-      .catch(() => { setText('Greska pri ucitavanju fajla'); setLoaded(true); });
-  }, [url]);
+      .catch(() => { setText(tr('pages.shared.disk.errorLoadingFile')); setLoaded(true); });
+  }, [url, tr]);
 
   if (!loaded) return <div className="p-8 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div>;
 

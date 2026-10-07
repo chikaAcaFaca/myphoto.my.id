@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Home, Search, Settings, CloudUpload, Flame } from 'lucide-react';
 import { useUIStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/client';
 
 const tabs = [
   { name: 'Home', href: '/photos', icon: Home },
@@ -16,6 +17,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { openUploadModal } = useUIStore();
+  const t = useT();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] dark:border-gray-700 dark:bg-gray-800 lg:hidden">
@@ -41,7 +43,7 @@ export function MobileBottomNav() {
                 : 'text-gray-400'
             )}
           >
-            Home
+            {t('components.mobileNav.home')}
           </span>
         </button>
 
@@ -62,13 +64,14 @@ export function MobileBottomNav() {
               pathname === '/search' ? 'text-primary-500' : 'text-gray-400'
             )}
           >
-            Search
+            {t('components.mobileNav.search')}
           </span>
         </button>
 
         {/* Upload FAB */}
         <button
           onClick={openUploadModal}
+          aria-label={t('components.mobileNav.upload')}
           className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary-500 text-white shadow-lg shadow-primary-500/30 transition-transform active:scale-95"
         >
           <CloudUpload className="h-7 w-7" />
@@ -95,7 +98,7 @@ export function MobileBottomNav() {
                 : 'text-gray-400'
             )}
           >
-            Meme
+            {t('components.mobileNav.meme')}
           </span>
         </button>
 
@@ -120,7 +123,7 @@ export function MobileBottomNav() {
                 : 'text-gray-400'
             )}
           >
-            Settings
+            {t('components.mobileNav.settings')}
           </span>
         </button>
       </div>

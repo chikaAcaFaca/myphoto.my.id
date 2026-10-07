@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const THUMB = 80;
@@ -23,6 +24,7 @@ interface DuplicateGroup {
 
 export default function DuplicatesScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { getToken } = useAuth();
   const [groups, setGroups] = useState<DuplicateGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,15 +61,15 @@ export default function DuplicatesScreen() {
       });
       setGroups(prev => prev.filter(g => g.id !== groupId));
     } catch (e) {
-      Alert.alert('Greska', 'Nije moguce odbaciti duplikat.');
+      Alert.alert(t('common.error'), t('duplicates.dismissFailed'));
     }
   };
 
   const handleDeleteFile = (fileId: string, groupId: string) => {
-    Alert.alert('Obrisati duplikat?', 'Fajl ce biti premesten u korpu.', [
-      { text: 'Otkazi', style: 'cancel' },
+    Alert.alert(t('duplicates.deleteConfirmTitle'), t('duplicates.deleteConfirmMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Obrisi', style: 'destructive', onPress: async () => {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             const token = await getToken();
             await fetch(`${API_URL}/api/files/delete`, {
@@ -84,7 +86,7 @@ export default function DuplicatesScreen() {
               return updated.length < 2 ? null! : { ...g, files: updated };
             }).filter(Boolean));
           } catch (e) {
-            Alert.alert('Greska', 'Brisanje nije uspelo.');
+            Alert.alert(t('common.error'), t('duplicates.deleteFailed'));
           }
         },
       },
@@ -95,10 +97,10 @@ export default function DuplicatesScreen() {
     <View style={[styles.groupCard, { backgroundColor: tc.bgCard }]}>
       <View style={styles.groupHeader}>
         <View style={styles.similarityBadge}>
-          <Text style={styles.similarityText}>{Math.round(item.similarity * 100)}% slicno</Text>
+          <Text style={styles.similarityText}>{t('duplicates.similarity', { percent: Math.round(item.similarity * 100) })}</Text>
         </View>
         <TouchableOpacity onPress={() => handleDismiss(item.id)}>
-          <Text style={styles.dismissText}>Odbaci</Text>
+          <Text style={styles.dismissText}>{t('duplicates.dismiss')}</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.thumbRow}>
@@ -137,7 +139,7 @@ export default function DuplicatesScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Duplikati</Text>
+          <Text style={styles.headerTitle}>{t('duplicates.title')}</Text>
           <View style={{ width: 32 }} />
         </View>
       </View>
@@ -149,8 +151,8 @@ export default function DuplicatesScreen() {
       ) : groups.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="checkmark-circle-outline" size={64} color={colors.success} />
-          <Text style={styles.emptyText}>Nema duplikata</Text>
-          <Text style={styles.emptySubtext}>Sve vase slike su jedinstvene</Text>
+          <Text style={styles.emptyText}>{t('duplicates.empty')}</Text>
+          <Text style={styles.emptySubtext}>{t('duplicates.emptyHint')}</Text>
         </View>
       ) : (
         <FlatList
@@ -160,7 +162,7 @@ export default function DuplicatesScreen() {
           contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListHeaderComponent={
-            <Text style={styles.countText}>{groups.length} grupa duplikata</Text>
+            <Text style={styles.countText}>{tp('duplicates.groupCount', groups.length)}</Text>
           }
         />
       )}

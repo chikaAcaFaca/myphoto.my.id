@@ -21,6 +21,11 @@ import {
   uploadFileToMySpace,
   pickFolder,
 } from './folder-sync';
+import {
+  startForegroundSync,
+  stopForegroundSync,
+  isForegroundSyncAvailable,
+} from './foreground-sync';
 
 const BACKGROUND_SYNC_TASK = 'MYPHOTO_BACKGROUND_SYNC';
 const SYNC_STATE_KEY = '@myphoto/sync_state';
@@ -43,7 +48,7 @@ async function tryClaimBackupBonus(token: string, apiUrl: string): Promise<void>
 
     if (res.ok) {
       await AsyncStorage.setItem(BACKUP_BONUS_CLAIMED_KEY, 'true');
-      console.log('Backup bonus claimed: +1GB');
+      console.log('Backup onboarding marked as claimed');
     }
   } catch (error) {
     console.error('Backup bonus claim error:', error);
@@ -57,14 +62,14 @@ interface FailedUpload {
   error?: string;
 }
 
-interface SyncState {
+export interface SyncState {
   pendingUploads: string[]; // Asset IDs
   uploadedAssets: string[]; // Asset IDs already uploaded
   lastSyncTime: number | null;
   failedUploads: FailedUpload[]; // Failed uploads for retry
 }
 
-interface SyncSettings {
+export interface SyncSettings {
   syncMode: 'wifi_only' | 'wifi_and_mobile' | 'manual';
   autoBackup: boolean;
   allowRoaming: boolean;
@@ -139,6 +144,62 @@ const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
 // Cache of device album title → MySpace folder ID (to avoid re-creating folders)
 const folderIdCache = new Map<string, string>();
+
+/**
+ * Device album membership index: asset id → album title.
+ *
+ * Built once and reused. Every upload used to re-enumerate every album (500
+ * assets per call) just to label one photo — O(photos × albums × 500) calls
+ * across the native bridge, run by four concurrent workers. On a phone with a
+ * few thousand photos that pins the JS thread for minutes: the UI stops
+ * responding to touches and Android offers to close the app, which is why a
+ * running backup made the app look frozen and needed a Force stop.
+ */
+let albumIndex: Map<string, string> | null = null;
+let albumIndexPromise: Promise<Map<string, string>> | null = null;
+
+async function getAlbumIndex(): Promise<Map<string, string>> {
+  if (albumIndex) return albumIndex;
+  if (albumIndexPromise) return albumIndexPromise;
+
+  albumIndexPromise = (async () => {
+    const index = new Map<string, string>();
+    try {
+      const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
+      for (const album of albums) {
+        if (album.assetCount === 0) continue;
+        let after: string | undefined;
+        // Page through the album so a large one is covered fully without
+        // materialising thousands of assets in a single call.
+        for (;;) {
+          const page = await MediaLibrary.getAssetsAsync({
+            album: album.id,
+            first: 500,
+            ...(after ? { after } : {}),
+          });
+          for (const a of page.assets) {
+            // First album wins, mirroring the previous "break on first match".
+            if (!index.has(a.id)) index.set(a.id, album.title);
+          }
+          if (!page.hasNextPage || page.assets.length === 0) break;
+          after = page.endCursor;
+        }
+      }
+    } catch {
+      // No permission / not available — uploads fall back to the root folder.
+    }
+    albumIndex = index;
+    albumIndexPromise = null;
+    return index;
+  })();
+
+  return albumIndexPromise;
+}
+
+/** Drop the cached index so newly added photos get their album resolved. */
+function invalidateAlbumIndex() {
+  albumIndex = null;
+}
 
 // Ensure a MySpace folder exists for a device album, returns folderId
 async function ensureMySpaceFolder(
@@ -242,6 +303,9 @@ async function uploadAssetDual(
         mimeType,
         size: fileInfo.size,
         folderId,
+        // Lets the cloud file be resolved back from this device photo later
+        // (e.g. to build a share link). Server stores it on the files record.
+        deviceAssetId: asset.id,
       }),
     });
 
@@ -253,41 +317,30 @@ async function uploadAssetDual(
 }
 
 // Standalone upload function for background task (no React context)
-async function backgroundUploadAsset(
+export async function backgroundUploadAsset(
   asset: MediaLibrary.Asset,
   token: string,
   apiUrl: string
 ): Promise<boolean> {
-  // Get album name for folder structure
-  let albumTitle: string | undefined;
-  try {
-    const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
-    for (const album of albums) {
-      const { assets } = await MediaLibrary.getAssetsAsync({
-        album: album.id,
-        first: 0,
-      });
-      // Quick check if this asset belongs to this album
-      // (simplified — full check would query per-asset)
-      if (album.assetCount > 0) {
-        albumTitle = album.title;
-        break;
-      }
-    }
-  } catch {
-    // Fall back to no album
-  }
+  // Resolve the real album for folder structure. The previous version picked
+  // whichever album happened to be listed first, so every backed-up photo was
+  // filed under the same wrong folder.
+  const albumTitle = (await getAlbumIndex()).get(asset.id);
 
   return uploadAssetDual(asset, albumTitle, token, apiUrl);
 }
 
 // Find new photos for background sync (standalone, no React state)
-async function backgroundFindNewPhotos(
+export async function backgroundFindNewPhotos(
   settings: SyncSettings,
   syncState: SyncState
 ): Promise<MediaLibrary.Asset[]> {
   try {
-    const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
+    // CHECK only — never request here. The background/foreground sync path must
+    // not open a permission dialog that collides with the gallery's own
+    // MediaLibrary request at launch. The in-app kicker/home screen acquire the
+    // grant; this just reads it.
+    const { status } = await MediaLibrary.getPermissionsAsync(false, ['photo', 'video']);
     if (status !== 'granted') return [];
   } catch {
     console.log('MediaLibrary permissions not available (Expo Go limitation)');
@@ -326,7 +379,8 @@ async function backgroundFindNewPhotos(
     allAssets = assets;
   }
 
-  return allAssets.filter((a) => !syncState.uploadedAssets.includes(a.id));
+  const uploaded = new Set(syncState.uploadedAssets);
+  return allAssets.filter((a) => !uploaded.has(a.id));
 }
 
 // Register background task — deferred to avoid crash if native module not ready
@@ -431,7 +485,7 @@ function ensureBackgroundTaskRegistered() {
   }
 }
 
-async function loadSyncState(): Promise<SyncState> {
+export async function loadSyncState(): Promise<SyncState> {
   try {
     const data = await AsyncStorage.getItem(SYNC_STATE_KEY);
     if (data) {
@@ -448,7 +502,7 @@ async function loadSyncState(): Promise<SyncState> {
   };
 }
 
-async function saveSyncState(state: SyncState): Promise<void> {
+export async function saveSyncState(state: SyncState): Promise<void> {
   try {
     await AsyncStorage.setItem(SYNC_STATE_KEY, JSON.stringify(state));
   } catch (error) {
@@ -456,7 +510,7 @@ async function saveSyncState(state: SyncState): Promise<void> {
   }
 }
 
-async function loadSyncSettings(): Promise<SyncSettings> {
+export async function loadSyncSettings(): Promise<SyncSettings> {
   try {
     const data = await AsyncStorage.getItem('@myphoto/sync_settings');
     if (data) {
@@ -477,7 +531,7 @@ async function saveSyncSettings(settings: SyncSettings): Promise<void> {
 }
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const { user, getToken } = useAuth();
+  const { user, getToken, refreshAppUser } = useAuth();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncState, setSyncState] = useState<SyncState>({
@@ -560,15 +614,42 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
-  // Register background fetch
+  // Register background sync. Two layers, used together:
+  //   1. Foreground service (react-native-background-actions) — the reliable
+  //      path that keeps uploading even after the app is swiped away/killed.
+  //   2. expo-background-fetch — OS WorkManager fallback for when the
+  //      foreground service isn't available (Expo Go / pre-rebuild) or was
+  //      reaped, and to nudge a wake on boot.
   useEffect(() => {
-    if (settings.autoBackup && user) {
+    let fgTimer: ReturnType<typeof setTimeout> | undefined;
+    if (settings.autoBackup && user && settings.syncMode !== 'manual') {
       registerBackgroundFetch();
+      // DEFER the foreground service. Starting it at launch fired its own
+      // permission requests (POST_NOTIFICATIONS + MediaLibrary) at the same
+      // moment the photo grid was requesting MediaLibrary — the collision left
+      // the home tab stuck on "Učitavanje slika" with nothing rendering. Start
+      // it only after the app has settled and the initial permission grant is
+      // done, so the gallery loads first.
+      fgTimer = setTimeout(() => {
+        startForegroundSync().then((ok) => {
+          if (!ok && !isForegroundSyncAvailable()) {
+            console.log('Foreground sync unavailable — relying on background-fetch');
+          }
+        });
+      }, 15000);
+    } else {
+      stopForegroundSync();
     }
     return () => {
+      if (fgTimer) clearTimeout(fgTimer);
       unregisterBackgroundFetch();
     };
-  }, [settings.autoBackup, user]);
+  }, [settings.autoBackup, user, settings.syncMode]);
+
+  // Stop the persistent service entirely when the user signs out.
+  useEffect(() => {
+    if (!user) stopForegroundSync();
+  }, [user]);
 
   // Foreground auto-backup kicker. Background fetch is unreliable on
   // Android — the system frequently never wakes the task, especially
@@ -589,8 +670,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     // Give MediaLibrary permissions a moment to settle on first launch
     // — kicking the sync immediately on mount sometimes fires before
     // the permission prompt finishes and findNewPhotos returns [].
-    const t = setTimeout(() => {
-      startSync().catch((e) => console.warn('Auto-backup startSync failed:', e));
+    const t = setTimeout(async () => {
+      // Photos/videos first, then any synced document folders, then refresh
+      // the quota so the storage gauge + proactive upsell react to what we
+      // just uploaded. Each call self-guards (network policy, enabled flags).
+      try {
+        await startSync();
+        await startFolderSync();
+      } catch (e) {
+        console.warn('Auto-backup kick failed:', e);
+      } finally {
+        refreshAppUser().catch(() => {});
+      }
     }, 2000);
     return () => clearTimeout(t);
   }, [user, settings.autoBackup, settings.syncMode]);
@@ -663,12 +754,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       allAssets = assets;
     }
 
-    // Filter out already uploaded ones
-    const newAssets = allAssets.filter(
-      (asset) => !syncState.uploadedAssets.includes(asset.id)
-    );
-
-    return newAssets;
+    // Filter out already uploaded ones. Set lookup, not Array.includes — the
+    // uploaded list grows to one entry per backed-up photo, so the linear scan
+    // made this quadratic in library size.
+    const uploaded = new Set(syncState.uploadedAssets);
+    return allAssets.filter((asset) => !uploaded.has(asset.id));
   };
 
   const uploadAsset = async (asset: MediaLibrary.Asset): Promise<boolean> => {
@@ -679,24 +769,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const apiUrl = process.env.EXPO_PUBLIC_API_URL;
       if (!apiUrl) throw new Error('No API URL');
 
-      // Find which album this asset belongs to (for MySpace folder structure)
-      let albumTitle: string | undefined;
-      try {
-        const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
-        for (const album of albums) {
-          if (album.assetCount === 0) continue;
-          const { assets } = await MediaLibrary.getAssetsAsync({
-            album: album.id,
-            first: 500,
-          });
-          if (assets.some((a) => a.id === asset.id)) {
-            albumTitle = album.title;
-            break;
-          }
-        }
-      } catch {
-        // Fall back to no album
-      }
+      // Find which album this asset belongs to (for MySpace folder structure),
+      // via the shared index instead of re-scanning every album per photo.
+      const albumTitle = (await getAlbumIndex()).get(asset.id);
 
       // Upload to both MySpace (folder structure) and MyPhoto (gallery + AI)
       return await uploadAssetDual(asset, albumTitle, token, apiUrl);
@@ -724,6 +799,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setIsSyncing(true);
     setSyncProgress(0);
     setSyncCancelled(false);
+
+    // Photos taken since the last run need their album resolved too.
+    invalidateAlbumIndex();
 
     try {
       const newPhotos = await findNewPhotos();
@@ -790,15 +868,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (syncCancelled) break;
 
         try {
-          // Fetch the asset from MediaLibrary by ID
-          const assets = await MediaLibrary.getAssetsAsync({
-            first: 1,
-            // Filter to find specific asset - scan recent ones
-          });
-          // Try to find the asset
-          let asset: MediaLibrary.Asset | null = null;
-          const allAssets = await MediaLibrary.getAssetsAsync({ first: 5000, mediaType: ['photo', 'video'] });
-          asset = allAssets.assets.find(a => a.id === failed.assetId) || null;
+          // Look the asset up directly by id. This used to pull 5000 assets
+          // into memory on every retry iteration just to find one of them —
+          // enough allocation churn to stall (or OOM) the app mid-backup.
+          const asset = (await MediaLibrary.getAssetInfoAsync(failed.assetId).catch(
+            () => null
+          )) as MediaLibrary.Asset | null;
 
           if (!asset) {
             // Asset may have been deleted from device, remove from retry queue
@@ -864,8 +939,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsSyncing(false);
       setSyncProgress(0);
+      // Reflect the new storageUsed in the quota gauge + upsell.
+      refreshAppUser().catch(() => {});
     }
-  }, [isSyncing, user, settings, syncState, syncCancelled]);
+  }, [isSyncing, user, settings, syncState, syncCancelled, refreshAppUser]);
 
   const stopSync = useCallback(() => {
     setSyncCancelled(true);
@@ -1043,8 +1120,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsFolderSyncing(false);
       setFolderSyncProgress(0);
+      refreshAppUser().catch(() => {});
     }
-  }, [isFolderSyncing, user, folderSyncSettings, folderSyncState, settings, syncCancelled]);
+  }, [isFolderSyncing, user, folderSyncSettings, folderSyncState, settings, syncCancelled, refreshAppUser]);
 
   // ---- Photo pending count ----
 

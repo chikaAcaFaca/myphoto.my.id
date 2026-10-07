@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert,
   ActivityIndicator, Platform, ScrollView,
+  Image as RNImage,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,6 +16,8 @@ import { saveToMySpace } from '@/lib/myspace-upload';
 import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT, type TKey } from '@/lib/i18n';
+import { ZoomPanView, type ZoomPanTransform } from '@/components/ZoomPanView';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -26,17 +29,18 @@ type FilterType = 'original' | 'bright' | 'contrast' | 'warm' | 'cool' | 'bw';
 // brightness/contrast pipeline needs a separate dependency (Skia, GL, or
 // a server pass). Until then we keep the Original button working and the
 // rest mark themselves as "Uskoro" instead of throwing.
-const FILTERS: { key: FilterType; label: string; icon: string; comingSoon?: boolean }[] = [
-  { key: 'original', label: 'Original', icon: 'image-outline' },
-  { key: 'bright', label: 'Svetlo', icon: 'sunny-outline', comingSoon: true },
-  { key: 'contrast', label: 'Kontrast', icon: 'contrast-outline', comingSoon: true },
-  { key: 'warm', label: 'Toplo', icon: 'flame-outline', comingSoon: true },
-  { key: 'cool', label: 'Hladno', icon: 'snow-outline', comingSoon: true },
-  { key: 'bw', label: 'C/B', icon: 'moon-outline', comingSoon: true },
+const FILTERS: { key: FilterType; label: TKey; icon: string; comingSoon?: boolean }[] = [
+  { key: 'original', label: 'editor.filterOriginal', icon: 'image-outline' },
+  { key: 'bright', label: 'editor.filterBright', icon: 'sunny-outline', comingSoon: true },
+  { key: 'contrast', label: 'editor.filterContrast', icon: 'contrast-outline', comingSoon: true },
+  { key: 'warm', label: 'editor.filterWarm', icon: 'flame-outline', comingSoon: true },
+  { key: 'cool', label: 'editor.filterCool', icon: 'snow-outline', comingSoon: true },
+  { key: 'bw', label: 'editor.filterBw', icon: 'moon-outline', comingSoon: true },
 ];
 
 export default function ImageEditorScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { id, name, uri: sourceUri, isUploaded } = useLocalSearchParams<{
     id: string; name: string; uri?: string; isUploaded?: string;
   }>();
@@ -54,6 +58,13 @@ export default function ImageEditorScreen() {
   const [removingBg, setRemovingBg] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingSpace, setSavingSpace] = useState(false);
+  const [cropping, setCropping] = useState(false);
+
+  // Track the live pinch/pan transform + image+container dims so "Iseci na
+  // ram" can compute the visible region in image-space and crop to it.
+  const transformRef = useRef<ZoomPanTransform>({ scale: 1, translateX: 0, translateY: 0 });
+  const [intrinsic, setIntrinsic] = useState<{ width: number; height: number } | null>(null);
+  const [containerSize, setContainerSize] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     if (sourceUri || !id) return;
@@ -72,13 +83,87 @@ export default function ImageEditorScreen() {
         setOriginalUri(downloadUrl);
       } catch (e) {
         console.error('Editor image load error:', e);
-        if (!cancelled) Alert.alert('Greska', 'Nije moguce ucitati sliku za izmenu.');
+        if (!cancelled) Alert.alert(t('common.error'), t('editor.loadFailed'));
       } finally {
         if (!cancelled) setImageLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, [id, sourceUri, getToken]);
+
+  // Fetch intrinsic image dims whenever the current image changes —
+  // needed to map the visible viewport into image-space for the crop.
+  useEffect(() => {
+    if (!currentUri) { setIntrinsic(null); return; }
+    let cancelled = false;
+    RNImage.getSize(
+      currentUri,
+      (w, h) => { if (!cancelled) setIntrinsic({ width: w, height: h }); },
+      () => { if (!cancelled) setIntrinsic(null); }
+    );
+    return () => { cancelled = true; };
+  }, [currentUri]);
+
+  // Crop the image to whatever's currently inside the preview frame after
+  // pinch-zoom + pan. Math: with contentFit="contain", the image is laid
+  // out at displayedW × displayedH centered in the container; ZoomPanView
+  // then scales by `s` around that and translates by (tx, ty). We intersect
+  // the displayed rect with the container rect and convert the result back
+  // into the image's native pixel coords.
+  const handleCrop = useCallback(async () => {
+    if (!currentUri || !intrinsic || !containerSize) {
+      Alert.alert(t('editor.waitTitle'), t('editor.stillLoading'));
+      return;
+    }
+    const { width: iw, height: ih } = intrinsic;
+    const { w: cw, h: ch } = containerSize;
+    const { scale: s, translateX: tx, translateY: ty } = transformRef.current;
+    const ratioFit = Math.min(cw / iw, ch / ih);
+    const dispW = iw * ratioFit * s;
+    const dispH = ih * ratioFit * s;
+    const dispX = (cw - dispW) / 2 + tx;
+    const dispY = (ch - dispH) / 2 + ty;
+    const visX1 = Math.max(0, dispX);
+    const visY1 = Math.max(0, dispY);
+    const visX2 = Math.min(cw, dispX + dispW);
+    const visY2 = Math.min(ch, dispY + dispH);
+    if (visX2 <= visX1 || visY2 <= visY1) {
+      Alert.alert(t('common.error'), t('editor.cropOutOfFrame'));
+      return;
+    }
+    const cropX = Math.round((visX1 - dispX) / (ratioFit * s));
+    const cropY = Math.round((visY1 - dispY) / (ratioFit * s));
+    const cropW = Math.round((visX2 - visX1) / (ratioFit * s));
+    const cropH = Math.round((visY2 - visY1) / (ratioFit * s));
+    // Edge clamp — float math can push us a pixel past the image bounds.
+    const finalX = Math.max(0, Math.min(cropX, iw - 1));
+    const finalY = Math.max(0, Math.min(cropY, ih - 1));
+    const finalW = Math.max(1, Math.min(cropW, iw - finalX));
+    const finalH = Math.max(1, Math.min(cropH, ih - finalY));
+
+    setCropping(true);
+    try {
+      let localUri = currentUri;
+      if (currentUri.startsWith('http')) {
+        const dl = await FileSystem.downloadAsync(
+          currentUri,
+          `${FileSystem.cacheDirectory}crop_src_${Date.now()}.jpg`
+        );
+        localUri = dl.uri;
+      }
+      const out = await ImageManipulator.manipulateAsync(
+        localUri,
+        [{ crop: { originX: finalX, originY: finalY, width: finalW, height: finalH } }],
+        { compress: 1, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      setCurrentUri(out.uri);
+    } catch (e) {
+      console.warn('Crop error:', e);
+      Alert.alert(t('common.error'), t('editor.cropFailed'));
+    } finally {
+      setCropping(false);
+    }
+  }, [currentUri, intrinsic, containerSize]);
 
   const applyFilter = useCallback(async (filter: FilterType) => {
     if (filter === 'original') {
@@ -89,7 +174,7 @@ export default function ImageEditorScreen() {
     // Until real color filters land, the non-Original buttons just
     // surface a friendly notice rather than running the no-op pipeline
     // that previously left users staring at the same image.
-    Alert.alert('Uskoro', 'Filteri za boje su u izradi i biće dostupni u sledećoj verziji aplikacije.');
+    Alert.alert(t('common.comingSoon'), t('editor.filtersComingSoon'));
   }, [originalUri]);
 
   const handleRemoveBg = useCallback(async () => {
@@ -117,13 +202,13 @@ export default function ImageEditorScreen() {
 
       const resultUri = await removeBackground(localUri);
       setCurrentUri(resultUri);
-      Alert.alert('Uspeh', 'Pozadina je uklonjena!');
+      Alert.alert(t('common.success'), t('editor.bgRemoved'));
     } catch (e) {
       if (e instanceof NoSubjectError) {
-        Alert.alert('Nema subjekta', 'Nije pronađen jasan subjekt na slici. Pokušaj sa drugom slikom.');
+        Alert.alert(t('editor.noSubjectTitle'), t('editor.noSubjectMessage'));
       } else {
         console.log('Remove bg error:', e);
-        Alert.alert('Greska', 'Uklanjanje pozadine nije uspelo. Pokušaj ponovo.');
+        Alert.alert(t('common.error'), t('editor.bgRemoveFailed'));
       }
     } finally {
       setRemovingBg(false);
@@ -135,7 +220,7 @@ export default function ImageEditorScreen() {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (status !== 'granted') {
-        Alert.alert('Dozvola', 'Dozvolite pristup galeriji.');
+        Alert.alert(t('common.permission'), t('editor.galleryPermission'));
         return;
       }
 
@@ -150,10 +235,10 @@ export default function ImageEditorScreen() {
       }
 
       await MediaLibrary.saveToLibraryAsync(saveUri);
-      Alert.alert('Sacuvano', 'Slika je sacuvana u galeriju.');
+      Alert.alert(t('common.saved'), t('editor.savedToGallery'));
     } catch (e) {
       console.log('Save error:', e);
-      Alert.alert('Greska', 'Cuvanje nije uspelo.');
+      Alert.alert(t('common.error'), t('editor.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -167,21 +252,29 @@ export default function ImageEditorScreen() {
     try {
       const token = await getToken();
       if (!token) {
-        Alert.alert('Prijava', 'Prijavi se da bi sačuvao u svoj prostor.');
+        Alert.alert(t('editor.signInTitle'), t('editor.signInToSave'));
         return;
       }
       const isPng = currentUri.toLowerCase().includes('.png') || currentUri.includes('removebg');
-      const base = (name || 'slika').replace(/\.[^.]+$/, '');
+      const base = (name || t('editor.defaultFileName')).replace(/\.[^.]+$/, '');
       const ok = await saveToMySpace({
         uri: currentUri,
         filename: `${base}-${Date.now()}.${isPng ? 'png' : 'jpg'}`,
         mimeType: isPng ? 'image/png' : 'image/jpeg',
         token,
       });
-      Alert.alert(
-        ok ? 'Sačuvano' : 'Greška',
-        ok ? 'Slika je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo. Pokušaj ponovo.',
-      );
+      if (ok) {
+        Alert.alert(
+          t('common.saved'),
+          t('editor.savedToSpace'),
+          [
+            { text: t('common.ok'), style: 'cancel' },
+            { text: t('common.openMySpace'), onPress: () => router.push('/(tabs)/myspace') },
+          ],
+        );
+      } else {
+        Alert.alert(t('common.error'), t('editor.saveToSpaceFailed'));
+      }
     } finally {
       setSavingSpace(false);
     }
@@ -191,14 +284,14 @@ export default function ImageEditorScreen() {
   // into the sticker / meme tools so the user doesn't have to re-pick it.
   const goToSticker = useCallback(() => {
     if (!currentUri) return;
-    router.push({ pathname: '/sticker-maker', params: { uri: currentUri, name: name || 'Slika' } });
+    router.push({ pathname: '/sticker-maker', params: { uri: currentUri, name: name || t('editor.defaultName') } });
   }, [currentUri, name]);
 
   const goToMeme = useCallback(() => {
     if (!currentUri) return;
     router.push({
       pathname: '/meme-creator',
-      params: { uri: currentUri, name: name || 'Slika', ...(id ? { id } : {}), isUploaded: isUploaded || '0' },
+      params: { uri: currentUri, name: name || t('editor.defaultName'), ...(id ? { id } : {}), isUploaded: isUploaded || '0' },
     });
   }, [currentUri, name, id, isUploaded]);
 
@@ -209,7 +302,7 @@ export default function ImageEditorScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
           <Ionicons name="close" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.fileName} numberOfLines={1}>{name || 'Editor'}</Text>
+        <Text style={styles.fileName} numberOfLines={1}>{name || t('editor.title')}</Text>
         <View style={{ flexDirection: 'row' }}>
           <TouchableOpacity onPress={handleSaveToSpace} disabled={savingSpace} style={styles.topBtn}>
             {savingSpace ? (
@@ -229,31 +322,62 @@ export default function ImageEditorScreen() {
       </View>
 
       {/* Image preview */}
-      <View style={styles.imageContainer}>
-        {processing || removingBg || imageLoading ? (
+      <View
+        style={styles.imageContainer}
+        onLayout={(e) => setContainerSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
+      >
+        {processing || removingBg || imageLoading || cropping ? (
           <View style={styles.processingOverlay}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.processingText}>
               {imageLoading
-                ? 'Učitavam sliku...'
+                ? t('editor.loadingImage')
                 : removingBg
-                  ? 'Uklanjam pozadinu...'
-                  : 'Primenjujem filter...'}
+                  ? t('editor.removingBg')
+                  : cropping
+                    ? t('editor.cropping')
+                    : t('editor.applyingFilter')}
             </Text>
           </View>
         ) : null}
         {currentUri ? (
-          <Image
-            source={{ uri: currentUri }}
-            style={styles.image}
-            contentFit="contain"
-            transition={200}
-          />
+          // Pinch to zoom + drag to pan. Remounting on uri change resets the
+          // transform so a freshly cropped / bg-removed image opens at 1×.
+          <ZoomPanView
+            key={currentUri}
+            style={StyleSheet.absoluteFillObject}
+            onTransformChange={(tr) => { transformRef.current = tr; }}
+          >
+            <Image
+              source={{ uri: currentUri }}
+              style={{ width: '100%', height: '100%' }}
+              contentFit="contain"
+              transition={200}
+            />
+          </ZoomPanView>
         ) : null}
       </View>
 
       {/* Tools */}
       <View style={[styles.toolsContainer, { backgroundColor: tc.bgCard }]}>
+        <Text style={[styles.zoomHint, { color: tc.textMuted }]}>
+          {t('editor.zoomHint')}
+        </Text>
+
+        {/* Crop to the visible viewport after pinch/pan. */}
+        <TouchableOpacity
+          style={[styles.removeBgBtn, { backgroundColor: '#0ea5e9' }]}
+          onPress={handleCrop}
+          disabled={cropping || !currentUri || !intrinsic}
+        >
+          {cropping ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons name="crop-outline" size={18} color="#fff" />
+          )}
+          <Text style={styles.removeBgText}>{t('editor.cropToFrame')}</Text>
+        </TouchableOpacity>
+
         {/* Remove Background button */}
         <TouchableOpacity
           style={[styles.removeBgBtn, { backgroundColor: colors.accent }]}
@@ -265,7 +389,7 @@ export default function ImageEditorScreen() {
           ) : (
             <Ionicons name="cut-outline" size={18} color="#fff" />
           )}
-          <Text style={styles.removeBgText}>Ukloni pozadinu</Text>
+          <Text style={styles.removeBgText}>{t('editor.removeBg')}</Text>
         </TouchableOpacity>
 
         {/* Turn the current image straight into a sticker or meme */}
@@ -276,7 +400,7 @@ export default function ImageEditorScreen() {
             disabled={!currentUri || removingBg}
           >
             <Ionicons name="happy-outline" size={18} color="#fff" />
-            <Text style={styles.makeBtnText}>Napravi stiker</Text>
+            <Text style={styles.makeBtnText}>{t('editor.makeSticker')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.makeBtn, { backgroundColor: '#f97316' }]}
@@ -284,7 +408,7 @@ export default function ImageEditorScreen() {
             disabled={!currentUri || removingBg}
           >
             <Ionicons name="flame-outline" size={18} color="#fff" />
-            <Text style={styles.makeBtnText}>Napravi meme</Text>
+            <Text style={styles.makeBtnText}>{t('editor.makeMeme')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -299,7 +423,7 @@ export default function ImageEditorScreen() {
           ) : (
             <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
           )}
-          <Text style={styles.makeBtnText}>Sačuvaj u moj prostor</Text>
+          <Text style={styles.makeBtnText}>{t('editor.saveToSpace')}</Text>
         </TouchableOpacity>
 
         {/* Filters */}
@@ -321,10 +445,10 @@ export default function ImageEditorScreen() {
                 color={activeFilter === f.key ? colors.primary : tc.textMuted}
               />
               <Text style={[styles.filterLabel, activeFilter === f.key && { color: colors.primary }]}>
-                {f.label}
+                {t(f.label)}
               </Text>
               {f.comingSoon && (
-                <Text style={{ fontSize: 8, color: tc.textMuted, marginTop: 1 }}>uskoro</Text>
+                <Text style={{ fontSize: 8, color: tc.textMuted, marginTop: 1 }}>{t('editor.soon')}</Text>
               )}
             </TouchableOpacity>
           ))}
@@ -376,4 +500,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, borderWidth: 1, borderColor: 'transparent',
   },
   filterLabel: { fontSize: 10, ...fonts.medium, color: colors.textMuted },
+  zoomHint: { fontSize: 11, textAlign: 'center', marginHorizontal: 16, marginBottom: 8 },
 });

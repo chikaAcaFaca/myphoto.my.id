@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useFilesStore } from '@/lib/stores';
+import { useT } from '@/i18n/client';
 
 interface SelectionBarAction {
   label: string;
@@ -19,6 +20,7 @@ interface SelectionBarProps {
 export function SelectionBar({ actions }: SelectionBarProps) {
   const { selectedFiles, deselectAll } = useFilesStore();
   const count = selectedFiles.size;
+  const t = useT();
 
   return (
     <AnimatePresence>
@@ -32,7 +34,7 @@ export function SelectionBar({ actions }: SelectionBarProps) {
         >
           <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 shadow-2xl dark:border-gray-700 dark:bg-gray-800 sm:gap-3 sm:px-5 sm:py-3">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              {count} izabrano
+              {t('components.selectionBar.selectedCount', { count })}
             </span>
 
             <div className="h-5 w-px bg-gray-200 dark:bg-gray-600" />
@@ -42,6 +44,7 @@ export function SelectionBar({ actions }: SelectionBarProps) {
                 key={i}
                 onClick={action.onClick}
                 disabled={action.disabled}
+                aria-label={action.label}
                 className={
                   action.variant === 'danger'
                     ? 'flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-600 transition-colors disabled:opacity-50'
@@ -57,10 +60,11 @@ export function SelectionBar({ actions }: SelectionBarProps) {
 
             <button
               onClick={deselectAll}
+              aria-label={t('components.selectionBar.clear')}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors"
             >
               <X className="h-4 w-4" />
-              <span className="hidden sm:inline">Poništi</span>
+              <span className="hidden sm:inline">{t('components.selectionBar.clear')}</span>
             </button>
           </div>
         </motion.div>

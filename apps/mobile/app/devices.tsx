@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { listDevices, removeDevice, getDeviceId, type DeviceInfo } from '@/lib/device-registry';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const platformIcons: Record<string, string> = {
   android: 'phone-portrait',
@@ -17,6 +18,7 @@ const platformIcons: Record<string, string> = {
 
 export default function DevicesScreen() {
   const { colors: tc } = useTheme();
+  const { t, dateLocale } = useT();
   const { getToken } = useAuth();
   const [devices, setDevices] = useState<DeviceInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,16 +46,16 @@ export default function DevicesScreen() {
 
   const handleRemove = (device: DeviceInfo) => {
     if (device.deviceId === currentDeviceId) {
-      Alert.alert('Greska', 'Ne mozete ukloniti trenutni uredjaj.');
+      Alert.alert(t('common.error'), t('devices.cannotRemoveCurrent'));
       return;
     }
     Alert.alert(
-      'Ukloni uredjaj',
-      `Da li zelite da uklonite "${device.deviceName}"?`,
+      t('devices.removeTitle'),
+      t('devices.removeConfirm', { name: device.deviceName }),
       [
-        { text: 'Otkazi', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Ukloni',
+          text: t('common.remove'),
           style: 'destructive',
           onPress: async () => {
             const token = await getToken();
@@ -67,13 +69,13 @@ export default function DevicesScreen() {
   };
 
   const formatLastSeen = (dateStr: string) => {
-    if (!dateStr) return 'Nepoznato';
+    if (!dateStr) return t('devices.unknown');
     const date = new Date(dateStr);
     const diff = Date.now() - date.getTime();
-    if (diff < 60000) return 'Upravo';
-    if (diff < 3600000) return `Pre ${Math.floor(diff / 60000)} min`;
-    if (diff < 86400000) return `Pre ${Math.floor(diff / 3600000)}h`;
-    return date.toLocaleDateString('sr');
+    if (diff < 60000) return t('devices.justNow');
+    if (diff < 3600000) return t('devices.minutesAgo', { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('devices.hoursAgo', { count: Math.floor(diff / 3600000) });
+    return date.toLocaleDateString(dateLocale);
   };
 
   const renderDevice = ({ item }: { item: DeviceInfo }) => {
@@ -92,7 +94,7 @@ export default function DevicesScreen() {
             <Text style={[styles.deviceName, { color: tc.text }]}>{item.deviceName}</Text>
             {isCurrent && (
               <View style={styles.currentBadge}>
-                <Text style={styles.currentText}>Ovaj uredjaj</Text>
+                <Text style={styles.currentText}>{t('devices.thisDevice')}</Text>
               </View>
             )}
           </View>
@@ -115,7 +117,7 @@ export default function DevicesScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Moji uredjaji</Text>
+        <Text style={styles.headerTitle}>{t('devices.title')}</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -132,7 +134,7 @@ export default function DevicesScreen() {
           ListEmptyComponent={
             <View style={styles.center}>
               <Ionicons name="phone-portrait-outline" size={48} color={tc.textMuted} />
-              <Text style={[styles.emptyText, { color: tc.textMuted }]}>Nema registrovanih uredjaja</Text>
+              <Text style={[styles.emptyText, { color: tc.textMuted }]}>{t('devices.empty')}</Text>
             </View>
           }
         />

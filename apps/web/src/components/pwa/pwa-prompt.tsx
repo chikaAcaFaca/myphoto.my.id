@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, WifiOff, Share, Plus } from 'lucide-react';
 import { usePWA } from '@/lib/hooks/use-pwa';
+import { useT } from '@/i18n/client';
 
 export function PWAPrompt() {
   const { isInstallable, isInstalled, isIOS, isOnline, installApp } = usePWA();
   const [dismissed, setDismissed] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const t = useT();
 
   const handleInstallClick = () => {
     if (isIOS) {
@@ -30,7 +32,7 @@ export function PWAPrompt() {
             className="fixed left-0 right-0 top-0 z-50 flex items-center justify-center gap-2 bg-amber-500 px-4 py-2 text-sm font-medium text-white"
           >
             <WifiOff className="h-4 w-4" />
-            Nema internet konekcije. Radi se u offline režimu.
+            {t('components.pwaPrompt.offline')}
           </motion.div>
         )}
       </AnimatePresence>
@@ -51,15 +53,16 @@ export function PWAPrompt() {
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Instaliraj MyPhoto
+                  {t('components.pwaPrompt.installTitle')}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Brži pristup, offline režim i auto-sync
+                  {t('components.pwaPrompt.installSubtitle')}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setDismissed(true)}
+                  aria-label={t('components.common.close')}
                   className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
                 >
                   <X className="h-4 w-4" />
@@ -68,7 +71,7 @@ export function PWAPrompt() {
                   onClick={handleInstallClick}
                   className="rounded-xl bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-primary-600 active:scale-95"
                 >
-                  Instaliraj
+                  {t('components.pwaPrompt.install')}
                 </button>
               </div>
             </div>
@@ -99,10 +102,10 @@ export function PWAPrompt() {
                   <Download className="h-8 w-8 text-primary-500" />
                 </div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Instaliraj MyPhoto na iOS
+                  {t('components.pwaPrompt.iosTitle')}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Pratite ova 3 koraka u Safari pretraživaču
+                  {t('components.pwaPrompt.iosSubtitle')}
                 </p>
               </div>
 
@@ -114,14 +117,14 @@ export function PWAPrompt() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      Tapnite dugme za deljenje
+                      {t('components.pwaPrompt.step1Title')}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      Na dnu ekrana u Safari-ju (kvadrat sa strelicom)
+                      {t('components.pwaPrompt.step1Body')}
                     </p>
                     <div className="mt-2 flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 dark:bg-gray-700">
                       <Share className="h-5 w-5 text-primary-500" />
-                      <span className="text-xs text-gray-600 dark:text-gray-300">Share / Podeli</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-300">{t('components.pwaPrompt.step1Button')}</span>
                     </div>
                   </div>
                 </div>
@@ -133,10 +136,10 @@ export function PWAPrompt() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      Pronađite &quot;Add to Home Screen&quot;
+                      {t('components.pwaPrompt.step2Title')}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      Skrolujte u meniju i tapnite ovu opciju
+                      {t('components.pwaPrompt.step2Body')}
                     </p>
                     <div className="mt-2 flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 dark:bg-gray-700">
                       <Plus className="h-5 w-5 text-gray-600 dark:text-gray-300" />
@@ -152,10 +155,10 @@ export function PWAPrompt() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      Tapnite &quot;Add&quot; / &quot;Dodaj&quot;
+                      {t('components.pwaPrompt.step3Title')}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      MyPhoto ikonica će se pojaviti na vašem Home Screen-u
+                      {t('components.pwaPrompt.step3Body')}
                     </p>
                   </div>
                 </div>
@@ -168,7 +171,7 @@ export function PWAPrompt() {
                 }}
                 className="mt-6 w-full rounded-xl bg-primary-500 py-3 text-sm font-semibold text-white transition-all hover:bg-primary-600 active:scale-[0.98]"
               >
-                Razumem
+                {t('components.pwaPrompt.gotIt')}
               </button>
             </motion.div>
           </div>

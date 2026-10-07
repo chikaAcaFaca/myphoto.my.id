@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSync } from '@/lib/sync-context';
+import { useT } from '@/lib/i18n';
 
 type Step = 'permissions' | 'backup' | 'done';
 
@@ -19,6 +20,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState<Step>('permissions');
   const [isLoading, setIsLoading] = useState(false);
   const { updateSettings, startSync } = useSync();
+  const { t } = useT();
 
   const handleRequestPermissions = async () => {
     setIsLoading(true);
@@ -28,11 +30,11 @@ export default function OnboardingScreen() {
         setStep('backup');
       } else {
         Alert.alert(
-          'Potrebna dozvola',
-          'Bez pristupa slikama ne možemo da napravimo backup. Možete ovo uključiti kasnije u podešavanjima.',
+          t('onboarding.permissionNeededTitle'),
+          t('onboarding.permissionNeededMessage'),
           [
-            { text: 'Preskoči', onPress: () => setStep('backup') },
-            { text: 'Pokušaj ponovo', onPress: handleRequestPermissions },
+            { text: t('common.skip'), onPress: () => setStep('backup') },
+            { text: t('common.retry'), onPress: handleRequestPermissions },
           ]
         );
       }
@@ -65,7 +67,7 @@ export default function OnboardingScreen() {
 
   const handleFinish = async () => {
     await AsyncStorage.setItem('@myphoto/onboarding_complete', 'true');
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/meme-wall-tab');
   };
 
   return (
@@ -82,12 +84,12 @@ export default function OnboardingScreen() {
           <View style={styles.iconCircle}>
             <Ionicons name="images" size={48} color="#0ea5e9" />
           </View>
-          <Text style={styles.stepTitle}>Pristup slikama</Text>
+          <Text style={styles.stepTitle}>{t('onboarding.permissionsTitle')}</Text>
           <Text style={styles.stepDescription}>
-            Dozvolite pristup vašim slikama i video snimcima da bismo mogli da ih sačuvamo u cloudu.
+            {t('onboarding.permissionsDescription')}
           </Text>
           <Text style={styles.stepNote}>
-            Vaše slike ostaju privatne. Ne koristimo ih za AI trening niti ih delimo sa trećim stranama.
+            {t('onboarding.permissionsNote')}
           </Text>
 
           <TouchableOpacity
@@ -100,13 +102,13 @@ export default function OnboardingScreen() {
             ) : (
               <>
                 <Ionicons name="shield-checkmark" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.primaryButtonText}>Dozvoli pristup</Text>
+                <Text style={styles.primaryButtonText}>{t('onboarding.allowAccess')}</Text>
               </>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.skipButton} onPress={() => setStep('backup')}>
-            <Text style={styles.skipButtonText}>Preskoči za sada</Text>
+            <Text style={styles.skipButtonText}>{t('onboarding.skipForNow')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -116,18 +118,18 @@ export default function OnboardingScreen() {
           <View style={styles.iconCircle}>
             <Ionicons name="cloud-upload" size={48} color="#10b981" />
           </View>
-          <Text style={styles.stepTitle}>Auto-backup</Text>
+          <Text style={styles.stepTitle}>{t('onboarding.backupTitle')}</Text>
           <Text style={styles.stepDescription}>
-            Uključite automatski backup i vaše slike će se čuvati u cloudu čim se povežete na WiFi.
+            {t('onboarding.backupDescription')}
           </Text>
 
           {/* Bonus callout */}
           <View style={styles.bonusCard}>
             <Ionicons name="gift" size={24} color="#f59e0b" />
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.bonusTitle}>+1 GB besplatno!</Text>
+              <Text style={styles.bonusTitle}>{t('onboarding.bonusTitle')}</Text>
               <Text style={styles.bonusText}>
-                Dobijate dodatnih 1 GB prostora kada uključite auto-backup.
+                {t('onboarding.bonusText')}
               </Text>
             </View>
           </View>
@@ -142,13 +144,13 @@ export default function OnboardingScreen() {
             ) : (
               <>
                 <Ionicons name="cloud-done" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.primaryButtonText}>Uključi backup (+1 GB)</Text>
+                <Text style={styles.primaryButtonText}>{t('onboarding.enableBackup')}</Text>
               </>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.skipButton} onPress={handleSkipBackup}>
-            <Text style={styles.skipButtonText}>Kasnije</Text>
+            <Text style={styles.skipButtonText}>{t('onboarding.later')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -158,23 +160,23 @@ export default function OnboardingScreen() {
           <View style={[styles.iconCircle, { backgroundColor: '#ecfdf5' }]}>
             <Ionicons name="checkmark-circle" size={64} color="#10b981" />
           </View>
-          <Text style={styles.stepTitle}>Sve je spremno!</Text>
+          <Text style={styles.stepTitle}>{t('onboarding.doneTitle')}</Text>
           <Text style={styles.stepDescription}>
-            Vaš nalog je aktivan. Slike se automatski čuvaju u MyPhoto, a svi vaši fajlovi su dostupni u MySpace.
+            {t('onboarding.doneDescription')}
           </Text>
 
           <View style={styles.summaryCard}>
-            <SummaryRow icon="images" text="Slike → MyPhoto (galerija, AI pretraga, albumi)" />
-            <SummaryRow icon="folder" text="Fajlovi → MySpace (folderi kao na računaru)" />
-            <SummaryRow icon="sync" text="Sve se sinhronizuje automatski" />
-            <SummaryRow icon="globe" text="Pristup sa web-a, telefona i računara" />
+            <SummaryRow icon="images" text={t('onboarding.summaryPhotos')} />
+            <SummaryRow icon="folder" text={t('onboarding.summaryFiles')} />
+            <SummaryRow icon="sync" text={t('onboarding.summarySync')} />
+            <SummaryRow icon="globe" text={t('onboarding.summaryAccess')} />
           </View>
 
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: '#10b981' }]}
             onPress={handleFinish}
           >
-            <Text style={styles.primaryButtonText}>Kreni!</Text>
+            <Text style={styles.primaryButtonText}>{t('onboarding.start')}</Text>
           </TouchableOpacity>
         </View>
       )}

@@ -12,6 +12,7 @@ import {
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
+import { useT } from '@/lib/i18n';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -21,10 +22,11 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   const { signIn, signInWithGoogle } = useAuth();
+  const { t } = useT();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setError(t('auth.login.fillAllFields'));
       return;
     }
 
@@ -35,7 +37,7 @@ export default function LoginScreen() {
       await signIn(email, password);
       // Navigation handled by RootNavigator auth gate
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : t('auth.login.failed'));
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +51,7 @@ export default function LoginScreen() {
       await signInWithGoogle();
       // Navigation handled by RootNavigator auth gate
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google login failed');
+      setError(err instanceof Error ? err.message : t('auth.googleLoginFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -67,8 +69,8 @@ export default function LoginScreen() {
           <Text style={styles.logoText}>MyPhoto</Text>
         </View>
 
-        <Text style={styles.title}>Welcome back</Text>
-        <Text style={styles.subtitle}>Sign in to access your photos</Text>
+        <Text style={styles.title}>{t('auth.login.title')}</Text>
+        <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
 
         {/* Error message */}
         {error ? (
@@ -82,7 +84,7 @@ export default function LoginScreen() {
           <Ionicons name="mail-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Email"
+            placeholder={t('auth.email')}
             placeholderTextColor="#9ca3af"
             value={email}
             onChangeText={setEmail}
@@ -97,7 +99,7 @@ export default function LoginScreen() {
           <Ionicons name="lock-closed-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder={t('auth.password')}
             placeholderTextColor="#9ca3af"
             value={password}
             onChangeText={setPassword}
@@ -114,7 +116,7 @@ export default function LoginScreen() {
 
         {/* Forgot password link */}
         <TouchableOpacity style={styles.forgotPassword}>
-          <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+          <Text style={styles.forgotPasswordText}>{t('auth.login.forgotPassword')}</Text>
         </TouchableOpacity>
 
         {/* Login button */}
@@ -126,14 +128,14 @@ export default function LoginScreen() {
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
+            <Text style={styles.buttonText}>{t('auth.login.signIn')}</Text>
           )}
         </TouchableOpacity>
 
         {/* Divider */}
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
+          <Text style={styles.dividerText}>{t('auth.login.or')}</Text>
           <View style={styles.dividerLine} />
         </View>
 
@@ -144,15 +146,15 @@ export default function LoginScreen() {
           disabled={isLoading}
         >
           <Ionicons name="logo-google" size={20} color="#374151" style={{ marginRight: 8 }} />
-          <Text style={styles.secondaryButtonText}>Continue with Google</Text>
+          <Text style={styles.secondaryButtonText}>{t('auth.continueWithGoogle')}</Text>
         </TouchableOpacity>
 
         {/* Register link */}
         <View style={styles.registerContainer}>
-          <Text style={styles.registerText}>Don't have an account? </Text>
+          <Text style={styles.registerText}>{t('auth.login.noAccount')}</Text>
           <Link href="/(auth)/register" asChild>
             <TouchableOpacity>
-              <Text style={styles.registerLink}>Sign up free</Text>
+              <Text style={styles.registerLink}>{t('auth.login.signUpFree')}</Text>
             </TouchableOpacity>
           </Link>
         </View>

@@ -11,8 +11,11 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export const CREATIONS_FOLDER = 'MyPhoto Kreacije';
 
-// Resolve a top-level MySpace folder by name, creating it if missing. The API
-// handles duplicates gracefully, so a POST is safe to call every time.
+// Resolve a top-level MySpace folder by name, creating it if missing. The
+// folders POST endpoint returns 409 when the folder already exists, so on a
+// conflict we look it up in the parent's listing — otherwise every save after
+// the first would silently dump into the root (the user couldn't find their
+// stickers anywhere).
 async function ensureFolder(name: string, token: string): Promise<string> {
   try {
     const res = await fetch(`${API_URL}/api/folders`, {
@@ -23,6 +26,16 @@ async function ensureFolder(name: string, token: string): Promise<string> {
     if (res.ok) {
       const data = await res.json();
       return data.id || data.folderId || 'root';
+    }
+    if (res.status === 409) {
+      const list = await fetch(`${API_URL}/api/folders?parentId=root`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (list.ok) {
+        const data = await list.json();
+        const found = (data.folders || []).find((f: any) => f.name === name);
+        if (found?.id) return found.id;
+      }
     }
   } catch (e) {
     console.warn('ensureFolder failed:', e);
@@ -36,8 +49,11 @@ export async function saveToMySpace(opts: {
   mimeType: string;
   token: string;
   folderName?: string;
+  /** Mark as a sticker → server files it into the "Stikeri" gallery album
+   *  and sets an isSticker badge flag. */
+  isSticker?: boolean;
 }): Promise<boolean> {
-  const { uri, filename, mimeType, token, folderName = CREATIONS_FOLDER } = opts;
+  const { uri, filename, mimeType, token, folderName = CREATIONS_FOLDER, isSticker } = opts;
   let localUri = uri;
   let tmpToCleanup: string | null = null;
   try {
@@ -76,7 +92,7 @@ export async function saveToMySpace(opts: {
     const confirm = await fetch(`${API_URL}/api/disk-files`, {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileId, s3Key, filename, mimeType, size, folderId }),
+      body: JSON.stringify({ fileId, s3Key, filename, mimeType, size, folderId, ...(isSticker ? { isSticker: true } : {}) }),
     });
     return confirm.ok;
   } catch (e) {

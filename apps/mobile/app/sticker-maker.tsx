@@ -17,6 +17,8 @@ import { saveToMySpace } from '@/lib/myspace-upload';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { ZoomPanView } from '@/components/ZoomPanView';
+import { useT, type TKey } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const STICKER_SIZE = width - 80;
@@ -24,12 +26,12 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 type StickerShape = 'circle' | 'rounded' | 'star' | 'heart' | 'text';
 
-const SHAPES: { key: StickerShape; label: string; icon: string }[] = [
-  { key: 'circle', label: 'Krug', icon: 'ellipse-outline' },
-  { key: 'rounded', label: 'Zaobljeno', icon: 'square-outline' },
-  { key: 'star', label: 'Zvezda', icon: 'star-outline' },
-  { key: 'heart', label: 'Srce', icon: 'heart-outline' },
-  { key: 'text', label: 'Tekst', icon: 'text-outline' },
+const SHAPES: { key: StickerShape; labelKey: TKey; icon: string }[] = [
+  { key: 'circle', labelKey: 'sticker.shapeCircle', icon: 'ellipse-outline' },
+  { key: 'rounded', labelKey: 'sticker.shapeRounded', icon: 'square-outline' },
+  { key: 'star', labelKey: 'sticker.shapeStar', icon: 'star-outline' },
+  { key: 'heart', labelKey: 'sticker.shapeHeart', icon: 'heart-outline' },
+  { key: 'text', labelKey: 'sticker.shapeText', icon: 'text-outline' },
 ];
 
 const BORDER_COLORS = ['#ffffff', '#000000', '#ef4444', '#f97316', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -40,6 +42,7 @@ const HEART_PATH = 'M50,90 C25,65 0,50 0,30 C0,13 13,0 30,0 C40,0 48,5 50,15 C52
 
 export default function StickerMakerScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { id, name, uri: sourceUri } = useLocalSearchParams<{ id?: string; name?: string; uri?: string }>();
   const { ensureOnCloud } = useCloudGate();
   const { getToken } = useAuth();
@@ -114,14 +117,14 @@ export default function StickerMakerScreen() {
       setBgRemoved(true);
     } catch (e) {
       if (e instanceof NoSubjectError) {
-        Alert.alert('Nema subjekta', 'Nije pronađen jasan subjekt na slici. Pokušaj sa drugom slikom.');
+        Alert.alert(t('sticker.noSubjectTitle'), t('sticker.noSubjectMessage'));
       } else {
-        Alert.alert('Greska', 'Uklanjanje pozadine nije uspelo.');
+        Alert.alert(t('common.error'), t('sticker.removeBgFailed'));
       }
     } finally {
       setRemovingBg(false);
     }
-  }, [imageUri, id, ensureOnCloud]);
+  }, [imageUri, id, ensureOnCloud, t]);
 
   const handleSave = useCallback(async () => {
     if (!imageUri && shape !== 'text') return;
@@ -129,7 +132,7 @@ export default function StickerMakerScreen() {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (status !== 'granted') {
-        Alert.alert('Dozvola', 'Dozvolite pristup galeriji.');
+        Alert.alert(t('common.permission'), t('sticker.allowGallery'));
         return;
       }
       // Save the actual styled sticker (shape + border, transparent around it),
@@ -140,15 +143,33 @@ export default function StickerMakerScreen() {
         saveUri = dl.uri;
       }
       if (saveUri) {
-        await MediaLibrary.saveToLibraryAsync(saveUri);
+        // Drop the sticker into a dedicated "MyPhoto Stickers" album so the
+        // user can find it in the Viber / WhatsApp / Telegram image picker
+        // instead of scrolling through every photo on the device.
+        const asset = await MediaLibrary.createAssetAsync(saveUri);
+        try {
+          const album = await MediaLibrary.getAlbumAsync('MyPhoto Stickers');
+          if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album.id, false);
+          } else {
+            await MediaLibrary.createAlbumAsync('MyPhoto Stickers', asset, false);
+          }
+        } catch (e) {
+          // Album step is best-effort — if it fails the asset is still in
+          // the device gallery, just not under our named album.
+          console.warn('Album organize failed:', e);
+        }
       }
-      Alert.alert('Sacuvano!', 'Stiker je sacuvan. Mozete ga koristiti u Viberu i drugim aplikacijama!');
+      Alert.alert(
+        t('sticker.savedTitle'),
+        t('sticker.savedToDevice', { album: 'MyPhoto Stickers' }),
+      );
     } catch (e) {
-      Alert.alert('Greska', 'Cuvanje nije uspelo.');
+      Alert.alert(t('common.error'), t('sticker.saveFailed'));
     } finally {
       setSaving(false);
     }
-  }, [imageUri, shape, captureSticker]);
+  }, [imageUri, shape, captureSticker, t]);
 
   // Save the styled sticker into the user's MySpace cloud (personal space).
   const handleSaveToSpace = useCallback(async () => {
@@ -156,12 +177,12 @@ export default function StickerMakerScreen() {
     try {
       const token = await getToken();
       if (!token) {
-        Alert.alert('Prijava', 'Prijavi se da bi sačuvao u svoj prostor.');
+        Alert.alert(t('sticker.signInTitle'), t('sticker.signInToSave'));
         return;
       }
       const captured = (await captureSticker()) || imageUri;
       if (!captured) {
-        Alert.alert('Greška', 'Nema slike za čuvanje.');
+        Alert.alert(t('common.error'), t('sticker.nothingToSave'));
         return;
       }
       const ok = await saveToMySpace({
@@ -169,22 +190,28 @@ export default function StickerMakerScreen() {
         filename: `stiker-${Date.now()}.png`,
         mimeType: 'image/png',
         token,
+        folderName: 'Stikeri',
+        isSticker: true,
       });
-      Alert.alert(
-        ok ? 'Sačuvano' : 'Greška',
-        ok ? 'Stiker je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo.',
-      );
+      if (ok) {
+        Alert.alert(
+          t('common.saved'),
+          t('sticker.savedToSpace', { album: 'Stikeri' }),
+        );
+      } else {
+        Alert.alert(t('common.error'), t('sticker.saveToSpaceFailed'));
+      }
     } finally {
       setSavingSpace(false);
     }
-  }, [captureSticker, imageUri, getToken]);
+  }, [captureSticker, imageUri, getToken, t]);
 
   const renderStickerPreview = () => {
     if (shape === 'text') {
       return (
         <View style={[styles.textSticker, { borderColor }]}>
           <Text style={styles.textStickerContent}>
-            {stickerText || 'Tvoj tekst ovde'}
+            {stickerText || t('sticker.textPlaceholderPreview')}
           </Text>
           <Text style={styles.textStickerBrand}>myphotomy.space</Text>
         </View>
@@ -195,7 +222,7 @@ export default function StickerMakerScreen() {
       return (
         <TouchableOpacity style={[styles.pickBtn, { backgroundColor: tc.bgCard }]} onPress={pickImage}>
           <Ionicons name="image-outline" size={48} color={tc.textMuted} />
-          <Text style={[styles.pickText, { color: tc.textMuted }]}>Izaberi sliku</Text>
+          <Text style={[styles.pickText, { color: tc.textMuted }]}>{t('sticker.pickImage')}</Text>
         </TouchableOpacity>
       );
     }
@@ -206,38 +233,47 @@ export default function StickerMakerScreen() {
       const br = shape === 'circle' ? s / 2 : 30;
       return (
         <View style={[styles.stickerFrame, { borderRadius: br, borderColor, borderWidth: 4 }]}>
-          <Image
-            source={{ uri: imageUri }}
-            style={[styles.stickerImage, { borderRadius: br - 4, transform: [{ scale: zoom }] }]}
-            contentFit="cover"
-          />
+          {/* Pinch-to-zoom + drag the subject inside the clipped frame. The
+              frame's overflow:hidden clips the image to the chosen shape. */}
+          <ZoomPanView style={StyleSheet.absoluteFillObject} panAtBaseScale>
+            <Image
+              source={{ uri: imageUri }}
+              style={[styles.stickerImage, { borderRadius: br - 4 }]}
+              contentFit="cover"
+            />
+          </ZoomPanView>
         </View>
       );
     }
 
-    // Star and Heart use SVG clip path
+    // Star and Heart use SVG clip path. We wrap the whole SVG in ZoomPanView
+    // so pinch/pan works here too — the outline scales with the image as a
+    // side-effect, but pinch is what the user actually asked for and the
+    // outline only ever looks "bigger", not wrong.
     const clipId = shape === 'star' ? 'starClip' : 'heartClip';
     const pathD = shape === 'star' ? STAR_PATH : HEART_PATH;
 
     return (
-      <View style={{ width: s, height: s }}>
-        <Svg width={s} height={s} viewBox="0 0 100 100">
-          <Defs>
-            <ClipPath id={clipId}>
-              <Path d={pathD} />
-            </ClipPath>
-          </Defs>
-          <SvgImage
-            href={imageUri}
-            x={((1 - zoom) / 2) * 100}
-            y={((1 - zoom) / 2) * 100}
-            width={100 * zoom}
-            height={100 * zoom}
-            clipPath={`url(#${clipId})`}
-            preserveAspectRatio="xMidYMid slice"
-          />
-          <Path d={pathD} stroke={borderColor} strokeWidth="3" fill="none" />
-        </Svg>
+      <View style={{ width: s, height: s, overflow: 'hidden' }}>
+        <ZoomPanView style={StyleSheet.absoluteFillObject} panAtBaseScale>
+          <Svg width={s} height={s} viewBox="0 0 100 100">
+            <Defs>
+              <ClipPath id={clipId}>
+                <Path d={pathD} />
+              </ClipPath>
+            </Defs>
+            <SvgImage
+              href={imageUri}
+              x={0}
+              y={0}
+              width={100}
+              height={100}
+              clipPath={`url(#${clipId})`}
+              preserveAspectRatio="xMidYMid slice"
+            />
+            <Path d={pathD} stroke={borderColor} strokeWidth="3" fill="none" />
+          </Svg>
+        </ZoomPanView>
       </View>
     );
   };
@@ -248,7 +284,7 @@ export default function StickerMakerScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Stiker Kreator</Text>
+        <Text style={styles.headerTitle}>{t('sticker.title')}</Text>
         <View style={{ flexDirection: 'row' }}>
           <TouchableOpacity onPress={handleSaveToSpace} disabled={savingSpace} style={styles.topBtn}>
             {savingSpace ? <ActivityIndicator size="small" color="#fff" /> : (
@@ -273,17 +309,13 @@ export default function StickerMakerScreen() {
           </View>
         </View>
 
-        {/* Zoom control */}
+        {/* All shapes (circle/rounded/star/heart) use pinch-to-zoom + drag via
+            ZoomPanView now. The +/- buttons are gone — they were strictly worse
+            and confused the user about which gesture was authoritative. */}
         {imageUri && shape !== 'text' && (
-          <View style={styles.zoomRow}>
-            <TouchableOpacity onPress={() => setZoom(Math.max(0.5, zoom - 0.1))} style={styles.zoomBtn}>
-              <Ionicons name="remove" size={20} color={tc.text} />
-            </TouchableOpacity>
-            <Text style={[styles.zoomText, { color: tc.textMuted }]}>{Math.round(zoom * 100)}%</Text>
-            <TouchableOpacity onPress={() => setZoom(Math.min(2, zoom + 0.1))} style={styles.zoomBtn}>
-              <Ionicons name="add" size={20} color={tc.text} />
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.zoomHint, { color: tc.textMuted }]}>
+            {t('sticker.gestureHint')}
+          </Text>
         )}
 
         {/* Tools */}
@@ -294,7 +326,7 @@ export default function StickerMakerScreen() {
               {removingBg ? <ActivityIndicator size="small" color="#fff" /> : (
                 <Ionicons name="cut-outline" size={16} color="#fff" />
               )}
-              <Text style={styles.removeBgText}>Ukloni pozadinu</Text>
+              <Text style={styles.removeBgText}>{t('sticker.removeBg')}</Text>
             </TouchableOpacity>
           )}
 
@@ -310,7 +342,7 @@ export default function StickerMakerScreen() {
               ) : (
                 <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
               )}
-              <Text style={styles.removeBgText}>Sačuvaj u moj prostor</Text>
+              <Text style={styles.removeBgText}>{t('sticker.saveToMySpace')}</Text>
             </TouchableOpacity>
           )}
 
@@ -318,7 +350,7 @@ export default function StickerMakerScreen() {
           {shape === 'text' && (
             <TextInput
               style={[styles.textInput, { backgroundColor: tc.bgInput, color: tc.text, borderColor: tc.border }]}
-              placeholder="Ukucaj tekst za stiker..."
+              placeholder={t('sticker.textInputPlaceholder')}
               placeholderTextColor={tc.textMuted}
               value={stickerText}
               onChangeText={setStickerText}
@@ -328,7 +360,7 @@ export default function StickerMakerScreen() {
           )}
 
           {/* Shape */}
-          <Text style={[styles.label, { color: tc.textMuted }]}>OBLIK</Text>
+          <Text style={[styles.label, { color: tc.textMuted }]}>{t('sticker.shape')}</Text>
           <View style={styles.optionRow}>
             {SHAPES.map((s) => (
               <TouchableOpacity
@@ -337,13 +369,13 @@ export default function StickerMakerScreen() {
                 onPress={() => setShape(s.key)}
               >
                 <Ionicons name={s.icon as any} size={20} color={shape === s.key ? '#ec4899' : tc.textMuted} />
-                <Text style={[styles.shapeBtnText, shape === s.key && { color: '#ec4899' }]}>{s.label}</Text>
+                <Text style={[styles.shapeBtnText, shape === s.key && { color: '#ec4899' }]}>{t(s.labelKey)}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* Border color */}
-          <Text style={[styles.label, { color: tc.textMuted }]}>BOJA OKVIRA</Text>
+          <Text style={[styles.label, { color: tc.textMuted }]}>{t('sticker.borderColor')}</Text>
           <View style={styles.colorRow}>
             {BORDER_COLORS.map((c) => (
               <TouchableOpacity
@@ -359,7 +391,7 @@ export default function StickerMakerScreen() {
             <TouchableOpacity style={styles.changeBtn} onPress={pickImage}>
               <Ionicons name="swap-horizontal" size={16} color={tc.primary} />
               <Text style={[styles.changeBtnText, { color: tc.primary }]}>
-                {imageUri ? 'Promeni sliku' : 'Izaberi sliku'}
+                {imageUri ? t('sticker.changeImage') : t('sticker.pickImage')}
               </Text>
             </TouchableOpacity>
           )}
@@ -405,6 +437,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   zoomText: { fontSize: 14, ...fonts.bold, width: 50, textAlign: 'center' },
+  zoomHint: { fontSize: 11, textAlign: 'center', marginBottom: 8 },
   toolsCard: { width: width - 24, borderRadius: radius.lg, padding: 16, marginTop: 8 },
   removeBgBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

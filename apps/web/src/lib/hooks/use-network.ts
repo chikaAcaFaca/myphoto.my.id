@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { UserSettings } from '@myphoto/shared';
+import { tStatic } from '@/components/i18n-static';
 
 export type ConnectionType = 'wifi' | 'cellular' | 'ethernet' | 'unknown';
 
@@ -99,7 +100,7 @@ export function useUploadPermission(settings: UserSettings | undefined): UploadP
 
   return useCallback((): UploadPermission => {
     if (!network.isOnline) {
-      return { allowed: false, reason: 'Nema internet konekcije' };
+      return { allowed: false, reason: tStatic('components.network.offline') };
     }
 
     if (!settings) {
@@ -114,7 +115,7 @@ export function useUploadPermission(settings: UserSettings | undefined): UploadP
       if (network.connectionType === 'cellular') {
         return {
           allowed: false,
-          reason: 'Upload je ograničen samo na WiFi. Promenite u podešavanjima da dozvolite mobilne podatke.',
+          reason: tStatic('components.network.wifiOnly'),
         };
       }
     }

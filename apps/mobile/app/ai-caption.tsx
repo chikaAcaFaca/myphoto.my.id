@@ -11,6 +11,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 import { generateAiCaptions, recaptionMeme, type CaptionLanguage } from '@/lib/ai-captions';
 import { checkMemeLimit, incrementMemeUsage } from '@/lib/meme-limits';
 
@@ -19,6 +20,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function AiCaptionScreen() {
   const { colors: tc } = useTheme();
+  const { t, language } = useT();
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
   const { appUser, getToken } = useAuth();
 
@@ -28,7 +30,7 @@ export default function AiCaptionScreen() {
   const [captions, setCaptions] = useState<string[]>([]);
   const [selectedCaption, setSelectedCaption] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [lang, setLang] = useState<CaptionLanguage>('sr');
+  const [lang, setLang] = useState<CaptionLanguage>(language);
 
   const pickImage = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -48,9 +50,9 @@ export default function AiCaptionScreen() {
     // AI limit check — manual memes are free, AI has limits
     const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, true);
     if (!limitCheck.allowed) {
-      Alert.alert('AI limit dostignut', limitCheck.reason, [
-        { text: 'OK' },
-        { text: 'Nadogradi plan', onPress: () => router.push('/pricing') },
+      Alert.alert(t('aiCaption.limitTitle'), limitCheck.reason, [
+        { text: t('common.ok') },
+        { text: t('common.upgradePlan'), onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -85,18 +87,18 @@ export default function AiCaptionScreen() {
     } finally {
       setGenerating(false);
     }
-  }, [imageUri, id, getToken]);
+  }, [imageUri, id, getToken, lang, t, appUser?.storageLimit]);
 
   const handleCopy = useCallback(async (text: string) => {
     await Clipboard.setStringAsync(text);
-    Alert.alert('Kopirano!', 'Tekst je kopiran u clipboard.');
-  }, []);
+    Alert.alert(t('aiCaption.copiedTitle'), t('aiCaption.copiedMessage'));
+  }, [t]);
 
   const handleShare = useCallback(async (caption: string) => {
     await Share.share({
-      message: `${caption}\n\nNapravljeno u MyPhoto app`,
+      message: `${caption}\n\n${t('aiCaption.shareFooter')}`,
     });
-  }, []);
+  }, [t]);
 
   return (
     <View style={[styles.container, { backgroundColor: tc.bg }]}>
@@ -104,7 +106,7 @@ export default function AiCaptionScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>AI Komentari</Text>
+        <Text style={styles.headerTitle}>{t('aiCaption.title')}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -123,7 +125,7 @@ export default function AiCaptionScreen() {
           ) : (
             <TouchableOpacity style={[styles.pickBtn, { backgroundColor: tc.bgCard }]} onPress={pickImage}>
               <Ionicons name="image-outline" size={48} color={tc.textMuted} />
-              <Text style={[styles.pickText, { color: tc.textMuted }]}>Izaberi sliku</Text>
+              <Text style={[styles.pickText, { color: tc.textMuted }]}>{t('aiCaption.pickImage')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -159,7 +161,7 @@ export default function AiCaptionScreen() {
               <Ionicons name="sparkles" size={18} color="#fff" />
             )}
             <Text style={styles.generateText}>
-              {generating ? 'Generisem...' : captions.length > 0 ? 'Generisi nove komentare' : 'Generisi smesne komentare'}
+              {generating ? t('aiCaption.generating') : captions.length > 0 ? t('aiCaption.generateMore') : t('aiCaption.generate')}
             </Text>
           </TouchableOpacity>
         )}
@@ -178,7 +180,7 @@ export default function AiCaptionScreen() {
             disabled={generating}
           >
             <Ionicons name="refresh" size={16} color="#06b6d4" />
-            <Text style={[styles.recaptionText, { color: '#06b6d4' }]}>Izmeni ovaj komentar sa AI</Text>
+            <Text style={[styles.recaptionText, { color: '#06b6d4' }]}>{t('aiCaption.recaption')}</Text>
           </TouchableOpacity>
         )}
 
@@ -186,7 +188,7 @@ export default function AiCaptionScreen() {
         {captions.length > 0 && (
           <View style={styles.captionsContainer}>
             <View style={styles.captionsHeader}>
-              <Text style={[styles.captionsTitle, { color: tc.text }]}>Izaberite komentar</Text>
+              <Text style={[styles.captionsTitle, { color: tc.text }]}>{t('aiCaption.chooseCaption')}</Text>
               <TouchableOpacity onPress={generateCaptions}>
                 <Ionicons name="refresh" size={18} color={tc.primary} />
               </TouchableOpacity>
@@ -220,7 +222,7 @@ export default function AiCaptionScreen() {
         {imageUri && (
           <TouchableOpacity style={styles.changeBtn} onPress={pickImage}>
             <Ionicons name="swap-horizontal" size={16} color={tc.primary} />
-            <Text style={[styles.changeBtnText, { color: tc.primary }]}>Promeni sliku</Text>
+            <Text style={[styles.changeBtnText, { color: tc.primary }]}>{t('aiCaption.changeImage')}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

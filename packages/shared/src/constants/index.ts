@@ -12,25 +12,39 @@ export const BYTES_PER_TB = BYTES_PER_GB * 1024;
 // Free tier: 1GB on registration
 export const FREE_STORAGE_LIMIT = 1 * BYTES_PER_GB;
 
-// Bonus: +1GB for installing Android/iOS app + enabling auto-backup
-export const APP_INSTALL_BONUS = 1 * BYTES_PER_GB;
+// Install bonuses are retired: the free plan is 1GB + referrals only. Kept at
+// zero rather than deleted so old call sites compile and grant nothing.
+export const APP_INSTALL_BONUS = 0;
+export const DESKTOP_INSTALL_BONUS = 0;
 
-// Bonus: +512MB for installing Desktop app + enabling sync
-export const DESKTOP_INSTALL_BONUS = 512 * BYTES_PER_MB;
-
-// Referral constants
-export const REFERRAL_BONUS = 512 * BYTES_PER_MB;        // +512MB per referral
-export const MAX_REFERRAL_BONUS = 7.5 * BYTES_PER_GB;      // max 7.5GB bonus (15 referrals × 512MB)
-export const MAX_REFERRALS = 15;                           // max 15 friends
+// Referrals: the REFERRER gets +250MB for every friend who signs up with their
+// link and uploads REFERRAL_QUALIFICATION_BYTES. The new user starts at the
+// plain 1GB. 6 referrals x 250MB = 1.5GB, which lands exactly on the 2.5GB
+// free ceiling below.
+export const REFERRAL_BONUS = 250 * BYTES_PER_MB;
+export const MAX_REFERRALS = 6;
+export const MAX_REFERRAL_BONUS = REFERRAL_BONUS * MAX_REFERRALS; // 1.5GB
 export const REFERRAL_QUALIFICATION_BYTES = 100 * BYTES_PER_MB; // referee must upload 100MB to qualify
 export const MAX_FAMILY_MEMBERS_REFERRAL = 6;
 
-// Max free storage: 1GB (reg) + 1GB (app) + 512MB (desktop) + 7.5GB (15 referrals) = ~10GB
-// But realistically without all referrals: 1GB + 1GB + 512MB + 512MB = 3GB (enough for MySpace free)
-export const MAX_FREE_STORAGE = 10 * BYTES_PER_GB;
+// Meme-wall referral: retired, grants nothing (main referral covers it).
+export const MEME_REFERRAL_BONUS = 0;
+export const MAX_MEME_REFERRAL_BONUS = 0;
+export const MEME_QUALIFICATION_UPLOAD_BYTES = 500 * BYTES_PER_MB; // referee must upload 500MB
+export const MEME_QUALIFICATION_REFERRALS = 5;                     // referee must refer 5 friends
+
+// Hard ceiling on everything a user can get without paying:
+// 1GB registration + up to 6 x 250MB referrals. Enforced in
+// recalculateStorageLimit(); admin-granted storage and paid subscriptions
+// stack on top of it and are deliberately NOT capped.
+export const MAX_FREE_STORAGE = 2.5 * BYTES_PER_GB;
 
 // Legacy — keep for backward compatibility during migration
 export const BACKUP_BONUS = APP_INSTALL_BONUS;
+
+// Largest single meme upload (video memes included). Memes also count against
+// the author's storageLimit like any other file.
+export const MAX_MEME_UPLOAD_SIZE = 100 * BYTES_PER_MB;
 
 // Billing Periods — monthly and yearly only
 export const BILLING_PERIODS = {
@@ -77,6 +91,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 0,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 2,
@@ -91,6 +108,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 3.99,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: MYDISK_LITE_FEATURES,
     hasPhotoBackup: false,
     yearlyOnly: true,
@@ -106,6 +126,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 6.90,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 5,
@@ -120,6 +143,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 9.90,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 8,
@@ -134,6 +160,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 24.90,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     isPopular: true,
@@ -149,6 +178,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 39.90,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 14,
@@ -163,6 +195,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 74.90,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 17,
@@ -177,6 +212,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 109.90,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 22,
@@ -191,6 +229,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 144.90,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 28,
@@ -205,6 +246,9 @@ export const STORAGE_TIERS: StorageTier[] = [
     priceYearly: 249.90,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 40,

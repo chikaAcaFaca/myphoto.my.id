@@ -9,6 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -17,6 +18,7 @@ const THUMB_SIZE = (width - 36) / 3;
 interface ProfileMeme {
   id: string;
   imageUrl: string;
+  mediaType: 'image' | 'video' | 'gif';
   caption: string;
   likes: number;
   shares: number;
@@ -25,6 +27,7 @@ interface ProfileMeme {
 
 export default function MemeProfileScreen() {
   const { colors: tc } = useTheme();
+  const { t, tp } = useT();
   const { userId, userName } = useLocalSearchParams<{ userId: string; userName: string }>();
   const { user, getToken } = useAuth();
   const [memes, setMemes] = useState<ProfileMeme[]>([]);
@@ -91,13 +94,29 @@ export default function MemeProfileScreen() {
 
   const handleShareProfile = useCallback(async () => {
     await Share.share({
-      message: `Pogledaj memove od @${userName} na MyPhoto!\nhttps://myphotomy.space/user/${userId}`,
+      message: `${t('meme.profile.shareMessage', { name: userName })}\nhttps://myphotomy.space/user/${userId}`,
     });
-  }, [userId, userName]);
+  }, [userId, userName, t]);
+
+  // Tapping any thumbnail opens the full-screen feed viewer scoped to this
+  // user, starting on the tapped meme (TikTok-style).
+  const openViewer = (item: ProfileMeme) =>
+    router.push({
+      pathname: '/meme-wall',
+      params: { profileUserId: userId, profileName: userName, startId: item.id },
+    });
 
   const renderMeme = ({ item }: { item: ProfileMeme }) => (
-    <TouchableOpacity style={styles.thumbWrap}>
-      <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+    <TouchableOpacity style={styles.thumbWrap} onPress={() => openViewer(item)} activeOpacity={0.8}>
+      {item.mediaType === 'video' ? (
+        // Don't mount a <Video> per grid cell (many players → OOM). Show a
+        // play-badge tile; the real player runs in the viewer on tap.
+        <View style={[styles.thumb, styles.videoThumb]}>
+          <Ionicons name="play" size={26} color="#fff" />
+        </View>
+      ) : (
+        <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+      )}
       <View style={styles.thumbStats}>
         <Ionicons name="heart" size={10} color="#fff" />
         <Text style={styles.thumbCount}>{item.likes}</Text>
@@ -126,7 +145,7 @@ export default function MemeProfileScreen() {
         </View>
         <Text style={[styles.profileName, { color: tc.text }]}>@{userName}</Text>
         <Text style={[styles.profileStats, { color: tc.textMuted }]}>
-          {memes.length} memova · {memes.reduce((s, m) => s + m.likes, 0)} lajkova · {followerCount} pratilaca
+          {tp('meme.profile.memes', memes.length)} · {tp('meme.profile.likes', memes.reduce((s, m) => s + m.likes, 0))} · {tp('meme.profile.followers', followerCount)}
         </Text>
 
         {/* CTA / Follow */}
@@ -136,7 +155,7 @@ export default function MemeProfileScreen() {
             onPress={() => router.push('/register')}
           >
             <Ionicons name="sparkles" size={18} color="#fff" />
-            <Text style={styles.ctaText}>Napravi svoj meme — Registruj se besplatno!</Text>
+            <Text style={styles.ctaText}>{t('meme.profile.signUpCta')}</Text>
           </TouchableOpacity>
         ) : !isOwnProfile ? (
           <TouchableOpacity
@@ -146,7 +165,7 @@ export default function MemeProfileScreen() {
           >
             <Ionicons name={isFollowing ? 'checkmark' : 'person-add'} size={18} color={isFollowing ? tc.text : '#fff'} />
             <Text style={[styles.ctaText, isFollowing && { color: tc.text }]}>
-              {isFollowing ? 'Pratiš' : 'Zaprati'}
+              {isFollowing ? t('meme.profile.following') : t('meme.profile.follow')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -160,7 +179,7 @@ export default function MemeProfileScreen() {
       ) : memes.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={48} color={tc.textMuted} />
-          <Text style={[styles.emptyText, { color: tc.textMuted }]}>Nema memova jos</Text>
+          <Text style={[styles.emptyText, { color: tc.textMuted }]}>{t('meme.profile.empty')}</Text>
         </View>
       ) : (
         <FlatList
@@ -201,6 +220,7 @@ const styles = StyleSheet.create({
   grid: { padding: 4 },
   thumbWrap: { width: THUMB_SIZE, height: THUMB_SIZE, margin: 2, borderRadius: 4, overflow: 'hidden' },
   thumb: { width: '100%', height: '100%' },
+  videoThumb: { backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center' },
   thumbStats: {
     position: 'absolute', bottom: 2, left: 4, flexDirection: 'row', alignItems: 'center', gap: 2,
   },

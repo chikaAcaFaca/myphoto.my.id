@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X, Download, ZoomIn } from 'lucide-react';
+import { useT } from '@/i18n/client';
 
 interface SharedImageProps {
   fileId: string;
@@ -12,6 +13,7 @@ interface SharedImageProps {
 
 export function SharedImage({ fileId, fileName, shareToken, isVideo }: SharedImageProps) {
   const [showLightbox, setShowLightbox] = useState(false);
+  const t = useT();
 
   if (isVideo) {
     return (
@@ -59,12 +61,13 @@ export function SharedImage({ fileId, fileName, shareToken, isVideo }: SharedIma
                 download={fileName}
                 onClick={(e) => e.stopPropagation()}
                 className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-                title="Preuzmi"
+                title={t('components.shared.download')}
               >
                 <Download className="h-5 w-5" />
               </a>
               <button
                 onClick={(e) => { e.stopPropagation(); setShowLightbox(false); }}
+                aria-label={t('components.common.close')}
                 className="rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
               >
                 <X className="h-5 w-5" />

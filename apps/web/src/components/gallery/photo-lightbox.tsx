@@ -29,10 +29,11 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { FileMetadata } from '@myphoto/shared';
-import { formatDate, formatBytes } from '@myphoto/shared';
+import { formatBytes } from '@myphoto/shared';
 import { useUIStore } from '@/lib/stores';
 import { useFiles, useGetDownloadUrl, useUpdateFile, useDeleteFile, useShareFile } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
+import { useI18n, useT } from '@/i18n/client';
 
 // ─── Main PhotoLightbox ─────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export function PhotoLightbox() {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isChildZoomed, setIsChildZoomed] = useState(false);
+  const t = useT();
 
   // Detect mobile
   useEffect(() => {
@@ -220,6 +222,7 @@ export function PhotoLightbox() {
             <>
               {hasPrev && (
                 <button
+                  aria-label={t('components.common.previous')}
                   onClick={(e) => {
                     e.stopPropagation();
                     goToPrev();
@@ -234,6 +237,7 @@ export function PhotoLightbox() {
               )}
               {hasNext && (
                 <button
+                  aria-label={t('components.common.next')}
                   onClick={(e) => {
                     e.stopPropagation();
                     goToNext();
@@ -572,6 +576,7 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const t = useT();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Reset error and force autoplay on file change
@@ -680,7 +685,7 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
               }}
               className="rounded-lg bg-white/20 px-4 py-2 text-sm text-white hover:bg-white/30"
             >
-              Pokušaj ponovo
+              {t('components.lightbox.retry')}
             </button>
           </div>
         </div>
@@ -704,15 +709,15 @@ function VideoPlayer({ file }: { file: FileMetadata }) {
         playsInline
         preload="metadata"
         className="max-h-screen max-w-full object-contain"
-        onError={() => setVideoError('Video format nije podržan ili je fajl oštećen.')}
+        onError={() => setVideoError(t('components.lightbox.videoError'))}
       >
-        Your browser does not support the video tag.
+        {t('components.lightbox.videoUnsupported')}
       </video>
       {/* Fullscreen button */}
       <button
         onClick={toggleFullscreen}
         className="absolute right-3 top-3 rounded-full bg-black/50 p-2 text-white/80 transition-colors hover:bg-black/70 hover:text-white"
-        title="Fullscreen"
+        title={t('components.lightbox.fullscreen')}
       >
         <Maximize className="h-5 w-5" />
       </button>
@@ -743,6 +748,7 @@ function LightboxToolbar({
   const { mutate: updateFile } = useUpdateFile();
   const { mutate: deleteFile } = useDeleteFile();
   const { mutate: shareFile, isPending: isSharing } = useShareFile();
+  const t = useT();
 
   const handleToggleFavorite = () => {
     updateFile(
@@ -751,7 +757,7 @@ function LightboxToolbar({
         onSuccess: () => {
           addNotification({
             type: 'success',
-            title: file.isFavorite ? 'Removed from favorites' : 'Added to favorites',
+            title: file.isFavorite ? t('components.photoGrid.removedFromFavorites') : t('components.photoGrid.addedToFavorites'),
           });
         },
       }
@@ -771,8 +777,8 @@ function LightboxToolbar({
       onError: () => {
         addNotification({
           type: 'error',
-          title: 'Download failed',
-          message: 'Could not download the file',
+          title: t('components.photoGrid.downloadFailed'),
+          message: t('components.photoGrid.downloadFailedBody'),
         });
       },
     });
@@ -783,8 +789,8 @@ function LightboxToolbar({
       onSuccess: () => {
         addNotification({
           type: 'success',
-          title: 'Moved to trash',
-          message: 'File will be permanently deleted in 30 days',
+          title: t('components.photoGrid.movedToTrash'),
+          message: t('components.photoGrid.movedToTrashBody'),
         });
         onClose();
       },
@@ -808,12 +814,12 @@ function LightboxToolbar({
             className={cn('h-5 w-5', file.isFavorite && 'fill-red-500 text-red-500')}
           />
         }
-        label="Favorite (F)"
+        label={t('components.lightbox.favorite')}
         onClick={handleToggleFavorite}
       />
       <ToolbarButton
         icon={<Download className="h-5 w-5" />}
-        label="Download"
+        label={t('components.lightbox.download')}
         onClick={handleDownload}
       />
       <ToolbarButton
@@ -824,7 +830,7 @@ function LightboxToolbar({
             <Share2 className="h-5 w-5" />
           )
         }
-        label="Share"
+        label={t('components.lightbox.share')}
         onClick={() => {
           if (isSharing) return;
           shareFile(file.id, {
@@ -835,7 +841,7 @@ function LightboxToolbar({
                 try {
                   await navigator.share({
                     title: file.name,
-                    text: `Pogledaj "${file.name}" na myphotomy.space`,
+                    text: t('components.lightbox.shareText', { name: file.name }),
                     url: fullUrl,
                   });
                   return;
@@ -846,16 +852,16 @@ function LightboxToolbar({
               // Fallback: copy to clipboard
               try {
                 await navigator.clipboard.writeText(fullUrl);
-                addNotification({ type: 'success', title: 'Link kopiran!' });
+                addNotification({ type: 'success', title: t('components.lightbox.linkCopied') });
               } catch {
-                addNotification({ type: 'error', title: 'Kopiranje nije uspelo' });
+                addNotification({ type: 'error', title: t('components.lightbox.copyFailed') });
               }
             },
             onError: () => {
               addNotification({
                 type: 'error',
-                title: 'Greška pri deljenju',
-                message: 'Pokušajte ponovo',
+                title: t('components.lightbox.shareError'),
+                message: t('components.lightbox.tryAgain'),
               });
             },
           });
@@ -864,7 +870,7 @@ function LightboxToolbar({
       {file.type !== 'video' && (
         <ToolbarButton
           icon={<Crop className="h-5 w-5" />}
-          label="Uredi sliku"
+          label={t('components.lightbox.editImage')}
           onClick={() => {
             window.open(`/tools/image-editor?fileId=${file.id}`, '_blank');
           }}
@@ -873,7 +879,7 @@ function LightboxToolbar({
       {file.type !== 'video' && (
         <ToolbarButton
           icon={<Eraser className="h-5 w-5" />}
-          label="Ukloni pozadinu"
+          label={t('components.lightbox.removeBackground')}
           onClick={() => {
             window.open(`/tools/remove-bg?fileId=${file.id}`, '_blank');
           }}
@@ -882,7 +888,7 @@ function LightboxToolbar({
       {file.type !== 'video' && (
         <ToolbarButton
           icon={<Flame className="h-5 w-5 text-orange-400" />}
-          label="Napravi meme"
+          label={t('components.lightbox.makeMeme')}
           onClick={() => {
             getDownloadUrl(file.s3Key, {
               onSuccess: (url: string) => {
@@ -899,14 +905,14 @@ function LightboxToolbar({
       )}
       <ToolbarButton
         icon={<Trash2 className="h-5 w-5" />}
-        label="Delete"
+        label={t('components.lightbox.delete')}
         onClick={handleDelete}
       />
       <ToolbarButton
         icon={
           <Info className={cn('h-5 w-5', showInfo && 'text-blue-400')} />
         }
-        label="Info (I)"
+        label={t('components.lightbox.info')}
         onClick={onToggleInfo}
       />
     </>
@@ -924,7 +930,7 @@ function LightboxToolbar({
         {buttons}
         <ToolbarButton
           icon={<X className="h-5 w-5" />}
-          label="Close"
+          label={t('components.common.close')}
           onClick={onClose}
         />
       </div>
@@ -947,7 +953,7 @@ function LightboxToolbar({
         <div className="mx-2 h-6 w-px bg-white/20" />
         <ToolbarButton
           icon={<X className="h-5 w-5" />}
-          label="Close (Esc)"
+          label={t('components.lightbox.closeEsc')}
           onClick={onClose}
         />
       </div>
@@ -971,6 +977,7 @@ function ToolbarButton({
         onClick();
       }}
       title={label}
+      aria-label={label}
       className="rounded-full p-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white"
     >
       {icon}
@@ -991,6 +998,7 @@ function InfoPanel({
   onClose: () => void;
   isMobile: boolean;
 }) {
+  const t = useT();
   if (isMobile) {
     // Bottom sheet for mobile
     return (
@@ -1035,9 +1043,10 @@ function InfoPanel({
           className="absolute right-0 top-0 z-20 h-full w-80 overflow-auto border-l border-white/10 bg-gray-900/95 backdrop-blur-sm"
         >
           <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-            <h3 className="text-sm font-medium text-white">Details</h3>
+            <h3 className="text-sm font-medium text-white">{t('components.lightbox.details')}</h3>
             <button
               onClick={onClose}
+              aria-label={t('components.common.close')}
               className="rounded-full p-1 text-white/60 hover:bg-white/10 hover:text-white"
             >
               <X className="h-4 w-4" />
@@ -1053,39 +1062,45 @@ function InfoPanel({
 }
 
 function InfoContent({ file }: { file: FileMetadata }) {
+  const { t, intlLocale } = useI18n();
+  const longDate = (d: Date | string | number) =>
+    new Date(d).toLocaleDateString(intlLocale, {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
   const rows: { label: string; value: string }[] = [
-    { label: 'Filename', value: file.name },
+    { label: t('components.lightbox.filename'), value: file.name },
     {
-      label: 'Date taken',
-      value: file.takenAt
-        ? formatDate(file.takenAt, 'long')
-        : formatDate(file.createdAt, 'long'),
+      label: t('components.lightbox.dateTaken'),
+      value: file.takenAt ? longDate(file.takenAt) : longDate(file.createdAt),
     },
-    { label: 'Size', value: formatBytes(file.size) },
+    { label: t('components.lightbox.size'), value: formatBytes(file.size) },
   ];
 
   if (file.width && file.height) {
-    rows.push({ label: 'Dimensions', value: `${file.width} × ${file.height}` });
+    rows.push({ label: t('components.lightbox.dimensions'), value: `${file.width} × ${file.height}` });
   }
 
   if (file.duration) {
     const mins = Math.floor(file.duration / 60);
     const secs = Math.floor(file.duration % 60);
-    rows.push({ label: 'Duration', value: `${mins}:${secs.toString().padStart(2, '0')}` });
+    rows.push({ label: t('components.lightbox.duration'), value: `${mins}:${secs.toString().padStart(2, '0')}` });
   }
 
   if (file.deviceInfo) {
-    rows.push({ label: 'Device', value: file.deviceInfo });
+    rows.push({ label: t('components.lightbox.device'), value: file.deviceInfo });
   }
 
   if (file.location) {
     rows.push({
-      label: 'Location',
+      label: t('components.lightbox.location'),
       value: `${file.location.latitude.toFixed(4)}, ${file.location.longitude.toFixed(4)}`,
     });
   }
 
-  rows.push({ label: 'Type', value: file.mimeType });
+  rows.push({ label: t('components.lightbox.type'), value: file.mimeType });
 
   return (
     <div className="space-y-5">
@@ -1112,7 +1127,7 @@ function InfoContent({ file }: { file: FileMetadata }) {
       {/* AI labels */}
       {file.labels && file.labels.length > 0 && (
         <div>
-          <h4 className="mb-2 text-xs text-white/40">AI Labels</h4>
+          <h4 className="mb-2 text-xs text-white/40">{t('components.lightbox.aiLabels')}</h4>
           <div className="flex flex-wrap gap-1.5">
             {file.labels.map((label) => (
               <span
@@ -1129,13 +1144,13 @@ function InfoContent({ file }: { file: FileMetadata }) {
       {/* MySpace folder link — shown when photo was uploaded via MySpace */}
       {file.diskFolderId && (
         <div>
-          <h4 className="mb-2 text-xs text-white/40">Lokacija na MySpace</h4>
+          <h4 className="mb-2 text-xs text-white/40">{t('components.lightbox.mySpaceLocation')}</h4>
           <Link
             href={`/myspace?folder=${file.diskFolderId}`}
             className="inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-xs text-sky-400 hover:bg-white/20 transition-colors"
           >
             <HardDrive className="h-3.5 w-3.5" />
-            Otvori folder u MySpace
+            {t('components.lightbox.openMySpaceFolder')}
           </Link>
         </div>
       )}

@@ -10,6 +10,7 @@ import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
 import { AddToAlbumModal } from '@/components/modals/add-to-album-modal';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/client';
 
 export default function VideosPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useFiles({
@@ -25,6 +26,7 @@ export default function VideosPage() {
   const { mutate: shareFile, isPending: isSharing } = useShareFile();
   const { addNotification } = useUIStore();
   const [showAlbumModal, setShowAlbumModal] = useState(false);
+  const t = useT();
 
   const handleBulkDelete = () => {
     const ids = Array.from(selectedFiles);
@@ -32,8 +34,8 @@ export default function VideosPage() {
       onSuccess: () => {
         addNotification({
           type: 'success',
-          title: 'Premesteno u korpu',
-          message: `${ids.length} fajlova premesteno u korpu`,
+          title: t('dashboard.shared.movedToTrash'),
+          message: t('dashboard.shared.movedToTrashMsg', { count: ids.length }),
         });
         deselectAll();
       },
@@ -51,14 +53,14 @@ export default function VideosPage() {
           onSuccess: () => {
             addNotification({
               type: 'success',
-              title: 'Video uploadovan',
-              message: `${file.name} je uploadovan`,
+              title: t('dashboard.videos.uploaded'),
+              message: t('dashboard.videos.uploadedMsg', { name: file.name }),
             });
           },
           onError: (error) => {
             addNotification({
               type: 'error',
-              title: 'Upload neuspešan',
+              title: t('dashboard.videos.uploadFailed'),
               message: error.message,
             });
           },
@@ -66,7 +68,7 @@ export default function VideosPage() {
       }
       e.target.value = '';
     },
-    [uploadFile, addNotification]
+    [uploadFile, addNotification, t]
   );
 
   // Intersection observer for infinite scroll
@@ -112,9 +114,9 @@ export default function VideosPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Video zapisi</h1>
+          <h1 className="text-2xl font-bold">{t('dashboard.videos.title')}</h1>
           <p className="text-sm text-gray-500">
-            {files.length} {files.length === 1 ? 'video' : 'video zapisa'}
+            {t(files.length === 1 ? 'dashboard.videos.countOne' : 'dashboard.videos.countMany', { count: files.length })}
           </p>
         </div>
 
@@ -124,12 +126,13 @@ export default function VideosPage() {
             className="btn-primary"
           >
             <Upload className="mr-2 h-4 w-4" />
-            Upload
+            {t('dashboard.photos.upload')}
           </button>
 
           <div className="flex rounded-lg border border-gray-200 p-1 dark:border-gray-700">
             <button
               onClick={() => setViewMode('grid')}
+              aria-label={t('dashboard.photos.gridView')}
               className={cn(
                 'rounded-md p-1.5',
                 viewMode === 'grid'
@@ -141,6 +144,7 @@ export default function VideosPage() {
             </button>
             <button
               onClick={() => setViewMode('list')}
+              aria-label={t('dashboard.photos.listView')}
               className={cn(
                 'rounded-md p-1.5',
                 viewMode === 'list'
@@ -164,7 +168,7 @@ export default function VideosPage() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
           ) : (
             <button onClick={() => fetchNextPage()} className="btn-secondary">
-              Učitaj još
+              {t('dashboard.shared.loadMore')}
             </button>
           )}
         </div>
@@ -181,20 +185,20 @@ export default function VideosPage() {
           <div className="mb-6 rounded-full bg-primary-50 p-6 dark:bg-primary-900/20">
             <Video className="h-12 w-12 text-primary-500" />
           </div>
-          <h2 className="text-xl font-semibold">Nema video zapisa</h2>
+          <h2 className="text-xl font-semibold">{t('dashboard.videos.emptyTitle')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Uploadujte video zapise da ih čuvate sigurno u oblaku. Podržani formati: MP4, MOV, WebM, AVI.
+            {t('dashboard.videos.emptyText')}
           </p>
           <button onClick={() => fileInputRef.current?.click()} className="btn-primary mt-6">
             <Upload className="mr-2 h-4 w-4" />
-            Upload Video
+            {t('dashboard.videos.uploadVideo')}
           </button>
         </motion.div>
       )}
       <SelectionBar
         actions={[
           {
-            label: 'Podeli',
+            label: t('dashboard.shared.share'),
             icon: <Share2 className="h-4 w-4" />,
             onClick: () => {
               const ids = Array.from(selectedFiles);
@@ -202,23 +206,23 @@ export default function VideosPage() {
                 shareFile(ids[0], {
                   onSuccess: async (data) => {
                     const fullUrl = `${window.location.origin}${data.shareUrl}`;
-                    try { await navigator.clipboard.writeText(fullUrl); addNotification({ type: 'success', title: 'Link kopiran!' }); } catch { addNotification({ type: 'error', title: 'Kopiranje nije uspelo' }); }
+                    try { await navigator.clipboard.writeText(fullUrl); addNotification({ type: 'success', title: t('dashboard.shared.linkCopied') }); } catch { addNotification({ type: 'error', title: t('dashboard.shared.copyFailed') }); }
                   },
                 });
               } else {
-                addNotification({ type: 'info', title: 'Za deljenje više fajlova, dodajte ih u album.' });
+                addNotification({ type: 'info', title: t('dashboard.shared.shareMultipleHint') });
               }
             },
             disabled: isSharing,
             variant: 'primary',
           },
           {
-            label: 'Album',
+            label: t('dashboard.shared.album'),
             icon: <FolderPlus className="h-4 w-4" />,
             onClick: () => setShowAlbumModal(true),
           },
           {
-            label: 'Obriši',
+            label: t('dashboard.shared.delete'),
             icon: <Trash2 className="h-4 w-4" />,
             onClick: handleBulkDelete,
             variant: 'danger',

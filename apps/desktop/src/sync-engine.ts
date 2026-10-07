@@ -56,6 +56,16 @@ function isMediaFile(mimeType: string): boolean {
 // Track synced files by content hash to avoid re-uploads
 const SYNC_DB_FILE = '.myphoto-sync-db.json';
 
+// Never watch these — they explode the file count (millions of entries),
+// pinning CPU/RAM and never finishing. If the user points the sync at a broad
+// folder (or a whole drive) these are the worst offenders.
+const IGNORE_DIRS =
+  /[\\/](node_modules|\$recycle\.bin|system volume information|windows|winsxs|program files( \(x86\))?|programdata|appdata|\.git|\.cache|temp|tmp|caches?)[\\/]/i;
+
+// Skip enormous single files — uploadFile reads the whole file into memory, so
+// a multi-GB file would balloon RAM. Above this we log and skip.
+const MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+
 interface SyncDB {
   files: Record<string, { hash: string; remoteFolderId: string; remoteFileId: string; syncedAt: number }>;
   folders: Record<string, string>; // relative path → remote folder ID
@@ -197,6 +207,11 @@ export class SyncEngine {
     try {
       const stat = fs.statSync(filePath);
       if (!stat.isFile()) return false;
+
+      if (stat.size > MAX_FILE_BYTES) {
+        this.log(`Skipping ${relativePath} — too large (${(stat.size / 1073741824).toFixed(1)} GB)`);
+        return true; // treat as handled so we don't retry it forever
+      }
 
       // Check if already synced with same hash
       const hash = await this.fileHash(filePath);
@@ -353,10 +368,13 @@ export class SyncEngine {
     this.options.onStatus('syncing');
 
     this.watcher = chokidar.watch(this.options.syncFolder, {
-      ignored: [
-        /(^|[\/\\])\../, // Hidden files
-        `**/${SYNC_DB_FILE}`,
-      ],
+      // A function is more reliable than globs across Windows backslash paths.
+      ignored: (p: string) => {
+        const base = path.basename(p);
+        if (base.startsWith('.')) return true; // hidden files/dirs
+        if (base === SYNC_DB_FILE) return true;
+        return IGNORE_DIRS.test(p); // node_modules / Windows / AppData / …
+      },
       persistent: true,
       ignoreInitial: false, // Process existing files on first run
       awaitWriteFinish: {

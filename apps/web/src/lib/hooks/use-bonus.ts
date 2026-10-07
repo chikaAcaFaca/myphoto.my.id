@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getIdToken } from '../firebase';
+import { tStatic } from '@/components/i18n-static';
 import { useAuthStore } from '../stores';
 
 export function useClaimBackupBonus() {
@@ -11,7 +12,7 @@ export function useClaimBackupBonus() {
   return useMutation({
     mutationFn: async (platform: 'android' | 'ios' = 'android') => {
       const token = await getIdToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       const res = await fetch('/api/bonus/backup', {
         method: 'POST',
@@ -24,7 +25,7 @@ export function useClaimBackupBonus() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Failed to claim bonus');
+        throw new Error(data.error || tStatic('components.errors.claimBonusFailed'));
       }
 
       return res.json();

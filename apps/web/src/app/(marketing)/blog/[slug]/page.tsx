@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Clock, ArrowLeft } from 'lucide-react';
-import { blogPosts, getPostBySlug, getAllSlugs } from '../posts';
+import { getPostBySlug, getAllSlugs, localizePost } from '../posts';
+import { getLocale, getT } from '@/i18n/server';
+import { INTL_LOCALE } from '@/i18n/config';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -14,15 +16,18 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
-  if (!post) return { title: 'Post Not Found' };
+  const found = getPostBySlug(slug);
+  const t = await getT();
+  if (!found) return { title: t('marketing.blog.meta.notFound') };
+  const locale = await getLocale();
+  const post = localizePost(found, locale);
 
   return {
     title: `${post.title} | MyPhoto Blog`,
     description: post.description,
     openGraph: {
       type: 'article',
-      locale: 'sr_RS',
+      locale: locale === 'sr' ? 'sr_RS' : 'en_US',
       url: `https://myphotomy.space/blog/${post.slug}`,
       siteName: 'MyPhoto',
       title: post.title,
@@ -184,8 +189,11 @@ function formatInline(text: string): React.ReactNode {
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = getPostBySlug(slug);
-  if (!post) notFound();
+  const found = getPostBySlug(slug);
+  if (!found) notFound();
+  const t = await getT();
+  const locale = await getLocale();
+  const post = localizePost(found, locale);
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -193,6 +201,7 @@ export default async function BlogPostPage({ params }: Props) {
     headline: post.title,
     description: post.description,
     datePublished: post.date,
+    inLanguage: locale,
     author: { '@type': 'Person', name: post.author },
     publisher: {
       '@type': 'Organization',
@@ -207,7 +216,7 @@ export default async function BlogPostPage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Početna', item: 'https://myphotomy.space' },
+      { '@type': 'ListItem', position: 1, name: t('marketing.shared.breadcrumbHome'), item: 'https://myphotomy.space' },
       { '@type': 'ListItem', position: 2, name: 'Blog', item: 'https://myphotomy.space/blog' },
       { '@type': 'ListItem', position: 3, name: post.title },
     ],
@@ -231,7 +240,7 @@ export default async function BlogPostPage({ params }: Props) {
           className="mb-8 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary-600 dark:text-gray-400"
         >
           <ArrowLeft className="h-4 w-4" />
-          Nazad na blog
+          {t('marketing.blog.backToBlog')}
         </Link>
 
         {/* Header */}
@@ -242,7 +251,7 @@ export default async function BlogPostPage({ params }: Props) {
           <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {new Date(post.date).toLocaleDateString('sr-RS', {
+              {new Date(post.date).toLocaleDateString(INTL_LOCALE[locale], {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -272,16 +281,16 @@ export default async function BlogPostPage({ params }: Props) {
         {/* CTA */}
         <div className="mt-12 rounded-xl bg-primary-50 p-6 text-center dark:bg-primary-950/30">
           <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-            Isprobajte MyPhoto besplatno
+            {t('marketing.blog.cta.title')}
           </h3>
           <p className="mb-4 text-gray-600 dark:text-gray-400">
-            Do 15GB besplatnog prostora, bez kreditne kartice.
+            {t('marketing.blog.cta.text')}
           </p>
           <Link
             href="/register"
             className="inline-block rounded-lg bg-primary-600 px-6 py-3 font-medium text-white hover:bg-primary-700"
           >
-            Kreirajte besplatan nalog
+            {t('marketing.blog.cta.button')}
           </Link>
         </div>
       </article>

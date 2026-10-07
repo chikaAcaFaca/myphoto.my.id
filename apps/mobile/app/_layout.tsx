@@ -9,12 +9,32 @@ import React, { useEffect, useState, Component, type ErrorInfo, type ReactNode }
 import { View, Text, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
+
+// One-time audio session config so expo-av's <Video> auto-plays reliably.
+// Without `playsInSilentModeIOS` an iOS device on silent never starts the
+// player; on Android the session has to be set BEFORE the first Video mounts
+// or shouldPlay can be silently ignored. We fire-and-forget — failure here
+// only degrades audio behavior, never crashes.
+Audio.setAudioModeAsync({
+  allowsRecordingIOS: false,
+  interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+  interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+  playsInSilentModeIOS: true,
+  shouldDuckAndroid: true,
+  staysActiveInBackground: false,
+  playThroughEarpieceAndroid: false,
+}).catch(() => {});
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { SyncProvider } from '@/lib/sync-context';
 import { CloudGateProvider } from '@/lib/cloud-gate';
+import { StorageGuardProvider } from '@/lib/storage-guard';
+import { AppUpdateCheck } from '@/lib/app-update-check';
 import { ThemeProvider } from '@/lib/theme-context';
+import { I18nProvider, t } from '@/lib/i18n';
+import { ShareIntentHandler } from '@/components/ShareIntentHandler';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -38,7 +58,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
     if (this.state.error) {
       return (
         <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>MyPhoto Crash Report</Text>
+          <Text style={styles.errorTitle}>{t('nav.crashReport')}</Text>
           <ScrollView style={styles.errorScroll}>
             <Text style={styles.errorText}>{this.state.error.message}</Text>
             <Text style={styles.errorStack}>{this.state.error.stack}</Text>
@@ -56,11 +76,24 @@ function RootNavigator() {
   const router = useRouter();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
-  // Re-read onboarding status whenever user or route changes
+  // Re-read onboarding status whenever user or route changes. The `segments`
+  // dependency is load-bearing: onboarding.tsx writes the flag and immediately
+  // navigates, and this re-read is what picks the new value up — without it the
+  // routing effect below would bounce the user back to /onboarding forever.
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY).then((val) => {
-      setOnboardingDone(val === 'true');
-    });
+    let cancelled = false;
+    AsyncStorage.getItem(ONBOARDING_COMPLETE_KEY)
+      .then((val) => {
+        if (!cancelled) setOnboardingDone(val === 'true');
+      })
+      // A failed read must not gate the whole UI on the spinner — assume the
+      // user has already onboarded and let them into the app.
+      .catch(() => {
+        if (!cancelled) setOnboardingDone(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user, segments]);
 
   useEffect(() => {
@@ -76,7 +109,7 @@ function RootNavigator() {
     } else if (!onboardingDone && !onOnboarding) {
       router.replace('/onboarding');
     } else if (onboardingDone && (inAuthGroup || onOnboarding)) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/meme-wall-tab');
     }
   }, [user, isLoading, segments, onboardingDone]);
 
@@ -97,7 +130,14 @@ function RootNavigator() {
   return (
     <SyncProvider>
       <CloudGateProvider>
-        <Slot />
+        <StorageGuardProvider>
+          {/* Watch for incoming Android share intents (image/video) and upload
+              them into the user's MySpace once we're inside the auth-gated zone. */}
+          <ShareIntentHandler />
+          {/* Offer an update when a newer APK has been published. */}
+          <AppUpdateCheck />
+          <Slot />
+        </StorageGuardProvider>
       </CloudGateProvider>
     </SyncProvider>
   );
@@ -106,13 +146,15 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <RootNavigator />
-          </AuthProvider>
-        </QueryClientProvider>
-      </ThemeProvider>
+      <I18nProvider>
+        <ThemeProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <RootNavigator />
+            </AuthProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
+      </I18nProvider>
     </ErrorBoundary>
   );
 }

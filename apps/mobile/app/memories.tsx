@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
+import { useT } from '@/lib/i18n';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -26,6 +27,7 @@ interface MemoryGroup {
 
 export default function MemoriesScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { getToken } = useAuth();
   const [onThisDay, setOnThisDay] = useState<FileMetadata[]>([]);
   const [memories, setMemories] = useState<MemoryGroup[]>([]);
@@ -78,7 +80,7 @@ export default function MemoriesScreen() {
             <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Secanja</Text>
+            <Text style={styles.headerTitle}>{t('memories.title')}</Text>
             <View style={{ width: 32 }} />
           </View>
         </View>
@@ -98,7 +100,7 @@ export default function MemoriesScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Secanja</Text>
+          <Text style={styles.headerTitle}>{t('memories.title')}</Text>
           <View style={{ width: 32 }} />
         </View>
       </View>
@@ -106,8 +108,8 @@ export default function MemoriesScreen() {
       {isEmpty ? (
         <View style={styles.center}>
           <Ionicons name="sparkles-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Nema secanja</Text>
-          <Text style={styles.emptySubtext}>Secanja ce se pojaviti kako budete dodavali slike</Text>
+          <Text style={styles.emptyText}>{t('memories.emptyTitle')}</Text>
+          <Text style={styles.emptySubtext}>{t('memories.emptySubtitle')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -119,7 +121,7 @@ export default function MemoriesScreen() {
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Na ovaj dan</Text>
+                <Text style={styles.sectionTitle}>{t('memories.onThisDay')}</Text>
               </View>
               <FlatList
                 data={onThisDay}

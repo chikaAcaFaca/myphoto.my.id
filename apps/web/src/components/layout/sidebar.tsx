@@ -34,8 +34,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore, useAuthStore } from '@/lib/stores';
 import { useStorage, usePWA, useIsMobile, useReferralStats } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
-import { FREE_STORAGE_LIMIT, BYTES_PER_GB, formatBytes } from '@myphoto/shared';
+import { FREE_STORAGE_LIMIT, BYTES_PER_GB, MAX_REFERRALS, formatBytes } from '@myphoto/shared';
 import { getIdToken } from '@/lib/firebase';
+import { useT } from '@/i18n/client';
+import type { MessageKey } from '@/i18n/translate';
+import { LanguageSwitcher } from './language-switcher';
+
+type NavEntry = { name: MessageKey; href: string; icon: any };
 
 // One-shot reconcile of the user's storageUsed counter against the source of
 // truth (sum of non-trashed files + diskFiles). The counter has drifted high
@@ -43,6 +48,7 @@ import { getIdToken } from '@/lib/firebase';
 // stuck under the over-quota warning even after emptying folders of APKs.
 function RecomputeStorageButton() {
   const queryClient = useQueryClient();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const onClick = async () => {
     if (busy) return;
@@ -58,21 +64,21 @@ function RecomputeStorageButton() {
         queryClient.invalidateQueries({ queryKey: ['storage'] });
         const freed = data?.freedBytes || 0;
         if (freed > 0) {
-          alert(`Oslobođeno ${formatBytes(freed)} prostora.`);
+          alert(t('components.sidebar.recomputeFreed', { size: formatBytes(freed) }));
         } else {
-          alert('Skladište je već usklađeno.');
+          alert(t('components.sidebar.recomputeInSync'));
         }
       } else {
-        alert('Osvežavanje nije uspelo.');
+        alert(t('components.sidebar.recomputeFailed'));
       }
-    } catch { alert('Mrežna greška.'); }
+    } catch { alert(t('components.sidebar.networkError')); }
     finally { setBusy(false); }
   };
   return (
     <button
       onClick={onClick}
       disabled={busy}
-      title="Osveži kvotu — preračunaj iskorišćeno skladište"
+      title={t('components.sidebar.recomputeTitle')}
       className="inline-flex items-center justify-center rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-gray-300"
     >
       <RefreshCw className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
@@ -80,32 +86,32 @@ function RecomputeStorageButton() {
   );
 }
 
-const mainNav = [
-  { name: 'Slike', href: '/photos', icon: Image },
-  { name: 'Video', href: '/videos', icon: Video },
-  { name: 'Albumi', href: '/albums', icon: FolderOpen },
-  { name: 'Omiljeno', href: '/favorites', icon: Heart },
-  { name: 'Arhiva', href: '/archive', icon: Archive },
-  { name: 'Uspomene', href: '/memories', icon: Clock },
-  { name: 'MySpace', href: '/myspace', icon: HardDrive },
+const mainNav: NavEntry[] = [
+  { name: 'components.sidebar.photos', href: '/photos', icon: Image },
+  { name: 'components.sidebar.videos', href: '/videos', icon: Video },
+  { name: 'components.sidebar.albums', href: '/albums', icon: FolderOpen },
+  { name: 'components.sidebar.favorites', href: '/favorites', icon: Heart },
+  { name: 'components.sidebar.archive', href: '/archive', icon: Archive },
+  { name: 'components.sidebar.memories', href: '/memories', icon: Clock },
+  { name: 'components.sidebar.mySpace', href: '/myspace', icon: HardDrive },
 ];
 
-const creativeNav = [
-  { name: 'Meme Creator', href: '/meme-creator', icon: Palette },
-  { name: 'MemeWall', href: '/meme-wall', icon: Flame },
+const creativeNav: NavEntry[] = [
+  { name: 'components.sidebar.memeCreator', href: '/meme-creator', icon: Palette },
+  { name: 'components.sidebar.memeWall', href: '/meme-wall', icon: Flame },
 ];
 
-const secondaryNav = [
-  { name: 'Pretraga', href: '/search', icon: Search },
-  { name: 'Osobe', href: '/people', icon: Users },
-  { name: 'Duplikati', href: '/duplicates', icon: Copy },
+const secondaryNav: NavEntry[] = [
+  { name: 'components.sidebar.search', href: '/search', icon: Search },
+  { name: 'components.sidebar.people', href: '/people', icon: Users },
+  { name: 'components.sidebar.duplicates', href: '/duplicates', icon: Copy },
 ];
 
-const bottomNav = [
-  { name: 'Podešavanja', href: '/settings', icon: Settings },
-  { name: 'Pomoć', href: '/help', icon: HelpCircle },
-  { name: 'Privatnost', href: '/privacy', icon: Shield },
-  { name: 'Uslovi', href: '/terms', icon: FileText },
+const bottomNav: NavEntry[] = [
+  { name: 'components.sidebar.settings', href: '/settings', icon: Settings },
+  { name: 'components.sidebar.help', href: '/help', icon: HelpCircle },
+  { name: 'components.sidebar.privacy', href: '/privacy', icon: Shield },
+  { name: 'components.sidebar.terms', href: '/terms', icon: FileText },
 ];
 
 export function Sidebar() {
@@ -116,6 +122,7 @@ export function Sidebar() {
   const { isInstallable, isInstalled, isIOS, installApp } = usePWA();
   const { data: referralStats } = useReferralStats();
   const isMobile = useIsMobile();
+  const t = useT();
 
   // Auto-close sidebar on navigation (mobile only)
   useEffect(() => {
@@ -170,6 +177,7 @@ export function Sidebar() {
           {isMobile ? (
             <button
               onClick={() => setSidebarOpen(false)}
+              aria-label={t('components.sidebar.closeMenu')}
               className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
@@ -177,6 +185,7 @@ export function Sidebar() {
           ) : (
             <button
               onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
+              aria-label={isSidebarCollapsed ? t('components.sidebar.expandMenu') : t('components.sidebar.collapseMenu')}
               className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               {isSidebarCollapsed ? (
@@ -231,8 +240,16 @@ export function Sidebar() {
           <div className="my-4 h-px bg-gray-200 dark:bg-gray-700" />
 
           <NavItem
-            item={{ name: 'Korpa', href: '/trash', icon: Trash2 }}
+            item={{ name: 'components.sidebar.trash', href: '/trash', icon: Trash2 }}
             isActive={pathname === '/trash'}
+            isCollapsed={isCollapsed}
+          />
+          {/* Always-visible entry to the Android app download (the top banner
+              only shows on Android phone browsers, so desktop users couldn't
+              find it). */}
+          <NavItem
+            item={{ name: 'components.sidebar.downloadApp', href: '/download', icon: Download }}
+            isActive={pathname === '/download'}
             isCollapsed={isCollapsed}
           />
         </nav>
@@ -241,7 +258,7 @@ export function Sidebar() {
         {showExpanded && storage && (
           <div className="border-t border-gray-200 p-4 dark:border-gray-700">
             <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="text-gray-600 dark:text-gray-400">Skladište</span>
+              <span className="text-gray-600 dark:text-gray-400">{t('components.sidebar.storage')}</span>
               <div className="flex items-center gap-2">
                 <RecomputeStorageButton />
                 <span className="font-medium">{storage.percentage}%</span>
@@ -261,20 +278,20 @@ export function Sidebar() {
               />
             </div>
             <p className="mt-2 text-xs text-gray-500">
-              {storage.usedFormatted} od {storage.limitFormatted}
+              {t('components.sidebar.usedOf', { used: storage.usedFormatted, limit: storage.limitFormatted })}
               {referralStats && referralStats.bonusBytes > 0 && (
                 <span className="ml-1 text-green-600">
-                  ({Math.round(FREE_STORAGE_LIMIT / BYTES_PER_GB)} GB + {referralStats.bonusFormatted} bonus)
+                  ({t('components.sidebar.bonusBreakdown', { base: Math.round(FREE_STORAGE_LIMIT / BYTES_PER_GB), bonus: referralStats.bonusFormatted })})
                 </span>
               )}
             </p>
-            {referralStats && referralStats.referralCount < referralStats.maxReferrals && user?.subscriptionIds?.length === 0 && (
+            {referralStats && referralStats.referralCount < MAX_REFERRALS && user?.subscriptionIds?.length === 0 && (
               <Link
                 href="/settings"
                 className="mt-1 flex items-center gap-1 text-xs text-green-600 hover:text-green-700 hover:underline"
               >
                 <Gift className="h-3 w-3" />
-                Pozovi prijatelje za +1GB
+                {t('components.sidebar.inviteFriends')}
               </Link>
             )}
             {user?.subscriptionIds?.length === 0 ? (
@@ -284,7 +301,7 @@ export function Sidebar() {
                   className="mt-2 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
                 >
                   <Crown className="h-4 w-4 flex-shrink-0" />
-                  <span>Ostalo vam je {storage.remainingFormatted} — nadogradite od €2.49/mes</span>
+                  <span>{t('components.sidebar.remainingUpgrade', { remaining: storage.remainingFormatted })}</span>
                 </Link>
               ) : (
                 <Link
@@ -292,7 +309,7 @@ export function Sidebar() {
                   className="mt-2 flex items-center gap-1.5 text-xs text-primary-500 hover:underline"
                 >
                   <Crown className="h-3.5 w-3.5" />
-                  Nadogradi — 15x više prostora od €2.49/mes
+                  {t('components.sidebar.upgradeCta')}
                 </Link>
               )
             ) : (
@@ -300,7 +317,7 @@ export function Sidebar() {
                 href="/settings/storage"
                 className="mt-2 block text-xs text-primary-500 hover:underline"
               >
-                Nadogradi skladište
+                {t('components.sidebar.upgradeStorage')}
               </Link>
             )}
           </div>
@@ -312,7 +329,7 @@ export function Sidebar() {
             <Link
               href="/checkout?tier=1&ai=false&period=monthly"
               className="flex items-center justify-center rounded-lg p-2 text-amber-600 transition-colors hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
-              title="Nadogradi — 15x više prostora od €2.49/mes"
+              title={t('components.sidebar.upgradeCta')}
             >
               <Crown className="h-5 w-5" />
             </Link>
@@ -334,10 +351,10 @@ export function Sidebar() {
                 'flex w-full items-center gap-3 rounded-lg bg-primary-50 px-3 py-2.5 text-sm font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-[0.97] dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/30',
                 isCollapsed && 'justify-center'
               )}
-              title="Instaliraj aplikaciju"
+              title={t('components.sidebar.installApp')}
             >
               <Download className="h-5 w-5 flex-shrink-0" />
-              {!isCollapsed && <span>Instaliraj</span>}
+              {!isCollapsed && <span>{t('components.sidebar.install')}</span>}
             </button>
           </div>
         )}
@@ -354,6 +371,7 @@ export function Sidebar() {
               />
             ))}
           </div>
+          {!isCollapsed && <LanguageSwitcher className="mt-3 px-3" />}
         </div>
       </aside>
     </>
@@ -365,11 +383,13 @@ function NavItem({
   isActive,
   isCollapsed,
 }: {
-  item: { name: string; href: string; icon: any };
+  item: NavEntry;
   isActive: boolean;
   isCollapsed: boolean;
 }) {
+  const t = useT();
   const Icon = item.icon;
+  const label = t(item.name);
 
   return (
     <Link
@@ -381,10 +401,10 @@ function NavItem({
           : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700',
         isCollapsed && 'justify-center'
       )}
-      title={isCollapsed ? item.name : undefined}
+      title={isCollapsed ? label : undefined}
     >
       <Icon className="h-5 w-5 flex-shrink-0" />
-      {!isCollapsed && <span>{item.name}</span>}
+      {!isCollapsed && <span>{label}</span>}
     </Link>
   );
 }

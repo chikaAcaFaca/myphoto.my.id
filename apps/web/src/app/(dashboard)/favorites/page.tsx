@@ -9,6 +9,7 @@ import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
 import { AddToAlbumModal } from '@/components/modals/add-to-album-modal';
+import { useT } from '@/i18n/client';
 
 export default function FavoritesPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useFiles({
@@ -20,6 +21,7 @@ export default function FavoritesPage() {
   const { mutate: bulkDelete } = useBulkDeleteFiles();
   const { mutate: shareFile, isPending: isSharing } = useShareFile();
   const [showAlbumModal, setShowAlbumModal] = useState(false);
+  const t = useT();
 
   const files = data?.pages.flatMap((page) => page.files) ?? [];
 
@@ -29,8 +31,8 @@ export default function FavoritesPage() {
       onSuccess: () => {
         addNotification({
           type: 'success',
-          title: 'Premesteno u korpu',
-          message: `${ids.length} fajlova premesteno u korpu`,
+          title: t('dashboard.shared.movedToTrash'),
+          message: t('dashboard.shared.movedToTrashMsg', { count: ids.length }),
         });
         deselectAll();
       },
@@ -68,9 +70,9 @@ export default function FavoritesPage() {
     >
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Omiljeno</h1>
+        <h1 className="text-2xl font-bold">{t('dashboard.favorites.title')}</h1>
         <p className="text-sm text-gray-500">
-          {files.length} {files.length === 1 ? 'fajl' : 'fajlova'}
+          {t(files.length === 1 ? 'dashboard.shared.fileOne' : 'dashboard.shared.fileMany', { count: files.length })}
         </p>
       </div>
 
@@ -85,9 +87,9 @@ export default function FavoritesPage() {
           <div className="mb-6 rounded-full bg-red-50 p-6 dark:bg-red-900/20">
             <Heart className="h-12 w-12 text-red-400" />
           </div>
-          <h2 className="text-xl font-semibold">Nema omiljenih</h2>
+          <h2 className="text-xl font-semibold">{t('dashboard.favorites.emptyTitle')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Označite omiljene slike i video zapise klikom na ikonu srca
+            {t('dashboard.favorites.emptyText')}
           </p>
         </motion.div>
       ) : (
@@ -105,7 +107,7 @@ export default function FavoritesPage() {
       <SelectionBar
         actions={[
           {
-            label: 'Podeli',
+            label: t('dashboard.shared.share'),
             icon: <Share2 className="h-4 w-4" />,
             onClick: () => {
               const ids = Array.from(selectedFiles);
@@ -113,23 +115,23 @@ export default function FavoritesPage() {
                 shareFile(ids[0], {
                   onSuccess: async (data) => {
                     const fullUrl = `${window.location.origin}${data.shareUrl}`;
-                    try { await navigator.clipboard.writeText(fullUrl); addNotification({ type: 'success', title: 'Link kopiran!' }); } catch { addNotification({ type: 'error', title: 'Kopiranje nije uspelo' }); }
+                    try { await navigator.clipboard.writeText(fullUrl); addNotification({ type: 'success', title: t('dashboard.shared.linkCopied') }); } catch { addNotification({ type: 'error', title: t('dashboard.shared.copyFailed') }); }
                   },
                 });
               } else {
-                addNotification({ type: 'info', title: 'Za deljenje više fajlova, dodajte ih u album.' });
+                addNotification({ type: 'info', title: t('dashboard.shared.shareMultipleHint') });
               }
             },
             disabled: isSharing,
             variant: 'primary',
           },
           {
-            label: 'Album',
+            label: t('dashboard.shared.album'),
             icon: <FolderPlus className="h-4 w-4" />,
             onClick: () => setShowAlbumModal(true),
           },
           {
-            label: 'Obriši',
+            label: t('dashboard.shared.delete'),
             icon: <Trash2 className="h-4 w-4" />,
             onClick: handleBulkDelete,
             variant: 'danger',

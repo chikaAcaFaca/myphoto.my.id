@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react';
 import { CheckCircle, X } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
 import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
+import { useT } from '@/i18n/client';
 
 const DISMISS_KEY = 'myphoto_savings_badge_dismissed';
 
 export function SavingsBadge() {
   const user = useAuthStore((state) => state.user);
+  const t = useT();
   const [dismissed, setDismissed] = useState(true);
   const [subscription, setSubscription] = useState<{ tier: number; billingPeriod: string } | null>(null);
 
@@ -60,10 +62,14 @@ export function SavingsBadge() {
       <div className="flex items-center gap-2">
         <CheckCircle className="h-4 w-4 shrink-0 text-green-500" />
         <p className="text-sm text-green-800 dark:text-green-200">
-          Uštedeli ste <strong>€{savedPerYear.toFixed(2)} godišnje</strong> sa {period.label.toLowerCase()} planom!
+          {t('components.savingsBadge.savedPrefix')}{' '}
+          <strong>{t('components.savingsBadge.savedAmount', { amount: savedPerYear.toFixed(2) })}</strong>{' '}
+          {subscription.billingPeriod === 'yearly'
+            ? t('components.savingsBadge.withYearlyPlan')
+            : t('components.savingsBadge.withPlan')}
         </p>
       </div>
-      <button onClick={handleDismiss} className="text-green-400 hover:text-green-600">
+      <button onClick={handleDismiss} aria-label={t('components.common.close')} className="text-green-400 hover:text-green-600">
         <X className="h-4 w-4" />
       </button>
     </div>

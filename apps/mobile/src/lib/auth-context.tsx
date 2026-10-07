@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
+import { t } from './i18n';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 // @ts-ignore – getReactNativePersistence is exported from the RN bundle via
 // the "react-native" condition in package.json. Metro resolves it at runtime,
@@ -15,6 +16,8 @@ import {
   User,
   GoogleAuthProvider,
   signInWithCredential,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
   type Auth,
 } from 'firebase/auth';
 import * as SecureStore from 'expo-secure-store';
@@ -23,6 +26,7 @@ import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User as AppUser } from '@myphoto/shared';
 import { registerDevice } from './device-registry';
+import { fetchWithTimeout, withTimeout } from './net';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -70,10 +74,19 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, referralCode?: string) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   getToken: () => Promise<string | null>;
+  /** Re-fetch /api/users/me so storageUsed/storageLimit (quota gauge +
+   *  upsell) reflect the latest server state. Safe to call often. */
+  refreshAppUser: () => Promise<void>;
+  /** Whether the signed-in user logs in with email + password (vs Google). */
+  usesPassword: boolean;
+  /** Re-confirm identity, then permanently delete the account on the server.
+   *  Password users must pass their password; Google users get the Google
+   *  prompt again. Signs out on success. */
+  deleteAccount: (password?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -85,46 +98,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const authRef = useRef<Auth | null>(null);
 
+  // Fetch the full user record (storageUsed/storageLimit, referral, settings)
+  // from /api/users/me and store it. Shared by the auth listener and by
+  // refreshAppUser(). Never throws — quota gating degrades gracefully.
+  const fetchAppUser = useCallback(async (token: string) => {
+    try {
+      const response = await fetchWithTimeout(
+        `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (response.ok) {
+        const userData = await response.json();
+        setAppUser(userData);
+      }
+    } catch (fetchErr) {
+      console.error('Error fetching user data:', fetchErr);
+    }
+  }, []);
+
+  // Public refresh — re-pulls /api/users/me using the current token so the
+  // quota gauge and the proactive storage upsell react to uploads/deletes.
+  // `getIdToken()` hits the network whenever the cached token is past its
+  // one-hour life, and Firebase gives us no way to bound that call — so it
+  // gets an explicit deadline and falls back to the stored token.
+  const refreshAppUser = useCallback(async () => {
+    let token: string | null = null;
+    const current = authRef.current?.currentUser;
+    if (current) {
+      token = await withTimeout(current.getIdToken(), 10000).catch(() => null);
+    }
+    if (!token) token = await SecureStore.getItemAsync('auth_token');
+    if (token) await fetchAppUser(token);
+  }, [fetchAppUser]);
+
+  // Keep quota fresh whenever the app returns to the foreground — uploads
+  // that happened in the background service (or on the web) are reflected
+  // without forcing a re-login.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshAppUser().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [refreshAppUser]);
+
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
     try {
       const auth = getFirebaseAuth();
       authRef.current = auth;
 
-      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-        try {
-          setUser(firebaseUser);
+      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        setUser(firebaseUser);
 
-          if (firebaseUser) {
-            const token = await firebaseUser.getIdToken();
+        // Release the loading gate on the FIRST answer from Firebase, before
+        // any network work. Everything below (token refresh, /api/users/me,
+        // device registration) used to sit in front of this line — one stalled
+        // socket there left `isLoading` true forever, which renders nothing but
+        // a spinner and keeps the splash screen up, so the only way out was
+        // Force stop. Profile data is not needed to draw the first screen.
+        setIsLoading(false);
+
+        if (!firebaseUser) {
+          SecureStore.deleteItemAsync('auth_token').catch(() => {});
+          setAppUser(null);
+          return;
+        }
+
+        void (async () => {
+          try {
+            const token = await withTimeout(firebaseUser.getIdToken(), 10000);
             await SecureStore.setItemAsync('auth_token', token);
-
-            try {
-              const response = await fetch(
-                `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              if (response.ok) {
-                const userData = await response.json();
-                setAppUser(userData);
-              }
-            } catch (fetchErr) {
-              console.error('Error fetching user data:', fetchErr);
-            }
-
+            await fetchAppUser(token);
             // Register device (fire-and-forget)
             registerDevice(token).catch(() => {});
-          } else {
-            await SecureStore.deleteItemAsync('auth_token');
-            setAppUser(null);
+          } catch (err: any) {
+            // Non-fatal: the app stays usable on the cached token/profile and
+            // AppState 'active' will retry the refresh on the next foreground.
+            console.warn('Auth bootstrap (deferred) failed:', err?.message || err);
           }
-
-          setIsLoading(false);
-        } catch (err: any) {
-          console.error('Auth state error:', err);
-          setError(err.message || 'Auth initialization failed');
-          setIsLoading(false);
-        }
+        })();
       });
     } catch (err: any) {
       console.error('Firebase init error:', err);
@@ -132,7 +184,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
 
-    return () => unsubscribe?.();
+    // Last-resort watchdog. If Firebase never delivers a first auth state
+    // (its AsyncStorage-backed persistence read can wedge on a cold start),
+    // stop gating the UI. Worst case the user lands on the login screen; the
+    // listener still fires later and routes them straight into the app. That
+    // is recoverable — an endless spinner is not.
+    const watchdog = setTimeout(() => setIsLoading(false), 8000);
+
+    return () => {
+      clearTimeout(watchdog);
+      unsubscribe?.();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -140,9 +202,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const signUp = async (email: string, password: string, displayName: string) => {
+  const signUp = async (email: string, password: string, displayName: string, referralCode?: string) => {
     const auth = authRef.current || getFirebaseAuth();
-    await createUserWithEmailAndPassword(auth, email, password);
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const code = referralCode?.trim();
+    if (!code) return;
+    // Credit whoever invited this user. /api/users/me provisions the user
+    // document first (the claim needs it). Best-effort: never block sign-up.
+    try {
+      const token = await cred.user.getIdToken();
+      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+      await fetchWithTimeout(`${process.env.EXPO_PUBLIC_API_URL}/api/users/me`, { headers });
+      await fetchWithTimeout(`${process.env.EXPO_PUBLIC_API_URL}/api/referral/claim`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ referralCode: code.toUpperCase(), source: 'app' }),
+      });
+    } catch (e) {
+      console.warn('Referral claim failed:', e);
+    }
   };
 
   const signOut = async () => {
@@ -174,7 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (googleResponse.type === 'success') {
       const idToken = googleResponse.params?.id_token || (googleResponse as any).authentication?.idToken;
       if (!idToken) {
-        pendingGoogleResolver.current?.reject(new Error('Google nije vratio ID token'));
+        pendingGoogleResolver.current?.reject(new Error(t('libs.auth.googleNoIdToken')));
         pendingGoogleResolver.current = null;
         return;
       }
@@ -184,7 +262,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .catch((e) => pendingGoogleResolver.current?.reject(e))
         .finally(() => { pendingGoogleResolver.current = null; });
     } else if (googleResponse.type === 'error') {
-      pendingGoogleResolver.current?.reject(new Error(googleResponse.error?.message || 'Google sign-in error'));
+      pendingGoogleResolver.current?.reject(new Error(googleResponse.error?.message || t('libs.auth.googleSignInError')));
       pendingGoogleResolver.current = null;
     } else if (googleResponse.type === 'cancel' || googleResponse.type === 'dismiss') {
       // Treat cancel as a no-op resolve so the caller's UI returns to
@@ -196,10 +274,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!GOOGLE_WEB_CLIENT_ID && !GOOGLE_ANDROID_CLIENT_ID) {
-      throw new Error('Google Client ID nije konfigurisan u .env');
+      throw new Error(t('libs.auth.googleNotConfigured'));
     }
     if (!promptGoogle) {
-      throw new Error('Google auth nije spreman — pokušaj ponovo za par sekundi.');
+      throw new Error(t('libs.auth.googleNotReady'));
     }
     // Wrap promptAsync + the response effect in a single promise so
     // callers (login.tsx, register.tsx) can await sign-in completion
@@ -220,9 +298,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return SecureStore.getItemAsync('auth_token');
   };
 
+  const usesPassword = !!user?.providerData.some((p) => p.providerId === 'password');
+
+  const deleteAccount = async (password?: string) => {
+    const auth = authRef.current || getFirebaseAuth();
+    const current = auth.currentUser;
+    if (!current) throw new Error(t('libs.auth.notSignedIn'));
+    const uid = current.uid;
+
+    // The server only accepts tokens from a sign-in in the last 10 minutes.
+    if (usesPassword) {
+      if (!password) throw new Error(t('libs.auth.enterPassword'));
+      await reauthenticateWithCredential(current, EmailAuthProvider.credential(current.email!, password));
+    } else {
+      await signInWithGoogle();
+      if (auth.currentUser?.uid !== uid) {
+        throw new Error(t('libs.auth.differentGoogleAccount'));
+      }
+    }
+
+    const token = await auth.currentUser!.getIdToken(true);
+    const res = await fetchWithTimeout(
+      `${process.env.EXPO_PUBLIC_API_URL}/api/users/me`,
+      {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE' }),
+      },
+      180000
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || t('libs.auth.deleteFailed', { status: res.status }));
+    }
+    await firebaseSignOut(auth).catch(() => {});
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, appUser, isLoading, error, signIn, signUp, signOut, signInWithGoogle, getToken }}
+      value={{ user, appUser, isLoading, error, signIn, signUp, signOut, signInWithGoogle, getToken, refreshAppUser, usesPassword, deleteAccount }}
     >
       {children}
     </AuthContext.Provider>
