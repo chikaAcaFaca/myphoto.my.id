@@ -49,7 +49,7 @@ export const contact = {
   faqText: 'Check the most common questions on the support page before sending a message.',
   faqLink: 'View FAQ',
   ctaTitle: 'Not a user yet?',
-  ctaText: 'Start free with 2.5GB — sign up in 30 seconds.',
+  ctaText: 'Start free with 1GB — up to 2.5GB by inviting friends. Sign up in 30 seconds.',
   ctaButton: 'Start free',
 } as const;
 
@@ -78,7 +78,7 @@ export const support = {
     account: {
       create: {
         q: 'How do I create an account?',
-        a: 'Click "Start free" on the home page. You can sign up with a Google account or an email address. Registration takes about 30 seconds and you get 1GB of storage, and up to 2.5GB free with the app and desktop bonuses.',
+        a: 'Click "Start free" on the home page. You can sign up with a Google account or an email address. Registration takes about 30 seconds and you get 1GB of storage — up to 2.5GB free by inviting friends (+250MB per friend, up to 6).',
       },
       password: {
         q: 'How do I change my password?',
@@ -96,7 +96,7 @@ export const support = {
     billing: {
       plans: {
         q: 'Which plans are available?',
-        a: 'We offer a free plan (1GB, up to 2.5GB with bonuses) and several paid plans. Current sizes and prices are on the pricing page.',
+        a: 'We offer a free plan (1GB, up to 2.5GB by inviting friends) and several paid plans. Current sizes and prices are on the pricing page.',
       },
       cancel: {
         q: 'Can I cancel my subscription?',

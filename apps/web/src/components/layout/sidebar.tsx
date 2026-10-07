@@ -34,7 +34,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore, useAuthStore } from '@/lib/stores';
 import { useStorage, usePWA, useIsMobile, useReferralStats } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
-import { FREE_STORAGE_LIMIT, BYTES_PER_GB, formatBytes } from '@myphoto/shared';
+import { FREE_STORAGE_LIMIT, BYTES_PER_GB, MAX_REFERRALS, formatBytes } from '@myphoto/shared';
 import { getIdToken } from '@/lib/firebase';
 import { useT } from '@/i18n/client';
 import type { MessageKey } from '@/i18n/translate';
@@ -285,7 +285,7 @@ export function Sidebar() {
                 </span>
               )}
             </p>
-            {referralStats && referralStats.referralCount < referralStats.maxReferrals && user?.subscriptionIds?.length === 0 && (
+            {referralStats && referralStats.referralCount < MAX_REFERRALS && user?.subscriptionIds?.length === 0 && (
               <Link
                 href="/settings"
                 className="mt-1 flex items-center gap-1 text-xs text-green-600 hover:text-green-700 hover:underline"

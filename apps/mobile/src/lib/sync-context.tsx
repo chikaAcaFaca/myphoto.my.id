@@ -48,7 +48,7 @@ async function tryClaimBackupBonus(token: string, apiUrl: string): Promise<void>
 
     if (res.ok) {
       await AsyncStorage.setItem(BACKUP_BONUS_CLAIMED_KEY, 'true');
-      console.log('Backup bonus claimed: +1GB');
+      console.log('Backup onboarding marked as claimed');
     }
   } catch (error) {
     console.error('Backup bonus claim error:', error);

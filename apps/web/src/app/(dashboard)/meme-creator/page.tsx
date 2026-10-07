@@ -159,6 +159,23 @@ export default function MemeCreatorPage() {
 
       const caption = [topText, bottomText].filter(Boolean).join(' ');
 
+      // Render/pick the upload first: the server needs its exact size to pin
+      // the presigned URL and charge it against the user's storage quota.
+      let blob: Blob | null = null;
+      let contentType = 'image/jpeg';
+      if (mediaUrl) {
+        if (mediaType === 'video') {
+          blob = file;
+          contentType = 'video/mp4'; // must match the type the server signed
+        } else if (mediaType === 'gif') {
+          blob = file;
+          contentType = 'image/gif';
+        } else {
+          blob = await drawMeme();
+          contentType = 'image/jpeg';
+        }
+      }
+
       const res = await fetch('/api/meme-wall', {
         method: 'POST',
         headers: {
@@ -171,7 +188,8 @@ export default function MemeCreatorPage() {
           bottomText,
           template: 'classic',
           mediaType,
-          imageData: !!mediaUrl,
+          imageData: !!blob,
+          ...(blob ? { size: blob.size } : {}),
           ...(sourceFileId ? { fileId: sourceFileId } : {}),
         }),
       });
@@ -180,18 +198,6 @@ export default function MemeCreatorPage() {
         const data = await res.json();
 
         if (data.uploadUrl) {
-          let blob: Blob | null = null;
-          let contentType = 'image/jpeg';
-          if (mediaType === 'video') {
-            blob = file;
-            contentType = file?.type || 'video/mp4';
-          } else if (mediaType === 'gif') {
-            blob = file;
-            contentType = 'image/gif';
-          } else {
-            blob = await drawMeme();
-            contentType = 'image/jpeg';
-          }
           if (blob) {
             await fetch(data.uploadUrl, {
               method: 'PUT',

@@ -34,6 +34,7 @@ import { useStorage, usePWA, useReferralStats } from '@/lib/hooks';
 import { updateUserSettings } from '@/lib/firebase';
 import { syncSettingsToIDB } from '@/lib/upload-queue';
 import type { UserSettings } from '@myphoto/shared';
+import { REFERRAL_BONUS, formatBytes } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
@@ -547,7 +548,11 @@ export default function SettingsPage() {
                                   <tr key={i} className="border-t border-gray-200 dark:border-gray-700">
                                     <td className="px-4 py-2">{ref.email}</td>
                                     <td className="px-4 py-2 text-gray-500">{ref.date}</td>
-                                    <td className="px-4 py-2 text-right font-medium text-green-600">{t('dashboard.settings.discount10')}</td>
+                                    {ref.qualified ? (
+                                      <td className="px-4 py-2 text-right font-medium text-green-600">+{formatBytes(REFERRAL_BONUS)}</td>
+                                    ) : (
+                                      <td className="px-4 py-2 text-right text-gray-400">{t('dashboard.settings.referralPending')}</td>
+                                    )}
                                   </tr>
                                 ))}
                               </tbody>

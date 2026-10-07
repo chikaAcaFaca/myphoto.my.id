@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Check, Smartphone, Users, Copy, ExternalLink } from 'lucide-react';
+import { X, Check, Copy } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
-import { useReferralStats, useStorage, useClaimBackupBonus } from '@/lib/hooks';
-import { BACKUP_BONUS, REFERRAL_BONUS, MAX_REFERRALS, FREE_STORAGE_LIMIT, BYTES_PER_GB } from '@myphoto/shared';
+import { useReferralStats } from '@/lib/hooks';
+import { REFERRAL_BONUS, MAX_REFERRALS, MAX_REFERRAL_BONUS, FREE_STORAGE_LIMIT, formatBytes } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n/client';
 
@@ -14,7 +14,6 @@ const DISMISS_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days
 export function StorageBonusCard() {
   const user = useAuthStore((state) => state.user);
   const { data: referralStats } = useReferralStats();
-  const { data: storage } = useStorage();
   const [dismissed, setDismissed] = useState(true);
   const [copied, setCopied] = useState(false);
   const t = useT();
@@ -40,15 +39,17 @@ export function StorageBonusCard() {
     setDismissed(true);
   };
 
-  const backupClaimed = user.backupBonusClaimed === true;
-  const referralCount = referralStats?.referralCount ?? user.referralCount ?? 0;
+  // Free plan: 1 GB on sign-up + REFERRAL_BONUS (250 MB) per qualified referral
+  // (friend uploaded 100 MB), credited to the referrer, capped at MAX_REFERRALS (6).
+  // Ceiling = 1 GB + 1.5 GB = 2.5 GB. There is no app/backup or desktop bonus.
+  const referralCount = Math.min(MAX_REFERRALS, referralStats?.referralCount ?? user.referralCount ?? 0);
   const referralBonus = referralCount * REFERRAL_BONUS;
 
-  const totalEarned = FREE_STORAGE_LIMIT + (backupClaimed ? BACKUP_BONUS : 0) + referralBonus;
-  const maxPossible = FREE_STORAGE_LIMIT + BACKUP_BONUS + MAX_REFERRALS * REFERRAL_BONUS; // 1+4+10 = 15GB
+  const totalEarned = FREE_STORAGE_LIMIT + referralBonus;
+  const maxPossible = FREE_STORAGE_LIMIT + MAX_REFERRAL_BONUS; // 1 GB + 1.5 GB = 2.5 GB
   const percentage = Math.min(100, Math.round((totalEarned / maxPossible) * 100));
 
-  const formatGB = (bytes: number) => `${Math.round(bytes / BYTES_PER_GB)} GB`;
+  const formatSize = (bytes: number) => formatBytes(bytes, 1);
 
   const referralLink = referralStats?.referralLink || `https://myphotomy.space/register?ref=${user.referralCode}`;
 
@@ -71,7 +72,7 @@ export function StorageBonusCard() {
       </button>
 
       <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
-        {t('components.bonusCard.title', { size: formatGB(maxPossible) })}
+        {t('components.bonusCard.title', { size: formatSize(maxPossible) })}
       </h3>
 
       <div className="space-y-3">
@@ -79,35 +80,15 @@ export function StorageBonusCard() {
         <BonusStep
           completed
           label={t('components.bonusCard.stepSignup')}
-          bonus={formatGB(FREE_STORAGE_LIMIT)}
+          bonus={formatSize(FREE_STORAGE_LIMIT)}
         />
 
-        {/* Step 2: App install + backup */}
-        <BonusStep
-          completed={backupClaimed}
-          label={t('components.bonusCard.stepBackup')}
-          bonus={`+${formatGB(BACKUP_BONUS)}`}
-        >
-          {!backupClaimed && (
-            <a
-              href="https://play.google.com/store/apps/details?id=id.my.myphoto"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700"
-            >
-              <Smartphone className="h-3.5 w-3.5" />
-              {t('components.bonusCard.downloadAndroid')}
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-        </BonusStep>
-
-        {/* Step 3: Referrals */}
+        {/* Step 2: Referrals */}
         <BonusStep
           completed={referralCount >= MAX_REFERRALS}
           partial={referralCount > 0 && referralCount < MAX_REFERRALS}
           label={t('components.bonusCard.stepInvite', { count: referralCount, max: MAX_REFERRALS })}
-          bonus={`+${formatGB(MAX_REFERRALS * REFERRAL_BONUS)}`}
+          bonus={t('components.bonusCard.bonusEach', { size: formatSize(REFERRAL_BONUS) })}
         >
           <button
             onClick={handleCopyLink}
@@ -122,7 +103,7 @@ export function StorageBonusCard() {
       {/* Progress bar */}
       <div className="mt-4">
         <div className="mb-1 flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-          <span>{t('components.bonusCard.total', { earned: formatGB(totalEarned), max: formatGB(maxPossible) })}</span>
+          <span>{t('components.bonusCard.total', { earned: formatSize(totalEarned), max: formatSize(maxPossible) })}</span>
           <span>{percentage}%</span>
         </div>
         <div className="h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">

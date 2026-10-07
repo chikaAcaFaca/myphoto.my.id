@@ -7,7 +7,7 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
@@ -91,13 +91,21 @@ export default function MemeWallScreen() {
 
   // Whenever the visible item changes, force-play it (and pause everything
   // else). Without this, expo-av sometimes paints the first frame and idles.
+  // This screen is also the first (initial) tab and tabs stay mounted, so
+  // pause playback whenever the screen loses focus (e.g. user opens Photos).
+  const [focused, setFocused] = useState(true);
+  useFocusEffect(useCallback(() => {
+    setFocused(true);
+    return () => setFocused(false);
+  }, []));
+
   useEffect(() => {
     videoRefs.current.forEach((vid, id) => {
       if (!vid) return;
-      if (id === visibleId) vid.playAsync().catch(() => {});
+      if (focused && id === visibleId) vid.playAsync().catch(() => {});
       else vid.pauseAsync().catch(() => {});
     });
-  }, [visibleId]);
+  }, [visibleId, focused]);
 
   const fetchMemes = useCallback(async (pageNum: number, append = false) => {
     try {
@@ -308,11 +316,11 @@ export default function MemeWallScreen() {
           source={{ uri: item.imageUrl }}
           style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.CONTAIN}
-          shouldPlay={visibleId === item.id}
+          shouldPlay={focused && visibleId === item.id}
           isLooping
           isMuted={false}
           onLoad={() => {
-            if (visibleId === item.id) {
+            if (focused && visibleId === item.id) {
               videoRefs.current.get(item.id)?.playAsync().catch(() => {});
             }
           }}
@@ -389,7 +397,7 @@ export default function MemeWallScreen() {
         {item.caption ? <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text> : null}
       </View>
     </View>
-  ), [pageH, visibleId, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix, user?.uid, ownerActions, t]);
+  ), [pageH, visibleId, focused, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix, user?.uid, ownerActions, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>

@@ -50,7 +50,7 @@ export default function RegisterScreen() {
     setError('');
 
     try {
-      await signUp(email, password, displayName);
+      await signUp(email, password, displayName, referralCode);
       // Navigation handled by RootNavigator auth gate → onboarding
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.register.failed'));

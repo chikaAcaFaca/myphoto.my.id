@@ -287,8 +287,53 @@ export default function MemeCreatorScreen() {
     }
 
     setPublishing(true);
+    // Prepared before the POST: the server needs the exact byte size to pin
+    // the presigned URL and charge it against the user's storage quota.
+    let uploadSource: string | null = null;
+    let tmpPathToCleanup: string | null = null;
     try {
       const token = await getToken();
+
+      // Three URI shapes show up here:
+      //   - file:// or absolute path → upload directly
+      //   - http(s):// → download to cache then upload
+      //   - content:// (Android MediaLibrary device photos) → resolve
+      //     to file:// via MediaLibrary first, otherwise the upload
+      //     silently no-ops and the published meme has no image.
+      // For image memes, bake the text into a JPG snapshot first — this
+      // matches the web canvas output AND yields a file:// URI. Video/gif
+      // memes upload the original media (captureMeme returns null for them);
+      // text is overlaid at display time on the wall.
+      const uploadMime =
+        mediaType === 'video' ? 'video/mp4' : mediaType === 'gif' ? 'image/gif' : 'image/jpeg';
+      let uploadSize = 0;
+      try {
+        const baked = await captureMeme();
+        let src = baked || mediaUri;
+        tmpPathToCleanup = baked;
+        if (src.startsWith('content://') && id) {
+          const info = await MediaLibrary.getAssetInfoAsync(id);
+          if (info?.localUri) src = info.localUri;
+        }
+        if (src.startsWith('http')) {
+          const tmpPath = `${FileSystem.cacheDirectory}meme_upload_${Date.now()}.jpg`;
+          const dl = await FileSystem.downloadAsync(src, tmpPath);
+          src = dl.uri;
+          tmpPathToCleanup = tmpPath;
+        }
+        if (src.startsWith('file://') || src.startsWith('/')) {
+          const info = await FileSystem.getInfoAsync(src);
+          if (info.exists && typeof info.size === 'number' && info.size > 0) {
+            uploadSource = src;
+            uploadSize = info.size;
+          }
+        } else {
+          console.warn('Meme upload skipped — unsupported URI scheme:', src);
+        }
+      } catch (prepErr) {
+        console.warn('Meme media prepare failed:', prepErr);
+      }
+
       const res = await fetch(`${API_URL}/api/meme-wall`, {
         method: 'POST',
         headers: {
@@ -303,62 +348,21 @@ export default function MemeCreatorScreen() {
           bottomText,
           template: template.id,
           fontSize: fontSize.size,
-          imageData: !!mediaUri,
+          imageData: !!uploadSource,
+          ...(uploadSource ? { size: uploadSize } : {}),
           ...(remixOfId ? { remixOfId } : {}),
         }),
       });
       if (res.ok) {
         const responseData = await res.json();
 
-        // Upload the meme image to S3 if we got an upload URL. Three
-        // URI shapes show up here:
-        //   - file:// or absolute path → upload directly
-        //   - http(s):// → download to cache then upload
-        //   - content:// (Android MediaLibrary device photos) → resolve
-        //     to file:// via MediaLibrary first, otherwise the upload
-        //     silently no-ops and the published meme has no image.
-        if (responseData.uploadUrl && mediaUri) {
+        if (responseData.uploadUrl && uploadSource) {
           try {
-            // For image memes, bake the text into a JPG snapshot first — this
-            // matches the web canvas output AND yields a file:// URI that
-            // uploads reliably (device content:// URIs were being skipped,
-            // leaving published memes with no image). Video/gif memes upload the
-            // original media (captureMeme returns null for them); text is
-            // overlaid at display time on the wall.
-            const baked = await captureMeme();
-            const uploadMime =
-              mediaType === 'video' ? 'video/mp4' : mediaType === 'gif' ? 'image/gif' : 'image/jpeg';
-
-            let uploadSource = baked || mediaUri;
-            let tmpPathToCleanup: string | null = baked;
-
-            if (uploadSource.startsWith('content://')) {
-              if (id) {
-                const info = await MediaLibrary.getAssetInfoAsync(id);
-                if (info?.localUri) uploadSource = info.localUri;
-              }
-            }
-
-            if (uploadSource.startsWith('http')) {
-              const tmpPath = `${FileSystem.cacheDirectory}meme_upload_${Date.now()}.jpg`;
-              const dl = await FileSystem.downloadAsync(uploadSource, tmpPath);
-              uploadSource = dl.uri;
-              tmpPathToCleanup = tmpPath;
-            }
-
-            if (uploadSource.startsWith('file://') || uploadSource.startsWith('/')) {
-              await FileSystem.uploadAsync(responseData.uploadUrl, uploadSource, {
-                httpMethod: 'PUT',
-                headers: { 'Content-Type': uploadMime },
-                uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-              });
-            } else {
-              console.warn('Meme upload skipped — unsupported URI scheme:', uploadSource);
-            }
-
-            if (tmpPathToCleanup) {
-              await FileSystem.deleteAsync(tmpPathToCleanup, { idempotent: true });
-            }
+            await FileSystem.uploadAsync(responseData.uploadUrl, uploadSource, {
+              httpMethod: 'PUT',
+              headers: { 'Content-Type': uploadMime },
+              uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+            });
           } catch (uploadErr) {
             console.warn('Meme image upload failed:', uploadErr);
           }
@@ -384,6 +388,9 @@ export default function MemeCreatorScreen() {
     } catch (e) {
       Alert.alert(t('common.error'), t('meme.creator.publishFailed'));
     } finally {
+      if (tmpPathToCleanup) {
+        FileSystem.deleteAsync(tmpPathToCleanup, { idempotent: true }).catch(() => {});
+      }
       setPublishing(false);
       publishingRef.current = false;
     }

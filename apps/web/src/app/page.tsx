@@ -28,6 +28,7 @@ import { motion, useInView, useMotionValue, useTransform, animate } from 'framer
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/landing/animated-section';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { useI18n } from '@/i18n/client';
+import { MemeFeed, PLAY_STORE_URL } from '@/components/meme-wall/meme-feed';
 
 // Hero cards: skip the yearly-only storage-only tier (MyDisk Lite) — it
 // has its own messaging on the full /pricing page and breaks the
@@ -194,9 +195,11 @@ export default function HomePage() {
     setShowAndroidBanner(false);
   };
 
+  // The MemeWall is the home screen: signed-in users go straight to the
+  // full wall (with creator + unlimited feed).
   useEffect(() => {
     if (!isLoading && user) {
-      router.push('/photos');
+      router.replace('/meme-wall');
     }
   }, [user, isLoading, router]);
 
@@ -287,6 +290,38 @@ export default function HomePage() {
           </div>
         </nav>
       </header>
+
+      {/* ───── 0. MemeWall — the home screen ───── */}
+      <section className="bg-slate-900 text-white">
+        <div className="bg-gradient-to-br from-orange-500 to-red-500 px-4 py-8 text-center">
+          <h2 className="mb-2 text-3xl font-extrabold md:text-4xl">{t('marketing.homeMemeWall.title')}</h2>
+          <p className="mx-auto mb-5 max-w-xl text-base text-white/85 md:text-lg">
+            {t('marketing.homeMemeWall.tagline')}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <a
+              href={PLAY_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-xl bg-white px-6 py-3 font-bold text-slate-900 shadow-lg transition-transform hover:scale-[1.03]"
+            >
+              {t('marketing.homeMemeWall.downloadApp')}
+            </a>
+            <Link
+              href="/register"
+              className="rounded-xl bg-black/30 px-6 py-3 font-semibold text-white transition-colors hover:bg-black/40"
+            >
+              {t('marketing.homeMemeWall.register')}
+            </Link>
+          </div>
+        </div>
+        <MemeFeed guestLimit={10} compact redirectPath="/meme-wall" />
+        <div className="pb-8 text-center">
+          <Link href="/meme-wall" className="text-sm font-semibold text-orange-400 hover:text-orange-300">
+            {t('marketing.homeMemeWall.seeAll')} →
+          </Link>
+        </div>
+      </section>
 
       {/* ───── 1. Hero ───── */}
       <section className="container mx-auto px-4 pb-16 pt-10 text-center">

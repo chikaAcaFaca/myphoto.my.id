@@ -172,6 +172,13 @@ export async function DELETE(
     }
     await ref.delete();
 
+    // Give the bytes back to the author's quota (charged at publish time).
+    if (typeof data.size === 'number' && data.size > 0) {
+      await db.collection('users').doc(userId).update({
+        storageUsed: FieldValue.increment(-data.size),
+      });
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Meme DELETE error:', error);

@@ -9,9 +9,9 @@ const onboarding = {
   skipForNow: 'Skip for now',
   backupTitle: 'Auto-backup',
   backupDescription: 'Turn on automatic backup and your photos will be saved to the cloud whenever you are on Wi-Fi.',
-  bonusTitle: '+1 GB free!',
-  bonusText: 'You get an extra 1 GB of storage when you turn on auto-backup.',
-  enableBackup: 'Turn on backup (+1 GB)',
+  bonusTitle: 'Never lose a photo',
+  bonusText: 'Every new photo and video is saved to the cloud automatically — even if you lose your phone.',
+  enableBackup: 'Turn on backup',
   later: 'Later',
   doneTitle: "You're all set!",
   doneDescription:

@@ -9,7 +9,7 @@ export const marketing = {
     breadcrumbHome: 'Home',
     breadcrumbFeatures: 'Features',
     breadcrumbCompare: 'Compare',
-    freeNoCard: '2.5 GB free. No credit card. No commitment.',
+    freeNoCard: '1 GB free to start — up to 2.5 GB by inviting friends. No credit card. No commitment.',
   },
 
   nav: {
@@ -66,7 +66,7 @@ export const marketing = {
       subtitle: 'Private cloud storage with AI features. No compression, no compromises.',
       proofStrong: 'Original quality',
       proofRest: '· EU servers · GDPR — your photos stay yours',
-      ctaPrimary: 'Start free — 2.5 GB',
+      ctaPrimary: 'Start free — 1 GB',
       ctaSecondary: 'See plans',
       badgeNoAi: 'We never train AI on your photos',
       badgeEu: 'EU servers',
@@ -194,7 +194,7 @@ export const marketing = {
     },
     finalCta: {
       title: 'Get started in 30 seconds',
-      subtitle: '2.5 GB free. No credit card. No commitment.',
+      subtitle: '1 GB free to start — up to 2.5 GB by inviting friends. No credit card. No commitment.',
       start: 'Start for free',
       compare: 'Compare plans',
     },
@@ -212,7 +212,7 @@ export const marketing = {
       terms: 'Terms of use',
       rights: 'MyPhoto — All rights reserved.',
     },
-    stickyCta: 'Start free — 2.5 GB',
+    stickyCta: 'Start free — 1 GB',
   },
 
   blog: {
@@ -228,7 +228,7 @@ export const marketing = {
     backToBlog: 'Back to blog',
     cta: {
       title: 'Try MyPhoto for free',
-      text: '2.5 GB of free storage, no credit card required.',
+      text: '1 GB of free storage — up to 2.5 GB by inviting friends. No credit card required.',
       button: 'Create a free account',
     },
   },
@@ -316,7 +316,7 @@ export const marketing = {
       },
       freeSpace: {
         q: 'How much free storage do I get?',
-        a: 'The free plan starts at 1 GB. Installing the app adds another 1 GB, and the desktop app adds 512 MB more — 2.5 GB in total. Invite friends and get 10% off a yearly plan per friend, up to 30%.',
+        a: 'The free plan starts at 1 GB. For every friend you invite who starts using MyPhoto (uploads 100 MB), you get +250 MB — up to 6 friends, so up to 2.5 GB in total. Memes you post to the meme wall count toward your own storage.',
       },
     },
     final: {
@@ -424,7 +424,7 @@ export const marketing = {
     },
     final: {
       title: 'Start sharing your memories',
-      text: 'Secure photo sharing with family and friends. 2.5 GB free.',
+      text: 'Secure photo sharing with family and friends. Up to 2.5 GB free.',
       cta: 'Start for free',
     },
   },
@@ -521,7 +521,7 @@ export const marketing = {
     },
     final: {
       title: 'Protect your memories today',
-      text: 'Private cloud storage with GDPR protection. 2.5 GB free.',
+      text: 'Private cloud storage with GDPR protection. Up to 2.5 GB free.',
       cta: 'Start for free',
     },
   },
@@ -565,7 +565,7 @@ export const marketing = {
       gdpr: { feature: 'GDPR compliance', myphoto: 'Full', google: 'Partial' },
       quality: { feature: 'Storage quality', myphoto: 'Original (no compression)', google: 'Compressed on the free plan' },
       pricePerGb: { feature: 'Price per GB', myphoto: '€0.017/GB', google: '€0.021/GB' },
-      freePlan: { feature: 'Free plan', myphoto: '2.5 GB', google: '15 GB (shared with Gmail)' },
+      freePlan: { feature: 'Free plan', myphoto: '1 GB (up to 2.5 GB with referrals)', google: '15 GB (shared with Gmail)' },
       aiSearch: { feature: 'AI search', myphoto: 'Yes (optional AI plan)', google: 'Yes (included)' },
       faces: { feature: 'Face recognition', myphoto: 'Yes (optional AI plan)', google: 'Yes' },
       family: { feature: 'Family sharing', myphoto: 'Yes (up to 5 members)', google: 'Yes (up to 5 members)' },
@@ -595,7 +595,7 @@ export const marketing = {
     },
     final: {
       title: 'Switch today',
-      text: 'Join the people who moved from Google Photos to a more private alternative. 2.5 GB free, no commitment.',
+      text: 'Join the people who moved from Google Photos to a more private alternative. Up to 2.5 GB free, no commitment.',
     },
   },
 
@@ -679,7 +679,7 @@ export const marketing = {
     },
     final: {
       title: 'Switch today',
-      text: 'Free your photos from the Apple ecosystem. Cross-platform access, EU servers, 2.5 GB free.',
+      text: 'Free your photos from the Apple ecosystem. Cross-platform access, EU servers, up to 2.5 GB free.',
     },
   },
 
@@ -824,5 +824,13 @@ export const marketing = {
       linkCopied: 'Link copied!',
     },
     shareText: '{caption} — Made with MyPhoto',
+  },
+
+  homeMemeWall: {
+    title: '🔥 MemeWall',
+    tagline: 'The freshest memes from the MyPhoto community — scroll, laugh, share.',
+    downloadApp: '📱 Download the app',
+    register: 'Sign up free',
+    seeAll: 'Open the full MemeWall',
   },
 } as const;

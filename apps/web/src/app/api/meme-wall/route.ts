@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit, getOptionalUserId } from '@/lib/auth-utils';
 import { generateUploadUrl, generateDownloadUrl } from '@/lib/s3';
-import { generateFileId } from '@myphoto/shared';
+import { FieldValue } from 'firebase-admin/firestore';
+import {
+  generateFileId,
+  formatBytes,
+  MAX_FREE_STORAGE,
+  MAX_MEME_UPLOAD_SIZE,
+} from '@myphoto/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -123,7 +129,7 @@ export async function POST(request: NextRequest) {
     const { userId } = authResult;
 
     const body = await request.json();
-    const { caption, topText, bottomText, template, fontSize, mediaType, fileId, imageData, remixOfId } = body;
+    const { caption, topText, bottomText, template, fontSize, mediaType, fileId, imageData, remixOfId, size } = body;
 
     if (!caption && !topText && !bottomText) {
       return NextResponse.json({ error: 'Meme must have text' }, { status: 400 });
@@ -134,7 +140,35 @@ export async function POST(request: NextRequest) {
     const userData = userDoc.data();
     const authorName = userData?.displayName || 'Anonymous';
     const storageLimit = userData?.storageLimit || 0;
-    const isFreeUser = storageLimit <= 1.5 * 1024 * 1024 * 1024; // ~1.5GB = free tier
+    const storageUsed = userData?.storageUsed || 0;
+    const isFreeUser = storageLimit <= MAX_FREE_STORAGE;
+
+    // Memes live in the author's own storage: the upload is size-pinned and
+    // charged against storageLimit exactly like a photo.
+    const uploadSize = Number(size);
+    if (imageData) {
+      if (!Number.isInteger(uploadSize) || uploadSize <= 0) {
+        return NextResponse.json(
+          { error: 'Ažurirajte aplikaciju da biste objavljivali memove.' },
+          { status: 426 }
+        );
+      }
+      if (uploadSize > MAX_MEME_UPLOAD_SIZE) {
+        return NextResponse.json(
+          { error: `Fajl je prevelik (maksimum ${formatBytes(MAX_MEME_UPLOAD_SIZE, 0)}).` },
+          { status: 413 }
+        );
+      }
+      if (storageUsed + uploadSize > storageLimit) {
+        return NextResponse.json(
+          {
+            error: 'Nemate dovoljno prostora. Pozovite prijatelje (+250 MB po preporuci) ili nadogradite plan.',
+            code: 'STORAGE_FULL',
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     // Free users: max 20 memes per month
     if (isFreeUser) {
@@ -222,12 +256,20 @@ export async function POST(request: NextRequest) {
       const contentType =
         mediaType === 'video' ? 'video/mp4' : mediaType === 'gif' ? 'image/gif' : 'image/jpeg';
       const memeKey = `memes/${userId}/${memeId}.${ext}`;
-      const { url } = await generateUploadUrl(memeKey, contentType);
+      const { url } = await generateUploadUrl(memeKey, contentType, uploadSize);
       memeData.s3Key = memeKey;
+      memeData.size = uploadSize;
       uploadUrl = url;
     }
 
-    await db.collection('memes').doc(memeId).set(memeData);
+    const batch = db.batch();
+    batch.set(db.collection('memes').doc(memeId), memeData);
+    if (memeData.size) {
+      batch.update(db.collection('users').doc(userId), {
+        storageUsed: FieldValue.increment(memeData.size),
+      });
+    }
+    await batch.commit();
 
     return NextResponse.json({
       id: memeId,

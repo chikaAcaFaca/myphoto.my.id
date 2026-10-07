@@ -13,10 +13,12 @@
  * gating worked. Keep this file.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase-admin';
+import { db, auth } from '@/lib/firebase-admin';
 import { deleteUserAccount } from '@/lib/account-deletion';
 import { verifyAuthWithRateLimit, isRecentLogin } from '@/lib/auth-utils';
-import { Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FREE_STORAGE_LIMIT } from '@myphoto/shared';
+import { nanoid } from 'nanoid';
 
 export const dynamic = 'force-dynamic';
 // Deleting a large library (thousands of objects) takes a while.
@@ -35,9 +37,39 @@ export async function GET(request: NextRequest) {
     if (!authResult.success) return authResult.response;
     const { userId } = authResult;
 
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userRef = db.collection('users').doc(userId);
+    let userDoc = await userRef.get();
     if (!userDoc.exists) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      // Accounts created in the mobile app never had a user document (only the
+      // web client wrote one), so they got no 1GB and every upload 404'd.
+      // Provision the same free-tier record the web client creates.
+      const authUser = await auth().getUser(userId);
+      await userRef.create({
+        email: authUser.email || '',
+        displayName: authUser.displayName || 'User',
+        ...(authUser.photoURL ? { avatarUrl: authUser.photoURL } : {}),
+        settings: {
+          syncMode: 'wifi_only',
+          uploadQuality: 'original',
+          autoBackup: true,
+          allowRoaming: false,
+          faceRecognition: true,
+          darkMode: false,
+          backupFolders: [],
+        },
+        storageUsed: 0,
+        storageLimit: FREE_STORAGE_LIMIT,
+        subscriptionIds: [],
+        role: 'user',
+        referralCode: nanoid(8).toUpperCase(),
+        referralCount: 0,
+        referralBonusBytes: 0,
+        createdAt: FieldValue.serverTimestamp(),
+      }).catch((e: any) => {
+        // A concurrent request may have created it first — that's fine.
+        if (e?.code !== 6 /* ALREADY_EXISTS */) throw e;
+      });
+      userDoc = await userRef.get();
     }
     const data = userDoc.data()!;
 

@@ -234,7 +234,7 @@ export const terms: DeepStrings<typeof En> = {
   },
   cta: {
     title: 'Spremni da počnete?',
-    subtitle: '2,5GB besplatno. Bez kreditne kartice. Bez obaveza.',
+    subtitle: '1GB besplatno na startu — do 2,5GB uz preporuke. Bez kreditne kartice. Bez obaveza.',
     button: 'Započni besplatno',
   },
   footer: {

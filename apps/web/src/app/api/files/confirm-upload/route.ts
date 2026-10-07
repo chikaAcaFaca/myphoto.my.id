@@ -3,7 +3,12 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit, getClientIp } from '@/lib/auth-utils';
 import { getObjectMetadata } from '@/lib/s3';
-import { getFileType, REFERRAL_QUALIFICATION_BYTES } from '@myphoto/shared';
+import {
+  getFileType,
+  REFERRAL_QUALIFICATION_BYTES,
+  REFERRAL_BONUS,
+  MAX_REFERRALS,
+} from '@myphoto/shared';
 import { processImageAI } from '@/lib/ai-processing';
 import { recalculateStorageLimit } from '@/lib/storage-limit';
 
@@ -82,6 +87,8 @@ async function maybeQualifyReferral(userId: string, emailVerified: boolean, ip: 
     const freshRef = await tx.get(refRef);
     if (freshRef.data()?.qualified) return; // already granted by a concurrent call
     const referrerRef = db.collection('users').doc(referrerId);
+    const referrerSnap = await tx.get(referrerRef);
+    const underCap = (referrerSnap.data()?.referralCount || 0) < MAX_REFERRALS;
     // Writes.
     tx.update(refRef, {
       qualified: true,
@@ -90,12 +97,12 @@ async function maybeQualifyReferral(userId: string, emailVerified: boolean, ip: 
       suspect,
     });
     tx.update(userRef, { referralQualified: true });
-    if (!suspect) {
-      // Referrals pay out as a subscription discount now, not storage, so no
-      // bytes are granted here. referralCount is still the counter the discount
-      // is derived from (capped at MAX_REFERRALS_PER_YEAR when applied).
+    if (!suspect && underCap) {
+      // The referrer earns REFERRAL_BONUS per qualified friend, up to
+      // MAX_REFERRALS; recalculateStorageLimit applies the 2.5GB free cap.
       tx.update(referrerRef, {
         referralCount: FieldValue.increment(1),
+        referralBonusBytes: FieldValue.increment(REFERRAL_BONUS),
       });
     }
   });

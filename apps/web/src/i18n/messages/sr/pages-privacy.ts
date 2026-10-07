@@ -261,7 +261,7 @@ export const privacy: DeepStrings<typeof En> = {
   },
   cta: {
     title: 'Vaša privatnost je naš prioritet',
-    text: 'Započnite besplatno sa 2,5GB — bez kreditne kartice, bez kompromisa.',
+    text: 'Počnite besplatno sa 1GB — do 2,5GB uz preporuke. Bez kreditne kartice, bez kompromisa.',
     button: 'Započni besplatno',
   },
   footer: {

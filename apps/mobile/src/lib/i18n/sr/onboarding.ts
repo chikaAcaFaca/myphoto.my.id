@@ -11,9 +11,9 @@ const onboarding: typeof en = {
   skipForNow: 'Preskoči za sada',
   backupTitle: 'Auto-backup',
   backupDescription: 'Uključite automatski backup i vaše slike će se čuvati u cloudu čim se povežete na WiFi.',
-  bonusTitle: '+1 GB besplatno!',
-  bonusText: 'Dobijate dodatnih 1 GB prostora kada uključite auto-backup.',
-  enableBackup: 'Uključi backup (+1 GB)',
+  bonusTitle: 'Nijedna slika se ne gubi',
+  bonusText: 'Svaka nova slika i video automatski se čuvaju u cloudu — čak i ako izgubite telefon.',
+  enableBackup: 'Uključi backup',
   later: 'Kasnije',
   doneTitle: 'Sve je spremno!',
   doneDescription:

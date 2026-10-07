@@ -232,7 +232,7 @@ export const terms = {
   },
   cta: {
     title: 'Ready to get started?',
-    subtitle: '2.5GB free. No credit card. No commitment.',
+    subtitle: '1GB free to start — up to 2.5GB by inviting friends. No credit card. No commitment.',
     button: 'Start for free',
   },
   footer: {

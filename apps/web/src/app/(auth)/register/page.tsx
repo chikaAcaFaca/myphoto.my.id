@@ -46,7 +46,7 @@ function RegisterContent() {
     if (tier && period) {
       return `/checkout?tier=${tier}&ai=${ai || 'false'}&period=${period}`;
     }
-    return '/photos';
+    return '/meme-wall';
   };
 
   const claimReferral = async () => {

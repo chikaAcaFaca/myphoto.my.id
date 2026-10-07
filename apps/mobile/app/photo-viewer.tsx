@@ -305,7 +305,8 @@ export default function PhotoViewerScreen() {
       });
 
       // Append the sharer's referral code so a recipient who signs up via
-      // the link credits this user with +512MB.
+      // the link credits this user (the referrer) with +250MB once the
+      // recipient has uploaded 100MB (max 6 referrals).
       const refCode = appUser?.referralCode;
       const refSuffix = refCode ? `?ref=${encodeURIComponent(refCode)}` : '';
 

@@ -60,7 +60,7 @@ export const contact: DeepStrings<typeof EnContact> = {
   faqText: 'Pogledajte najčešća pitanja na stranici za podršku pre nego što pošaljete poruku.',
   faqLink: 'Pogledaj FAQ',
   ctaTitle: 'Još niste korisnik?',
-  ctaText: 'Započnite besplatno sa 2,5GB — registracija za 30 sekundi.',
+  ctaText: 'Počnite besplatno sa 1GB — do 2,5GB uz preporuke. Registracija za 30 sekundi.',
   ctaButton: 'Započni besplatno',
 };
 
@@ -89,7 +89,7 @@ export const support: DeepStrings<typeof EnSupport> = {
     account: {
       create: {
         q: 'Kako da kreiram nalog?',
-        a: 'Kliknite na "Započni besplatno" na početnoj stranici. Možete se registrovati putem Google naloga ili email adrese. Registracija traje oko 30 sekundi i dobijate 1GB prostora, a do 2,5GB besplatno uz bonuse za aplikaciju i desktop.',
+        a: 'Kliknite na "Započni besplatno" na početnoj stranici. Možete se registrovati putem Google naloga ili email adrese. Registracija traje oko 30 sekundi i dobijate 1GB prostora — do 2,5GB besplatno uz preporuke (+250MB po prijatelju, do 6).',
       },
       password: {
         q: 'Kako da promenim lozinku?',
@@ -107,7 +107,7 @@ export const support: DeepStrings<typeof EnSupport> = {
     billing: {
       plans: {
         q: 'Koji su dostupni planovi?',
-        a: 'Nudimo besplatan plan (1GB, do 2,5GB sa bonusima) i više plaćenih planova. Aktuelne veličine i cene su na stranici sa cenama.',
+        a: 'Nudimo besplatan plan (1GB, do 2,5GB uz preporuke) i više plaćenih planova. Aktuelne veličine i cene su na stranici sa cenama.',
       },
       cancel: {
         q: 'Mogu li da otkažem pretplatu?',

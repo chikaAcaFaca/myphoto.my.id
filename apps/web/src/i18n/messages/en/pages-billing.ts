@@ -60,10 +60,10 @@ export const pricing = {
   meta: {
     title: 'Pricing & plans',
     description:
-      'MyPhoto plans for private cloud photo storage — from 2.5GB free up to 2TB. Original quality, EU servers, GDPR protection. No contract, cancel anytime.',
+      'MyPhoto plans for private cloud photo storage — from 1GB free up to 2TB. Original quality, EU servers, GDPR protection. No contract, cancel anytime.',
     ogTitle: 'Pricing & plans | MyPhoto',
     ogDescription:
-      'Private cloud storage from 2.5GB free up to 2TB. Original quality, EU servers, GDPR. No contract.',
+      'Private cloud storage from 1GB free up to 2TB. Original quality, EU servers, GDPR. No contract.',
   },
   backHome: 'Back to Home',
   title: 'Choose your plan',
@@ -90,7 +90,7 @@ export const pricing = {
   lessThanCoffee: 'Less than a cup of coffee a month',
   startFree: 'Start for free',
   choosePlan: 'Choose plan',
-  inviteFriends: 'Invite friends — up to 30% off a yearly subscription!',
+  inviteFriends: 'Invite friends — +250 MB free for each one, up to 2.5 GB!',
   needMore: 'Need more space?',
   choose: 'Choose',
   whyTitle: 'Why MyPhoto?',

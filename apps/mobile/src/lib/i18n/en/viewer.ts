@@ -10,7 +10,7 @@ const viewer = {
   shareTitle: 'Sharing',
   sharePrepareFailed: "Couldn't prepare the photo for sharing. Please try again in a moment.",
   shareFailed: "Sharing didn't work right now. Please try again.",
-  shareReferral: 'Get +1GB free when you sign up through this link.',
+  shareReferral: 'Join MyPhoto — 1 GB free.',
   backupRequiredTitle: 'Backup required',
   backupRequiredFavorite: 'The photo needs to be uploaded to the cloud before it can be a favorite. Backup runs automatically in the background.',
   favoriteFailed: "Couldn't update favorites.",

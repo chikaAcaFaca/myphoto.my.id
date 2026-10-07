@@ -67,7 +67,7 @@ export default function OnboardingScreen() {
 
   const handleFinish = async () => {
     await AsyncStorage.setItem('@myphoto/onboarding_complete', 'true');
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/meme-wall-tab');
   };
 
   return (

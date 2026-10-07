@@ -80,7 +80,7 @@ export const components = {
     storage: 'Storage',
     usedOf: '{used} of {limit}',
     bonusBreakdown: '{base} GB + {bonus} bonus',
-    inviteFriends: 'Invite friends for +1 GB',
+    inviteFriends: 'Invite friends: +250 MB each',
     remainingUpgrade: '{remaining} left — upgrade from €2.49/mo',
     upgradeCta: 'Upgrade — 15x more space from €2.49/mo',
     upgradeStorage: 'Upgrade storage',
@@ -231,9 +231,8 @@ export const components = {
   bonusCard: {
     title: 'Get up to {size} for free!',
     stepSignup: 'Sign up',
-    stepBackup: 'Install the app + turn on backup',
-    downloadAndroid: 'Download for Android',
     stepInvite: 'Invite friends ({count}/{max})',
+    bonusEach: '+{size} each',
     copied: 'Copied!',
     copyLink: 'Copy referral link',
     total: 'Total: {earned} of {max}',
@@ -248,7 +247,7 @@ export const components = {
     fromPrice: 'From €0.82/mo',
     later: 'Later',
     remainingTitle: '{remaining} left',
-    remainingBody: 'Invite a friend and get +1 GB free, or upgrade for the price of a coffee!',
+    remainingBody: 'Invite a friend and get +250 MB free, or upgrade for the price of a coffee!',
     freeGb: 'Free GB',
   },
   deleteAccount: {

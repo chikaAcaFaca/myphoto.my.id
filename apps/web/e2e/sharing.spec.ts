@@ -71,7 +71,7 @@ test.describe('Register Page Referral', () => {
     await page.goto('/register?ref=TESTCODE');
 
     // Should show referral bonus message
-    await expect(page.locator('text=+1GB')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=+250 MB')).toBeVisible({ timeout: 5000 });
 
     console.log('✅ Register page shows referral bonus');
   });

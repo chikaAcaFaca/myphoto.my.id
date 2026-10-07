@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     template: '%s | MyPhoto',
   },
   description:
-    'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. 2.5GB free to start.',
+    'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. Start free with 1GB — up to 2.5GB by inviting friends.',
   keywords: [
     'google photos alternative',
     'photo backup app',
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     siteName: 'MyPhoto',
     title: 'MyPhoto — Private Cloud Photo Storage & Backup',
     description:
-      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. 2.5GB free to start.',
+      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. Start free with 1GB — up to 2.5GB by inviting friends.',
     images: [
       {
         url: 'https://myphotomy.space/og-image.png',
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'MyPhoto — Private Cloud Photo Storage & Backup',
     description:
-      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. 2.5GB free to start.',
+      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. Start free with 1GB — up to 2.5GB by inviting friends.',
     images: ['https://myphotomy.space/og-image.png'],
   },
   alternates: {
@@ -79,7 +79,7 @@ const jsonLd = {
           '@type': 'Offer',
           price: '0',
           priceCurrency: 'USD',
-          description: '2.5GB free storage with auto backup',
+          description: '1GB free storage with auto backup (up to 2.5GB by inviting friends)',
         },
         {
           '@type': 'Offer',

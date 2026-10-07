@@ -12,59 +12,39 @@ export const BYTES_PER_TB = BYTES_PER_GB * 1024;
 // Free tier: 1GB on registration
 export const FREE_STORAGE_LIMIT = 1 * BYTES_PER_GB;
 
-// Bonus: +1GB for installing Android/iOS app + enabling auto-backup
-export const APP_INSTALL_BONUS = 1 * BYTES_PER_GB;
+// Install bonuses are retired: the free plan is 1GB + referrals only. Kept at
+// zero rather than deleted so old call sites compile and grant nothing.
+export const APP_INSTALL_BONUS = 0;
+export const DESKTOP_INSTALL_BONUS = 0;
 
-// Bonus: +512MB for installing Desktop app + enabling sync
-export const DESKTOP_INSTALL_BONUS = 512 * BYTES_PER_MB;
-
-// Referral constants.
-//
-// Referrals no longer grant storage. Free storage costs money whether or not
-// the referred person ever pays, so the reward is now a discount on the annual
-// subscription — it can only ever be paid out of revenue that would not exist
-// without it, which makes the programme incapable of running at a loss.
-// Both sides get REFERRAL_DISCOUNT_PERCENT off; the referrer can stack at most
-// MAX_REFERRALS_PER_YEAR of them per year.
-export const REFERRAL_DISCOUNT_PERCENT = 10;
-export const MAX_REFERRALS_PER_YEAR = 3;
-export const MAX_REFERRAL_DISCOUNT_PERCENT =
-  REFERRAL_DISCOUNT_PERCENT * MAX_REFERRALS_PER_YEAR; // 30%
-
-// Storage-based referral rewards are retired. Kept at zero rather than deleted
-// so existing call sites keep compiling and grant nothing. Previously banked
-// bytes are NOT preserved — the 2.5GB free ceiling would clamp them away in any
-// case, since registration + app + desktop already reach it exactly.
-export const REFERRAL_BONUS = 0;
-export const MAX_REFERRAL_BONUS = 0;
-export const MAX_REFERRALS = 15;                           // link still tracks who came from whom
+// Referrals: the REFERRER gets +250MB for every friend who signs up with their
+// link and uploads REFERRAL_QUALIFICATION_BYTES. The new user starts at the
+// plain 1GB. 6 referrals x 250MB = 1.5GB, which lands exactly on the 2.5GB
+// free ceiling below.
+export const REFERRAL_BONUS = 250 * BYTES_PER_MB;
+export const MAX_REFERRALS = 6;
+export const MAX_REFERRAL_BONUS = REFERRAL_BONUS * MAX_REFERRALS; // 1.5GB
 export const REFERRAL_QUALIFICATION_BYTES = 100 * BYTES_PER_MB; // referee must upload 100MB to qualify
 export const MAX_FAMILY_MEMBERS_REFERRAL = 6;
 
-// Meme-wall referral (separate, stricter system — referee must do more to qualify)
-// Retired alongside the main referral bonus — see REFERRAL_DISCOUNT_PERCENT.
+// Meme-wall referral: retired, grants nothing (main referral covers it).
 export const MEME_REFERRAL_BONUS = 0;
 export const MAX_MEME_REFERRAL_BONUS = 0;
 export const MEME_QUALIFICATION_UPLOAD_BYTES = 500 * BYTES_PER_MB; // referee must upload 500MB
 export const MEME_QUALIFICATION_REFERRALS = 5;                     // referee must refer 5 friends
 
-// Hard ceiling on everything a user can get without paying: the free tier plus
-// every bonus (app install, desktop install, referrals, meme referrals) added
-// together. Enforced in recalculateStorageLimit(); admin-granted storage and
-// paid subscriptions stack on top of it and are deliberately NOT capped.
-//
-// Composition: 1GB registration + 1GB app install + 0.5GB desktop install.
-// Referrals deliberately add nothing here — they pay out as a subscription
-// discount instead (see REFERRAL_DISCOUNT_PERCENT).
-//
-// This used to be declared and never read, so the real ceiling was the sum of
-// the individual caps — 20GB, not 10GB. At full utilisation a 20GB free user
-// costs ~$2.30/year, which needs a ~22% paid conversion rate just to break
-// even; 2.5GB brings that down to ~3.5%, reachable for a freemium product.
+// Hard ceiling on everything a user can get without paying:
+// 1GB registration + up to 6 x 250MB referrals. Enforced in
+// recalculateStorageLimit(); admin-granted storage and paid subscriptions
+// stack on top of it and are deliberately NOT capped.
 export const MAX_FREE_STORAGE = 2.5 * BYTES_PER_GB;
 
 // Legacy — keep for backward compatibility during migration
 export const BACKUP_BONUS = APP_INSTALL_BONUS;
+
+// Largest single meme upload (video memes included). Memes also count against
+// the author's storageLimit like any other file.
+export const MAX_MEME_UPLOAD_SIZE = 100 * BYTES_PER_MB;
 
 // Billing Periods — monthly and yearly only
 export const BILLING_PERIODS = {

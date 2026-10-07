@@ -83,7 +83,7 @@ export const components: DeepStrings<typeof En> = {
     storage: 'Skladište',
     usedOf: '{used} od {limit}',
     bonusBreakdown: '{base} GB + {bonus} bonus',
-    inviteFriends: 'Pozovi prijatelje za +1 GB',
+    inviteFriends: 'Pozovi prijatelje: +250 MB po prijatelju',
     remainingUpgrade: 'Ostalo vam je {remaining} — nadogradite od €2.49/mes',
     upgradeCta: 'Nadogradi — 15x više prostora od €2.49/mes',
     upgradeStorage: 'Nadogradi skladište',
@@ -234,9 +234,8 @@ export const components: DeepStrings<typeof En> = {
   bonusCard: {
     title: 'Dobijte do {size} besplatno!',
     stepSignup: 'Registracija',
-    stepBackup: 'Instaliraj aplikaciju + uključi backup',
-    downloadAndroid: 'Preuzmi za Android',
     stepInvite: 'Pozovi prijatelje ({count}/{max})',
+    bonusEach: '+{size} po prijatelju',
     copied: 'Kopirano!',
     copyLink: 'Kopiraj link za preporuku',
     total: 'Ukupno: {earned} od {max}',
@@ -251,7 +250,7 @@ export const components: DeepStrings<typeof En> = {
     fromPrice: 'Od €0.82/mes',
     later: 'Kasnije',
     remainingTitle: 'Ostalo vam je {remaining}',
-    remainingBody: 'Pozovite prijatelja i dobijte +1 GB besplatno, ili nadogradite za cenu jedne kafe!',
+    remainingBody: 'Pozovite prijatelja i dobijte +250 MB besplatno, ili nadogradite za cenu jedne kafe!',
     freeGb: 'Besplatan GB',
   },
   deleteAccount: {

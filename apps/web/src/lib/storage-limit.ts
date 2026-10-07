@@ -1,8 +1,6 @@
 import { db } from '@/lib/firebase-admin';
 import {
   FREE_STORAGE_LIMIT,
-  BACKUP_BONUS,
-  DESKTOP_INSTALL_BONUS,
   MAX_REFERRAL_BONUS,
   MAX_MEME_REFERRAL_BONUS,
   MAX_FREE_STORAGE,
@@ -11,9 +9,10 @@ import {
 /**
  * Single source of truth for a user's storage quota (`storageLimit`).
  *
- * storageLimit = free tier
- *              + claimed install bonuses (app/backup + desktop)
- *              + referral bonus       (clamped to MAX_REFERRAL_BONUS)
+ * storageLimit = min(free tier (1GB)
+ *                  + referral bonus (250MB per qualified referral,
+ *                                    clamped to MAX_REFERRAL_BONUS),
+ *                  MAX_FREE_STORAGE)
  *              + meme referral bonus  (clamped to MAX_MEME_REFERRAL_BONUS)
  *              + Σ active subscriptions
  *
@@ -28,8 +27,6 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
   const userDoc = await db.collection('users').doc(userId).get();
   const userData = userDoc.data() || {};
 
-  const backupBonus = userData.backupBonusClaimed ? BACKUP_BONUS : 0;
-  const desktopBonus = userData.desktopBonusClaimed ? DESKTOP_INSTALL_BONUS : 0;
   const referralBonus = Math.min(userData.referralBonusBytes || 0, MAX_REFERRAL_BONUS);
   const memeBonus = Math.min(userData.memeReferralBonus || 0, MAX_MEME_REFERRAL_BONUS);
   // Admin-granted storage — deliberate, unbounded, never clamped. Without this
@@ -48,13 +45,11 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
     subscriptionStorage += doc.data().storageAmount || 0;
   }
 
-  // Everything obtainable without paying is capped as a whole. Clamping each
-  // bonus on its own left the real ceiling at the SUM of the individual caps
-  // (1 + 1 + 0.5 + 7.5 + 10 = 20GB) — MAX_FREE_STORAGE was declared but never
-  // read, so it enforced nothing. Admin grants and paid subscriptions stack on
-  // top and stay uncapped.
+  // Everything obtainable without paying is capped as a whole (2.5GB). Admin
+  // grants and paid subscriptions stack on top and stay uncapped. Install
+  // bonuses (backupBonusClaimed / desktopBonusClaimed) no longer add storage.
   const freeAllowance = Math.min(
-    FREE_STORAGE_LIMIT + backupBonus + desktopBonus + referralBonus + memeBonus,
+    FREE_STORAGE_LIMIT + referralBonus + memeBonus,
     MAX_FREE_STORAGE
   );
 
@@ -66,7 +61,7 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
 
   console.log(
     `Recalculated storageLimit for ${userId}: ${totalStorage} ` +
-      `(backup:${backupBonus} desktop:${desktopBonus} referral:${referralBonus} meme:${memeBonus} manual:${manualBonus} subs:${subscriptionStorage})`
+      `(referral:${referralBonus} meme:${memeBonus} manual:${manualBonus} subs:${subscriptionStorage})`
   );
 
   return totalStorage;

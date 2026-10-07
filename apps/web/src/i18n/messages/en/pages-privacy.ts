@@ -265,7 +265,7 @@ export const privacy = {
   },
   cta: {
     title: 'Your privacy is our priority',
-    text: 'Start free with 2.5GB — no credit card, no compromises.',
+    text: 'Start free with 1GB — up to 2.5GB by inviting friends. No credit card, no compromises.',
     button: 'Start for free',
   },
   footer: {

@@ -12,7 +12,7 @@ export const marketing: DeepStrings<typeof En> = {
     breadcrumbHome: 'Početna',
     breadcrumbFeatures: 'Funkcije',
     breadcrumbCompare: 'Poređenje',
-    freeNoCard: '2,5GB besplatno. Bez kreditne kartice. Bez obaveza.',
+    freeNoCard: '1 GB besplatno na startu — do 2,5 GB uz preporuke. Bez kreditne kartice. Bez obaveza.',
   },
 
   nav: {
@@ -69,7 +69,7 @@ export const marketing: DeepStrings<typeof En> = {
       subtitle: 'Privatni cloud storage sa AI funkcijama. Bez kompresije, bez kompromisa.',
       proofStrong: 'Original kvalitet',
       proofRest: '· EU serveri · GDPR — tvoje slike ostaju samo tvoje',
-      ctaPrimary: 'Započni besplatno — 2,5GB',
+      ctaPrimary: 'Započni besplatno — 1 GB',
       ctaSecondary: 'Pogledaj planove',
       badgeNoAi: 'Ne koristimo slike za AI trening',
       badgeEu: 'EU Serveri',
@@ -197,7 +197,7 @@ export const marketing: DeepStrings<typeof En> = {
     },
     finalCta: {
       title: 'Započnite za 30 sekundi',
-      subtitle: '2,5GB besplatno. Bez kreditne kartice. Bez obaveza.',
+      subtitle: '1 GB besplatno na startu — do 2,5 GB uz preporuke. Bez kreditne kartice. Bez obaveza.',
       start: 'Započni besplatno',
       compare: 'Uporedi planove',
     },
@@ -215,7 +215,7 @@ export const marketing: DeepStrings<typeof En> = {
       terms: 'Uslovi korišćenja',
       rights: 'MyPhoto — Sva prava zadržana.',
     },
-    stickyCta: 'Započni besplatno — 2,5GB',
+    stickyCta: 'Započni besplatno — 1 GB',
   },
 
   blog: {
@@ -231,7 +231,7 @@ export const marketing: DeepStrings<typeof En> = {
     backToBlog: 'Nazad na blog',
     cta: {
       title: 'Isprobajte MyPhoto besplatno',
-      text: '2,5GB besplatnog prostora, bez kreditne kartice.',
+      text: '1 GB besplatnog prostora — do 2,5 GB uz preporuke. Bez kreditne kartice.',
       button: 'Kreirajte besplatan nalog',
     },
   },
@@ -319,7 +319,7 @@ export const marketing: DeepStrings<typeof En> = {
       },
       freeSpace: {
         q: 'Koliko prostora dobijem besplatno?',
-        a: 'Besplatni plan počinje sa 1GB. Instalacijom aplikacije dobijate još 1GB, a desktop aplikacijom dodatnih 512MB — ukupno 2,5GB. Pozivanjem prijatelja dobijate 10% popusta na godišnju pretplatu, do 30%.',
+        a: 'Besplatni plan počinje sa 1GB. Za svakog pozvanog prijatelja koji počne da koristi MyPhoto (otpremi 100MB) dobijate +250MB — do 6 prijatelja, dakle ukupno do 2,5GB. Memovi koje objavite na meme zidu troše vaš prostor.',
       },
     },
     final: {
@@ -427,7 +427,7 @@ export const marketing: DeepStrings<typeof En> = {
     },
     final: {
       title: 'Počnite da delite uspomene',
-      text: 'Sigurno deljenje slika sa porodicom i prijateljima. 2,5GB besplatno.',
+      text: 'Sigurno deljenje slika sa porodicom i prijateljima. Do 2,5GB besplatno.',
       cta: 'Započnite besplatno',
     },
   },
@@ -524,7 +524,7 @@ export const marketing: DeepStrings<typeof En> = {
     },
     final: {
       title: 'Zaštitite vaše uspomene danas',
-      text: 'Privatni cloud storage sa GDPR zaštitom. 2,5GB besplatno.',
+      text: 'Privatni cloud storage sa GDPR zaštitom. Do 2,5GB besplatno.',
       cta: 'Započnite besplatno',
     },
   },
@@ -568,7 +568,7 @@ export const marketing: DeepStrings<typeof En> = {
       gdpr: { feature: 'GDPR usklađenost', myphoto: 'Potpuna', google: 'Delimična' },
       quality: { feature: 'Kvalitet čuvanja', myphoto: 'Original (bez kompresije)', google: 'Kompresovan u besplatnom planu' },
       pricePerGb: { feature: 'Cena po GB', myphoto: '€0.017/GB', google: '€0.021/GB' },
-      freePlan: { feature: 'Besplatan plan', myphoto: '2,5 GB', google: '15 GB (deljen sa Gmail-om)' },
+      freePlan: { feature: 'Besplatan plan', myphoto: '1 GB (do 2,5 GB uz preporuke)', google: '15 GB (deljen sa Gmail-om)' },
       aiSearch: { feature: 'AI pretraga', myphoto: 'Da (opcioni AI plan)', google: 'Da (uključeno)' },
       faces: { feature: 'Prepoznavanje lica', myphoto: 'Da (opcioni AI plan)', google: 'Da' },
       family: { feature: 'Family sharing', myphoto: 'Da (do 5 članova)', google: 'Da (do 5 članova)' },
@@ -598,7 +598,7 @@ export const marketing: DeepStrings<typeof En> = {
     },
     final: {
       title: 'Prebacite se danas',
-      text: 'Pridružite se korisnicima koji su prešli sa Google Photos-a na privatniju alternativu. 2,5GB besplatno, bez obaveza.',
+      text: 'Pridružite se korisnicima koji su prešli sa Google Photos-a na privatniju alternativu. Do 2,5GB besplatno, bez obaveza.',
     },
   },
 
@@ -682,7 +682,7 @@ export const marketing: DeepStrings<typeof En> = {
     },
     final: {
       title: 'Prebacite se danas',
-      text: 'Oslobodite vaše slike iz Apple ekosistema. Cross-platform pristup, EU serveri, 2,5GB besplatno.',
+      text: 'Oslobodite vaše slike iz Apple ekosistema. Cross-platform pristup, EU serveri, do 2,5GB besplatno.',
     },
   },
 
@@ -827,5 +827,13 @@ export const marketing: DeepStrings<typeof En> = {
       linkCopied: 'Link kopiran!',
     },
     shareText: '{caption} — Napravljeno u MyPhoto',
+  },
+
+  homeMemeWall: {
+    title: '🔥 MemeWall',
+    tagline: 'Najsvežiji memovi MyPhoto zajednice — skroluj, smej se, deli.',
+    downloadApp: '📱 Skini aplikaciju',
+    register: 'Registruj se besplatno',
+    seeAll: 'Otvori ceo MemeWall',
   },
 };

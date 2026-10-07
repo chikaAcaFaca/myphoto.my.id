@@ -443,12 +443,10 @@ export default function SharedDiskPage() {
                 <Users className="h-4 w-4" />
                 {data.type === 'folder' ? t('pages.shared.disk.bonusAccessFolder') : t('pages.shared.disk.bonusAccessFile')}
               </div>
-              {data.referralCode && (
-                <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-green-700 shadow-sm dark:bg-gray-800 dark:text-green-400">
-                  <Gift className="h-4 w-4" />
-                  {t('pages.shared.disk.bonusDiscount')}
-                </div>
-              )}
+              <div className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-green-700 shadow-sm dark:bg-gray-800 dark:text-green-400">
+                <Gift className="h-4 w-4" />
+                {t('pages.shared.disk.bonusReferral')}
+              </div>
             </div>
           </div>
 

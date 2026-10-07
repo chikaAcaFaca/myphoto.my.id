@@ -13,7 +13,7 @@ export interface ReferralStats {
   bonusFormatted: string;
   maxBonusFormatted: string;
   referralLink: string;
-  referrals: { email: string; date: string }[];
+  referrals: { email: string; date: string; qualified: boolean }[];
 }
 
 export function useReferralStats() {

@@ -35,7 +35,7 @@ function LoginContent() {
     if (redirect && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.startsWith('/\\')) {
       return redirect;
     }
-    return '/photos';
+    return '/meme-wall';
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {

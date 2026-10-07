@@ -11,7 +11,7 @@ const viewer: typeof en = {
   shareTitle: 'Deljenje',
   sharePrepareFailed: 'Ne mogu da pripremim sliku za deljenje. Pokušaj ponovo za koji trenutak.',
   shareFailed: 'Deljenje trenutno nije uspelo. Pokušaj ponovo.',
-  shareReferral: 'Dobij +1GB besplatno kad se registruješ preko ovog linka.',
+  shareReferral: 'Pridruži se MyPhoto — 1 GB besplatno.',
   backupRequiredTitle: 'Backup potreban',
   backupRequiredFavorite: 'Sliku prvo treba uploadovati na cloud da bi bila omiljena. Backup se pokreće automatski u pozadini.',
   favoriteFailed: 'Nije moguće ažurirati omiljeno.',

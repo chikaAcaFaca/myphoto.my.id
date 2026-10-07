@@ -63,10 +63,10 @@ export const pricing: DeepStrings<typeof EnPricing> = {
   meta: {
     title: 'Cenovnik i planovi',
     description:
-      'MyPhoto planovi za privatni cloud storage fotografija — od 2,5GB besplatno do 2TB. Original kvalitet, EU serveri, GDPR zaštita. Bez ugovora, otkaži bilo kada.',
+      'MyPhoto planovi za privatni cloud storage fotografija — od 1GB besplatno do 2TB. Original kvalitet, EU serveri, GDPR zaštita. Bez ugovora, otkaži bilo kada.',
     ogTitle: 'Cenovnik i planovi | MyPhoto',
     ogDescription:
-      'Privatni cloud storage od 2,5GB besplatno do 2TB. Original kvalitet, EU serveri, GDPR. Bez ugovora.',
+      'Privatni cloud storage od 1GB besplatno do 2TB. Original kvalitet, EU serveri, GDPR. Bez ugovora.',
   },
   backHome: 'Nazad na početnu',
   title: 'Izaberite plan',
@@ -93,7 +93,7 @@ export const pricing: DeepStrings<typeof EnPricing> = {
   lessThanCoffee: 'Manje od cene jedne kafe mesečno',
   startFree: 'Započni besplatno',
   choosePlan: 'Izaberi plan',
-  inviteFriends: 'Pozovite prijatelje — do 30% popusta na godišnju pretplatu!',
+  inviteFriends: 'Pozovite prijatelje — +250 MB besplatno za svakog, do 2,5 GB!',
   needMore: 'Treba vam više prostora?',
   choose: 'Izaberi',
   whyTitle: 'Zašto MyPhoto?',

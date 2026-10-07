@@ -109,7 +109,7 @@ function RootNavigator() {
     } else if (!onboardingDone && !onOnboarding) {
       router.replace('/onboarding');
     } else if (onboardingDone && (inAuthGroup || onOnboarding)) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/meme-wall-tab');
     }
   }, [user, isLoading, segments, onboardingDone]);
 

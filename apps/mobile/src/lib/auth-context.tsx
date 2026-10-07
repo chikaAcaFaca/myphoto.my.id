@@ -74,7 +74,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, referralCode?: string) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   getToken: () => Promise<string | null>;
@@ -202,9 +202,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password);
   };
 
-  const signUp = async (email: string, password: string, displayName: string) => {
+  const signUp = async (email: string, password: string, displayName: string, referralCode?: string) => {
     const auth = authRef.current || getFirebaseAuth();
-    await createUserWithEmailAndPassword(auth, email, password);
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const code = referralCode?.trim();
+    if (!code) return;
+    // Credit whoever invited this user. /api/users/me provisions the user
+    // document first (the claim needs it). Best-effort: never block sign-up.
+    try {
+      const token = await cred.user.getIdToken();
+      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+      await fetchWithTimeout(`${process.env.EXPO_PUBLIC_API_URL}/api/users/me`, { headers });
+      await fetchWithTimeout(`${process.env.EXPO_PUBLIC_API_URL}/api/referral/claim`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ referralCode: code.toUpperCase(), source: 'app' }),
+      });
+    } catch (e) {
+      console.warn('Referral claim failed:', e);
+    }
   };
 
   const signOut = async () => {
