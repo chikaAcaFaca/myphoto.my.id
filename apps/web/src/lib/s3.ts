@@ -49,14 +49,21 @@ export async function generateUploadUrl(
   return { url, expiresAt };
 }
 
-export async function generateDownloadUrl(key: string): Promise<string> {
+export async function generateDownloadUrl(
+  key: string,
+  opts: { expiresIn?: number; filename?: string; contentType?: string } = {}
+): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
+    ...(opts.filename
+      ? { ResponseContentDisposition: `attachment; filename="${opts.filename}"` }
+      : {}),
+    ...(opts.contentType ? { ResponseContentType: opts.contentType } : {}),
   });
 
   return getSignedUrl(s3Client, command, {
-    expiresIn: PRESIGNED_URL_EXPIRY,
+    expiresIn: opts.expiresIn ?? PRESIGNED_URL_EXPIRY,
   });
 }
 

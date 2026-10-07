@@ -1,25 +1,30 @@
 import { NextResponse } from 'next/server';
-import { getObject } from '@/lib/s3';
+import { generateDownloadUrl, objectExists } from '@/lib/s3';
 
 export const dynamic = 'force-dynamic';
 
 const APK_KEY = 'public/myphoto-android-latest.apk';
+const LINK_TTL = 60 * 60; // presigned link lifetime, seconds
 
 // GET /api/download/android — public APK download.
-// Streams the latest Android build from S3 with a friendly filename so
-// browsers (esp. Android Chrome) save it as MyPhoto-Android.apk.
+// Redirects to a short-lived presigned Wasabi URL so the ~200 MB APK is
+// served straight from Wasabi (free egress) instead of being streamed through
+// a Vercel function, which billed every byte as Vercel bandwidth. The stable
+// /api/download/android link (website, banners, in-app update check) is kept.
 export async function GET() {
   try {
-    const obj = await getObject(APK_KEY);
-    return new NextResponse(obj.body as any, {
-      status: 200,
+    if (!(await objectExists(APK_KEY))) throw new Error('APK missing');
+    const url = await generateDownloadUrl(APK_KEY, {
+      expiresIn: LINK_TTL,
+      filename: 'MyPhoto-Android.apk',
+      contentType: 'application/vnd.android.package-archive',
+    });
+    return NextResponse.redirect(url, {
+      status: 302,
       headers: {
-        'Content-Type': 'application/vnd.android.package-archive',
-        'Content-Disposition': 'attachment; filename="MyPhoto-Android.apk"',
-        // Lets Vercel cache the response on its edge so we don't re-stream
-        // the 200 MB blob on every download. The APK is replaced rarely,
-        // and clients see a fresh one within an hour of upload.
-        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+        // Cache the redirect well inside the link's lifetime so a cached
+        // response never hands out an expired URL.
+        'Cache-Control': 'public, max-age=300, s-maxage=600',
       },
     });
   } catch (e: any) {
