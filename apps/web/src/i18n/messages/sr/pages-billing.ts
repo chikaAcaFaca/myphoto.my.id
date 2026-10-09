@@ -105,7 +105,7 @@ export const pricing: DeepStrings<typeof EnPricing> = {
     privacy1: 'Ne koristimo vaše slike za AI trening',
     privacy2: 'Ne skeniramo sadržaj za reklame',
     privacy3: 'Ne delimo podatke sa trećim stranama',
-    privacy4: 'Zero-knowledge enkripcija dostupna',
+    privacy4: 'Brisanje naloga i svih podataka u bilo kom trenutku',
     valueTitle: 'Storage koji ima smisla',
     value1: 'Fleksibilni tier-ovi (150GB do 10TB)',
     value2: 'AI radi na vašem uređaju — besplatno',

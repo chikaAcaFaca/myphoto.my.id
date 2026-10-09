@@ -55,7 +55,7 @@ export const contact: DeepStrings<typeof EnContact> = {
   hours: 'Pon - Pet: 09:00 - 17:00 CET',
   hoursHint: 'Odgovaramo u roku od 24h',
   locationTitle: 'Lokacija',
-  location: 'Evropska Unija',
+  location: 'Pančevo, Srbija',
   locationHint: 'Serveri u Frankfurtu, Nemačka',
   faqTitle: 'Možda je odgovor već tu?',
   faqText: 'Pogledajte najčešća pitanja na stranici za podršku pre nego što pošaljete poruku.',

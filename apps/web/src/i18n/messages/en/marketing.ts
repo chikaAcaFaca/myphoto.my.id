@@ -45,7 +45,7 @@ export const marketing = {
     privacy: 'Privacy',
     terms: 'Terms of use',
     refund: 'Refund policy',
-    copyright: '© {year} MyPhoto (myphotomy.space) — NASRM Kapetan Bogdan Studio. EU servers, GDPR protection.',
+    copyright: '© {year} MyPhoto (myphotomy.space) — operated by NKNET CONSULTING DOO, Svetozara Miletića 104/18, 26101 Pančevo, Serbia (company reg. no. 22125338, tax ID 115190346). EU servers, GDPR protection.',
   },
 
   home: {
@@ -212,7 +212,7 @@ export const marketing = {
       privacy: 'Privacy',
       terms: 'Terms of use',
       refund: 'Refund policy',
-      rights: 'MyPhoto — All rights reserved.',
+      rights: 'MyPhoto — operated by NKNET CONSULTING DOO, Pančevo, Serbia (MB 22125338, PIB 115190346). All rights reserved.',
     },
     stickyCta: 'Start free — 1 GB',
   },
@@ -473,7 +473,7 @@ export const marketing = {
       },
       aes: {
         title: 'AES-256 encryption',
-        description: 'Your data is encrypted with TLS in transit and AES-256 at rest. Zero-knowledge option available.',
+        description: 'Your data is encrypted with TLS in transit and AES-256 at rest on EU servers.',
       },
       gdpr: {
         title: 'GDPR compliance',
@@ -496,7 +496,7 @@ export const marketing = {
       portability: 'Right to data portability (one-click export)',
       dpa: 'DPA (Data Processing Agreement) available',
       badgeTitle: 'GDPR Compliant',
-      badgeText: 'EU servers • AES-256 • Zero-knowledge option',
+      badgeText: 'EU servers • AES-256 • GDPR',
     },
     faqTitle: 'Privacy questions',
     faqs: {
@@ -514,7 +514,7 @@ export const marketing = {
       },
       encryption: {
         q: 'What encryption does MyPhoto use?',
-        a: 'We use TLS encryption for data in transit and AES-256 encryption for data at rest. Zero-knowledge encryption is available to premium users.',
+        a: 'We use TLS encryption for data in transit and AES-256 encryption for data at rest. Your files are never used for AI training or advertising.',
       },
       delete: {
         q: 'Can I delete all my data?',

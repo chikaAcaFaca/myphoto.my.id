@@ -102,7 +102,7 @@ export const pricing = {
     privacy1: "We don't use your photos for AI training",
     privacy2: "We don't scan content for ads",
     privacy3: "We don't share data with third parties",
-    privacy4: 'Zero-knowledge encryption available',
+    privacy4: 'Delete your account and all data at any time',
     valueTitle: 'Storage that makes sense',
     value1: 'Flexible tiers (150GB to 10TB)',
     value2: 'AI runs on your device — for free',

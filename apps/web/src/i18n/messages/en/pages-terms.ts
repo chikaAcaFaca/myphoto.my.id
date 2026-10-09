@@ -13,7 +13,7 @@ export const terms = {
   lawBadge: 'Governing law: Republic of Serbia | EU/GDPR | US/DMCA',
   s1: {
     title: '1. Introduction and acceptance of terms',
-    p1: 'Welcome to MyPhoto (myphotomy.space) ("Service", "Platform"). These Terms of Service ("Terms") constitute a legally binding agreement between you ("User") and MyPhoto (myphotomy.space) ("MyPhoto", "we", "us") that governs your access to and use of the Platform.',
+    p1: 'Welcome to MyPhoto (myphotomy.space) ("Service", "Platform"). These Terms of Service ("Terms") constitute a legally binding agreement between you ("User") and NKNET CONSULTING DOO, Svetozara Miletića 104/18, 26101 Pančevo, Serbia (company reg. no. 22125338, tax ID 115190346), the operator of MyPhoto (myphotomy.space) ("MyPhoto", "we", "us"), that governs your access to and use of the Platform.',
     p2: 'By using the Service, creating an account or accessing any part of the Platform, you confirm that you have read, understood and accepted these Terms in their entirety. If you do not agree with any part of these Terms, do not use our Service.',
     p3: "You must be at least **16 years old** to use this Service. This restriction complies with the GDPR (Article 8), COPPA (Children's Online Privacy Protection Act) and the Law on Personal Data Protection of the Republic of Serbia. By using the Service, you confirm that you meet this age requirement.",
   },

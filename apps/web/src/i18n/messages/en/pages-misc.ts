@@ -44,7 +44,7 @@ export const contact = {
   hours: 'Mon - Fri: 09:00 - 17:00 CET',
   hoursHint: 'We reply within 24h',
   locationTitle: 'Location',
-  location: 'European Union',
+  location: 'Pančevo, Serbia',
   locationHint: 'Servers in Frankfurt, Germany',
   faqTitle: 'Maybe the answer is already here?',
   faqText: 'Check the most common questions on the support page before sending a message.',

@@ -15,7 +15,7 @@ export const terms: DeepStrings<typeof En> = {
   lawBadge: 'Merodavno pravo: Republika Srbija | EU/GDPR | US/DMCA',
   s1: {
     title: '1. Uvod i prihvatanje uslova',
-    p1: 'Dobrodošli na MyPhoto (myphotomy.space) ("Servis", "Platforma"). Ovi Uslovi korišćenja ("Uslovi") predstavljaju pravno obavezujući ugovor između vas ("Korisnik") i MyPhoto (myphotomy.space) ("MyPhoto", "mi", "nas") koji reguliše vaš pristup i korišćenje Platforme.',
+    p1: 'Dobrodošli na MyPhoto (myphotomy.space) ("Servis", "Platforma"). Ovi Uslovi korišćenja ("Uslovi") predstavljaju pravno obavezujući ugovor između vas ("Korisnik") i NKNET CONSULTING DOO, Svetozara Miletića 104/18, 26101 Pančevo, Srbija (MB 22125338, PIB 115190346), operatera servisa MyPhoto (myphotomy.space) ("MyPhoto", "mi", "nas"), koji reguliše vaš pristup i korišćenje Platforme.',
     p2: 'Korišćenjem Servisa, kreiranjem naloga ili pristupanjem bilo kom delu Platforme, potvrđujete da ste pročitali, razumeli i prihvatili ove Uslove u celosti. Ako se ne slažete sa bilo kojim delom ovih Uslova, ne koristite naš Servis.',
     p3: "Morate imati najmanje **16 godina** za korišćenje ovog Servisa. Ovo ograničenje je u skladu sa GDPR (Član 8), COPPA (Children's Online Privacy Protection Act) i Zakonom o zaštiti podataka o ličnosti Republike Srbije. Korišćenjem Servisa potvrđujete da ispunjavate ovaj starosni uslov.",
   },

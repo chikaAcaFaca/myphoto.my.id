@@ -8,7 +8,7 @@ export const refund = {
   title: 'Refund Policy',
   lastUpdated: 'Last updated: {date}',
   intro:
-    'This policy applies to paid MyPhoto (myphotomy.space) storage subscriptions, published by NASRM Kapetan Bogdan Studio. The free plan is never charged.',
+    'This policy applies to paid MyPhoto (myphotomy.space) storage subscriptions, operated and sold by NKNET CONSULTING DOO, Svetozara Miletića 104/18, 26101 Pančevo, Serbia (company reg. no. 22125338, tax ID 115190346). The free plan is never charged.',
   mor: {
     title: 'Who processes your payment',
     text: 'Our online orders are processed by our reseller and **Merchant of Record, Creem**, which also handles order-related inquiries and refunds. The charge on your card or bank statement will show Creem, and Creem issues your invoice.',
