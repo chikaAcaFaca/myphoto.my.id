@@ -4,6 +4,7 @@ import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { generateShareToken } from '@myphoto/shared';
 import { refundAllViewersOnRevoke } from '@/lib/shared-folder-quota';
+import { overQuotaBlock } from '@/lib/over-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
     const authResult = await verifyAuthWithRateLimit(request, 'api');
     if (!authResult.success) return authResult.response;
     const { userId } = authResult;
+
+    const blocked = await overQuotaBlock(userId);
+    if (blocked) return blocked;
 
     const body = await request.json();
     const { diskFileId, folderId, permission = 'read' } = body;

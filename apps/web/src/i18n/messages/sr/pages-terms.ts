@@ -123,17 +123,19 @@ export const terms: DeepStrings<typeof En> = {
   },
   s12: {
     title: '12. Plaćanje i pretplate',
-    intro: 'Plaćene pretplate se naplaćuju unapred za izabrani billing period (mesečno, kvartalno, polugodišnje ili godišnje). Pretplata se automatski obnavlja (auto-renewal) na kraju svakog perioda osim ako je ne otkažete.',
+    intro: 'Plaćene pretplate se naplaćuju unapred za izabrani period (mesečno ili godišnje) i prodaju se preko našeg preprodavca i Merchant of Record-a, Creem, koji obrađuje plaćanja, izdaje račune i rešava refundacije. Pretplata se automatski obnavlja (auto-renewal) na kraju svakog perioda osim ako je ne otkažete.',
     i1: '**Otkazivanje:** Možete otkazati pretplatu u bilo kom trenutku. Pristup plaćenim funkcijama ostaje aktivan do kraja plaćenog perioda.',
     i2: '**14-dnevni refund (EU):** U skladu sa Direktivom o pravima potrošača (2011/83/EU) i srpskim Zakonom o zaštiti potrošača, imate pravo na odustanak i pun refund u roku od 14 dana od kupovine, bez navođenja razloga.',
     i3: '**Cene:** Podložne promenama uz obaveštenje od najmanje 30 dana. Postojeće pretplate zadržavaju aktuelnu cenu do kraja perioda.',
+    i4: '**Refundacija:** Sve detalje o povraćaju novca i otkazivanju pogledajte u Politici refundacije na **myphotomy.space/refund**.',
   },
   s13: {
     title: '13. Storage limiti',
     intro: 'Svaki plan ima definisan limit prostora za čuvanje. Kada dostignete limit, nećete moći da uploadujete nove fajlove dok ne nadogradite plan ili oslobodite prostor brisanjem postojećih fajlova.',
-    i1: 'Vaši postojeći fajlovi ostaju sigurni i dostupni bez obzira na status storage-a',
+    i1: 'Dok ste u okviru limita, vaši postojeći fajlovi ostaju sigurni i dostupni bez obzira na status storage-a',
     i2: '**Fair use:** Servis je namenjen čuvanju ličnih fotografija i videa. Korišćenje kao opšti file hosting nije dozvoljeno',
     i3: 'U slučaju downgrade-a plana, nećete izgubiti postojeće fajlove, ali upload novih će biti onemogućen dok ne uskladite storage',
+    i4: '**Fajlovi preko besplatnog limita posle isteka pretplate:** ako plaćeni paket ili arhiva istekne, a vaši fajlovi prelaze besplatan prostor (1 GB plus prostor zarađen preporukama), nalog postaje samo za čitanje tokom **90 dana**. Možete da pregledate i preuzmete sve, nadogradite paket, kupite jednokratnu arhivu ili obrišete fajlove. U tom periodu vas upozoravamo emailom. Ako ste posle 90 dana i dalje preko limita, trajno brišemo vaše **najskorije otpremljene fajlove** dok ne budete u okviru besplatnog limita.',
   },
   s14: {
     title: '14. AI Meme Generator i MemeWall',

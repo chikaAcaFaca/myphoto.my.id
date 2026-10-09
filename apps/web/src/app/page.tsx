@@ -22,7 +22,15 @@ import {
   X,
   ArrowRight,
 } from 'lucide-react';
-import { STORAGE_TIERS, ALL_FEATURES } from '@myphoto/shared';
+import {
+  STORAGE_TIERS,
+  ALL_FEATURES,
+  resolveTierPeriod,
+  getTierPrice,
+  getTierMonthlyEquivalent,
+  getTierSavingsPercent,
+  type BillingPeriod,
+} from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import { motion, useInView, useMotionValue, useTransform, animate } from 'framer-motion';
 import { AnimatedSection, StaggerContainer, StaggerItem } from '@/components/landing/animated-section';
@@ -32,7 +40,7 @@ import { MemeFeed, PLAY_STORE_URL } from '@/components/meme-wall/meme-feed';
 
 // Hero cards: skip the yearly-only storage-only tier (MyDisk Lite) — it
 // has its own messaging on the full /pricing page and breaks the
-// monthly-vs-yearly toggle pattern on the homepage.
+// 6-month-vs-yearly toggle pattern on the homepage.
 const HERO_TIERS = STORAGE_TIERS.filter((t) => !t.yearlyOnly).slice(0, 3);
 
 // ── Animated Counter ──────────────────────────────────────────────
@@ -173,9 +181,9 @@ export default function HomePage() {
   const router = useRouter();
   const { t, intlLocale } = useI18n();
   const fmtPrice = (n: number) =>
-    new Intl.NumberFormat(intlLocale, { style: 'currency', currency: 'USD' }).format(n);
+    new Intl.NumberFormat(intlLocale, { style: 'currency', currency: 'EUR' }).format(n);
   const cell = (v: string | boolean) => (v === 'partial' ? t('marketing.home.comparison.partial') : v);
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const [billingCycle, setBillingCycle] = useState<BillingPeriod>('yearly');
   const [showStickyCta, setShowStickyCta] = useState(false);
   const pricingSectionRef = useRef<HTMLDivElement>(null);
 
@@ -213,24 +221,6 @@ export default function HomePage() {
     if (el) observer.observe(el);
     return () => { if (el) observer.unobserve(el); };
   }, []);
-
-  const getMonthlyPrice = (tier: typeof STORAGE_TIERS[0]) => {
-    return tier.priceMonthly;
-  };
-
-  const getYearlyMonthlyEquiv = (tier: typeof STORAGE_TIERS[0]) => {
-    return tier.priceYearly / 12;
-  };
-
-  const getYearlyTotal = (tier: typeof STORAGE_TIERS[0]) => {
-    return tier.priceYearly;
-  };
-
-  const getSavingsPercent = (tier: typeof STORAGE_TIERS[0]) => {
-    const monthly = getMonthlyPrice(tier);
-    if (monthly === 0) return 0;
-    return Math.round((1 - getYearlyMonthlyEquiv(tier) / monthly) * 100);
-  };
 
   if (isLoading) {
     return (
@@ -629,15 +619,15 @@ export default function HomePage() {
         <div className="mb-10 flex justify-center">
           <div className="inline-flex items-center rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
             <button
-              onClick={() => setBillingCycle('monthly')}
+              onClick={() => setBillingCycle('semiannual')}
               className={cn(
                 'rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                billingCycle === 'monthly'
+                billingCycle === 'semiannual'
                   ? 'bg-white text-gray-900 shadow dark:bg-gray-700 dark:text-white'
                   : 'text-gray-600 dark:text-gray-400'
               )}
             >
-              {t('marketing.home.pricing.monthly')}
+              {t('common.periods.semiannual')}
             </button>
             <button
               onClick={() => setBillingCycle('yearly')}
@@ -659,10 +649,11 @@ export default function HomePage() {
         {/* Pricing Cards */}
         <StaggerContainer className="mx-auto grid max-w-4xl gap-6 md:grid-cols-3">
           {HERO_TIERS.map((tier) => {
-            const monthlyPrice = getMonthlyPrice(tier);
-            const yearlyEquiv = getYearlyMonthlyEquiv(tier);
-            const yearlyTotal = getYearlyTotal(tier);
-            const savings = getSavingsPercent(tier);
+            const period = resolveTierPeriod(tier, billingCycle);
+            const monthlyPrice = tier.priceMonthly;
+            const monthlyEquiv = getTierMonthlyEquivalent(tier, period);
+            const periodTotal = getTierPrice(tier, period);
+            const savings = getTierSavingsPercent(tier, period);
             const isPopular = tier.isPopular;
             const isFree = tier.tier === 0;
 
@@ -690,26 +681,21 @@ export default function HomePage() {
                   <div className="mt-3 mb-4">
                     {isFree ? (
                       <p className="text-3xl font-bold">{t('marketing.home.pricing.free')}</p>
-                    ) : billingCycle === 'monthly' ? (
-                      <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
-                        {fmtPrice(monthlyPrice)}
-                        <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
-                          {t('marketing.home.pricing.perMonth')}
-                        </span>
-                      </p>
                     ) : (
                       <div>
-                        <p className={cn('text-lg line-through', isPopular ? 'text-primary-200' : 'text-gray-400')}>
-                          {fmtPrice(monthlyPrice)}{t('marketing.home.pricing.perMonth')}
-                        </p>
-                        <p className="text-3xl font-bold text-green-500">
-                          {fmtPrice(yearlyEquiv)}
+                        {savings > 0 && (
+                          <p className={cn('text-lg line-through', isPopular ? 'text-primary-200' : 'text-gray-400')}>
+                            {fmtPrice(monthlyPrice)}{t('marketing.home.pricing.perMonth')}
+                          </p>
+                        )}
+                        <p className={cn('text-3xl font-bold', savings > 0 ? 'text-green-500' : isPopular ? '' : 'text-gray-900 dark:text-white')}>
+                          {fmtPrice(monthlyEquiv)}
                           <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
                             {t('marketing.home.pricing.perMonth')}
                           </span>
                         </p>
                         <p className={cn('text-sm', isPopular ? 'text-primary-100' : 'text-gray-500')}>
-                          {fmtPrice(yearlyTotal)}{t('marketing.home.pricing.perYear')}
+                          {fmtPrice(periodTotal)}/{t(`common.periodsShort.${period}`)}
                           {savings > 0 && (
                             <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700 dark:bg-green-900/40 dark:text-green-400">
                               -{savings}%
@@ -730,7 +716,7 @@ export default function HomePage() {
                   </ul>
 
                   <Link
-                    href={isFree ? '/register' : `/checkout?tier=${tier.tier}&period=${billingCycle}`}
+                    href={isFree ? '/register' : `/checkout?tier=${tier.tier}&period=${period}`}
                     className={cn(
                       'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
                       isPopular
@@ -867,6 +853,7 @@ export default function HomePage() {
               <ul className="space-y-2">
                 <li><Link href="/privacy" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.privacy')}</Link></li>
                 <li><Link href="/terms" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.terms')}</Link></li>
+                <li><Link href="/refund" className="text-sm text-gray-600 hover:text-primary-500 dark:text-gray-400">{t('marketing.home.footer.refund')}</Link></li>
               </ul>
             </div>
           </div>

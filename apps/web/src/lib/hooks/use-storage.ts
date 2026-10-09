@@ -26,6 +26,11 @@ export function useStorage() {
       const used = userData.storageUsed || 0;
       const limit = userData.storageLimit || 0;
       const ratio = limit > 0 ? used / limit : 0;
+      // Set by the server when a subscription/archive ended with the user
+      // still over their free allowance (see lib/over-quota.ts).
+      const overQuotaDeleteAt: Date | null = userData.overQuotaSince
+        ? (userData.overQuotaDeleteAt?.toDate?.() ?? null)
+        : null;
 
       return {
         used,
@@ -39,6 +44,8 @@ export function useStorage() {
         isAt80: ratio >= 0.8 && ratio < 0.95,
         isAt95: ratio >= 0.95 && ratio < 1.0,
         isAtLimit: used >= limit,
+        overQuotaDeleteAt,
+        archiveUntil: (userData.archiveUntil?.toDate?.() as Date | undefined) ?? null,
       };
     },
     enabled: !!user,

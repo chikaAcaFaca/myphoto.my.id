@@ -38,6 +38,7 @@ import { REFERRAL_BONUS, formatBytes } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { DeleteAccountDialog } from '@/components/settings/delete-account-dialog';
+import { SubscriptionSection } from '@/components/settings/subscription-section';
 import { useI18n } from '@/i18n/client';
 
 type SettingsSection = 'account' | 'storage' | 'referral' | 'sync' | 'appearance' | 'privacy';
@@ -358,6 +359,8 @@ export default function SettingsPage() {
                       </div>
                     </div>
                   )}
+
+                  <SubscriptionSection />
 
                   <div className="mt-4">
                     <Link

@@ -121,17 +121,19 @@ export const terms = {
   },
   s12: {
     title: '12. Payments and subscriptions',
-    intro: 'Paid subscriptions are charged in advance for the selected billing period (monthly, quarterly, semi-annually or annually). The subscription renews automatically (auto-renewal) at the end of each period unless you cancel it.',
+    intro: 'Paid subscriptions are charged in advance for the selected billing period (monthly or annually) and are sold through our reseller and Merchant of Record, Creem, which processes payments, issues invoices and handles refunds. The subscription renews automatically (auto-renewal) at the end of each period unless you cancel it.',
     i1: '**Cancellation:** You can cancel your subscription at any time. Access to paid features remains active until the end of the paid period.',
     i2: '**14-day refund (EU):** In accordance with the Consumer Rights Directive (2011/83/EU) and the Serbian Law on Consumer Protection, you have the right to withdraw and receive a full refund within 14 days of purchase, without giving any reason.',
     i3: '**Prices:** Subject to change with at least 30 days’ notice. Existing subscriptions keep their current price until the end of the period.',
+    i4: '**Refunds:** Full details on refunds and cancellation are in our Refund Policy at **myphotomy.space/refund**.',
   },
   s13: {
     title: '13. Storage limits',
     intro: 'Each plan has a defined storage limit. When you reach the limit, you will not be able to upload new files until you upgrade your plan or free up space by deleting existing files.',
-    i1: 'Your existing files remain safe and accessible regardless of storage status',
+    i1: 'While you are within your limit, your existing files remain safe and accessible regardless of storage status',
     i2: '**Fair use:** The Service is intended for storing personal photos and videos. Use as general-purpose file hosting is not permitted',
     i3: 'If you downgrade your plan, you will not lose existing files, but uploading new files will be disabled until your storage is within the limit',
+    i4: '**Files over the free limit after a subscription ends:** if your paid plan or archive ends and your files exceed your free storage (1 GB plus storage earned through referrals), your account becomes read-only for **90 days**. You can view and download everything, upgrade, buy a one-time archive, or delete files. We warn you by email during this period. If you are still over the limit after 90 days, we permanently delete your **most recently uploaded files** until your storage is within the free limit.',
   },
   s14: {
     title: '14. AI Meme Generator and MemeWall',

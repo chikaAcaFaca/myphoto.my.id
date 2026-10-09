@@ -5,7 +5,7 @@ import { AlertTriangle, Coffee, Gift, TrendingUp } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
 import { useStorage } from '@/lib/hooks';
 import Link from 'next/link';
-import { useT } from '@/i18n/client';
+import { useI18n } from '@/i18n/client';
 
 type WarningLevel = '80' | '95' | '100' | null;
 
@@ -26,7 +26,7 @@ export function StorageLimitBanner() {
   const user = useAuthStore((state) => state.user);
   const { data: storage } = useStorage();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const t = useT();
+  const { t, intlLocale } = useI18n();
 
   useEffect(() => {
     const d = new Set<string>();
@@ -37,6 +37,35 @@ export function StorageLimitBanner() {
   }, []);
 
   if (!user || !storage) return null;
+
+  // Read-only grace period after a subscription ended: never dismissible,
+  // always shows the deletion date.
+  if (storage.overQuotaDeleteAt) {
+    const date = storage.overQuotaDeleteAt.toLocaleDateString(intlLocale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    return (
+      <div className="mb-6 flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
+          <div>
+            <p className="font-medium text-red-800 dark:text-red-200">{t('components.limitBanner.overQuotaTitle')}</p>
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {t('components.limitBanner.overQuotaBody', { date })}
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/keep-files"
+          className="shrink-0 rounded-lg bg-red-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-red-700"
+        >
+          {t('components.limitBanner.overQuotaCta')}
+        </Link>
+      </div>
+    );
+  }
 
   const level: WarningLevel = storage.isAtLimit ? '100' : storage.isAt95 ? '95' : storage.isAt80 ? '80' : null;
   if (!level || dismissed.has(level)) return null;

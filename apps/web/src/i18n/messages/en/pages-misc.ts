@@ -3,6 +3,7 @@ export const shell = {
   rights: 'All rights reserved.',
   privacy: 'Privacy',
   terms: 'Terms',
+  refund: 'Refunds',
   contact: 'Contact',
 } as const;
 

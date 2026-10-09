@@ -116,6 +116,7 @@ export default async function MarketingLayout({
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <li><Link href="/privacy" className="hover:text-primary-600">{t('marketing.footer.privacy')}</Link></li>
                 <li><Link href="/terms" className="hover:text-primary-600">{t('marketing.footer.terms')}</Link></li>
+                <li><Link href="/refund" className="hover:text-primary-600">{t('marketing.footer.refund')}</Link></li>
               </ul>
             </div>
           </div>

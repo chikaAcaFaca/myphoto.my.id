@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { generateShareToken } from '@myphoto/shared';
+import { overQuotaBlock } from '@/lib/over-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,9 @@ export async function POST(request: NextRequest) {
       return authResult.response;
     }
     const { userId } = authResult;
+
+    const blocked = await overQuotaBlock(userId);
+    if (blocked) return blocked;
 
     const body = await request.json();
     const { fileId, albumId, permission = 'read' } = body;

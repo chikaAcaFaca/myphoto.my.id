@@ -240,7 +240,7 @@ export default async function TermsPage() {
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">{t('pages.terms.s12.title')}</h2>
             <p>{t('pages.terms.s12.intro')}</p>
             <ul className="mt-3 space-y-2">
-              {(['i1', 'i2', 'i3'] as const).map((k) => (
+              {(['i1', 'i2', 'i3', 'i4'] as const).map((k) => (
                 <li key={k} className="flex items-start gap-2">
                   <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
                   {rich(t(`pages.terms.s12.${k}`))}
@@ -253,7 +253,7 @@ export default async function TermsPage() {
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">{t('pages.terms.s13.title')}</h2>
             <p>{t('pages.terms.s13.intro')}</p>
             <ul className="mt-3 space-y-2">
-              {(['i1', 'i2', 'i3'] as const).map((k) => (
+              {(['i1', 'i2', 'i3', 'i4'] as const).map((k) => (
                 <li key={k} className="flex items-start gap-2">
                   <Check className="mt-1 h-4 w-4 flex-shrink-0 text-blue-500" />
                   {rich(t(`pages.terms.s13.${k}`))}
@@ -477,6 +477,7 @@ export default async function TermsPage() {
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">{t('pages.terms.footer.privacy')}</Link>
             <Link href="/terms" className="hover:text-primary-500">{t('pages.terms.footer.terms')}</Link>
+            <Link href="/refund" className="hover:text-primary-500">{t('pages.shell.refund')}</Link>
             <Link href="/contact" className="hover:text-primary-500">{t('pages.terms.footer.contact')}</Link>
           </div>
         </div>

@@ -16,7 +16,14 @@ import {
 } from 'lucide-react';
 import { initializePaddle, CheckoutEventNames } from '@paddle/paddle-js';
 import type { Paddle, PaddleEventData } from '@paddle/paddle-js';
-import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
+import {
+  STORAGE_TIERS,
+  getTierPrice,
+  getTierMonthlyEquivalent,
+  getTierCreemProductId,
+  isBillingPeriod,
+  resolveTierPeriod,
+} from '@myphoto/shared';
 import type { StorageTier, BillingPeriod } from '@myphoto/shared';
 import { useAuthStore } from '@/lib/stores';
 import { cn } from '@/lib/utils';
@@ -37,24 +44,13 @@ const PAYMENT_PROVIDER = (process.env.NEXT_PUBLIC_PAYMENT_PROVIDER || 'paddle') 
 const PADDLE_ENVIRONMENT = (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT ||
   'sandbox') as 'sandbox' | 'production';
 
+// Paddle (legacy) only ever had monthly/yearly prices.
 function getPaddlePriceId(tier: StorageTier, period: BillingPeriod): string {
   switch (period) {
     case 'monthly': return tier.paddleMonthlyId;
     case 'yearly': return tier.paddleYearlyId;
+    default: return '';
   }
-}
-
-function getPeriodTotal(tier: StorageTier, period: BillingPeriod): number {
-  switch (period) {
-    case 'monthly': return tier.priceMonthly;
-    case 'yearly': return tier.priceYearly;
-  }
-}
-
-function getMonthlyEquivalent(tier: StorageTier, period: BillingPeriod): number {
-  const total = getPeriodTotal(tier, period);
-  const months = BILLING_PERIODS[period].months;
-  return total / months;
 }
 
 function CheckoutContent() {
@@ -75,10 +71,12 @@ function CheckoutContent() {
 
   // Parse URL params
   const tierNum = parseInt(searchParams.get('tier') || '1', 10);
-  const period = (searchParams.get('period') || 'monthly') as BillingPeriod;
+  const rawPeriod = searchParams.get('period');
 
-  // Find the tier
+  // Find the tier, then snap the period to one this tier is actually sold in
+  // (old links may still say period=monthly for a semiannual-only plan).
   const tier = STORAGE_TIERS.find(t => t.tier === tierNum) || STORAGE_TIERS[1];
+  const period: BillingPeriod = resolveTierPeriod(tier, isBillingPeriod(rawPeriod) ? rawPeriod : 'yearly');
 
   // Redirect free tier to register
   useEffect(() => {
@@ -143,7 +141,7 @@ function CheckoutContent() {
   const configError: string | null = (() => {
     if (tier.tier === 0) return null;
     if (PAYMENT_PROVIDER === 'creem') {
-      const productId = period === 'yearly' ? tier.creemYearlyProductId : tier.creemMonthlyProductId;
+      const productId = getTierCreemProductId(tier, period);
       if (!productId) {
         return t('pages.checkout.errors.creemMissing', { plan: tier.name });
       }
@@ -245,8 +243,8 @@ function CheckoutContent() {
     });
   };
 
-  const priceTotal = getPeriodTotal(tier, period);
-  const priceMonthly = getMonthlyEquivalent(tier, period);
+  const priceTotal = getTierPrice(tier, period);
+  const priceMonthly = getTierMonthlyEquivalent(tier, period);
 
   const checkoutReady =
     PAYMENT_PROVIDER === 'creem' ? true : PAYMENT_PROVIDER === 'freemius' ? freemiusReady : !!paddle;
@@ -294,7 +292,7 @@ function CheckoutContent() {
             <div className="mb-4 rounded-lg bg-gray-50 p-4 dark:bg-gray-700/50">
               <div className="flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-300">{t('pages.checkout.billingPeriod')}</span>
-                <span className="font-semibold">{period === 'yearly' ? t('pages.checkout.periodYearly') : t('pages.checkout.periodMonthly')}</span>
+                <span className="font-semibold">{t(`common.periods.${period}`)}</span>
               </div>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-gray-600 dark:text-gray-300">{t('pages.checkout.periodTotal')}</span>
@@ -513,6 +511,7 @@ function CheckoutContent() {
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">{t('pages.checkout.footerPrivacy')}</Link>
             <Link href="/terms" className="hover:text-primary-500">{t('pages.checkout.footerTerms')}</Link>
+            <Link href="/refund" className="hover:text-primary-500">{t('pages.shell.refund')}</Link>
             <Link href="/contact" className="hover:text-primary-500">{t('pages.checkout.footerContact')}</Link>
           </div>
         </div>

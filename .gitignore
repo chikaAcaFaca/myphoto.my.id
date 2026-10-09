@@ -95,3 +95,9 @@ apps/mobile/android/
 
 # Local Vercel deploy token (never commit)
 .vercel-token
+
+# Creem API key (local only)
+.creem-key
+
+# Local secrets — never commit
+api kljucevi.txt

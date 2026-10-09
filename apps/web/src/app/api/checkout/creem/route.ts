@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
-import { STORAGE_TIERS, type BillingPeriod } from '@myphoto/shared';
+import { STORAGE_TIERS, getTierPeriods, isBillingPeriod, type BillingPeriod } from '@myphoto/shared';
 import { auth } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { createCreemCheckout, getCreemProductId } from '@/lib/creem';
@@ -21,14 +21,17 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const tierNum = Number(body?.tier);
-  const period: BillingPeriod = body?.period === 'yearly' ? 'yearly' : 'monthly';
+  if (!isBillingPeriod(body?.period)) {
+    return NextResponse.json({ error: 'Unknown billing period' }, { status: 400 });
+  }
+  const period: BillingPeriod = body.period;
 
   const tier = STORAGE_TIERS.find((t) => t.tier === tierNum);
   if (!tier || tier.tier === 0) {
     return NextResponse.json({ error: 'Unknown plan' }, { status: 400 });
   }
-  if (tier.yearlyOnly && period === 'monthly') {
-    return NextResponse.json({ error: 'This plan is billed yearly only' }, { status: 400 });
+  if (!getTierPeriods(tier).includes(period)) {
+    return NextResponse.json({ error: `Plan "${tier.name}" is not sold with ${period} billing` }, { status: 400 });
   }
   const productId = getCreemProductId(tier, period);
   if (!productId) {

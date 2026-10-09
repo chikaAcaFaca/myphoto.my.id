@@ -215,6 +215,7 @@ export default function ContactPage() {
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">{t('pages.shell.privacy')}</Link>
             <Link href="/terms" className="hover:text-primary-500">{t('pages.shell.terms')}</Link>
+            <Link href="/refund" className="hover:text-primary-500">{t('pages.shell.refund')}</Link>
             <Link href="/contact" className="hover:text-primary-500">{t('pages.shell.contact')}</Link>
           </div>
         </div>

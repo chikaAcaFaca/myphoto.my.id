@@ -47,6 +47,7 @@ export const marketing: DeepStrings<typeof En> = {
     legal: 'Pravno',
     privacy: 'Privatnost',
     terms: 'Uslovi korišćenja',
+    refund: 'Politika refundacije',
     copyright: '© {year} MyPhoto (myphotomy.space) — NASRM Kapetan Bogdan Studio. EU serveri, GDPR zaštita.',
   },
 
@@ -213,6 +214,7 @@ export const marketing: DeepStrings<typeof En> = {
       legal: 'Pravno',
       privacy: 'Privatnost',
       terms: 'Uslovi korišćenja',
+      refund: 'Politika refundacije',
       rights: 'MyPhoto — Sva prava zadržana.',
     },
     stickyCta: 'Započni besplatno — 1 GB',

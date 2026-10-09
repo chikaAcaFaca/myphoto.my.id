@@ -16,14 +16,25 @@ import {
   TrendingUp,
   Sparkles
 } from 'lucide-react';
-import { STORAGE_TIERS } from '@myphoto/shared';
+import {
+  STORAGE_TIERS,
+  BILLING_PERIOD_ORDER,
+  getTierPeriods,
+  resolveTierPeriod,
+  getTierPrice,
+  getTierMonthlyEquivalent,
+  getTierSavingsPercent,
+} from '@myphoto/shared';
 import type { BillingPeriod } from '@myphoto/shared';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores';
 import { usePlanRecommendation } from '@/lib/hooks';
 import { useI18n, useT } from '@/i18n/client';
 
-const BILLING_OPTIONS: BillingPeriod[] = ['monthly', 'yearly'];
+// Only show periods at least one plan is actually sold in.
+const BILLING_OPTIONS: BillingPeriod[] = BILLING_PERIOD_ORDER.filter((p) =>
+  STORAGE_TIERS.some((tier) => getTierPeriods(tier).includes(p))
+);
 
 export default function PricingPage() {
   return (
@@ -45,40 +56,17 @@ function PricingContent() {
   const { t, intlLocale } = useI18n();
   const eur = (n: number) =>
     new Intl.NumberFormat(intlLocale, { style: 'currency', currency: 'EUR' }).format(n);
-  const periodShort =
-    billingCycle === 'yearly' ? t('pages.pricing.periodShortYearly') : t('pages.pricing.periodShortMonthly');
+  // The toggle is page-wide; a plan that is not sold in the chosen period
+  // falls back to its nearest longer one (see resolveTierPeriod).
+  const periodOf = (tier: typeof STORAGE_TIERS[0]) => resolveTierPeriod(tier, billingCycle);
+  const getMonthlyBase = (tier: typeof STORAGE_TIERS[0]) => tier.priceMonthly;
+  const getMonthlyEquivalent = (tier: typeof STORAGE_TIERS[0]) => getTierMonthlyEquivalent(tier, periodOf(tier));
+  const getPeriodTotal = (tier: typeof STORAGE_TIERS[0]) => getTierPrice(tier, periodOf(tier));
+  const getSavingsPercent = (tier: typeof STORAGE_TIERS[0]) => getTierSavingsPercent(tier, periodOf(tier));
+  const periodShortOf = (tier: typeof STORAGE_TIERS[0]) => t(`common.periodsShort.${periodOf(tier)}`);
 
-  const getMonthlyBase = (tier: typeof STORAGE_TIERS[0]) => {
-    return tier.priceMonthly;
-  };
-
-  const getMonthlyEquivalent = (tier: typeof STORAGE_TIERS[0]) => {
-    switch (billingCycle) {
-      case 'monthly': return tier.priceMonthly;
-      case 'yearly': return tier.priceYearly / 12;
-    }
-  };
-
-  const getPeriodTotal = (tier: typeof STORAGE_TIERS[0]) => {
-    switch (billingCycle) {
-      case 'monthly': return tier.priceMonthly;
-      case 'yearly': return tier.priceYearly;
-    }
-  };
-
-  const getSavingsPercent = (tier: typeof STORAGE_TIERS[0]) => {
-    const monthly = getMonthlyBase(tier);
-    if (monthly === 0) return 0;
-    const monthlyEquiv = getMonthlyEquivalent(tier);
-    return Math.round((1 - monthlyEquiv / monthly) * 100);
-  };
-
-  const getDiscountBadge = (period: BillingPeriod) => {
-    switch (period) {
-      case 'monthly': return null;
-      case 'yearly': return t('pages.pricing.twoMonthsFree');
-    }
-  };
+  const getDiscountBadge = (period: BillingPeriod) =>
+    period === 'yearly' ? t('pages.pricing.twoMonthsFree') : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -138,7 +126,7 @@ function PricingContent() {
                         : 'text-gray-600 dark:text-gray-400'
                     )}
                   >
-                    {period === 'yearly' ? t('pages.pricing.periodYearly') : t('pages.pricing.periodMonthly')}
+                    {t(`common.periods.${period}`)}
                     {badge && (
                       <span className="ml-1.5 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900/30 dark:text-green-400">
                         {badge}
@@ -182,7 +170,10 @@ function PricingContent() {
             // as a flat number so the "0.33€/mes" optical illusion
             // doesn't undersell the SKU.
             const isYearlyOnly = !!tier.yearlyOnly;
-            const showSavings = billingCycle !== 'monthly' && !isFree && !isYearlyOnly;
+            const period = periodOf(tier);
+            const showSavings = period !== 'monthly' && !isFree && !isYearlyOnly && savings > 0;
+            const periodShort = periodShortOf(tier);
+            const fallback = !isFree && !isYearlyOnly && period !== billingCycle;
 
             return (
               <div
@@ -246,14 +237,26 @@ function PricingContent() {
                           </span>
                         )}
                       </p>
+                      {fallback && (
+                        <p className={cn('mt-0.5 text-xs', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                          {t('pages.pricing.billedEvery', { period: t(`common.periods.${period}`) })}
+                        </p>
+                      )}
                     </div>
                   ) : (
-                    <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
-                      {eur(monthlyEquiv)}
-                      <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
-                        {t('pages.pricing.perMonth')}
-                      </span>
-                    </p>
+                    <div>
+                      <p className={cn('text-3xl font-bold', isPopular ? '' : 'text-gray-900 dark:text-white')}>
+                        {eur(monthlyEquiv)}
+                        <span className={cn('text-sm font-normal', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                          {t('pages.pricing.perMonth')}
+                        </span>
+                      </p>
+                      {period !== 'monthly' && (
+                        <p className={cn('text-sm', isPopular ? 'text-primary-100' : 'text-gray-500')}>
+                          {eur(periodTotal)}/{periodShort}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -301,7 +304,7 @@ function PricingContent() {
                   href={
                     isFree
                       ? registerUrl
-                      : `/checkout?tier=${tier.tier}&period=${isYearlyOnly ? 'yearly' : billingCycle}${refParam}`
+                      : `/checkout?tier=${tier.tier}&period=${period}${refParam}`
                   }
                   className={cn(
                     'block w-full rounded-lg py-3 text-center font-semibold transition-colors',
@@ -331,7 +334,9 @@ function PricingContent() {
               const monthlyEquiv = getMonthlyEquivalent(tier);
               const periodTotal = getPeriodTotal(tier);
               const savings = getSavingsPercent(tier);
-              const showSavings = billingCycle !== 'monthly';
+              const period = periodOf(tier);
+              const periodShort = periodShortOf(tier);
+              const showSavings = period !== 'monthly' && savings > 0;
 
               return (
                 <div
@@ -369,13 +374,18 @@ function PricingContent() {
                         </p>
                       </div>
                     ) : (
-                      <p className="mt-1 text-xl font-bold text-primary-600">
-                        {eur(monthlyEquiv)}{t('pages.pricing.perMonth')}
-                      </p>
+                      <div className="mt-1">
+                        <p className="text-xl font-bold text-primary-600">
+                          {eur(monthlyEquiv)}{t('pages.pricing.perMonth')}
+                        </p>
+                        {period !== 'monthly' && (
+                          <p className="text-sm text-gray-500">{eur(periodTotal)}/{periodShort}</p>
+                        )}
+                      </div>
                     )}
                   </div>
                   <Link
-                    href={`/checkout?tier=${tier.tier}&period=${billingCycle}`}
+                    href={`/checkout?tier=${tier.tier}&period=${period}${refParam}`}
                     className="mt-4 block rounded-lg bg-gray-100 py-2 text-center font-medium text-gray-900 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
                   >
                     {t('pages.pricing.choose')}
@@ -524,6 +534,7 @@ function PricingContent() {
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">{t('pages.pricing.footerPrivacy')}</Link>
             <Link href="/terms" className="hover:text-primary-500">{t('pages.pricing.footerTerms')}</Link>
+            <Link href="/refund" className="hover:text-primary-500">{t('pages.shell.refund')}</Link>
             <Link href="/contact" className="hover:text-primary-500">{t('pages.pricing.footerContact')}</Link>
             <Link href="/support" className="hover:text-primary-500">{t('pages.pricing.footerSupport')}</Link>
           </div>

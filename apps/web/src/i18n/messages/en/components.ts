@@ -237,6 +237,20 @@ export const components = {
     copyLink: 'Copy referral link',
     total: 'Total: {earned} of {max}',
   },
+  subscription: {
+    title: 'Your subscription',
+    renewsOn: 'Renews on {date}',
+    endsOn: 'Cancelled — active until {date}',
+    manageBilling: 'Invoices & payment method',
+    cancel: 'Cancel subscription',
+    retentionTitle: 'Before you go — keep your files for less',
+    switchSmaller: 'Switch to {plan}',
+    fitsFiles: 'all your files still fit',
+    switchYearly: 'Keep your plan, pay yearly',
+    cancelWarning: 'If you cancel, your plan stays active until the end of the paid period. After that, if your files exceed your free storage, your account becomes read-only and after 90 days your newest files over the limit are deleted — unless you upgrade again, buy an archive or download them.',
+    keep: 'Keep my plan',
+    cancelAnyway: 'Cancel anyway',
+  },
   limitBanner: {
     fullTitle: 'Your storage is full',
     fullBody: "You can't upload new files. Upgrade or invite friends for more space.",
@@ -249,6 +263,10 @@ export const components = {
     remainingTitle: '{remaining} left',
     remainingBody: 'Invite a friend and get +250 MB free, or upgrade for the price of a coffee!',
     freeGb: 'Free GB',
+    overQuotaTitle: 'Your files are over your free storage',
+    overQuotaBody:
+      'Your account is read-only: you can view and download everything, but uploads and backups are paused. On {date} your newest files over the limit will be deleted.',
+    overQuotaCta: 'Keep my files',
   },
   deleteAccount: {
     title: 'Permanently delete account',

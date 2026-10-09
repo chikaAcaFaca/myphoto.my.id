@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, X } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
-import { STORAGE_TIERS, BILLING_PERIODS } from '@myphoto/shared';
+import { STORAGE_TIERS, getTierMonthlyEquivalent, isBillingPeriod } from '@myphoto/shared';
 import { useT } from '@/i18n/client';
 
 const DISMISS_KEY = 'myphoto_savings_badge_dismissed';
@@ -36,18 +36,10 @@ export function SavingsBadge() {
   const tier = STORAGE_TIERS.find((t) => t.tier === subscription.tier);
   if (!tier) return null;
 
-  const period = BILLING_PERIODS[subscription.billingPeriod as keyof typeof BILLING_PERIODS];
-  if (!period) return null;
+  if (!isBillingPeriod(subscription.billingPeriod)) return null;
 
   const monthlyPrice = tier.priceMonthly;
-  const periodTotal = (() => {
-    switch (subscription.billingPeriod) {
-      case 'yearly': return tier.priceYearly;
-      default: return monthlyPrice;
-    }
-  })();
-
-  const monthlyEquiv = periodTotal / period.months;
+  const monthlyEquiv = getTierMonthlyEquivalent(tier, subscription.billingPeriod);
   const savedPerYear = (monthlyPrice - monthlyEquiv) * 12;
 
   if (savedPerYear <= 0) return null;
