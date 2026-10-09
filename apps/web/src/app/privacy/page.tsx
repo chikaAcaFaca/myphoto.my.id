@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Fragment, type ReactNode } from 'react';
 import { Cloud, ArrowLeft, Shield, Server, Lock, Check, Scale } from 'lucide-react';
+import { COMPANY } from '@/lib/company';
 import { getLocale, getT } from '@/i18n/server';
 import { INTL_LOCALE } from '@/i18n/config';
 
@@ -139,7 +140,9 @@ export default async function PrivacyPage() {
             <h2 className="mb-3 text-2xl font-bold text-gray-900 dark:text-white">{t('pages.privacy.s3.title')}</h2>
             <p>{t('pages.privacy.s3.intro')}</p>
             <div className="mt-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-              <p><strong>MyPhoto.com</strong></p>
+              <p><strong>{COMPANY.name}</strong></p>
+              <p>{COMPANY.street}, {COMPANY.city}, {COMPANY.country.en}</p>
+              <p>MB {COMPANY.mb} · PIB {COMPANY.pib}</p>
               <p className="mt-1">{t('pages.privacy.s3.email')} <a href="mailto:legal@myphotomy.space" className="text-primary-500 hover:underline">legal@myphotomy.space</a></p>
               <p>{t('pages.privacy.s3.dpo')} <a href="mailto:dpo@myphotomy.space" className="text-primary-500 hover:underline">dpo@myphotomy.space</a></p>
             </div>

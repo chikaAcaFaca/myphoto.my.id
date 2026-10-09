@@ -10,7 +10,7 @@ export const refund: DeepStrings<typeof EnRefund> = {
   title: 'Politika refundacije',
   lastUpdated: 'Poslednje ažuriranje: {date}',
   intro:
-    'Ova politika se odnosi na plaćene MyPhoto (myphotomy.space) pretplate za prostor, čiji je izdavač NASRM Kapetan Bogdan Studio. Besplatan paket se nikada ne naplaćuje.',
+    'Ova politika se odnosi na plaćene MyPhoto (myphotomy.space) pretplate za prostor, koje pruža i prodaje NKNET CONSULTING DOO, Svetozara Miletića 104/18, 26101 Pančevo, Srbija (MB 22125338, PIB 115190346). Besplatan paket se nikada ne naplaćuje.',
   mor: {
     title: 'Ko obrađuje plaćanje',
     text: 'Online porudžbine obrađuje naš preprodavac i **Merchant of Record, Creem**, koji takođe rešava upite u vezi sa porudžbinama i refundacije. Na izvodu kartice ili banke biće naveden Creem, a Creem izdaje i račun.',

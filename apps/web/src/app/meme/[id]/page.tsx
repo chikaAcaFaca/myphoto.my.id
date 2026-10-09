@@ -207,7 +207,7 @@ export default async function MemePage({ params }: MemePageProps) {
 
         {/* Footer */}
         <div style={{ textAlign: 'center', color: '#475569', fontSize: 12, paddingBottom: 40 }}>
-          <a href="/" style={{ color: '#0ea5e9' }}>myphotomy.space</a> · NASRM Kapetan Bogdan Studio
+          <a href="/" style={{ color: '#0ea5e9' }}>myphotomy.space</a> · NKNET CONSULTING DOO
         </div>
       </div>
     </div>

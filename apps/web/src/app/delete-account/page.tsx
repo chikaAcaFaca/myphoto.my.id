@@ -43,7 +43,7 @@ export default async function DeleteAccountPage() {
         <section className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed dark:border-gray-700 dark:bg-gray-800">
           <p>
             {t('pages.deleteAccount.appliesBefore')}<strong>MyPhoto</strong>{t('pages.deleteAccount.appliesMiddle')}{' '}
-            <strong>NASRM Kapetan Bogdan Studio</strong>.
+            <strong>NKNET CONSULTING DOO</strong>.
           </p>
 
           <h2 className="pt-2 text-base font-semibold">{t('pages.deleteAccount.howTitle')}</h2>

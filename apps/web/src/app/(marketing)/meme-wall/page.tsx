@@ -106,7 +106,7 @@ export default function MemeWallPage() {
           )}
         </div>
         <p style={{ color: '#475569', fontSize: 11, marginTop: 24 }}>
-          NASRM Kapetan Bogdan Studio · myphotomy.space
+          NKNET CONSULTING DOO · myphotomy.space
         </p>
       </div>
     </div>

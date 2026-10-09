@@ -48,7 +48,7 @@ export const marketing: DeepStrings<typeof En> = {
     privacy: 'Privatnost',
     terms: 'Uslovi korišćenja',
     refund: 'Politika refundacije',
-    copyright: '© {year} MyPhoto (myphotomy.space) — NASRM Kapetan Bogdan Studio. EU serveri, GDPR zaštita.',
+    copyright: '© {year} MyPhoto (myphotomy.space) — NKNET CONSULTING DOO, Svetozara Miletića 104/18, 26101 Pančevo, Srbija (MB 22125338, PIB 115190346). EU serveri, GDPR zaštita.',
   },
 
   home: {
@@ -215,7 +215,7 @@ export const marketing: DeepStrings<typeof En> = {
       privacy: 'Privatnost',
       terms: 'Uslovi korišćenja',
       refund: 'Politika refundacije',
-      rights: 'MyPhoto — Sva prava zadržana.',
+      rights: 'MyPhoto — NKNET CONSULTING DOO, Pančevo, Srbija (MB 22125338, PIB 115190346). Sva prava zadržana.',
     },
     stickyCta: 'Započni besplatno — 1 GB',
   },
@@ -476,7 +476,7 @@ export const marketing: DeepStrings<typeof En> = {
       },
       aes: {
         title: 'AES-256 enkripcija',
-        description: 'Vaši podaci su enkriptovani TLS-om u prenosu i AES-256 enkripcijom na serveru. Zero-knowledge opcija dostupna.',
+        description: 'Vaši podaci su enkriptovani TLS-om u prenosu i AES-256 enkripcijom na EU serverima.',
       },
       gdpr: {
         title: 'GDPR usklađenost',
@@ -499,7 +499,7 @@ export const marketing: DeepStrings<typeof En> = {
       portability: 'Pravo na portabilnost podataka (export jednim klikom)',
       dpa: 'DPA (Data Processing Agreement) dostupan',
       badgeTitle: 'GDPR Compliant',
-      badgeText: 'EU serveri • AES-256 • Zero-knowledge opcija',
+      badgeText: 'EU serveri • AES-256 • GDPR',
     },
     faqTitle: 'Pitanja o privatnosti',
     faqs: {
@@ -517,7 +517,7 @@ export const marketing: DeepStrings<typeof En> = {
       },
       encryption: {
         q: 'Kakvu enkripciju koristi MyPhoto?',
-        a: 'Koristimo TLS enkripciju za podatke u prenosu i AES-256 enkripciju za podatke na serveru. Zero-knowledge enkripcija je dostupna za premium korisnike.',
+        a: 'Koristimo TLS enkripciju za podatke u prenosu i AES-256 enkripciju za podatke na serveru. Vaši fajlovi se nikada ne koriste za AI trening ni reklame.',
       },
       delete: {
         q: 'Mogu li obrisati sve svoje podatke?',

@@ -249,7 +249,7 @@ export default function UserProfilePage() {
 
       {/* Footer */}
       <div style={{ textAlign: 'center', color: '#475569', fontSize: 12, padding: '24px 16px 40px' }}>
-        <Link href="/" style={{ color: '#f97316' }}>myphotomy.space</Link> · NASRM Kapetan Bogdan Studio
+        <Link href="/" style={{ color: '#f97316' }}>myphotomy.space</Link> · NKNET CONSULTING DOO
       </div>
     </div>
   );

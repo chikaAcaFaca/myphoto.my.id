@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { COMPANY } from '@/lib/company';
 import { Cloud, ArrowLeft, Mail, MessageSquare, Send, MapPin, Clock } from 'lucide-react';
 import { useT } from '@/i18n/client';
 
@@ -165,6 +166,11 @@ export default function ContactPage() {
                   <h3 className="font-semibold">{t('pages.contact.locationTitle')}</h3>
                   <p className="text-gray-600 dark:text-gray-300">{t('pages.contact.location')}</p>
                   <p className="mt-1 text-sm text-gray-500">{t('pages.contact.locationHint')}</p>
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                    {COMPANY.name}, {COMPANY.street}, {COMPANY.city}
+                    <br />
+                    MB {COMPANY.mb} · PIB {COMPANY.pib}
+                  </p>
                 </div>
               </div>
             </div>

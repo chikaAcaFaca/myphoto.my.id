@@ -32,7 +32,7 @@ export const privacy: DeepStrings<typeof En> = {
       '**"Lični podaci"** — svaka informacija koja se odnosi na identifikovano ili identifikabilno fizičko lice (GDPR Član 4(1), ZZPL Član 4)',
     specialCategories:
       '**"Posebne kategorije podataka"** — biometrijski podaci (face recognition), podaci iz fotografija koji mogu otkriti rasno/etničko poreklo, zdravstveno stanje itd. (GDPR Član 9)',
-    controller: '**"Rukovalac" (Controller)** — MyPhoto (myphotomy.space), koji određuje svrhe i sredstva obrade ličnih podataka',
+    controller: '**"Rukovalac" (Controller)** — NKNET CONSULTING DOO, operater servisa MyPhoto (myphotomy.space), koji određuje svrhe i sredstva obrade ličnih podataka',
     processor:
       '**"Obrađivač" (Processor)** — treće strane koje obrađuju podatke u naše ime (cloud provajderi, payment procesori)',
     processing: '**"Obrada"** — svaka radnja izvršena nad ličnim podacima (prikupljanje, čuvanje, brisanje, prenos)',

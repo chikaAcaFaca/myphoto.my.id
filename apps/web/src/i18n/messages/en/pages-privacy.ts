@@ -34,7 +34,7 @@ export const privacy = {
     specialCategories:
       '**"Special categories of data"** — biometric data (face recognition), data from photos that may reveal racial/ethnic origin, health status, etc. (GDPR Article 9)',
     controller:
-      '**"Controller"** — MyPhoto (myphotomy.space), which determines the purposes and means of processing personal data',
+      '**"Controller"** — NKNET CONSULTING DOO, operator of MyPhoto (myphotomy.space), which determines the purposes and means of processing personal data',
     processor:
       '**"Processor"** — third parties that process data on our behalf (cloud providers, payment processors)',
     processing:
