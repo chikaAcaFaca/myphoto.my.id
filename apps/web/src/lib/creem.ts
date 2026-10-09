@@ -1,5 +1,10 @@
 import { createHmac, timingSafeEqual } from 'crypto';
-import { STORAGE_TIERS, type BillingPeriod, type StorageTier } from '@myphoto/shared';
+import {
+  findTierByCreemProductId,
+  getTierCreemProductId,
+  type BillingPeriod,
+  type StorageTier,
+} from '@myphoto/shared';
 
 /**
  * Creem (merchant of record) REST client — plain fetch, no SDK, so nothing
@@ -40,15 +45,13 @@ async function creemFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export function getCreemProductId(tier: StorageTier, period: BillingPeriod): string {
-  return (period === 'yearly' ? tier.creemYearlyProductId : tier.creemMonthlyProductId) || '';
+  return getTierCreemProductId(tier, period);
 }
 
-export function getTierFromCreemProductId(productId: string | undefined): StorageTier | null {
-  if (!productId) return null;
-  return (
-    STORAGE_TIERS.find((t) => t.creemMonthlyProductId === productId || t.creemYearlyProductId === productId) ||
-    null
-  );
+export function getTierFromCreemProductId(
+  productId: string | undefined
+): { tier: StorageTier; period: BillingPeriod } | null {
+  return findTierByCreemProductId(productId || '');
 }
 
 export async function createCreemCheckout(params: {
@@ -58,6 +61,8 @@ export async function createCreemCheckout(params: {
   successUrl: string;
   requestId: string;
   discountCode?: string;
+  /** One-time products only: price override in euro cents (min 100). */
+  customPriceCents?: number;
   metadata?: Record<string, string | number>;
 }): Promise<{ id: string; checkout_url: string }> {
   return creemFetch('/v1/checkouts', {
@@ -68,6 +73,7 @@ export async function createCreemCheckout(params: {
       success_url: params.successUrl,
       ...(params.email ? { customer: { email: params.email } } : {}),
       ...(params.discountCode ? { discount_code: params.discountCode } : {}),
+      ...(params.customPriceCents ? { custom_price: params.customPriceCents, units: 1 } : {}),
       // userId travels with the checkout and comes back on every
       // subscription webhook — the buyer is matched by id, not by email.
       metadata: { userId: params.userId, ...(params.metadata || {}) },
@@ -75,11 +81,34 @@ export async function createCreemCheckout(params: {
   });
 }
 
-/** Cancel immediately (used on account deletion). */
-export async function cancelCreemSubscription(subscriptionId: string): Promise<void> {
+/**
+ * Cancel a subscription. 'immediate' is used on account deletion;
+ * 'scheduled' (user-initiated cancel) keeps access until the paid period
+ * ends, and Creem then sends subscription.canceled.
+ */
+export async function cancelCreemSubscription(
+  subscriptionId: string,
+  mode: 'immediate' | 'scheduled' = 'immediate'
+): Promise<void> {
   await creemFetch(`/v1/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`, {
     method: 'POST',
-    body: JSON.stringify({ mode: 'immediate' }),
+    body: JSON.stringify(mode === 'scheduled' ? { mode, onExecute: 'cancel' } : { mode }),
+  });
+}
+
+/**
+ * Move a subscription to another product (another plan and/or period).
+ * Retention downgrades use 'proration-none' so nothing is charged or
+ * refunded mid-period. Verify downgrade/period switches in the sandbox.
+ */
+export async function changeCreemSubscriptionProduct(
+  subscriptionId: string,
+  productId: string,
+  updateBehavior: 'proration-charge-immediately' | 'proration-charge' | 'proration-none' = 'proration-none'
+): Promise<void> {
+  await creemFetch(`/v1/subscriptions/${encodeURIComponent(subscriptionId)}/upgrade`, {
+    method: 'POST',
+    body: JSON.stringify({ product_id: productId, update_behavior: updateBehavior }),
   });
 }
 

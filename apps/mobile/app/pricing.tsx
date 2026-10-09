@@ -5,7 +5,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { STORAGE_TIERS } from '@myphoto/shared';
+import {
+  STORAGE_TIERS,
+  resolveTierPeriod,
+  getTierPrice,
+  getTierMonthlyEquivalent,
+  getTierSavingsPercent,
+  type BillingPeriod as TierPeriod,
+} from '@myphoto/shared';
 import { useAuth } from '@/lib/auth-context';
 import { getUserTier } from '@/lib/meme-limits';
 import { colors, radius, fonts } from '@/lib/theme';
@@ -17,7 +24,9 @@ import { useT } from '@/lib/i18n';
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
-type BillingPeriod = 'monthly' | 'yearly';
+// 'short' = the shortest period each plan is sold in (monthly for large
+// plans, 3 or 6 months for small ones — see getTierPeriods in shared).
+type BillingPeriod = 'short' | 'yearly';
 
 export default function PricingScreen() {
   return CAN_SELL_IN_APP ? <StorePricingScreen /> : <PlanInfoScreen />;
@@ -68,10 +77,19 @@ function StorePricingScreen() {
   const [billing, setBilling] = useState<BillingPeriod>('yearly');
   const { t } = useT();
   const currentTier = getUserTier(appUser?.storageLimit || 0);
+  const periodLabel = (p: TierPeriod) =>
+    p === 'monthly'
+      ? t('pricing.monthly')
+      : p === 'quarterly'
+        ? t('pricing.periodQuarterly')
+        : p === 'semiannual'
+          ? t('pricing.periodSemiannual')
+          : t('pricing.yearly');
 
   const handleSelectPlan = useCallback((tier: typeof STORAGE_TIERS[0]) => {
     if (tier.tier === 0) return;
-    Linking.openURL(`${API_URL}/checkout?tier=${tier.tier}&period=${billing}`);
+    const period = billing === 'yearly' ? 'yearly' : resolveTierPeriod(tier, 'monthly');
+    Linking.openURL(`${API_URL}/checkout?tier=${tier.tier}&period=${period}`);
   }, [billing]);
 
   return (
@@ -89,10 +107,10 @@ function StorePricingScreen() {
       <View style={[styles.stickyBar, { backgroundColor: tc.bg, borderBottomColor: tc.border }]}>
         <View style={[styles.billingRow, { backgroundColor: tc.bgInput }]}>
           <TouchableOpacity
-            style={[styles.billingBtn, billing === 'monthly' && { backgroundColor: tc.primary }]}
-            onPress={() => setBilling('monthly')}
+            style={[styles.billingBtn, billing === 'short' && { backgroundColor: tc.primary }]}
+            onPress={() => setBilling('short')}
           >
-            <Text style={[styles.billingText, billing === 'monthly' && { color: '#fff' }]}>{t('pricing.monthly')}</Text>
+            <Text style={[styles.billingText, billing === 'short' && { color: '#fff' }]}>{t('pricing.shorter')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.billingBtn, billing === 'yearly' && { backgroundColor: tc.primary }]}
@@ -127,10 +145,12 @@ function StorePricingScreen() {
         {STORAGE_TIERS.map((tier) => {
           const isCurrent = tier.tier === currentTier.tier;
           const isPopular = tier.isPopular;
-          const isFree = tier.priceMonthly === 0;
-          const monthlyPrice = tier.priceMonthly;
-          const yearlyMonthly = tier.priceYearly / 12;
-          const savings = isFree ? 0 : Math.round((1 - yearlyMonthly / monthlyPrice) * 100);
+          const isFree = tier.tier === 0;
+          const shortPeriod = resolveTierPeriod(tier, 'monthly');
+          const hasShort = !isFree && shortPeriod !== 'yearly';
+          const shortTotal = getTierPrice(tier, shortPeriod);
+          const yearlyMonthly = getTierMonthlyEquivalent(tier, 'yearly');
+          const savings = isFree ? 0 : getTierSavingsPercent(tier, 'yearly');
 
           return (
             <View
@@ -174,14 +194,20 @@ function StorePricingScreen() {
                 </View>
               ) : (
                 <View style={styles.priceSection}>
-                  {/* Monthly price */}
-                  <View style={[styles.priceBox, billing === 'monthly' && styles.priceBoxActive]}>
-                    <Text style={[styles.priceLabel, { color: tc.textMuted }]}>{t('pricing.monthly')}</Text>
-                    <Text style={[styles.priceAmount, { color: billing === 'monthly' ? tc.primary : tc.text }]}>
-                      €{monthlyPrice.toFixed(2)}
-                    </Text>
-                    <Text style={[styles.priceSub, { color: tc.textMuted }]}>{t('pricing.perMonth')}</Text>
-                  </View>
+                  {/* Shortest period this plan is sold in */}
+                  {hasShort && (
+                    <View style={[styles.priceBox, billing === 'short' && styles.priceBoxActive]}>
+                      <Text style={[styles.priceLabel, { color: tc.textMuted }]}>{periodLabel(shortPeriod)}</Text>
+                      <Text style={[styles.priceAmount, { color: billing === 'short' ? tc.primary : tc.text }]}>
+                        €{getTierMonthlyEquivalent(tier, shortPeriod).toFixed(2)}
+                      </Text>
+                      <Text style={[styles.priceSub, { color: tc.textMuted }]}>
+                        {shortPeriod === 'monthly'
+                          ? t('pricing.perMonth')
+                          : t('pricing.perPeriod', { price: shortTotal.toFixed(2), period: periodLabel(shortPeriod) })}
+                      </Text>
+                    </View>
+                  )}
 
                   {/* Yearly price */}
                   <View style={[styles.priceBox, billing === 'yearly' && styles.priceBoxActive]}>

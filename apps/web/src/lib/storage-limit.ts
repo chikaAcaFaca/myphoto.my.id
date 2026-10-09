@@ -5,6 +5,7 @@ import {
   MAX_MEME_REFERRAL_BONUS,
   MAX_FREE_STORAGE,
 } from '@myphoto/shared';
+import { syncOverQuotaState } from '@/lib/over-quota';
 
 /**
  * Single source of truth for a user's storage quota (`storageLimit`).
@@ -15,6 +16,7 @@ import {
  *                  MAX_FREE_STORAGE)
  *              + meme referral bonus  (clamped to MAX_MEME_REFERRAL_BONUS)
  *              + Σ active subscriptions
+ *              + archiveBytes (one-time keep-only purchase, while archiveUntil > now)
  *
  * IMPORTANT: every place that grants a bonus must update the underlying bonus
  * field (e.g. `referralBonusBytes`, `memeReferralBonus`, `backupBonusClaimed`)
@@ -53,15 +55,26 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
     MAX_FREE_STORAGE
   );
 
-  const totalStorage = freeAllowance + manualBonus + subscriptionStorage;
+  // An archive freezes the limit at the bytes stored when it was bought, so
+  // the files stay read-only-safe until archiveUntil, then the over-quota
+  // clock starts again (the daily cron recalculates expired archives).
+  const archiveUntil = userData.archiveUntil?.toDate?.() as Date | undefined;
+  const archiveActive = !!archiveUntil && archiveUntil.getTime() > Date.now();
+  const archiveBytes = archiveActive ? Math.max(0, userData.archiveBytes || 0) : 0;
+
+  const totalStorage = Math.max(freeAllowance + manualBonus + subscriptionStorage, archiveBytes);
 
   await db.collection('users').doc(userId).update({
     storageLimit: totalStorage,
   });
 
+  // Starts (or clears) the read-only grace period when a subscription or
+  // archive ends with the user still over their free allowance.
+  await syncOverQuotaState(userId, { ...userData, storageLimit: totalStorage });
+
   console.log(
     `Recalculated storageLimit for ${userId}: ${totalStorage} ` +
-      `(referral:${referralBonus} meme:${memeBonus} manual:${manualBonus} subs:${subscriptionStorage})`
+      `(referral:${referralBonus} meme:${memeBonus} manual:${manualBonus} subs:${subscriptionStorage} archive:${archiveBytes})`
   );
 
   return totalStorage;

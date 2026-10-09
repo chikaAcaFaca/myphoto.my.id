@@ -72,7 +72,7 @@ export const privacy = {
     },
     payment: {
       title: 'd) Payment data',
-      processor: 'Processed through a our merchant of record (Creem) — **we do not store card data**',
+      processor: 'Processed through our merchant of record (Creem) — **we do not store card data**',
       stored: 'We store only: transaction ID, amount, date and subscription status',
     },
   },

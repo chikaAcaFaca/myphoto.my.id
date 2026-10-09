@@ -44,6 +44,7 @@ export const marketing = {
     legal: 'Legal',
     privacy: 'Privacy',
     terms: 'Terms of use',
+    refund: 'Refund policy',
     copyright: '© {year} MyPhoto (myphotomy.space) — NASRM Kapetan Bogdan Studio. EU servers, GDPR protection.',
   },
 
@@ -210,6 +211,7 @@ export const marketing = {
       legal: 'Legal',
       privacy: 'Privacy',
       terms: 'Terms of use',
+      refund: 'Refund policy',
       rights: 'MyPhoto — All rights reserved.',
     },
     stickyCta: 'Start free — 1 GB',

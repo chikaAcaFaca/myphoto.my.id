@@ -14,6 +14,7 @@ export const shell: DeepStrings<typeof EnShell> = {
   rights: 'Sva prava zadržana.',
   privacy: 'Privatnost',
   terms: 'Uslovi',
+  refund: 'Refundacija',
   contact: 'Kontakt',
 };
 

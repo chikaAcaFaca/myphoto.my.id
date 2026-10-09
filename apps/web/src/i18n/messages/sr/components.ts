@@ -240,6 +240,20 @@ export const components: DeepStrings<typeof En> = {
     copyLink: 'Kopiraj link za preporuku',
     total: 'Ukupno: {earned} od {max}',
   },
+  subscription: {
+    title: 'Vaša pretplata',
+    renewsOn: 'Obnavlja se {date}',
+    endsOn: 'Otkazano — aktivno do {date}',
+    manageBilling: 'Računi i način plaćanja',
+    cancel: 'Otkaži pretplatu',
+    retentionTitle: 'Pre nego što odete — sačuvajte fajlove jeftinije',
+    switchSmaller: 'Pređite na {plan}',
+    fitsFiles: 'svi vaši fajlovi i dalje staju',
+    switchYearly: 'Zadržite paket, plaćajte godišnje',
+    cancelWarning: 'Ako otkažete, paket ostaje aktivan do kraja plaćenog perioda. Posle toga, ako vaši fajlovi prelaze besplatan prostor, nalog postaje samo za čitanje, a posle 90 dana brišu se vaši najnoviji fajlovi preko limita — osim ako ponovo nadogradite, kupite arhivu ili ih preuzmete.',
+    keep: 'Zadrži paket',
+    cancelAnyway: 'Ipak otkaži',
+  },
   limitBanner: {
     fullTitle: 'Vaš prostor je pun',
     fullBody: 'Ne možete otpremati nove fajlove. Nadogradite ili pozovite prijatelje za više prostora.',
@@ -252,6 +266,10 @@ export const components: DeepStrings<typeof En> = {
     remainingTitle: 'Ostalo vam je {remaining}',
     remainingBody: 'Pozovite prijatelja i dobijte +250 MB besplatno, ili nadogradite za cenu jedne kafe!',
     freeGb: 'Besplatan GB',
+    overQuotaTitle: 'Vaši fajlovi su preko besplatnog prostora',
+    overQuotaBody:
+      'Nalog je samo za čitanje: možete da pregledate i preuzmete sve, ali su otpremanje i backup pauzirani. Dana {date} biće obrisani vaši najnoviji fajlovi preko limita.',
+    overQuotaCta: 'Sačuvaj fajlove',
   },
   deleteAccount: {
     title: 'Trajno brisanje naloga',

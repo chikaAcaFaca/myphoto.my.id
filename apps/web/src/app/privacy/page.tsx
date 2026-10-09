@@ -721,6 +721,7 @@ export default async function PrivacyPage() {
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">{t('pages.privacy.footer.privacy')}</Link>
             <Link href="/terms" className="hover:text-primary-500">{t('pages.privacy.footer.terms')}</Link>
+            <Link href="/refund" className="hover:text-primary-500">{t('pages.shell.refund')}</Link>
             <Link href="/contact" className="hover:text-primary-500">{t('pages.privacy.footer.contact')}</Link>
           </div>
         </div>
