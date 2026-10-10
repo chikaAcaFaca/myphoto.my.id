@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { LibrarySwitcher } from '@/components/LibrarySwitcher';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { formatBytes } from '@myphoto/shared';
 import { downloadToDevice, type CloudFile } from '@/lib/cloud-download';
@@ -25,19 +25,19 @@ class MySpaceErrorBoundary extends Component<{ children: ReactNode }, { error: E
   render() {
     if (this.state.error) {
       return (
-        <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
-          <Ionicons name="warning-outline" size={48} color="#facc15" />
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', marginTop: 12, textAlign: 'center' }}>
+        <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg }}>
+          <Ionicons name="warning-outline" size={48} color={colors.warning} />
+          <Text style={{ color: colors.text, fontSize: 18, marginTop: 12, textAlign: 'center', ...fonts.display }}>
             {tStatic('myspace.loadFailed')}
           </Text>
-          <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 8, textAlign: 'center' }}>
+          <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 8, textAlign: 'center' }}>
             {this.state.error.message}
           </Text>
           <TouchableOpacity
-            style={{ marginTop: 16, paddingHorizontal: 18, paddingVertical: 10, backgroundColor: '#0ea5e9', borderRadius: 8 }}
+            style={{ marginTop: 16, paddingHorizontal: 22, height: 48, justifyContent: 'center', backgroundColor: colors.primary, borderRadius: 24 }}
             onPress={() => this.setState({ error: null })}
           >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>{tStatic('common.retry')}</Text>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{tStatic('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -47,8 +47,6 @@ class MySpaceErrorBoundary extends Component<{ children: ReactNode }, { error: E
 }
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
-
-const FOLDER_COLORS = ['#dbeafe', '#fce7f3', '#dcfce7', '#fff7ed', '#f3e8ff', '#fef3c7'];
 
 function getFileIcon(mimeType: string | undefined | null, filename?: string): string {
   // Disk files saved before mimeType was always set can land here with
@@ -86,6 +84,7 @@ const ROOT_ENTRY: NavEntry = { id: 'root', name: 'Home', parents: [] };
 
 function MySpaceScreen() {
   const { colors: tc } = useTheme();
+  const navColor = (enabled: boolean) => (enabled ? tc.text : tc.textMuted);
   const { t, dateLocale } = useT();
   const { getToken } = useAuth();
   const [folders, setFolders] = useState<DiskFolder[]>([]);
@@ -199,13 +198,13 @@ function MySpaceScreen() {
   };
 
   const renderFolder = (folder: DiskFolder, index: number) => (
-    <TouchableOpacity key={folder.id} style={[styles.folderItem, { backgroundColor: tc.bgCard }]} onPress={() => navigateToFolder(folder)}>
-      <View style={[styles.folderIcon, { backgroundColor: FOLDER_COLORS[index % FOLDER_COLORS.length] }]}>
-        <Ionicons name="folder" size={20} color={colors.accent} />
+    <TouchableOpacity key={folder.id} style={[styles.folderItem, { backgroundColor: tc.bgCard, borderColor: tc.border }]} onPress={() => navigateToFolder(folder)}>
+      <View style={[styles.folderIcon, { backgroundColor: tc.primaryLight }]}>
+        <Ionicons name="folder" size={20} color={tc.primary} />
       </View>
       <View style={styles.folderInfo}>
         <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{folder.name || t('myspace.untitled')}</Text>
-        <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{safeDate(folder.updatedAt)}</Text>
+        <Text style={[styles.folderMeta, { color: tc.textSecondary }]}>{safeDate(folder.updatedAt)}</Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={tc.textMuted} />
     </TouchableOpacity>
@@ -244,13 +243,13 @@ function MySpaceScreen() {
   };
 
   const renderFile = (file: DiskFile) => (
-    <TouchableOpacity key={file.id} style={[styles.folderItem, { backgroundColor: tc.bgCard }]} onPress={() => handleFilePress(file)}>
-      <View style={[styles.folderIcon, { backgroundColor: '#f1f5f9' }]}>
-        <Ionicons name={getFileIcon(file.mimeType, file.name) as any} size={20} color={colors.primary} />
+    <TouchableOpacity key={file.id} style={[styles.folderItem, { backgroundColor: tc.bgCard, borderColor: tc.border }]} onPress={() => handleFilePress(file)}>
+      <View style={[styles.folderIcon, { backgroundColor: tc.bgInput }]}>
+        <Ionicons name={getFileIcon(file.mimeType, file.name) as any} size={20} color={tc.textSecondary} />
       </View>
       <View style={styles.folderInfo}>
         <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{file.name || t('myspace.untitled')}</Text>
-        <Text style={[styles.folderMeta, { color: tc.textMuted }]}>{formatBytes(file.size || 0)}</Text>
+        <Text style={[styles.folderMeta, { color: tc.textSecondary }]}>{formatBytes(file.size || 0)}</Text>
       </View>
       <Ionicons name="download-outline" size={18} color={tc.textMuted} />
     </TouchableOpacity>
@@ -266,37 +265,37 @@ function MySpaceScreen() {
           on the left, then the home button + breadcrumbs as the address
           path. Stays visible even at root so the arrows are reachable on
           first scroll into a folder. */}
-      <View style={[styles.breadcrumbs, { backgroundColor: tc.bgCard }]}>
-        <TouchableOpacity onPress={goBack} disabled={!canGoBack} style={styles.navBtn}>
-          <Ionicons name="arrow-back" size={18} color={canGoBack ? colors.primary : colors.textMuted} />
+      <View style={[styles.breadcrumbs, { backgroundColor: tc.bg, borderBottomColor: tc.border }]}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('common.back')} onPress={goBack} disabled={!canGoBack} style={[styles.navBtn, { backgroundColor: tc.bgInput }]}>
+          <Ionicons name="arrow-back" size={18} color={navColor(canGoBack)} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={goForward} disabled={!canGoForward} style={styles.navBtn}>
-          <Ionicons name="arrow-forward" size={18} color={canGoForward ? colors.primary : colors.textMuted} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('common.next')} onPress={goForward} disabled={!canGoForward} style={[styles.navBtn, { backgroundColor: tc.bgInput }]}>
+          <Ionicons name="arrow-forward" size={18} color={navColor(canGoForward)} />
         </TouchableOpacity>
-        <TouchableOpacity onPress={goUp} disabled={!canGoUp} style={styles.navBtn}>
-          <Ionicons name="arrow-up" size={18} color={canGoUp ? colors.primary : colors.textMuted} />
+        <TouchableOpacity accessibilityRole="button" onPress={goUp} disabled={!canGoUp} style={[styles.navBtn, { backgroundColor: tc.bgInput }]}>
+          <Ionicons name="arrow-up" size={18} color={navColor(canGoUp)} />
         </TouchableOpacity>
-        <View style={styles.navDivider} />
-        <TouchableOpacity onPress={() => {
+        <View style={[styles.navDivider, { backgroundColor: tc.border }]} />
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('nav.library.myspace')} style={styles.homeBtn} onPress={() => {
           // Home — same as navigating to root via the nav (push history).
           if (currentFolder === 'root') return;
           setHistory((h) => [...h.slice(0, historyIndex + 1), ROOT_ENTRY]);
           setHistoryIndex((i) => i + 1);
           applyEntry(ROOT_ENTRY);
         }}>
-          <Ionicons name="home" size={16} color={colors.primary} />
+          <Ionicons name="home" size={18} color={tc.primary} />
         </TouchableOpacity>
         {breadcrumbs.map((bc, i) => (
           <View key={bc.id} style={styles.breadcrumbItem}>
-            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
-            <TouchableOpacity onPress={() => {
+            <Ionicons name="chevron-forward" size={14} color={tc.textMuted} />
+            <TouchableOpacity style={styles.crumbBtn} onPress={() => {
               // Click a breadcrumb segment = navigate to it, push history.
               const entry: NavEntry = { id: bc.id, name: bc.name, parents: breadcrumbs.slice(0, i) };
               setHistory((h) => [...h.slice(0, historyIndex + 1), entry]);
               setHistoryIndex((idx) => idx + 1);
               applyEntry(entry);
             }}>
-              <Text style={styles.breadcrumbText} numberOfLines={1}>{bc.name}</Text>
+              <Text style={[styles.breadcrumbText, { color: tc.primary }]} numberOfLines={1}>{bc.name}</Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -305,12 +304,12 @@ function MySpaceScreen() {
       {/* Content */}
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : folders.length === 0 && files.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="folder-open-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>{t('myspace.emptyFolder')}</Text>
+          <Ionicons name="folder-open-outline" size={56} color={tc.textMuted} />
+          <Text style={[styles.emptyText, { color: tc.textSecondary }]}>{t('myspace.emptyFolder')}</Text>
         </View>
       ) : (
         <FlatList
@@ -321,8 +320,8 @@ function MySpaceScreen() {
             ...files.filter(Boolean).map((f) => ({ ...f, _type: 'file' as const, _idx: 0 })),
           ]}
           keyExtractor={(item, i) => (item?.id ? String(item.id) : `row-${i}`)}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-          contentContainerStyle={{ paddingBottom: 80 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} colors={[tc.primary]} />}
+          contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
           renderItem={({ item }) => {
             // Final safety net — even with everything guarded, one rogue
             // row shouldn't take the whole list with it.
@@ -339,44 +338,31 @@ function MySpaceScreen() {
         />
       )}
 
-      {/* FAB */}
-      <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
-        <Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
-  headerSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  safe: { flex: 1 },
   breadcrumbs: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: colors.borderLight, gap: 4,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6,
+    borderBottomWidth: 1, gap: 6,
   },
-  navBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: 6 },
-  navDivider: { width: 1, height: 20, backgroundColor: colors.borderLight, marginHorizontal: 4 },
-  breadcrumbItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  breadcrumbText: { fontSize: 12, color: colors.primary, ...fonts.semibold, maxWidth: 80 },
+  navBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+  navDivider: { width: 1, height: 24, marginHorizontal: 2 },
+  homeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  breadcrumbItem: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  crumbBtn: { minHeight: 44, justifyContent: 'center' },
+  breadcrumbText: { fontSize: 13, ...fonts.semibold, maxWidth: 80 },
   folderItem: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 12, paddingHorizontal: 16,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: colors.borderLight,
+    paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8,
+    borderRadius: 14, borderWidth: 1,
   },
-  folderIcon: { width: 42, height: 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  folderIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   folderInfo: { flex: 1 },
-  folderName: { fontSize: 13, ...fonts.semibold, color: colors.text },
-  folderMeta: { fontSize: 10, color: colors.textMuted, marginTop: 1 },
-  sectionTitle: { fontSize: 11, ...fonts.bold, color: colors.textSecondary, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: colors.bg },
+  folderName: { fontSize: 15, ...fonts.semibold },
+  folderMeta: { fontSize: 12, marginTop: 2 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyText: { fontSize: 16, ...fonts.semibold, color: colors.textMuted, marginTop: 12 },
-  fab: {
-    position: 'absolute', bottom: 80, right: 16,
-    width: 50, height: 50, borderRadius: 16,
-    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.accent, shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
-  },
+  emptyText: { fontSize: 16, ...fonts.semibold, marginTop: 12 },
 });

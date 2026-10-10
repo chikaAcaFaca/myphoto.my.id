@@ -8,9 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { formatBytes } from '@myphoto/shared';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 const { width } = Dimensions.get('window');
@@ -164,8 +165,9 @@ export default function FamilyScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
+        <StackHeader title={t('family.title')} />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       </SafeAreaView>
     );
@@ -173,13 +175,7 @@ export default function FamilyScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: tc.primary }]}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('family.title')}</Text>
-        <View style={{ width: 22 }} />
-      </View>
+      <StackHeader title={t('family.title')} />
 
       <FlatList
         data={[]}
@@ -188,14 +184,14 @@ export default function FamilyScreen() {
           <>
             {!family ? (
               /* No family yet */
-              <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
+              <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
                 <Ionicons name="people" size={48} color={tc.textMuted} style={{ alignSelf: 'center' }} />
                 <Text style={[styles.emptyTitle, { color: tc.text }]}>{t('family.emptyTitle')}</Text>
-                <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>
+                <Text style={[styles.emptySubtext, { color: tc.textSecondary }]}>
                   {t('family.emptySubtitle')}
                 </Text>
                 <TouchableOpacity
-                  style={styles.createBtn}
+                  style={[styles.createBtn, { backgroundColor: tc.primary }]}
                   onPress={handleCreate}
                   disabled={creating}
                 >
@@ -212,20 +208,20 @@ export default function FamilyScreen() {
             ) : (
               <>
                 {/* Family info */}
-                <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-                  <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>{t('family.sectionFamily')}</Text>
+                <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+                  <Text style={[styles.sectionLabel, { color: tc.textSecondary }]}>{t('family.sectionFamily')}</Text>
                   <Text style={[styles.familyName, { color: tc.text }]}>{family.name}</Text>
-                  <Text style={[styles.familyMeta, { color: tc.textMuted }]}>
+                  <Text style={[styles.familyMeta, { color: tc.textSecondary }]}>
                     {tp('family.members', family.memberCount)} · {t('family.sharedStorage', { size: formatBytes(family.sharedStorageUsed) })}
                   </Text>
                 </View>
 
                 {/* Members */}
-                <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-                  <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>{t('family.sectionMembers')}</Text>
+                <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+                  <Text style={[styles.sectionLabel, { color: tc.textSecondary }]}>{t('family.sectionMembers')}</Text>
                   {members.map(member => (
-                    <View key={member.id} style={styles.memberRow}>
-                      <View style={[styles.memberAvatar, { backgroundColor: member.role === 'admin' ? colors.primary : '#94a3b8' }]}>
+                    <View key={member.id} style={[styles.memberRow, { borderBottomColor: tc.border }]}>
+                      <View style={[styles.memberAvatar, { backgroundColor: member.role === 'admin' ? tc.primary : tc.textMuted }]}>
                         <Text style={styles.memberAvatarText}>
                           {(member.displayName || 'U')[0].toUpperCase()}
                         </Text>
@@ -234,18 +230,23 @@ export default function FamilyScreen() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                           <Text style={[styles.memberName, { color: tc.text }]}>{member.displayName}</Text>
                           {member.role === 'admin' && (
-                            <View style={styles.adminBadge}>
-                              <Text style={styles.adminText}>{t('family.admin')}</Text>
+                            <View style={[styles.adminBadge, { backgroundColor: tc.primaryLight }]}>
+                              <Text style={[styles.adminText, { color: tc.primary }]}>{t('family.admin')}</Text>
                             </View>
                           )}
                         </View>
-                        <Text style={{ fontSize: 11, color: tc.textMuted }}>
+                        <Text style={{ fontSize: 11, color: tc.textSecondary }}>
                           {member.email} · {formatBytes(member.storageUsed)}
                         </Text>
                       </View>
                       {isAdmin && member.role !== 'admin' && (
-                        <TouchableOpacity onPress={() => handleRemoveMember(member)}>
-                          <Ionicons name="close-circle" size={20} color={colors.error} />
+                        <TouchableOpacity
+                          onPress={() => handleRemoveMember(member)}
+                          style={styles.removeBtn}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('common.remove')}
+                        >
+                          <Ionicons name="close-circle" size={20} color={tc.error} />
                         </TouchableOpacity>
                       )}
                     </View>
@@ -255,7 +256,7 @@ export default function FamilyScreen() {
                   {isAdmin && (
                     <View style={styles.inviteRow}>
                       <TextInput
-                        style={[styles.inviteInput, { color: tc.text, borderColor: tc.textMuted + '40' }]}
+                        style={[styles.inviteInput, { color: tc.text, backgroundColor: tc.bgInput }]}
                         placeholder={t('family.emailPlaceholder')}
                         placeholderTextColor={tc.textMuted}
                         value={inviteEmail}
@@ -264,8 +265,10 @@ export default function FamilyScreen() {
                         autoCapitalize="none"
                       />
                       <TouchableOpacity
-                        style={styles.inviteBtn}
+                        style={[styles.inviteBtn, { backgroundColor: tc.primary }]}
                         onPress={handleInvite}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('family.emailPlaceholder')}
                         disabled={inviting}
                       >
                         {inviting ? (
@@ -280,8 +283,8 @@ export default function FamilyScreen() {
 
                 {/* Shared Files */}
                 {sharedFiles.length > 0 && (
-                  <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-                    <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>{t('family.sectionShared')}</Text>
+                  <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+                    <Text style={[styles.sectionLabel, { color: tc.textSecondary }]}>{t('family.sectionShared')}</Text>
                     <View style={styles.thumbGrid}>
                       {sharedFiles.slice(0, 9).map(file => (
                         <TouchableOpacity
@@ -319,51 +322,46 @@ export default function FamilyScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8,
-  },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   card: {
-    borderRadius: radius.lg, marginBottom: 12, padding: 14,
-    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
+    borderRadius: radius.xl, marginBottom: 12, padding: 16, borderWidth: 1,
   },
   sectionLabel: { fontSize: 10, ...fonts.bold, letterSpacing: 1, marginBottom: 10 },
   emptyTitle: { fontSize: 18, ...fonts.bold, textAlign: 'center', marginTop: 12 },
   emptySubtext: { fontSize: 13, textAlign: 'center', marginTop: 6, lineHeight: 18, paddingHorizontal: 12 },
   createBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: 14, marginTop: 16,
+    borderRadius: 24, minHeight: 48, paddingVertical: 12, marginTop: 16,
   },
   createBtnText: { color: '#fff', fontSize: 14, ...fonts.bold },
   familyName: { fontSize: 20, ...fonts.extrabold },
   familyMeta: { fontSize: 12, marginTop: 4 },
   memberRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+    paddingVertical: 10, borderBottomWidth: 1,
   },
   memberAvatar: {
-    width: 36, height: 36, borderRadius: 12,
+    width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
   },
   memberAvatarText: { color: '#fff', fontSize: 14, ...fonts.bold },
   memberName: { fontSize: 13, ...fonts.semibold },
   adminBadge: {
-    backgroundColor: colors.primary + '20', borderRadius: 4,
+    borderRadius: 6,
     paddingHorizontal: 6, paddingVertical: 1,
   },
-  adminText: { fontSize: 9, color: colors.primary, ...fonts.bold },
+  adminText: { fontSize: 10, ...fonts.bold },
+  removeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   inviteRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
   },
   inviteInput: {
-    flex: 1, borderWidth: 1, borderRadius: radius.md,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 13,
+    flex: 1, borderRadius: 22, minHeight: 44,
+    paddingHorizontal: 16, paddingVertical: 10, fontSize: 14,
   },
   inviteBtn: {
-    width: 44, height: 44, borderRadius: radius.md,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
   },
   thumbGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
   thumbCell: { width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: 4, overflow: 'hidden' },

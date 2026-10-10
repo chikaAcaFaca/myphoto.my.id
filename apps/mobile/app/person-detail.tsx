@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -51,7 +52,7 @@ export default function PersonDetailScreen() {
 
   const renderItem = ({ item }: { item: FileMetadata }) => (
     <TouchableOpacity
-      style={styles.cell}
+      style={[styles.cell, { backgroundColor: tc.bgInput }]}
       activeOpacity={0.8}
       onPress={() => router.push({
         pathname: '/photo-viewer',
@@ -68,24 +69,16 @@ export default function PersonDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{name || t('people.person')}</Text>
-          <View style={{ width: 32 }} />
-        </View>
-      </View>
+      <StackHeader title={name || t('people.person')} />
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : photos.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="images-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>{t('people.noPhotos')}</Text>
+          <Ionicons name="images-outline" size={64} color={tc.textMuted} />
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('people.noPhotos')}</Text>
         </View>
       ) : (
         <FlatList
@@ -95,9 +88,9 @@ export default function PersonDetailScreen() {
           numColumns={COL}
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} />}
           ListHeaderComponent={
-            <Text style={styles.countText}>{tp('common.photos', photos.length)}</Text>
+            <Text style={[styles.countText, { color: tc.textSecondary }]}>{tp('common.photos', photos.length)}</Text>
           }
         />
       )}
@@ -107,10 +100,6 @@ export default function PersonDetailScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   countText: { fontSize: 12, color: colors.textMuted, ...fonts.medium, paddingHorizontal: 12, paddingVertical: 8 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: { fontSize: 18, ...fonts.bold, color: colors.text, marginTop: 12 },

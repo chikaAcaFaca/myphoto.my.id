@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
 import type { FileMetadata } from '@myphoto/shared';
 
 const { width } = Dimensions.get('window');
@@ -75,17 +76,9 @@ export default function MemoriesScreen() {
   if (loading) {
     return (
       <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-        <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-          <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={22} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>{t('memories.title')}</Text>
-            <View style={{ width: 32 }} />
-          </View>
-        </View>
+  <StackHeader title={t('memories.title')} />
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       </SafeAreaView>
     );
@@ -95,33 +88,25 @@ export default function MemoriesScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('memories.title')}</Text>
-          <View style={{ width: 32 }} />
-        </View>
-      </View>
+      <StackHeader title={t('memories.title')} />
 
       {isEmpty ? (
         <View style={styles.center}>
-          <Ionicons name="sparkles-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>{t('memories.emptyTitle')}</Text>
-          <Text style={styles.emptySubtext}>{t('memories.emptySubtitle')}</Text>
+          <Ionicons name="sparkles-outline" size={64} color={tc.textMuted} />
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('memories.emptyTitle')}</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textSecondary }]}>{t('memories.emptySubtitle')}</Text>
         </View>
       ) : (
         <ScrollView
           contentContainerStyle={{ paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} />}
         >
           {/* On This Day */}
           {onThisDay.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-                <Text style={styles.sectionTitle}>{t('memories.onThisDay')}</Text>
+                <Ionicons name="calendar-outline" size={18} color={tc.primary} />
+                <Text style={[styles.sectionTitle, { color: tc.text }]}>{t('memories.onThisDay')}</Text>
               </View>
               <FlatList
                 data={onThisDay}
@@ -133,7 +118,7 @@ export default function MemoriesScreen() {
                   <TouchableOpacity onPress={() => openPhoto(item)} activeOpacity={0.8}>
                     <Image
                       source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=medium` }}
-                      style={styles.otdThumb}
+                      style={[styles.otdThumb, { backgroundColor: tc.bgInput }]}
                     />
                     {item.takenAt && (
                       <Text style={styles.otdYear}>
@@ -148,10 +133,10 @@ export default function MemoriesScreen() {
 
           {/* Memory collections */}
           {memories.map((memory) => (
-            <View key={memory.id} style={[styles.memoryCard, { backgroundColor: tc.bgCard }]}>
-              <Text style={styles.memoryTitle}>{memory.title}</Text>
+            <View key={memory.id} style={[styles.memoryCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+              <Text style={[styles.memoryTitle, { color: tc.text }]}>{memory.title}</Text>
               {memory.description && (
-                <Text style={styles.memoryDesc}>{memory.description}</Text>
+                <Text style={[styles.memoryDesc, { color: tc.textSecondary }]}>{memory.description}</Text>
               )}
               <FlatList
                 data={memory.files?.slice(0, 10) || []}
@@ -163,7 +148,7 @@ export default function MemoriesScreen() {
                   <TouchableOpacity onPress={() => openPhoto(item)} activeOpacity={0.8}>
                     <Image
                       source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=small` }}
-                      style={styles.memThumb}
+                      style={[styles.memThumb, { backgroundColor: tc.bgInput }]}
                     />
                   </TouchableOpacity>
                 )}
@@ -178,10 +163,6 @@ export default function MemoriesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: { fontSize: 18, ...fonts.bold, color: colors.text, marginTop: 12 },
   emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
@@ -199,8 +180,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   memoryCard: {
-    backgroundColor: '#fff', borderRadius: radius.lg, marginHorizontal: 12, marginTop: 14,
-    padding: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
+    borderRadius: radius.xl, marginHorizontal: 12, marginTop: 14,
+    padding: 14, borderWidth: 1,
   },
   memoryTitle: { fontSize: 15, ...fonts.bold, color: colors.text },
   memoryDesc: { fontSize: 12, color: colors.textMuted, marginTop: 2 },

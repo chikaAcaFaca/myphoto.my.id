@@ -14,7 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/lib/auth-context';
 import { useCloudGate } from '@/lib/cloud-gate';
 import { getViewerPhotos, type ViewerPhoto } from '@/lib/photo-list-store';
-import { colors, fonts, radius } from '@/lib/theme';
+import { colors, fonts, radius, memeFlame } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 import { formatBytes } from '@myphoto/shared';
@@ -581,8 +581,8 @@ export default function PhotoViewerScreen() {
                 type: type || 'image',
               },
             })}>
-              <Ionicons name="flame-outline" size={22} color="#f97316" />
-              <Text style={[styles.actionText, { color: '#f97316' }]}>{t('viewer.meme')}</Text>
+              <Ionicons name="flame-outline" size={22} color={memeFlame} />
+              <Text style={[styles.actionText, { color: memeFlame }]}>{t('viewer.meme')}</Text>
             </TouchableOpacity>
 
             {/* Cloud-only actions are hidden for local-only photos.
@@ -734,21 +734,21 @@ const styles = StyleSheet.create({
   },
   infoHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   infoTitle: { fontSize: 16, ...fonts.bold, color: colors.text },
   infoSection: { paddingTop: 12 },
   infoLabel: { fontSize: 10, ...fonts.bold, color: colors.textMuted, letterSpacing: 1, marginBottom: 6 },
   infoRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f8fafc',
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
   infoRowLabel: { fontSize: 13, color: colors.textSecondary, ...fonts.medium },
   infoRowValue: { fontSize: 13, color: colors.text, ...fonts.semibold, textAlign: 'right', maxWidth: '60%' },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingVertical: 4 },
   tag: {
-    backgroundColor: '#f0f9ff', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4,
-    borderWidth: 1, borderColor: '#e0f2fe',
+    backgroundColor: colors.primaryLight, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: colors.primaryLight,
   },
   tagText: { fontSize: 11, color: colors.primary, ...fonts.medium },
 });

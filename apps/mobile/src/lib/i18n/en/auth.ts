@@ -1,6 +1,8 @@
 const auth = {
   email: 'Email',
   password: 'Password',
+  showPassword: 'Show password',
+  hidePassword: 'Hide password',
   orEmail: 'or with email',
   continueWithGoogle: 'Continue with Google',
   googleLoginFailed: 'Google sign-in failed',

@@ -11,10 +11,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
-import { fonts, radius } from '@/lib/theme';
+import { fonts, radius, memeFlame } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
+/** Ink on the flame orange: white fails 4.5:1 for small text, this passes. */
+const ON_FLAME = '#111214';
 
 interface Comment {
   id: string;
@@ -98,15 +100,21 @@ export function MemeComments({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          activeOpacity={1}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[styles.sheet, { backgroundColor: tc.bgCard }]}>
+          <View style={[styles.sheet, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
             <View style={[styles.handle, { backgroundColor: tc.border }]} />
             <Text style={[styles.title, { color: tc.text }]}>{t('meme.comments.title')}</Text>
             {loading ? (
-              <ActivityIndicator color={tc.primary} style={{ marginVertical: 24 }} />
+              <ActivityIndicator color={memeFlame} style={{ marginVertical: 24 }} />
             ) : comments.length === 0 ? (
-              <Text style={[styles.empty, { color: tc.textMuted }]}>{t('meme.comments.empty')}</Text>
+              <Text style={[styles.empty, { color: tc.textSecondary }]}>{t('meme.comments.empty')}</Text>
             ) : (
               <FlatList
                 data={comments}
@@ -115,11 +123,11 @@ export function MemeComments({
                 keyboardShouldPersistTaps="handled"
                 renderItem={({ item }) => (
                   <View style={styles.comment}>
-                    <View style={[styles.avatar, { backgroundColor: tc.primary }]}>
+                    <View style={[styles.avatar, { backgroundColor: memeFlame }]}>
                       <Text style={styles.avatarText}>{(item.authorName || '?')[0].toUpperCase()}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.author, { color: tc.text }]}>@{item.authorName}</Text>
+                      <Text style={[styles.author, { color: tc.textSecondary }]}>@{item.authorName}</Text>
                       <Text style={[styles.text, { color: tc.text }]}>{item.text}</Text>
                     </View>
                   </View>
@@ -138,11 +146,13 @@ export function MemeComments({
                 multiline
               />
               <TouchableOpacity
-                style={[styles.sendBtn, { backgroundColor: tc.primary, opacity: posting || !text.trim() ? 0.5 : 1 }]}
+                style={[styles.sendBtn, { backgroundColor: memeFlame, opacity: posting || !text.trim() ? 0.5 : 1 }]}
                 onPress={submit}
                 disabled={posting || !text.trim()}
+                accessibilityRole="button"
+                accessibilityLabel={t('messages.send')}
               >
-                {posting ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={18} color="#fff" />}
+                {posting ? <ActivityIndicator size="small" color={ON_FLAME} /> : <Ionicons name="send" size={18} color={ON_FLAME} />}
               </TouchableOpacity>
             </View>
           </View>
@@ -154,19 +164,22 @@ export function MemeComments({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 28 },
+  sheet: {
+    borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: 16, paddingBottom: 28,
+    borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0,
+  },
   handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 12 },
-  title: { fontSize: 16, ...fonts.bold, marginBottom: 12 },
-  empty: { fontSize: 13, ...fonts.medium, textAlign: 'center', marginVertical: 24 },
-  comment: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  avatar: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontSize: 13, ...fonts.bold },
-  author: { fontSize: 12, ...fonts.bold, marginBottom: 2 },
-  text: { fontSize: 13, ...fonts.medium, lineHeight: 18 },
+  title: { fontSize: 20, letterSpacing: -0.3, ...fonts.display, marginBottom: 14 },
+  empty: { fontSize: 14, ...fonts.medium, textAlign: 'center', marginVertical: 24 },
+  comment: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  avatar: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: ON_FLAME, fontSize: 14, ...fonts.bold },
+  author: { fontSize: 13, ...fonts.semibold, marginBottom: 2 },
+  text: { fontSize: 15, ...fonts.regular, lineHeight: 21 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginTop: 8 },
   input: {
-    flex: 1, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10,
-    fontSize: 14, maxHeight: 100,
+    flex: 1, borderWidth: 1, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 11,
+    minHeight: 44, fontSize: 15, maxHeight: 100,
   },
-  sendBtn: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 });

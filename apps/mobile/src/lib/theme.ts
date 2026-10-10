@@ -28,7 +28,8 @@ export const lightColors = {
 };
 
 export const darkColors: typeof lightColors = {
-  primary: '#6E8FFF',
+  // White text on it ~4.3:1 and it reads ~4.4:1 on the dark ground.
+  primary: '#4A6FFA',
   primaryLight: '#1C2647',
   primaryDark: '#2453E6',
   accent: '#FF7A3D',
@@ -51,7 +52,7 @@ export const darkColors: typeof lightColors = {
   borderLight: '#1F2125',
 
   tabInactive: '#A3A7B0',
-  tabActive: '#6E8FFF',
+  tabActive: '#7B98FF',
 };
 
 /** Meme Wall's own color: the flame stays orange on every screen. */

@@ -3,6 +3,8 @@ import type en from '../en/auth';
 const auth: typeof en = {
   email: 'Email',
   password: 'Lozinka',
+  showPassword: 'Prikaži lozinku',
+  hidePassword: 'Sakrij lozinku',
   orEmail: 'ili email',
   continueWithGoogle: 'Nastavi sa Google',
   googleLoginFailed: 'Google prijava nije uspela',

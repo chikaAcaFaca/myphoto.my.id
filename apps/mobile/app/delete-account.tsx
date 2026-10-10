@@ -6,7 +6,8 @@ import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
 
 /**
  * In-app account deletion (required by Google Play for apps with accounts).
@@ -45,16 +46,11 @@ export default function DeleteAccountScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.bg }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} disabled={busy} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: themeColors.text }]}>{t('account.title')}</Text>
-      </View>
+      <StackHeader title={t('account.title')} onBack={() => { if (!busy) router.back(); }} />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <View style={styles.warning}>
-          <Ionicons name="warning" size={22} color={colors.error} />
-          <Text style={styles.warningText}>
+        <View style={[styles.warning, { backgroundColor: themeColors.error + '14', borderColor: themeColors.error + '40' }]}>
+          <Ionicons name="warning" size={22} color={themeColors.error} />
+          <Text style={[styles.warningText, { color: themeColors.text }]}>
             {t('account.warning', { email: user?.email ? ` (${user.email})` : '' })}
           </Text>
         </View>
@@ -65,9 +61,9 @@ export default function DeleteAccountScreen() {
           onChangeText={setConfirmText}
           autoCapitalize="characters"
           autoCorrect={false}
-          style={[styles.input, { color: themeColors.text, borderColor: themeColors.border ?? '#ccc' }]}
+          style={[styles.input, { color: themeColors.text, backgroundColor: themeColors.bgInput }]}
           placeholder="DELETE"
-          placeholderTextColor="#999"
+          placeholderTextColor={themeColors.textMuted}
         />
 
         {usesPassword && (
@@ -77,18 +73,18 @@ export default function DeleteAccountScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              style={[styles.input, { color: themeColors.text, borderColor: themeColors.border ?? '#ccc' }]}
+              style={[styles.input, { color: themeColors.text, backgroundColor: themeColors.bgInput }]}
             />
           </>
         )}
         {!usesPassword && (
-          <Text style={styles.hint}>{t('account.googleHint')}</Text>
+          <Text style={[styles.hint, { color: themeColors.textSecondary }]}>{t('account.googleHint')}</Text>
         )}
 
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error && <Text style={[styles.error, { color: themeColors.error }]}>{error}</Text>}
 
         <TouchableOpacity
-          style={[styles.deleteBtn, (!canSubmit || busy) && { opacity: 0.5 }]}
+          style={[styles.deleteBtn, { backgroundColor: themeColors.error }, (!canSubmit || busy) && { opacity: 0.5 }]}
           onPress={handleDelete}
           disabled={!canSubmit || busy}
         >
@@ -101,21 +97,19 @@ export default function DeleteAccountScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
-  title: { fontSize: 18, ...fonts.bold },
   body: { padding: 16, gap: 8 },
   warning: {
     flexDirection: 'row', gap: 10, padding: 14, borderRadius: radius.lg,
-    backgroundColor: '#fef2f2', marginBottom: 12,
+    borderWidth: 1, marginBottom: 12,
   },
-  warningText: { flex: 1, color: '#7f1d1d', fontSize: 13, lineHeight: 19 },
+  warningText: { flex: 1, fontSize: 13, lineHeight: 19 },
   label: { fontSize: 13, ...fonts.medium, marginTop: 8 },
-  input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
-  hint: { fontSize: 12, color: '#888', marginTop: 4 },
-  error: { color: colors.error, fontSize: 13, marginTop: 8 },
+  input: { borderRadius: radius.md, minHeight: 48, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 },
+  hint: { fontSize: 12, marginTop: 4 },
+  error: { fontSize: 13, marginTop: 8 },
   deleteBtn: {
-    marginTop: 20, backgroundColor: colors.error, borderRadius: radius.lg,
-    paddingVertical: 14, alignItems: 'center',
+    marginTop: 20, borderRadius: 24, minHeight: 48,
+    paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
   },
   deleteText: { color: '#fff', fontSize: 15, ...fonts.bold },
 });

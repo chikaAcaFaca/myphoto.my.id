@@ -13,6 +13,8 @@ import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSync } from '@/lib/sync-context';
 import { useT } from '@/lib/i18n';
+import { useTheme } from '@/lib/theme-context';
+import { fonts } from '@/lib/theme';
 
 type Step = 'permissions' | 'backup' | 'done';
 
@@ -21,6 +23,7 @@ export default function OnboardingScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const { updateSettings, startSync } = useSync();
   const { t } = useT();
+  const { colors: tc } = useTheme();
 
   const handleRequestPermissions = async () => {
     setIsLoading(true);
@@ -70,30 +73,39 @@ export default function OnboardingScreen() {
     router.replace('/(tabs)/meme-wall-tab');
   };
 
+  const dot = (active: boolean) => [
+    styles.dot,
+    { backgroundColor: active ? tc.primary : tc.border },
+    active && styles.dotActive,
+  ];
+  const iconCircle = [styles.iconCircle, { backgroundColor: tc.primaryLight }];
+  const primaryBtn = [styles.primaryButton, { backgroundColor: tc.primary }];
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: tc.bg }]}>
       {/* Progress dots */}
       <View style={styles.progressContainer}>
-        <View style={[styles.dot, step === 'permissions' && styles.dotActive]} />
-        <View style={[styles.dot, step === 'backup' && styles.dotActive]} />
-        <View style={[styles.dot, step === 'done' && styles.dotActive]} />
+        <View style={dot(step === 'permissions')} />
+        <View style={dot(step === 'backup')} />
+        <View style={dot(step === 'done')} />
       </View>
 
       {step === 'permissions' && (
         <View style={styles.stepContainer}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="images" size={48} color="#0ea5e9" />
+          <View style={iconCircle}>
+            <Ionicons name="images" size={44} color={tc.primary} />
           </View>
-          <Text style={styles.stepTitle}>{t('onboarding.permissionsTitle')}</Text>
-          <Text style={styles.stepDescription}>
+          <Text style={[styles.stepTitle, { color: tc.text }]}>{t('onboarding.permissionsTitle')}</Text>
+          <Text style={[styles.stepDescription, { color: tc.textSecondary }]}>
             {t('onboarding.permissionsDescription')}
           </Text>
-          <Text style={styles.stepNote}>
+          <Text style={[styles.stepNote, { color: tc.textMuted }]}>
             {t('onboarding.permissionsNote')}
           </Text>
 
           <TouchableOpacity
-            style={styles.primaryButton}
+            accessibilityRole="button"
+            style={primaryBtn}
             onPress={handleRequestPermissions}
             disabled={isLoading}
           >
@@ -107,35 +119,38 @@ export default function OnboardingScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.skipButton} onPress={() => setStep('backup')}>
-            <Text style={styles.skipButtonText}>{t('onboarding.skipForNow')}</Text>
+          <TouchableOpacity accessibilityRole="button" style={styles.skipButton} onPress={() => setStep('backup')}>
+            <Text style={[styles.skipButtonText, { color: tc.textSecondary }]}>{t('onboarding.skipForNow')}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {step === 'backup' && (
         <View style={styles.stepContainer}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="cloud-upload" size={48} color="#10b981" />
+          <View style={iconCircle}>
+            <Ionicons name="cloud-upload" size={44} color={tc.primary} />
           </View>
-          <Text style={styles.stepTitle}>{t('onboarding.backupTitle')}</Text>
-          <Text style={styles.stepDescription}>
+          <Text style={[styles.stepTitle, { color: tc.text }]}>{t('onboarding.backupTitle')}</Text>
+          <Text style={[styles.stepDescription, { color: tc.textSecondary }]}>
             {t('onboarding.backupDescription')}
           </Text>
 
           {/* Bonus callout */}
-          <View style={styles.bonusCard}>
-            <Ionicons name="gift" size={24} color="#f59e0b" />
+          <View style={[styles.bonusCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+            <View style={[styles.bonusIcon, { backgroundColor: tc.primaryLight }]}>
+              <Ionicons name="gift" size={20} color={tc.primary} />
+            </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.bonusTitle}>{t('onboarding.bonusTitle')}</Text>
-              <Text style={styles.bonusText}>
+              <Text style={[styles.bonusTitle, { color: tc.text }]}>{t('onboarding.bonusTitle')}</Text>
+              <Text style={[styles.bonusText, { color: tc.textSecondary }]}>
                 {t('onboarding.bonusText')}
               </Text>
             </View>
           </View>
 
           <TouchableOpacity
-            style={styles.primaryButton}
+            accessibilityRole="button"
+            style={primaryBtn}
             onPress={handleEnableBackup}
             disabled={isLoading}
           >
@@ -149,23 +164,23 @@ export default function OnboardingScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkipBackup}>
-            <Text style={styles.skipButtonText}>{t('onboarding.later')}</Text>
+          <TouchableOpacity accessibilityRole="button" style={styles.skipButton} onPress={handleSkipBackup}>
+            <Text style={[styles.skipButtonText, { color: tc.textSecondary }]}>{t('onboarding.later')}</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {step === 'done' && (
         <View style={styles.stepContainer}>
-          <View style={[styles.iconCircle, { backgroundColor: '#ecfdf5' }]}>
-            <Ionicons name="checkmark-circle" size={64} color="#10b981" />
+          <View style={iconCircle}>
+            <Ionicons name="checkmark-circle" size={56} color={tc.success} />
           </View>
-          <Text style={styles.stepTitle}>{t('onboarding.doneTitle')}</Text>
-          <Text style={styles.stepDescription}>
+          <Text style={[styles.stepTitle, { color: tc.text }]}>{t('onboarding.doneTitle')}</Text>
+          <Text style={[styles.stepDescription, { color: tc.textSecondary }]}>
             {t('onboarding.doneDescription')}
           </Text>
 
-          <View style={styles.summaryCard}>
+          <View style={[styles.summaryCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
             <SummaryRow icon="images" text={t('onboarding.summaryPhotos')} />
             <SummaryRow icon="folder" text={t('onboarding.summaryFiles')} />
             <SummaryRow icon="sync" text={t('onboarding.summarySync')} />
@@ -173,7 +188,8 @@ export default function OnboardingScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: '#10b981' }]}
+            accessibilityRole="button"
+            style={primaryBtn}
             onPress={handleFinish}
           >
             <Text style={styles.primaryButtonText}>{t('onboarding.start')}</Text>
@@ -185,58 +201,58 @@ export default function OnboardingScreen() {
 }
 
 function SummaryRow({ icon, text }: { icon: string; text: string }) {
+  const { colors: tc } = useTheme();
   return (
     <View style={styles.summaryRow}>
-      <Ionicons name={icon as any} size={18} color="#0ea5e9" />
-      <Text style={styles.summaryText}>{text}</Text>
+      <Ionicons name={icon as any} size={18} color={tc.primary} />
+      <Text style={[styles.summaryText, { color: tc.textSecondary }]}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   progressContainer: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
     paddingTop: 60, gap: 8,
   },
-  dot: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: '#e5e7eb',
-  },
-  dotActive: { backgroundColor: '#0ea5e9', width: 24 },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  dotActive: { width: 24 },
   stepContainer: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32,
+    flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 28,
   },
   iconCircle: {
-    width: 100, height: 100, borderRadius: 50, backgroundColor: '#f0f9ff',
+    width: 96, height: 96, borderRadius: 48,
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
   },
   stepTitle: {
-    fontSize: 24, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 12,
+    fontSize: 30, letterSpacing: -0.6, lineHeight: 36, textAlign: 'center', marginBottom: 12,
+    ...fonts.display,
   },
   stepDescription: {
-    fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22, marginBottom: 8,
+    fontSize: 16, textAlign: 'center', lineHeight: 23, marginBottom: 8,
   },
   stepNote: {
-    fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 18, marginBottom: 32,
+    fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: 32,
   },
   bonusCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fffbeb',
-    borderRadius: 12, padding: 16, marginBottom: 24, width: '100%',
-    borderWidth: 1, borderColor: '#fde68a',
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 20, borderWidth: 1, padding: 16, marginTop: 16, marginBottom: 24, width: '100%',
   },
-  bonusTitle: { fontSize: 15, fontWeight: '700', color: '#92400e' },
-  bonusText: { fontSize: 13, color: '#a16207', marginTop: 2 },
+  bonusIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  bonusTitle: { fontSize: 15, fontWeight: '700' },
+  bonusText: { fontSize: 13, lineHeight: 18, marginTop: 2 },
   primaryButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#0ea5e9', height: 52, borderRadius: 12, width: '100%', marginBottom: 12,
+    height: 52, borderRadius: 26, width: '100%', marginBottom: 8,
   },
-  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  skipButton: { padding: 12 },
-  skipButtonText: { color: '#9ca3af', fontSize: 14 },
+  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  skipButton: { minHeight: 44, paddingHorizontal: 16, justifyContent: 'center' },
+  skipButtonText: { fontSize: 14, fontWeight: '600' },
   summaryCard: {
-    backgroundColor: '#f9fafb', borderRadius: 12, padding: 16,
-    width: '100%', marginBottom: 24, gap: 12,
+    borderRadius: 20, borderWidth: 1, padding: 16,
+    width: '100%', marginTop: 16, marginBottom: 24, gap: 12,
   },
   summaryRow: { flexDirection: 'row', alignItems: 'center' },
-  summaryText: { fontSize: 13, color: '#374151', marginLeft: 12, flex: 1 },
+  summaryText: { fontSize: 14, marginLeft: 12, flex: 1 },
 });

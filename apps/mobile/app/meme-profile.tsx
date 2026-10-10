@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
-  Dimensions, Image, Share, Platform,
+  Dimensions, Image, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts, memeFlame } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
+import { HeaderIconButton } from '@/components/ScreenHeader';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 import { withRef } from '@/lib/referral-link';
@@ -15,6 +17,8 @@ import { withRef } from '@/lib/referral-link';
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 const THUMB_SIZE = (width - 36) / 3;
+/** Text/icons on the flame orange: dark ink keeps contrast above 4.5:1. */
+const ON_FLAME = '#111214';
 
 interface ProfileMeme {
   id: string;
@@ -127,25 +131,18 @@ export default function MemeProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: '#f97316' }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>@{userName}</Text>
-          <TouchableOpacity onPress={handleShareProfile} style={styles.backBtn}>
-            <Ionicons name="share-outline" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <StackHeader
+        title={`@${userName}`}
+        actions={<HeaderIconButton icon="share-outline" label={t('common.share')} onPress={handleShareProfile} />}
+      />
 
       {/* Profile header */}
-      <View style={[styles.profileCard, { backgroundColor: tc.bgCard }]}>
-        <View style={[styles.bigAvatar, { backgroundColor: tc.primary }]}>
+      <View style={[styles.profileCard, { backgroundColor: tc.bg, borderBottomColor: tc.border }]}>
+        <View style={[styles.bigAvatar, { backgroundColor: memeFlame }]}>
           <Text style={styles.bigAvatarText}>{(userName || '?')[0].toUpperCase()}</Text>
         </View>
         <Text style={[styles.profileName, { color: tc.text }]}>@{userName}</Text>
-        <Text style={[styles.profileStats, { color: tc.textMuted }]}>
+        <Text style={[styles.profileStats, { color: tc.textSecondary }]}>
           {tp('meme.profile.memes', memes.length)} · {tp('meme.profile.likes', memes.reduce((s, m) => s + m.likes, 0))} · {tp('meme.profile.followers', followerCount)}
         </Text>
 
@@ -155,23 +152,23 @@ export default function MemeProfileScreen() {
             style={styles.ctaBtn}
             onPress={() => router.push('/register')}
           >
-            <Ionicons name="sparkles" size={18} color="#fff" />
+            <Ionicons name="sparkles" size={18} color={ON_FLAME} />
             <Text style={styles.ctaText}>{t('meme.profile.signUpCta')}</Text>
           </TouchableOpacity>
         ) : !isOwnProfile ? (
           <View style={styles.actionRow}>
             <TouchableOpacity
-              style={[styles.ctaBtn, isFollowing && { backgroundColor: tc.bgInput }]}
+              style={[styles.ctaBtn, styles.ctaFlex, isFollowing && { backgroundColor: tc.bgInput }]}
               onPress={handleFollow}
               disabled={followBusy}
             >
-              <Ionicons name={isFollowing ? 'checkmark' : 'person-add'} size={18} color={isFollowing ? tc.text : '#fff'} />
+              <Ionicons name={isFollowing ? 'checkmark' : 'person-add'} size={18} color={isFollowing ? tc.text : ON_FLAME} />
               <Text style={[styles.ctaText, isFollowing && { color: tc.text }]}>
                 {isFollowing ? t('meme.profile.following') : t('meme.profile.follow')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.ctaBtn, { backgroundColor: tc.bgInput }]}
+              style={[styles.ctaBtn, styles.ctaFlex, { backgroundColor: tc.bgInput }]}
               onPress={() => router.push({ pathname: '/chat', params: { userId, name: userName } })}
             >
               <Ionicons name="chatbubble-outline" size={18} color={tc.text} />
@@ -205,33 +202,30 @@ export default function MemeProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  actionRow: { flexDirection: 'row', gap: 10 },
+  actionRow: { flexDirection: 'row', gap: 10, alignSelf: 'stretch' },
   safe: { flex: 1 },
-  headerBg: { paddingHorizontal: 16, paddingVertical: 14, paddingTop: Platform.OS === 'ios' ? 8 : 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
   profileCard: {
     alignItems: 'center', paddingVertical: 20, paddingHorizontal: 16,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   bigAvatar: {
     width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center',
     marginBottom: 10,
   },
-  bigAvatarText: { fontSize: 28, ...fonts.extrabold, color: '#fff' },
-  profileName: { fontSize: 18, ...fonts.bold, marginBottom: 4 },
+  bigAvatarText: { fontSize: 28, ...fonts.displayHeavy, color: ON_FLAME },
+  profileName: { fontSize: 20, letterSpacing: -0.3, ...fonts.display, marginBottom: 4 },
   profileStats: { fontSize: 13, ...fonts.medium, marginBottom: 16 },
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#f97316', borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 24,
+    backgroundColor: memeFlame, borderRadius: radius.full, minHeight: 48, paddingVertical: 12, paddingHorizontal: 24,
     width: '100%',
   },
-  ctaText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  ctaFlex: { flex: 1, width: 'auto' },
+  ctaText: { color: ON_FLAME, fontSize: 15, ...fonts.bold },
   grid: { padding: 4 },
   thumbWrap: { width: THUMB_SIZE, height: THUMB_SIZE, margin: 2, borderRadius: 4, overflow: 'hidden' },
   thumb: { width: '100%', height: '100%' },
-  videoThumb: { backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center' },
+  videoThumb: { backgroundColor: '#1B1D21', alignItems: 'center', justifyContent: 'center' },
   thumbStats: {
     position: 'absolute', bottom: 2, left: 4, flexDirection: 'row', alignItems: 'center', gap: 2,
   },

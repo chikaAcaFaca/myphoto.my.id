@@ -14,6 +14,8 @@ import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import { useT } from '@/lib/i18n';
+import { useTheme } from '@/lib/theme-context';
+import { fonts } from '@/lib/theme';
 
 export default function RegisterScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -27,6 +29,7 @@ export default function RegisterScreen() {
 
   const { signUp, signInWithGoogle } = useAuth();
   const { t } = useT();
+  const { colors: tc } = useTheme();
 
   const handleRegister = async () => {
     if (!displayName.trim()) {
@@ -73,10 +76,13 @@ export default function RegisterScreen() {
     }
   };
 
+  const inputBox = [styles.inputContainer, { backgroundColor: tc.bgCard, borderColor: tc.border }];
+  const inputText = [styles.input, { color: tc.text }];
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: tc.bg }]}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -85,44 +91,47 @@ export default function RegisterScreen() {
         <View style={styles.content}>
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Ionicons name="cloud" size={48} color="#0ea5e9" />
-            <Text style={styles.logoText}>MyPhoto</Text>
+            <View style={[styles.logoMark, { backgroundColor: tc.primaryLight }]}>
+              <Ionicons name="cloud" size={26} color={tc.primary} />
+            </View>
+            <Text style={[styles.logoText, { color: tc.text }]}>MyPhoto</Text>
           </View>
 
-          <Text style={styles.title}>{t('auth.register.title')}</Text>
-          <Text style={styles.subtitle}>{t('auth.register.subtitle')}</Text>
+          <Text style={[styles.title, { color: tc.text }]}>{t('auth.register.title')}</Text>
+          <Text style={[styles.subtitle, { color: tc.textSecondary }]}>{t('auth.register.subtitle')}</Text>
 
           {/* Error */}
           {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={[styles.errorContainer, { borderColor: tc.error, backgroundColor: tc.bgCard }]}>
+              <Text style={[styles.errorText, { color: tc.error }]}>{error}</Text>
             </View>
           ) : null}
 
           {/* Google register */}
           <TouchableOpacity
-            style={[styles.button, styles.googleButton]}
+            accessibilityRole="button"
+            style={[styles.button, styles.googleButton, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
             onPress={handleGoogleRegister}
             disabled={isLoading}
           >
-            <Ionicons name="logo-google" size={20} color="#374151" style={{ marginRight: 8 }} />
-            <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
+            <Ionicons name="logo-google" size={20} color={tc.text} style={{ marginRight: 8 }} />
+            <Text style={[styles.googleButtonText, { color: tc.text }]}>{t('auth.continueWithGoogle')}</Text>
           </TouchableOpacity>
 
           {/* Divider */}
           <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>{t('auth.orEmail')}</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: tc.border }]} />
+            <Text style={[styles.dividerText, { color: tc.textMuted }]}>{t('auth.orEmail')}</Text>
+            <View style={[styles.dividerLine, { backgroundColor: tc.border }]} />
           </View>
 
           {/* Name */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+          <View style={inputBox}>
+            <Ionicons name="person-outline" size={20} color={tc.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={inputText}
               placeholder={t('auth.register.namePlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={tc.textMuted}
               value={displayName}
               onChangeText={setDisplayName}
               autoCapitalize="words"
@@ -130,12 +139,12 @@ export default function RegisterScreen() {
           </View>
 
           {/* Email */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+          <View style={inputBox}>
+            <Ionicons name="mail-outline" size={20} color={tc.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={inputText}
               placeholder={t('auth.email')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={tc.textMuted}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -145,28 +154,34 @@ export default function RegisterScreen() {
           </View>
 
           {/* Password */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+          <View style={inputBox}>
+            <Ionicons name="lock-closed-outline" size={20} color={tc.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={inputText}
               placeholder={t('auth.register.passwordPlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={tc.textMuted}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9ca3af" />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+              accessibilityState={{ checked: showPassword }}
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeBtn}
+            >
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={tc.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {/* Confirm password */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+          <View style={inputBox}>
+            <Ionicons name="lock-closed-outline" size={20} color={tc.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={inputText}
               placeholder={t('auth.register.confirmPasswordPlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={tc.textMuted}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showPassword}
@@ -174,12 +189,12 @@ export default function RegisterScreen() {
           </View>
 
           {/* Referral code (optional) */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="gift-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+          <View style={inputBox}>
+            <Ionicons name="gift-outline" size={20} color={tc.textMuted} style={styles.inputIcon} />
             <TextInput
-              style={styles.input}
+              style={inputText}
               placeholder={t('auth.register.referralPlaceholder')}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={tc.textMuted}
               value={referralCode}
               onChangeText={setReferralCode}
               autoCapitalize="characters"
@@ -188,7 +203,8 @@ export default function RegisterScreen() {
 
           {/* Register button */}
           <TouchableOpacity
-            style={[styles.button, styles.primaryButton]}
+            accessibilityRole="button"
+            style={[styles.button, styles.primaryButton, { backgroundColor: tc.primary }]}
             onPress={handleRegister}
             disabled={isLoading}
           >
@@ -200,7 +216,7 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           {/* Benefits */}
-          <View style={styles.benefitsContainer}>
+          <View style={[styles.benefitsContainer, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
             <BenefitRow icon="cloud-outline" text={t('auth.register.benefitFree')} />
             <BenefitRow icon="phone-portrait-outline" text={t('auth.register.benefitBackup')} />
             <BenefitRow icon="people-outline" text={t('auth.register.benefitReferral')} />
@@ -209,10 +225,10 @@ export default function RegisterScreen() {
 
           {/* Login link */}
           <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>{t('auth.register.haveAccount')}</Text>
+            <Text style={[styles.loginText, { color: tc.textSecondary }]}>{t('auth.register.haveAccount')}</Text>
             <Link href="/(auth)/login" asChild>
-              <TouchableOpacity>
-                <Text style={styles.loginLink}>{t('auth.register.signIn')}</Text>
+              <TouchableOpacity style={styles.linkHit}>
+                <Text style={[styles.loginLink, { color: tc.primary }]}>{t('auth.register.signIn')}</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -223,48 +239,51 @@ export default function RegisterScreen() {
 }
 
 function BenefitRow({ icon, text }: { icon: string; text: string }) {
+  const { colors: tc } = useTheme();
   return (
     <View style={styles.benefitRow}>
-      <Ionicons name={icon as any} size={16} color="#0ea5e9" />
-      <Text style={styles.benefitText}>{text}</Text>
+      <Ionicons name={icon as any} size={18} color={tc.primary} />
+      <Text style={[styles.benefitText, { color: tc.textSecondary }]}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
+  container: { flex: 1 },
   scrollContent: { flexGrow: 1 },
   content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 40 },
-  logoContainer: { alignItems: 'center', marginBottom: 24 },
-  logoText: { fontSize: 24, fontWeight: 'bold', marginTop: 4, color: '#111827' },
-  title: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', color: '#111827' },
-  subtitle: { fontSize: 14, textAlign: 'center', color: '#6b7280', marginTop: 4, marginBottom: 24 },
-  errorContainer: { backgroundColor: '#fef2f2', borderRadius: 8, padding: 12, marginBottom: 16 },
-  errorText: { color: '#dc2626', fontSize: 14, textAlign: 'center' },
+  logoContainer: { alignItems: 'center', marginBottom: 20, gap: 8 },
+  logoMark: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
+  logoText: { fontSize: 34, letterSpacing: -0.8, ...fonts.displayHeavy },
+  title: { fontSize: 24, textAlign: 'center', letterSpacing: -0.3, ...fonts.display },
+  subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 21, marginTop: 6, marginBottom: 24 },
+  errorContainer: { borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 14 },
+  errorText: { fontSize: 14, textAlign: 'center' },
   inputContainer: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 12, borderWidth: 1, borderColor: '#e5e7eb',
-    paddingHorizontal: 16, marginBottom: 12, height: 52,
+    flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1,
+    paddingLeft: 16, paddingRight: 4, marginBottom: 12, height: 52,
   },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, fontSize: 15, color: '#111827' },
+  input: { flex: 1, fontSize: 16, height: '100%' },
+  eyeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   button: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    height: 52, borderRadius: 12, marginBottom: 12,
+    height: 52, borderRadius: 26,
   },
-  primaryButton: { backgroundColor: '#0ea5e9' },
-  googleButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 16 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { marginHorizontal: 16, color: '#9ca3af', fontSize: 14 },
+  primaryButton: { marginTop: 8 },
+  googleButton: { borderWidth: 1 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  googleButtonText: { fontSize: 16, fontWeight: '600' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { marginHorizontal: 16, fontSize: 13 },
   benefitsContainer: {
-    backgroundColor: '#f0f9ff', borderRadius: 12, padding: 16, marginTop: 16, marginBottom: 16,
+    borderRadius: 20, borderWidth: 1, padding: 16, marginTop: 20, marginBottom: 12, gap: 10,
   },
-  benefitRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  benefitText: { fontSize: 13, color: '#374151', marginLeft: 10 },
-  loginContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
-  loginText: { color: '#6b7280', fontSize: 14 },
-  loginLink: { color: '#0ea5e9', fontSize: 14, fontWeight: '600' },
+  benefitRow: { flexDirection: 'row', alignItems: 'center' },
+  benefitText: { fontSize: 14, marginLeft: 12, flex: 1, lineHeight: 19 },
+  loginContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 4 },
+  loginText: { fontSize: 14 },
+  linkHit: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
+  loginLink: { fontSize: 14, fontWeight: '700' },
 });

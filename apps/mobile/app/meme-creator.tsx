@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions,
   Alert, ActivityIndicator, Share, Platform, ScrollView, KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,7 +13,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { captureRef } from 'react-native-view-shot';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts, memeFlame } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
+import { HeaderIconButton } from '@/components/ScreenHeader';
 import { useTheme } from '@/lib/theme-context';
 import { checkMemeLimit, getMemeUsageStats } from '@/lib/meme-limits';
 import { moderateCaption } from '@/lib/ai-captions';
@@ -23,6 +26,8 @@ import { withRef } from '@/lib/referral-link';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
+/** Ink on the flame orange: white fails 4.5:1 for small text, this passes. */
+const ON_FLAME = '#111214';
 
 const MEME_TEMPLATES: { id: string; labelKey: TKey; topPos: number | null; bottomPos: number | null }[] = [
   { id: 'classic', labelKey: 'meme.creator.layoutClassic', topPos: 0.03, bottomPos: 0.78 },
@@ -402,38 +407,36 @@ export default function MemeCreatorScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.container, { backgroundColor: tc.bg }]}>
-        {/* Top bar */}
-        <View style={[styles.topBar, { backgroundColor: tc.primary }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {remixOfId ? t('meme.creator.remixTitle', { name: remixOfAuthor || '...' }) : t('meme.creator.title')}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 4 }}>
-            <TouchableOpacity onPress={handleShare} style={styles.topBtn}>
-              <Ionicons name="share-outline" size={20} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSaveToSpace} style={styles.topBtn} disabled={savingSpace}>
-              {savingSpace ? <ActivityIndicator size="small" color="#fff" /> : (
-                <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+      <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['top']}>
+        <StackHeader
+          title={remixOfId ? t('meme.creator.remixTitle', { name: remixOfAuthor || '...' }) : t('meme.creator.title')}
+          actions={
+            <>
+              <HeaderIconButton icon="share-outline" label={t('common.share')} onPress={handleShare} />
+              {savingSpace ? (
+                <View style={[styles.headerBusy, { backgroundColor: tc.bgInput }]}>
+                  <ActivityIndicator size="small" color={tc.text} />
+                </View>
+              ) : (
+                <HeaderIconButton icon="cloud-upload-outline" label={t('meme.saveToMySpace')} onPress={handleSaveToSpace} />
               )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSave} style={styles.topBtn} disabled={saving}>
-              {saving ? <ActivityIndicator size="small" color="#fff" /> : (
-                <Ionicons name="download-outline" size={20} color="#fff" />
+              {saving ? (
+                <View style={[styles.headerBusy, { backgroundColor: tc.bgInput }]}>
+                  <ActivityIndicator size="small" color={tc.text} />
+                </View>
+              ) : (
+                <HeaderIconButton icon="download-outline" label={t('common.save')} onPress={handleSave} />
               )}
-            </TouchableOpacity>
-          </View>
-        </View>
+            </>
+          }
+        />
 
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           {/* AI usage indicator */}
           {memeStats && (
-            <View style={[styles.usageBanner, { backgroundColor: tc.bgCard }]}>
-              <Ionicons name="sparkles" size={14} color={tc.primary} />
-              <Text style={[styles.usageText, { color: tc.textMuted }]}>
+            <View style={[styles.usageBanner, { backgroundColor: tc.bgInput }]}>
+              <Ionicons name="sparkles" size={14} color={memeFlame} />
+              <Text style={[styles.usageText, { color: tc.textSecondary }]}>
                 {appUser && appUser.storageLimit > 1073741824
                   ? t('meme.creator.usage', { used: memeStats.daily, max: memeStats.maxDaily })
                   : t('meme.creator.upgradeToCreate')}
@@ -445,18 +448,18 @@ export default function MemeCreatorScreen() {
           {!mediaUri && (
             <View style={styles.mediaTypePicker}>
               <TouchableOpacity
-                style={[styles.mediaTypeBtn, { backgroundColor: '#3b82f6' }]}
+                style={[styles.mediaTypeBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
                 onPress={() => pickMedia('image')}
               >
-                <Ionicons name="image-outline" size={24} color="#fff" />
-                <Text style={styles.mediaTypeText}>{t('meme.creator.imageGif')}</Text>
+                <Ionicons name="image-outline" size={24} color={memeFlame} />
+                <Text style={[styles.mediaTypeText, { color: tc.text }]}>{t('meme.creator.imageGif')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.mediaTypeBtn, { backgroundColor: '#8b5cf6' }]}
+                style={[styles.mediaTypeBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
                 onPress={() => pickMedia('video')}
               >
-                <Ionicons name="videocam-outline" size={24} color="#fff" />
-                <Text style={styles.mediaTypeText}>{t('meme.creator.video')}</Text>
+                <Ionicons name="videocam-outline" size={24} color={memeFlame} />
+                <Text style={[styles.mediaTypeText, { color: tc.text }]}>{t('meme.creator.video')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -535,7 +538,7 @@ export default function MemeCreatorScreen() {
           </View>
 
           {/* Controls */}
-          <View style={[styles.controls, { backgroundColor: tc.bgCard }]}>
+          <View style={[styles.controls, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
             {/* Text inputs */}
             <View style={styles.inputRow}>
               <TextInput
@@ -559,50 +562,50 @@ export default function MemeCreatorScreen() {
             </View>
 
             {/* Orientation / aspect selector */}
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>{t('meme.creator.orientation')}</Text>
+            <Text style={[styles.controlLabel, { color: tc.textSecondary }]}>{t('meme.creator.orientation')}</Text>
             <View style={styles.optionRow}>
               {MEME_ASPECTS.map((a) => (
                 <TouchableOpacity
                   key={a.id}
-                  style={[styles.optionBtn, memeAspect.id === a.id && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
+                  style={[styles.optionBtn, { borderColor: tc.border }, memeAspect.id === a.id && styles.optionBtnActive]}
                   onPress={() => setMemeAspect(a)}
                 >
-                  <Text style={[styles.optionText, memeAspect.id === a.id && { color: tc.primary }]}>{t(a.labelKey)}</Text>
+                  <Text style={[styles.optionText, { color: tc.textSecondary }, memeAspect.id === a.id && styles.optionTextActive]}>{t(a.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Template selector */}
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>{t('meme.creator.layout')}</Text>
+            <Text style={[styles.controlLabel, { color: tc.textSecondary }]}>{t('meme.creator.layout')}</Text>
             <View style={styles.optionRow}>
               {MEME_TEMPLATES.map((tpl) => (
                 <TouchableOpacity
                   key={tpl.id}
-                  style={[styles.optionBtn, template.id === tpl.id && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
+                  style={[styles.optionBtn, { borderColor: tc.border }, template.id === tpl.id && styles.optionBtnActive]}
                   onPress={() => setTemplate(tpl)}
                 >
-                  <Text style={[styles.optionText, template.id === tpl.id && { color: tc.primary }]}>{t(tpl.labelKey)}</Text>
+                  <Text style={[styles.optionText, { color: tc.textSecondary }, template.id === tpl.id && styles.optionTextActive]}>{t(tpl.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Font size selector */}
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>{t('meme.creator.textSize')}</Text>
+            <Text style={[styles.controlLabel, { color: tc.textSecondary }]}>{t('meme.creator.textSize')}</Text>
             <View style={styles.optionRow}>
               {FONT_SIZES.map((f) => (
                 <TouchableOpacity
                   key={f.label}
-                  style={[styles.optionBtn, fontSize.label === f.label && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
+                  style={[styles.optionBtn, { borderColor: tc.border }, fontSize.label === f.label && styles.optionBtnActive]}
                   onPress={() => setFontSize(f)}
                 >
-                  <Text style={[styles.optionText, fontSize.label === f.label && { color: tc.primary }]}>{f.label}</Text>
+                  <Text style={[styles.optionText, { color: tc.textSecondary }, fontSize.label === f.label && styles.optionTextActive]}>{f.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Image positioning is now via gestures on the preview above. */}
             {mediaUri && mediaType === 'image' && (
-              <Text style={[styles.controlLabel, { color: tc.textMuted, textAlign: 'center', marginTop: 6 }]}>
+              <Text style={[styles.controlLabel, { color: tc.textSecondary, textAlign: 'center', marginTop: 6 }]}>
                 {t('meme.creator.gestureHint')}
               </Text>
             )}
@@ -615,9 +618,9 @@ export default function MemeCreatorScreen() {
                 disabled={publishing}
               >
                 {publishing ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={ON_FLAME} />
                 ) : (
-                  <Ionicons name="globe-outline" size={18} color="#fff" />
+                  <Ionicons name="globe-outline" size={18} color={ON_FLAME} />
                 )}
                 <Text style={styles.publishText}>
                   {publishing ? t('meme.creator.publishing') : t('meme.creator.publish')}
@@ -628,7 +631,7 @@ export default function MemeCreatorScreen() {
             {/* Share on social media */}
             {mediaUri && (topText || bottomText) && (
               <TouchableOpacity
-                style={[styles.publishBtn, { backgroundColor: '#3b82f6', marginTop: 8 }]}
+                style={[styles.publishBtn, { backgroundColor: tc.bgInput, marginTop: 8 }]}
                 onPress={async () => {
                   try {
                     const caption = [topText, bottomText].filter(Boolean).join(' ');
@@ -639,24 +642,24 @@ export default function MemeCreatorScreen() {
                   } catch {}
                 }}
               >
-                <Ionicons name="share-social" size={18} color="#fff" />
-                <Text style={styles.publishText}>{t('meme.creator.shareSocial')}</Text>
+                <Ionicons name="share-social" size={18} color={tc.text} />
+                <Text style={[styles.publishText, { color: tc.text }]}>{t('meme.creator.shareSocial')}</Text>
               </TouchableOpacity>
             )}
 
             {/* Save the meme into the user's personal MySpace cloud */}
             {mediaUri && (
               <TouchableOpacity
-                style={[styles.publishBtn, { backgroundColor: tc.primary, marginTop: 8 }]}
+                style={[styles.publishBtn, { backgroundColor: tc.bgInput, marginTop: 8 }]}
                 onPress={handleSaveToSpace}
                 disabled={savingSpace}
               >
                 {savingSpace ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={tc.primary} />
                 ) : (
-                  <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+                  <Ionicons name="cloud-upload-outline" size={18} color={tc.primary} />
                 )}
-                <Text style={styles.publishText}>{t('meme.saveToMySpace')}</Text>
+                <Text style={[styles.publishText, { color: tc.text }]}>{t('meme.saveToMySpace')}</Text>
               </TouchableOpacity>
             )}
 
@@ -664,30 +667,25 @@ export default function MemeCreatorScreen() {
             {mediaUri && (
               <View style={styles.changeRow}>
                 <TouchableOpacity style={styles.changeBtn} onPress={() => pickMedia('image')}>
-                  <Ionicons name="image-outline" size={16} color={tc.primary} />
-                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>{t('meme.creator.imageGif')}</Text>
+                  <Ionicons name="image-outline" size={16} color={tc.text} />
+                  <Text style={[styles.changeBtnText, { color: tc.text }]}>{t('meme.creator.imageGif')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.changeBtn} onPress={() => pickMedia('video')}>
-                  <Ionicons name="videocam-outline" size={16} color={tc.primary} />
-                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>{t('meme.creator.video')}</Text>
+                  <Ionicons name="videocam-outline" size={16} color={tc.text} />
+                  <Text style={[styles.changeBtnText, { color: tc.text }]}>{t('meme.creator.video')}</Text>
                 </TouchableOpacity>
               </View>
             )}
           </View>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 10, paddingTop: Platform.OS === 'ios' ? 50 : 8,
-  },
-  topBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
+  headerBusy: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   previewContainer: { alignItems: 'center', paddingVertical: 12 },
   memeFrame: { width: width - 24, aspectRatio: 3 / 4, borderRadius: radius.md, overflow: 'hidden', position: 'relative' },
   memeImage: { width: '100%', height: '100%' },
@@ -703,29 +701,27 @@ const styles = StyleSheet.create({
     textShadowColor: '#000', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3,
     letterSpacing: 0.5,
   },
-  pickImage: {
-    width: width - 24, aspectRatio: 1, borderRadius: radius.lg,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
-  },
-  pickText: { fontSize: 14, ...fonts.medium, marginTop: 8 },
   controls: {
-    borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 40,
+    borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: 16, paddingBottom: 40,
+    borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0,
   },
   inputRow: { marginBottom: 10 },
   input: {
     borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10,
-    fontSize: 14,
+    minHeight: 48, fontSize: 15,
   },
-  controlLabel: { fontSize: 10, ...fonts.bold, letterSpacing: 1, marginTop: 8, marginBottom: 6 },
-  optionRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  controlLabel: { fontSize: 12, ...fonts.semibold, letterSpacing: 0.3, marginTop: 8, marginBottom: 6 },
+  optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   optionBtn: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
-    paddingHorizontal: 14, paddingVertical: 7,
+    borderWidth: 1, borderRadius: radius.full,
+    paddingHorizontal: 16, minHeight: 44, justifyContent: 'center',
   },
-  optionText: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary },
+  optionBtnActive: { backgroundColor: memeFlame, borderColor: memeFlame },
+  optionText: { fontSize: 13, ...fonts.semibold },
+  optionTextActive: { color: ON_FLAME },
   changeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 12, paddingVertical: 10,
+    marginTop: 12, minHeight: 44, paddingVertical: 10,
   },
   changeBtnText: { fontSize: 13, ...fonts.semibold },
   // Media type picker
@@ -735,9 +731,9 @@ const styles = StyleSheet.create({
   },
   mediaTypeBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: radius.md, paddingVertical: 16,
+    borderRadius: radius.lg, borderWidth: 1, paddingVertical: 18,
   },
-  mediaTypeText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  mediaTypeText: { fontSize: 15, ...fonts.bold },
   changeRow: { flexDirection: 'row', gap: 16, justifyContent: 'center', marginTop: 12 },
   // Video overlay
   playOverlay: {
@@ -751,17 +747,14 @@ const styles = StyleSheet.create({
   mediaTypeBadgeText: { color: '#fff', fontSize: 10, ...fonts.bold },
   usageBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 6, paddingHorizontal: 12, marginHorizontal: 12, marginTop: 4,
-    borderRadius: 8,
+    paddingVertical: 8, paddingHorizontal: 12, marginHorizontal: 12, marginTop: 4,
+    borderRadius: radius.full,
   },
-  usageText: { fontSize: 11, ...fonts.medium },
-  zoomControls: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
-  zoomBtn: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  zoomLabel: { fontSize: 12, ...fonts.bold, width: 40, textAlign: 'center' },
+  usageText: { fontSize: 12, ...fonts.medium },
   publishBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#f97316', borderRadius: radius.md, paddingVertical: 14,
+    backgroundColor: memeFlame, borderRadius: radius.full, minHeight: 50, paddingVertical: 14,
     marginTop: 16,
   },
-  publishText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  publishText: { color: ON_FLAME, fontSize: 15, ...fonts.bold },
 });
