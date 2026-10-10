@@ -6,6 +6,7 @@ import { initAdmin } from '@/lib/firebase-admin';
 import MemeSocial from './meme-social';
 import { getT } from '@/i18n/server';
 import { isValidRef } from '@/lib/referral-link';
+import { headers } from 'next/headers';
 
 interface MemePageProps {
   params: Promise<{ id: string }>;
@@ -65,6 +66,8 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
   const { id } = await params;
   // Shared with ?ref=CODE: credit whoever shared the link, not the meme author.
   const { ref } = await searchParams;
+  const ua = (await headers()).get('user-agent') || '';
+  const isIos = /iPhone|iPad|iPod/i.test(ua);
   const meme = await getMeme(id);
   const t = await getT();
 
@@ -189,6 +192,46 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
           >
             {t('pages.meme.ctaButton')}
           </a>
+        </div>
+
+        {/* Get the Android app: people arrive here from a link shared on
+            WhatsApp/Viber, usually on a phone. iPhone gets the web app hint. */}
+        <div style={{
+          backgroundColor: '#111214',
+          border: '1px solid #2C2F36',
+          borderRadius: 16,
+          padding: 20,
+          marginBottom: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          textAlign: 'center',
+        }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#fff' }}>{t('pages.meme.appTitle')}</h3>
+          <p style={{ fontSize: 14, color: '#A3A7B0', margin: 0 }}>{t('pages.meme.appText')}</p>
+          {isIos ? (
+            <p style={{ fontSize: 14, color: '#E8E8EA', margin: 0 }}>{t('pages.meme.iosHint')}</p>
+          ) : (
+            <a
+              href="/api/download/android"
+              style={{
+                display: 'inline-block',
+                alignSelf: 'center',
+                backgroundColor: '#FF7A3D',
+                color: '#111214',
+                fontWeight: 700,
+                padding: '14px 28px',
+                borderRadius: 999,
+                textDecoration: 'none',
+                fontSize: 16,
+              }}
+            >
+              {t('pages.meme.downloadAndroid')}
+            </a>
+          )}
+          {!isIos && (
+            <p style={{ fontSize: 12, color: '#A3A7B0', margin: 0 }}>{t('pages.meme.downloadHint')}</p>
+          )}
         </div>
 
         {/* App features */}
