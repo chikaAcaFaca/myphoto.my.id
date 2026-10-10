@@ -1,5 +1,6 @@
 // Home tab (device photo grid).
 const home = {
+  syncNow: 'Sync now',
   syncing: 'Syncing... {percent}%',
   pendingUpload: {
     one: '{count} file waiting to upload',

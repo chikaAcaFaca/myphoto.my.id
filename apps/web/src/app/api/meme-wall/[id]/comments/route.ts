@@ -3,6 +3,7 @@ import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { FieldValue } from 'firebase-admin/firestore';
 import { generateFileId } from '@myphoto/shared';
+import { notify } from '@/lib/inbox';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +93,10 @@ export async function POST(
     batch.set(commentRef, { authorId: userId, authorName, text, createdAt: now });
     batch.update(memeRef, { commentCount: FieldValue.increment(1) });
     await batch.commit();
+
+    await notify(memeSnap.data()?.authorId, {
+      type: 'comment', actorId: userId, actorName: authorName, memeId: id, text: text.slice(0, 200),
+    });
 
     return NextResponse.json({
       comment: {

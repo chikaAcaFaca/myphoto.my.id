@@ -9,6 +9,7 @@ import React, { useEffect, useState, Component, type ErrorInfo, type ReactNode }
 import { View, Text, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from 'expo-av';
 
 // One-time audio session config so expo-av's <Video> auto-plays reliably.
@@ -35,6 +36,8 @@ import { AppUpdateCheck } from '@/lib/app-update-check';
 import { ThemeProvider } from '@/lib/theme-context';
 import { I18nProvider, t } from '@/lib/i18n';
 import { ShareIntentHandler } from '@/components/ShareIntentHandler';
+import { InboxProvider } from '@/lib/inbox-context';
+import { PushRegistrar } from '@/lib/push';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -75,6 +78,13 @@ function RootNavigator() {
   const segments = useSegments();
   const router = useRouter();
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+  // Title font. A failed load must never block the app: titles fall back to
+  // the system font.
+  const [fontsLoaded, fontError] = useFonts({
+    BricolageGrotesque_700Bold: require('../assets/fonts/BricolageGrotesque_700Bold.ttf'),
+    BricolageGrotesque_800ExtraBold: require('../assets/fonts/BricolageGrotesque_800ExtraBold.ttf'),
+  });
+  const fontsReady = fontsLoaded || !!fontError;
 
   // Re-read onboarding status whenever user or route changes. The `segments`
   // dependency is load-bearing: onboarding.tsx writes the flag and immediately
@@ -114,21 +124,23 @@ function RootNavigator() {
   }, [user, isLoading, segments, onboardingDone]);
 
   useEffect(() => {
-    if (!isLoading && onboardingDone !== null) {
+    if (!isLoading && onboardingDone !== null && fontsReady) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [isLoading, onboardingDone]);
+  }, [isLoading, onboardingDone, fontsReady]);
 
-  if (isLoading || onboardingDone === null) {
+  if (isLoading || onboardingDone === null || !fontsReady) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#0ea5e9" />
+        <ActivityIndicator size="large" color="#2453E6" />
       </View>
     );
   }
 
   return (
     <SyncProvider>
+      <InboxProvider>
+      <PushRegistrar />
       <CloudGateProvider>
         <StorageGuardProvider>
           {/* Watch for incoming Android share intents (image/video) and upload
@@ -139,6 +151,7 @@ function RootNavigator() {
           <Slot />
         </StorageGuardProvider>
       </CloudGateProvider>
+      </InboxProvider>
     </SyncProvider>
   );
 }

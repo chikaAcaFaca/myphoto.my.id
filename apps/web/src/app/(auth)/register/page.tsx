@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,6 +8,7 @@ import { Mail, Lock, User, Eye, EyeOff, Check, Gift } from 'lucide-react';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { useT } from '@/i18n/client';
+import { getStoredRef, clearStoredRef } from '@/lib/referral-link';
 
 export default function RegisterPage() {
   return (
@@ -29,7 +30,11 @@ function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useT();
-  const referralCode = searchParams.get('ref');
+  // ?ref= on this URL wins; otherwise the code remembered from a shared link
+  // the visitor opened earlier (see RefCapture).
+  const [storedRef, setStoredRef] = useState<string | null>(null);
+  useEffect(() => setStoredRef(getStoredRef()), []);
+  const referralCode = searchParams.get('ref') || storedRef;
   const viaChannel = searchParams.get('via');     // 'share' if came from shared content
   const shareToken = searchParams.get('st');       // which shared content brought them
 
@@ -66,6 +71,7 @@ function RegisterContent() {
           },
           body: JSON.stringify({ memeId }),
         });
+        clearStoredRef();
         return;
       }
 
@@ -82,6 +88,7 @@ function RegisterContent() {
           shareToken: shareToken || undefined,
         }),
       });
+      clearStoredRef();
     } catch {
       // Referral claim is best-effort, don't block registration
     }

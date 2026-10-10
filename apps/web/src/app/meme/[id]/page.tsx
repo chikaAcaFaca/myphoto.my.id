@@ -5,9 +5,11 @@ import { generateDownloadUrl } from '@/lib/s3';
 import { initAdmin } from '@/lib/firebase-admin';
 import MemeSocial from './meme-social';
 import { getT } from '@/i18n/server';
+import { isValidRef } from '@/lib/referral-link';
 
 interface MemePageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ ref?: string }>;
 }
 
 async function getMeme(id: string) {
@@ -59,8 +61,10 @@ export async function generateMetadata({ params }: MemePageProps): Promise<Metad
   };
 }
 
-export default async function MemePage({ params }: MemePageProps) {
+export default async function MemePage({ params, searchParams }: MemePageProps) {
   const { id } = await params;
+  // Shared with ?ref=CODE: credit whoever shared the link, not the meme author.
+  const { ref } = await searchParams;
   const meme = await getMeme(id);
   const t = await getT();
 
@@ -171,7 +175,7 @@ export default async function MemePage({ params }: MemePageProps) {
             {t('pages.meme.ctaText')}
           </p>
           <a
-            href={`/register?ref=meme_${meme.id}`}
+            href={`/register?ref=${isValidRef(ref) ? encodeURIComponent(ref) : `meme_${meme.id}`}`}
             style={{
               display: 'inline-block',
               backgroundColor: '#fff',

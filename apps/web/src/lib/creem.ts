@@ -33,7 +33,14 @@ function apiBase(): string {
 async function creemFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${apiBase()}${path}`, {
     ...init,
-    headers: { 'x-api-key': apiKey(), 'Content-Type': 'application/json', ...(init.headers || {}) },
+    // Creem sits behind Cloudflare, which rejects requests without a
+    // recognisable User-Agent (error 1010).
+    headers: {
+      'x-api-key': apiKey(),
+      'Content-Type': 'application/json',
+      'User-Agent': 'myphotomy.space/1.0',
+      ...(init.headers || {}),
+    },
     cache: 'no-store',
   });
   const body = await res.json().catch(() => ({}));

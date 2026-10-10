@@ -92,6 +92,7 @@ function PricingContent() {
           <p className="mx-auto mt-2 max-w-xl text-gray-600 dark:text-gray-300">
             {t('pages.pricing.subtitle')}
           </p>
+          <p className="mt-1 text-xs text-gray-500">{t('pages.pricing.vatNote')}</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs text-green-800 dark:bg-green-900/30 dark:text-green-400">
               <Shield className="h-3.5 w-3.5" />

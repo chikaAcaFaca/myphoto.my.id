@@ -2,13 +2,23 @@
 const nav = {
   crashReport: 'MyPhoto Crash Report',
   tabs: {
-    photos: 'MyPhoto',
+    photos: 'Photos',
     myspace: 'MySpace',
-    memeWall: 'MemeWall',
-    upload: 'Upload',
+    memeWall: 'Memes',
+    upload: 'Add',
     albums: 'Albums',
     settings: 'Settings',
+    inbox: 'Inbox',
+    me: 'Me',
   },
+  library: {
+    label: 'Library',
+    photos: 'Photos',
+    albums: 'Albums',
+    myspace: 'MySpace',
+  },
+  inboxButton: 'Inbox',
+  inboxButtonUnread: 'Inbox, {count} new',
 };
 
 export default nav;

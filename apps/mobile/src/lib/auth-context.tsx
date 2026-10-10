@@ -26,6 +26,7 @@ import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User as AppUser } from '@myphoto/shared';
 import { registerDevice } from './device-registry';
+import { unregisterPush } from './push-token';
 import { fetchWithTimeout, withTimeout } from './net';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -225,6 +226,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     const auth = authRef.current || getFirebaseAuth();
+    // While still signed in: stop this phone getting the account's pushes.
+    await unregisterPush(getToken);
     await firebaseSignOut(auth);
   };
 

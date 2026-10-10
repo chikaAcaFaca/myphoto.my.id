@@ -298,6 +298,7 @@ function CheckoutContent() {
                 <span className="text-gray-600 dark:text-gray-300">{t('pages.checkout.periodTotal')}</span>
                 <span className="text-2xl font-bold text-primary-600">{eur(priceTotal)}</span>
               </div>
+              <p className="mt-1 text-right text-xs text-gray-500">{t('pages.checkout.vatNote')}</p>
               {period !== 'monthly' && (
                 <div className="mt-1 flex items-center justify-between">
                   <span className="text-sm text-gray-500">{t('pages.checkout.monthlyEquivalent')}</span>

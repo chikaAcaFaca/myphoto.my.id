@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { InviteCard } from '@/components/InviteCard';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { useSync } from '@/lib/sync-context';
@@ -62,9 +64,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: themeColors.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: themeColors.primary }]}>
-        <Text style={styles.headerTitle}>{t('settings.title')}</Text>
-      </View>
+      <ScreenHeader title={t('nav.tabs.me')} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Profile */}
@@ -81,6 +81,8 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
+
+        <InviteCard />
 
         {/* Storage */}
         <View style={[styles.card, { backgroundColor: themeColors.bgCard }]}>

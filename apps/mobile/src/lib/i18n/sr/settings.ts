@@ -57,6 +57,15 @@ const settings: typeof en = {
   notifications: 'Obaveštenja',
   about: 'O aplikaciji',
   deleteAccount: 'Obriši nalog',
+  invite: {
+    title: 'Pozovi prijatelje',
+    body: '+250 MB za tebe za svakog prijatelja koji se registruje. Do 2,5 GB besplatno.',
+    progress: '{count} od {max} prijatelja, zarađeno {bonus}',
+    copy: 'Kopiraj',
+    copied: 'Link je kopiran',
+    more: 'Više',
+    message: 'Čuvam slike na MyPhoto, 1 GB besplatno. Registruj se preko mog linka pa oboje dobijamo više prostora: {link}',
+  },
 };
 
 export default settings;

@@ -34,6 +34,7 @@ import cloudGate from './sr/cloudGate';
 import appUpdate from './sr/appUpdate';
 import shareIntent from './sr/shareIntent';
 import libs from './sr/libs';
+import inbox from './sr/inbox';
 
 export const sr: Dictionary = {
   common,
@@ -70,6 +71,7 @@ export const sr: Dictionary = {
   appUpdate,
   shareIntent,
   libs,
+  inbox,
 };
 
 export default sr;

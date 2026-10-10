@@ -11,6 +11,7 @@ import {
 } from '@myphoto/shared';
 import { processImageAI } from '@/lib/ai-processing';
 import { recalculateStorageLimit } from '@/lib/storage-limit';
+import { notify } from '@/lib/inbox';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -82,10 +83,10 @@ async function maybeQualifyReferral(userId: string, emailVerified: boolean, ip: 
     .get();
   const suspect = !sameIp.empty;
 
-  await db.runTransaction(async (tx) => {
+  const granted = await db.runTransaction(async (tx) => {
     // All reads first (Firestore requires reads before writes).
     const freshRef = await tx.get(refRef);
-    if (freshRef.data()?.qualified) return; // already granted by a concurrent call
+    if (freshRef.data()?.qualified) return false; // already granted by a concurrent call
     const referrerRef = db.collection('users').doc(referrerId);
     const referrerSnap = await tx.get(referrerRef);
     const underCap = (referrerSnap.data()?.referralCount || 0) < MAX_REFERRALS;
@@ -104,11 +105,21 @@ async function maybeQualifyReferral(userId: string, emailVerified: boolean, ip: 
         referralCount: FieldValue.increment(1),
         referralBonusBytes: FieldValue.increment(REFERRAL_BONUS),
       });
+      return true;
     }
+    return false;
   });
 
   if (!suspect) {
     await recalculateStorageLimit(referrerId);
+  }
+  if (granted) {
+    await notify(referrerId, {
+      type: 'referral_bonus',
+      actorId: userId,
+      actorName: u.displayName || '',
+      text: '+250 MB: tvoj prijatelj je počeo da koristi MyPhoto',
+    });
   }
 }
 

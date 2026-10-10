@@ -1,6 +1,7 @@
 import type en from '../en/home';
 
 const home: typeof en = {
+  syncNow: 'Sinhronizuj sada',
   syncing: 'Sinhronizacija... {percent}%',
   pendingUpload: {
     one: '{count} fajl čeka upload',

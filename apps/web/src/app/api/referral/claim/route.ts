@@ -3,6 +3,9 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { initAdmin, db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { REFERRAL_BONUS, MAX_REFERRALS } from '@myphoto/shared';
+import { notify } from '@/lib/inbox';
+
+const REFEREE_MAX_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +60,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Already referred' }, { status: 400 });
   }
 
+  // Only a fresh signup can be credited to someone. A remembered ?ref= code
+  // must not turn an existing user who later visits /register into a referral.
+  const createdAtMs = refereeData.createdAt?.toMillis?.() ?? 0;
+  if (Date.now() - createdAtMs > REFEREE_MAX_ACCOUNT_AGE_MS) {
+    return NextResponse.json({ error: 'Account too old to be referred' }, { status: 400 });
+  }
+
   // Check referrer hasn't hit the max
   if ((referrerData.referralCount || 0) >= MAX_REFERRALS) {
     return NextResponse.json({ error: 'Referrer has reached maximum referrals' }, { status: 400 });
@@ -84,6 +94,12 @@ export async function POST(request: NextRequest) {
   });
 
   await batch.commit();
+
+  await notify(referrerUserId, {
+    type: 'referral_joined',
+    actorId: userId,
+    actorName: refereeData.displayName || '',
+  });
 
   return NextResponse.json({
     success: true,

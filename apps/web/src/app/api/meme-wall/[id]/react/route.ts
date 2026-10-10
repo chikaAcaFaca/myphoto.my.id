@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { FieldValue } from 'firebase-admin/firestore';
+import { notify } from '@/lib/inbox';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,8 @@ export async function POST(
 
       const data = memeSnap.data()!;
       return {
+        newLike: next === 'like' && prev !== 'like',
+        authorId: (data.authorId as string) || '',
         userReaction: next,
         likes: Math.max(0, (data.likes || 0) + likeDelta),
         dislikes: Math.max(0, (data.dislikes || 0) + dislikeDelta),
@@ -69,7 +72,13 @@ export async function POST(
       return NextResponse.json({ error: 'Meme not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, ...result });
+    const { newLike, authorId, ...payload } = result;
+    if (newLike && authorId && authorId !== userId) {
+      const actorName = (await db.collection('users').doc(userId).get()).data()?.displayName || '';
+      await notify(authorId, { type: 'like', actorId: userId, actorName, memeId: id });
+    }
+
+    return NextResponse.json({ success: true, ...payload });
   } catch (error) {
     console.error('Meme react error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

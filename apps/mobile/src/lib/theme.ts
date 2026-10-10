@@ -1,57 +1,61 @@
-// Sync-Swift Design System
+// MyPhoto design system: calm neutral ground, one brand blue, orange only
+// for Meme Wall. Screen titles use Bricolage Grotesque (fonts.display).
 export const lightColors = {
-  primary: '#0ea5e9',
-  primaryLight: '#38bdf8',
-  primaryDark: '#0284c7',
-  accent: '#f97316',
-  accentLight: '#fb923c',
-  accentDark: '#ea580c',
-  success: '#22c55e',
-  error: '#ef4444',
-  warning: '#f59e0b',
+  primary: '#2453E6',
+  primaryLight: '#EAF0FF',
+  primaryDark: '#1A3FB8',
+  accent: '#FF7A3D',
+  accentLight: '#FFB38A',
+  accentDark: '#E8590C',
+  success: '#16A34A',
+  error: '#D42F3A',
+  warning: '#D97706',
 
-  bg: '#f8fafc',
-  bgCard: '#ffffff',
-  bgInput: '#f1f5f9',
+  bg: '#FAFAF8',
+  bgCard: '#FFFFFF',
+  bgInput: '#F0F0EC',
 
-  text: '#1e293b',
-  textSecondary: '#64748b',
-  textMuted: '#94a3b8',
-  textWhite: '#ffffff',
+  text: '#16181D',
+  textSecondary: '#5E6470',
+  textMuted: '#8A909B',
+  textWhite: '#FFFFFF',
 
-  border: '#e2e8f0',
-  borderLight: '#f1f5f9',
+  border: '#E7E7E3',
+  borderLight: '#F2F2EE',
 
-  tabInactive: '#94a3b8',
-  tabActive: '#0ea5e9',
-} as const;
+  tabInactive: '#5E6470',
+  tabActive: '#2453E6',
+};
 
 export const darkColors: typeof lightColors = {
-  primary: '#38bdf8',
-  primaryLight: '#7dd3fc',
-  primaryDark: '#0ea5e9',
-  accent: '#fb923c',
-  accentLight: '#fdba74',
-  accentDark: '#f97316',
-  success: '#4ade80',
-  error: '#f87171',
-  warning: '#fbbf24',
+  primary: '#6E8FFF',
+  primaryLight: '#1C2647',
+  primaryDark: '#2453E6',
+  accent: '#FF7A3D',
+  accentLight: '#FFB38A',
+  accentDark: '#E8590C',
+  success: '#4ADE80',
+  error: '#F87171',
+  warning: '#FBBF24',
 
-  bg: '#0f172a',
-  bgCard: '#1e293b',
-  bgInput: '#334155',
+  bg: '#111214',
+  bgCard: '#1B1D21',
+  bgInput: '#26292F',
 
-  text: '#f1f5f9',
-  textSecondary: '#94a3b8',
-  textMuted: '#64748b',
-  textWhite: '#ffffff',
+  text: '#F2F2F0',
+  textSecondary: '#A3A7B0',
+  textMuted: '#7A7F89',
+  textWhite: '#FFFFFF',
 
-  border: '#334155',
-  borderLight: '#1e293b',
+  border: '#2C2F36',
+  borderLight: '#1F2125',
 
-  tabInactive: '#64748b',
-  tabActive: '#38bdf8',
-} as const;
+  tabInactive: '#A3A7B0',
+  tabActive: '#6E8FFF',
+};
+
+/** Meme Wall's own color: the flame stays orange on every screen. */
+export const memeFlame = '#FF7A3D';
 
 // Default export for backward compatibility (screens that import `colors` directly)
 export const colors = lightColors;
@@ -79,4 +83,7 @@ export const fonts = {
   semibold: { fontWeight: '600' as const },
   bold: { fontWeight: '700' as const },
   extrabold: { fontWeight: '800' as const },
+  // Loaded in app/_layout.tsx; falls back to the system font until then.
+  display: { fontFamily: 'BricolageGrotesque_700Bold' },
+  displayHeavy: { fontFamily: 'BricolageGrotesque_800ExtraBold' },
 } as const;

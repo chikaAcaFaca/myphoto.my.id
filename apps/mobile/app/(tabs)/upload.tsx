@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -188,14 +189,9 @@ export default function UploadScreen() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
-        {/* Header */}
-        <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-          <View style={styles.headerCenter}>
-            <Ionicons name="cloud-upload" size={24} color="#fff" />
-            <Text style={styles.headerTitle}>{t('upload.title')}</Text>
-          </View>
-          <Text style={styles.headerSubtitle}>{t('upload.subtitle')}</Text>
-        </View>
+        <ScreenHeader title={t('upload.title')}>
+          <Text style={[styles.headerSubtitle, { color: tc.textSecondary }]}>{t('upload.subtitle')}</Text>
+        </ScreenHeader>
 
         {/* Manual upload buttons */}
         <View style={styles.pickSection}>
@@ -333,9 +329,9 @@ const styles = StyleSheet.create({
   headerBg: { paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8, paddingBottom: 24, alignItems: 'center' },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerTitle: { fontSize: 20, ...fonts.extrabold, color: '#fff' },
-  headerSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  headerSubtitle: { fontSize: 14, marginTop: -4 },
   pickSection: {
-    flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginTop: -12,
+    flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 8,
   },
   pickBtn: {
     flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4,
