@@ -43,7 +43,10 @@ async function registerDevice(getToken: () => Promise<string | null>) {
 
 function openFromPush(data: Record<string, unknown> | undefined, uid: string | undefined) {
   const memeId = typeof data?.memeId === 'string' ? data.memeId : null;
-  if (memeId && uid) {
+  const conversationId = typeof data?.conversationId === 'string' ? data.conversationId : null;
+  if (conversationId) {
+    router.push({ pathname: '/chat', params: { conversationId } });
+  } else if (memeId && uid) {
     router.push({ pathname: '/meme-wall', params: { profileUserId: uid, startId: memeId } });
   } else {
     router.navigate('/(tabs)/inbox' as Href);

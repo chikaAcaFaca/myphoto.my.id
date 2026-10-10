@@ -8,19 +8,26 @@ const POLL_MS = 60_000;
 interface InboxContextValue {
   /** Unread activity + messages, shown as the badge on the Inbox tab. */
   unread: number;
+  unreadActivity: number;
+  unreadMessages: number;
   refresh: () => Promise<void>;
-  setUnread: (n: number) => void;
+  /** Opening the Activity list clears its part of the badge. */
+  clearActivity: () => void;
 }
 
 const InboxContext = createContext<InboxContextValue>({
   unread: 0,
+  unreadActivity: 0,
+  unreadMessages: 0,
   refresh: async () => {},
-  setUnread: () => {},
+  clearActivity: () => {},
 });
 
 export function InboxProvider({ children }: { children: ReactNode }) {
   const { user, getToken } = useAuth();
-  const [unread, setUnread] = useState(0);
+  const [counts, setCounts] = useState({ activity: 0, messages: 0 });
+  const unread = counts.activity + counts.messages;
+  const clearActivity = useCallback(() => setCounts((c) => ({ ...c, activity: 0 })), []);
   const inFlight = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -34,7 +41,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       });
       if (res.ok) {
         const data = await res.json();
-        setUnread(Number(data.unread) || 0);
+        setCounts({ activity: Number(data.activity) || 0, messages: Number(data.messages) || 0 });
       }
     } catch {
       // Offline or server hiccup: keep the last known count.
@@ -45,7 +52,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) {
-      setUnread(0);
+      setCounts({ activity: 0, messages: 0 });
       return;
     }
     refresh();
@@ -62,7 +69,9 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   }, [user, refresh]);
 
   return (
-    <InboxContext.Provider value={{ unread, refresh, setUnread }}>
+    <InboxContext.Provider
+      value={{ unread, unreadActivity: counts.activity, unreadMessages: counts.messages, refresh, clearActivity }}
+    >
       {children}
     </InboxContext.Provider>
   );

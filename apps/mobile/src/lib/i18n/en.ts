@@ -35,6 +35,7 @@ import appUpdate from './en/appUpdate';
 import shareIntent from './en/shareIntent';
 import libs from './en/libs';
 import inbox from './en/inbox';
+import messages from './en/messages';
 
 export const en = {
   common,
@@ -72,6 +73,7 @@ export const en = {
   shareIntent,
   libs,
   inbox,
+  messages,
 };
 
 export type Dictionary = typeof en;

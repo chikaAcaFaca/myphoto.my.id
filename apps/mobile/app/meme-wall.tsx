@@ -9,11 +9,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
-import { colors, fonts } from '@/lib/theme';
+import { colors, fonts, memeFlame } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { MemeComments } from '@/components/MemeComments';
 import { useT } from '@/lib/i18n';
 import { withRef } from '@/lib/referral-link';
+import { SendMemeSheet } from '@/components/SendMemeSheet';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -73,6 +74,7 @@ export default function MemeWallScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [visibleId, setVisibleId] = useState<string | null>(null);
   const [commentMemeId, setCommentMemeId] = useState<string | null>(null);
+  const [sendMemeId, setSendMemeId] = useState<string | null>(null);
   const [pageH, setPageH] = useState(0);
   const [editMeme, setEditMeme] = useState<MemePost | null>(null);
   const [editCaption, setEditCaption] = useState('');
@@ -364,6 +366,12 @@ export default function MemeWallScreen() {
           count={item.reposts}
           onPress={() => handleRepost(item)}
         />
+        <RailButton
+          icon="paper-plane"
+          color={memeFlame}
+          label={t('messages.send')}
+          onPress={() => (user ? setSendMemeId(item.id) : router.push('/register'))}
+        />
         <RailButton icon="arrow-redo-outline" color="#fff" count={item.shares} onPress={() => handleShare(item)} />
         <RailButton
           icon="refresh-outline"
@@ -398,7 +406,7 @@ export default function MemeWallScreen() {
         {item.caption ? <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text> : null}
       </View>
     </View>
-  ), [pageH, visibleId, focused, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix, user?.uid, ownerActions, t]);
+  ), [pageH, visibleId, focused, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix, user, ownerActions, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
@@ -457,6 +465,8 @@ export default function MemeWallScreen() {
           ListFooterComponent={loadingMore ? <ActivityIndicator color="#fff" style={{ marginVertical: 16 }} /> : null}
         />
       )}
+
+      <SendMemeSheet memeId={sendMemeId} onClose={() => setSendMemeId(null)} />
 
       <MemeComments
         memeId={commentMemeId}

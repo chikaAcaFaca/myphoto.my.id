@@ -35,6 +35,7 @@ import appUpdate from './sr/appUpdate';
 import shareIntent from './sr/shareIntent';
 import libs from './sr/libs';
 import inbox from './sr/inbox';
+import messages from './sr/messages';
 
 export const sr: Dictionary = {
   common,
@@ -72,6 +73,7 @@ export const sr: Dictionary = {
   shareIntent,
   libs,
   inbox,
+  messages,
 };
 
 export default sr;
