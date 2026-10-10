@@ -18,12 +18,12 @@ export const dynamic = 'force-dynamic';
 // Matches the appBuild embedded in the currently published APK
 // (apps/mobile app.json → extra.appBuild). Keep them equal or the app
 // nags itself to "update" to the very build it's already running.
-const LATEST_BUILD = '2026-10-07';
+const LATEST_BUILD = '2026-10-10';
 
 export async function GET() {
   return NextResponse.json({
     build: LATEST_BUILD,
     url: '/api/download/android',
-    notes: 'MemeWall na početnom ekranu, engleski + srpski, 250 MB za svaku preporuku.',
+    notes: 'Novi izgled, Inbox sa porukama i obaveštenjima, Pozovi prijatelje.',
   });
 }
