@@ -8,7 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { setViewerPhotos } from '@/lib/photo-list-store';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { colors, fonts } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
 import { useTheme } from '@/lib/theme-context';
 import { searchLocalPhotos, type PhotoIndexEntry } from '@/lib/local-search-index';
 import type { FileMetadata } from '@myphoto/shared';
@@ -34,7 +35,7 @@ const SUGGESTIONS: { label: string; key: TKey; icon: string }[] = [
 ];
 
 export default function SearchScreen() {
-  const { colors: tc } = useTheme();
+  const { colors: tc, isDark } = useTheme();
   const { t, tp } = useT();
   const { getToken } = useAuth();
   const [query, setQuery] = useState('');
@@ -87,7 +88,7 @@ export default function SearchScreen() {
 
   const renderResult = ({ item }: { item: FileMetadata }) => (
     <TouchableOpacity
-      style={styles.cell}
+      style={[styles.cell, { backgroundColor: tc.bgInput }]}
       activeOpacity={0.8}
       delayPressIn={100}
       onPress={() => {
@@ -105,70 +106,80 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={styles.headerArea}>
-        <Text style={[styles.title, { color: tc.text }]}>{t('search.title')}</Text>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={colors.textMuted} />
+      <StackHeader title={t('search.title')}>
+        <View style={[styles.searchBox, { backgroundColor: tc.bgInput }]}>
+          <Ionicons name="search" size={18} color={tc.textMuted} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: tc.text }]}
             placeholder={t('search.placeholder')}
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={tc.textMuted}
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={() => doSearch(query)}
             returnKeyType="search"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setResults([]); setSearched(false); }}>
-              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+              style={styles.clearBtn}
+              onPress={() => { setQuery(''); setResults([]); setSearched(false); }}
+            >
+              <Ionicons name="close-circle" size={18} color={tc.textMuted} />
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </StackHeader>
 
       {/* Cloud / Device toggle */}
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[styles.toggleTab, searchMode === 'cloud' && [styles.toggleTabActive, { backgroundColor: tc.bgCard }]]}
-          onPress={() => { setSearchMode('cloud'); setSearched(false); setResults([]); setLocalResults([]); }}
-        >
-          <Ionicons name="cloud-outline" size={14} color={searchMode === 'cloud' ? tc.primary : colors.textMuted} />
-          <Text style={[styles.toggleText, searchMode === 'cloud' && { color: tc.primary }]}>{t('search.modeCloud')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleTab, searchMode === 'device' && [styles.toggleTabActive, { backgroundColor: tc.bgCard }]]}
-          onPress={() => { setSearchMode('device'); setSearched(false); setResults([]); setLocalResults([]); }}
-        >
-          <Ionicons name="phone-portrait-outline" size={14} color={searchMode === 'device' ? tc.primary : colors.textMuted} />
-          <Text style={[styles.toggleText, searchMode === 'device' && { color: tc.primary }]}>{t('search.modeDevice')}</Text>
-        </TouchableOpacity>
+      <View accessibilityRole="tablist" style={[styles.toggleContainer, { backgroundColor: tc.bgInput }]}>
+        {([
+          { mode: 'cloud' as const, icon: 'cloud-outline' as const, label: t('search.modeCloud') },
+          { mode: 'device' as const, icon: 'phone-portrait-outline' as const, label: t('search.modeDevice') },
+        ]).map(({ mode, icon, label }) => {
+          const selected = searchMode === mode;
+          return (
+            <TouchableOpacity
+              key={mode}
+              accessibilityRole="tab"
+              accessibilityState={{ selected }}
+              style={[styles.toggleTab, selected && [styles.toggleTabActive, { backgroundColor: isDark ? tc.bgCard : '#FFFFFF' }]]}
+              onPress={() => { setSearchMode(mode); setSearched(false); setResults([]); setLocalResults([]); }}
+            >
+              <Ionicons name={icon} size={15} color={selected ? tc.text : tc.textSecondary} />
+              <Text style={[styles.toggleText, { color: selected ? tc.text : tc.textSecondary, fontWeight: selected ? '700' : '600' }]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {!searched ? (
         <View style={{ flex: 1 }}>
-          <Text style={[styles.sectionLabel, { color: tc.textMuted }]}>{t('search.aiSuggestions')}</Text>
+          <Text style={[styles.sectionLabel, { color: tc.textSecondary }]}>{t('search.aiSuggestions')}</Text>
           <View style={styles.suggestions}>
             {SUGGESTIONS.map(s => (
               <TouchableOpacity
                 key={s.label}
-                style={styles.suggestionChip}
+                style={[styles.suggestionChip, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
                 onPress={() => { setQuery(s.label); doSearch(s.label); }}
               >
-                <Text style={[styles.suggestionText, { color: tc.primary }]}>{s.icon} {t(s.key)}</Text>
+                <Text style={[styles.suggestionText, { color: tc.text }]}>{s.icon} {t(s.key)}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
       ) : loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : searchMode === 'device' ? (
         localResults.length === 0 ? (
           <View style={styles.center}>
-            <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-            <Text style={styles.noResults}>{t('search.noLocalResults', { query })}</Text>
-            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>
+            <Ionicons name="search-outline" size={48} color={tc.textMuted} />
+            <Text style={[styles.noResults, { color: tc.textSecondary }]}>{t('search.noLocalResults', { query })}</Text>
+            <Text style={{ fontSize: 12, color: tc.textMuted, marginTop: 4, textAlign: 'center' }}>
               {t('search.indexingHint')}
             </Text>
           </View>
@@ -178,10 +189,10 @@ export default function SearchScreen() {
             keyExtractor={(item) => item.assetId}
             contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 12 }}
             ListHeaderComponent={
-              <Text style={styles.resultCount}>{tp('search.localCount', localResults.length)}</Text>
+              <Text style={[styles.resultCount, { color: tc.textSecondary }]}>{tp('search.localCount', localResults.length)}</Text>
             }
             renderItem={({ item }) => (
-              <View style={[styles.localResultCard, { backgroundColor: tc.bgCard }]}>
+              <View style={[styles.localResultCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.localLabels, { color: tc.text }]} numberOfLines={1}>{item.labels || t('search.noLabels')}</Text>
                   <Text style={{ fontSize: 11, color: tc.textMuted }}>
@@ -197,8 +208,8 @@ export default function SearchScreen() {
         )
       ) : results.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-          <Text style={styles.noResults}>{t('search.noResults', { query })}</Text>
+          <Ionicons name="search-outline" size={48} color={tc.textMuted} />
+          <Text style={[styles.noResults, { color: tc.textSecondary }]}>{t('search.noResults', { query })}</Text>
         </View>
       ) : (
         <FlatList
@@ -209,7 +220,7 @@ export default function SearchScreen() {
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ paddingBottom: 80 }}
           ListHeaderComponent={
-            <Text style={styles.resultCount}>{tp('search.resultCount', results.length)}</Text>
+            <Text style={[styles.resultCount, { color: tc.textSecondary }]}>{tp('search.resultCount', results.length)}</Text>
           }
         />
       )}
@@ -218,37 +229,35 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  headerArea: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 },
-  title: { fontSize: 22, ...fonts.extrabold, color: colors.text, marginBottom: 10 },
+  safe: { flex: 1 },
   searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.bgInput, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 4,
+    borderRadius: 14, paddingLeft: 14, paddingRight: 2, height: 48,
   },
-  searchInput: { flex: 1, fontSize: 13, color: colors.text },
-  sectionLabel: { fontSize: 10, ...fonts.bold, color: colors.textMuted, letterSpacing: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
-  suggestions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12 },
-  suggestionChip: { backgroundColor: '#e0f2fe', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
-  suggestionText: { fontSize: 12, ...fonts.semibold, color: '#0369a1' },
+  searchInput: { flex: 1, fontSize: 15, height: '100%' },
+  clearBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  sectionLabel: { fontSize: 11, ...fonts.bold, letterSpacing: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+  suggestions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16 },
+  suggestionChip: { borderWidth: 1, paddingHorizontal: 14, height: 40, justifyContent: 'center', borderRadius: 20 },
+  suggestionText: { fontSize: 14, ...fonts.semibold },
   row: { gap: GAP, paddingHorizontal: 1 },
   cell: { width: CELL, height: CELL, marginBottom: GAP, backgroundColor: colors.bgInput, borderRadius: 2 },
   cellImage: { width: '100%', height: '100%', borderRadius: 2 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  noResults: { fontSize: 14, color: colors.textMuted, marginTop: 12 },
-  resultCount: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary, paddingHorizontal: 12, paddingVertical: 8 },
-  // Toggle
-  toggleContainer: {
-    flexDirection: 'row', marginHorizontal: 12, marginVertical: 8,
-    backgroundColor: colors.bgInput, borderRadius: radius.md, padding: 3,
+  noResults: { fontSize: 15, marginTop: 12, textAlign: 'center' },
+  resultCount: { fontSize: 13, ...fonts.semibold, paddingHorizontal: 12, paddingVertical: 8 },
+  // Toggle (segmented, like LibrarySwitcher)
+  toggleContainer: { flexDirection: 'row', marginHorizontal: 16, marginBottom: 4, borderRadius: 14, padding: 4 },
+  toggleTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 36, borderRadius: 10 },
+  toggleTabActive: {
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 }, elevation: 1,
   },
-  toggleTab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 7, borderRadius: 10 },
-  toggleTabActive: { shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  toggleText: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary },
+  toggleText: { fontSize: 14 },
   // Local results
   localResultCard: {
-    flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: radius.md,
-    marginBottom: 6, gap: 10,
+    flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 14, borderWidth: 1,
+    marginBottom: 8, gap: 10,
   },
-  localLabels: { fontSize: 13, ...fonts.medium },
-  sceneBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  localLabels: { fontSize: 14, ...fonts.medium },
+  sceneBadge: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
 });

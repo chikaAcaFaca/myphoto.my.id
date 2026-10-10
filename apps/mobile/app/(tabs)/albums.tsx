@@ -9,7 +9,7 @@ import { ScreenHeader, HeaderIconButton } from '@/components/ScreenHeader';
 import { LibrarySwitcher } from '@/components/LibrarySwitcher';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { Album } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
@@ -85,13 +85,13 @@ export default function AlbumsScreen() {
       (item.coverFileId ? `${API_URL}/api/thumbnail/${item.coverFileId}?size=medium` : null);
     return (
       <TouchableOpacity
-        style={[styles.albumCard, { backgroundColor: tc.bgCard }]}
+        style={[styles.albumCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
         activeOpacity={0.7}
         delayPressIn={100}
         onPress={() => router.push({ pathname: '/album-detail' as any, params: { id: item.id, name: item.name } })}
       >
         {previews.length > 1 ? (
-          <View style={styles.mosaic}>
+          <View style={[styles.mosaic, { backgroundColor: tc.bgInput }]}>
             {previews.slice(0, 4).map((uri, i) => (
               <Image key={i} source={{ uri }} style={styles.mosaicCell} resizeMode="cover" />
             ))}
@@ -99,13 +99,13 @@ export default function AlbumsScreen() {
         ) : previews.length === 1 || cover ? (
           <Image source={{ uri: previews[0] || cover! }} style={styles.albumCover} resizeMode="cover" />
         ) : (
-          <View style={[styles.albumCover, styles.albumCoverEmpty]}>
-            <Ionicons name="images-outline" size={32} color={colors.textMuted} />
+          <View style={[styles.albumCover, styles.albumCoverEmpty, { backgroundColor: tc.bgInput }]}>
+            <Ionicons name="images-outline" size={32} color={tc.textMuted} />
           </View>
         )}
         <View style={styles.albumInfo}>
           <Text style={[styles.albumName, { color: tc.text }]} numberOfLines={1}>{item.name}</Text>
-          <Text style={[styles.albumCount, { color: tc.textMuted }]}>{tp('common.photos', item.fileCount || 0)}</Text>
+          <Text style={[styles.albumCount, { color: tc.textSecondary }]}>{tp('common.photos', item.fileCount || 0)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -122,14 +122,14 @@ export default function AlbumsScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : albums.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="albums-outline" size={64} color={colors.textMuted} />
+          <Ionicons name="albums-outline" size={56} color={tc.textMuted} />
           <Text style={[styles.emptyText, { color: tc.text }]}>{t('albums.empty')}</Text>
-          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>{t('albums.emptyHint')}</Text>
-          <TouchableOpacity style={styles.createBtn} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
+          <Text style={[styles.emptySubtext, { color: tc.textSecondary }]}>{t('albums.emptyHint')}</Text>
+          <TouchableOpacity style={[styles.createBtn, { backgroundColor: tc.primary }]} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
             <Ionicons name="add-circle" size={20} color="#fff" />
             <Text style={styles.createBtnText}>{t('albums.newAlbum')}</Text>
           </TouchableOpacity>
@@ -142,7 +142,7 @@ export default function AlbumsScreen() {
           numColumns={COL}
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} colors={[tc.primary]} />}
         />
       )}
       {/* Create Album Modal */}
@@ -151,26 +151,26 @@ export default function AlbumsScreen() {
           <View style={[styles.modalContent, { backgroundColor: tc.bgCard }]}>
             <Text style={[styles.modalTitle, { color: tc.text }]}>{t('albums.newAlbum')}</Text>
             <TextInput
-              style={styles.modalInput}
+              style={[styles.modalInput, { backgroundColor: tc.bgCard, borderColor: tc.border, color: tc.text }]}
               placeholder={t('albums.namePlaceholder')}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={tc.textMuted}
               value={newAlbumName}
               onChangeText={setNewAlbumName}
               autoFocus
             />
             <TextInput
-              style={[styles.modalInput, { height: 60 }]}
+              style={[styles.modalInput, { height: 72, textAlignVertical: 'top', backgroundColor: tc.bgCard, borderColor: tc.border, color: tc.text }]}
               placeholder={t('albums.descriptionPlaceholder')}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={tc.textMuted}
               value={newAlbumDesc}
               onChangeText={setNewAlbumDesc}
               multiline
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setShowCreate(false); setNewAlbumName(''); setNewAlbumDesc(''); }}>
-                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+                <Text style={[styles.modalCancelText, { color: tc.textSecondary }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalCreateBtn} onPress={handleCreateAlbum} disabled={creating}>
+              <TouchableOpacity style={[styles.modalCreateBtn, { backgroundColor: tc.primary }]} onPress={handleCreateAlbum} disabled={creating}>
                 {creating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.modalCreateText}>{t('albums.create')}</Text>}
               </TouchableOpacity>
             </View>
@@ -182,45 +182,36 @@ export default function AlbumsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
-  addBtn: {
-    width: 32, height: 32, borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
-  },
+  safe: { flex: 1 },
   row: { gap: GAP },
   albumCard: {
-    width: CARD_W, borderRadius: radius.lg, overflow: 'hidden',
-    backgroundColor: '#fff', marginBottom: GAP,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    width: CARD_W, borderRadius: 20, borderWidth: 1, overflow: 'hidden', marginBottom: GAP,
   },
-  albumCover: { width: '100%', height: 100 },
-  albumCoverEmpty: { backgroundColor: colors.bgInput, alignItems: 'center', justifyContent: 'center' },
-  mosaic: { width: '100%', height: 100, flexDirection: 'row', flexWrap: 'wrap', backgroundColor: colors.bgInput },
-  mosaicCell: { width: '50%', height: 50 },
-  albumInfo: { padding: 10 },
-  albumName: { fontSize: 13, ...fonts.bold, color: colors.text },
-  albumCount: { fontSize: 10, color: colors.textMuted, marginTop: 2 },
+  albumCover: { width: '100%', height: 110 },
+  albumCoverEmpty: { alignItems: 'center', justifyContent: 'center' },
+  mosaic: { width: '100%', height: 110, flexDirection: 'row', flexWrap: 'wrap' },
+  mosaicCell: { width: '50%', height: 55 },
+  albumInfo: { paddingHorizontal: 12, paddingVertical: 10 },
+  albumName: { fontSize: 14, ...fonts.bold },
+  albumCount: { fontSize: 12, marginTop: 2 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyText: { fontSize: 18, ...fonts.bold, color: colors.text, marginTop: 12 },
-  emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4, marginBottom: 20 },
+  emptyText: { fontSize: 20, ...fonts.display, marginTop: 12 },
+  emptySubtext: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 4, marginBottom: 20 },
   createBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: radius.md,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingHorizontal: 22, height: 52, borderRadius: 26,
   },
-  createBtnText: { color: '#fff', fontSize: 14, ...fonts.semibold },
+  createBtnText: { color: '#fff', fontSize: 16, ...fonts.bold },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#fff', borderRadius: radius.lg, padding: 20, width: width - 48, maxWidth: 400 },
-  modalTitle: { fontSize: 18, ...fonts.bold, color: colors.text, marginBottom: 16 },
+  modalContent: { borderRadius: 20, padding: 20, width: width - 48, maxWidth: 400 },
+  modalTitle: { fontSize: 20, ...fonts.display, marginBottom: 16 },
   modalInput: {
-    backgroundColor: colors.bgInput, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 14, color: colors.text, marginBottom: 12, ...fonts.medium,
+    borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, minHeight: 48,
+    fontSize: 15, marginBottom: 12, ...fonts.medium,
   },
   modalButtons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
-  modalCancelBtn: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: radius.md },
-  modalCancelText: { fontSize: 14, color: colors.textSecondary, ...fonts.semibold },
-  modalCreateBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: radius.md },
-  modalCreateText: { fontSize: 14, color: '#fff', ...fonts.semibold },
+  modalCancelBtn: { paddingHorizontal: 18, height: 44, justifyContent: 'center', borderRadius: 22 },
+  modalCancelText: { fontSize: 15, ...fonts.semibold },
+  modalCreateBtn: { paddingHorizontal: 22, height: 44, justifyContent: 'center', borderRadius: 22 },
+  modalCreateText: { fontSize: 15, color: '#fff', ...fonts.bold },
 });

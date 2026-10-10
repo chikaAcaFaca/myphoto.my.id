@@ -1,10 +1,9 @@
 import { useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Dimensions, Platform, Linking,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import {
   STORAGE_TIERS,
   resolveTierPeriod,
@@ -15,13 +14,13 @@ import {
 } from '@myphoto/shared';
 import { useAuth } from '@/lib/auth-context';
 import { getUserTier } from '@/lib/meme-limits';
-import { colors, radius, fonts } from '@/lib/theme';
+import { fonts, memeFlame } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { CAN_SELL_IN_APP } from '@/lib/distribution';
 import { formatBytes } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
 
-const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 // 'short' = the shortest period each plan is sold in (monthly for large
@@ -46,24 +45,18 @@ function PlanInfoScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: tc.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('pricing.yourPlan')}</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <StackHeader title={t('pricing.yourPlan')} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-        <View style={[styles.tierCard, { backgroundColor: tc.bgCard, borderColor: '#22c55e', borderWidth: 2, marginHorizontal: 0 }]}>
+        <View style={[styles.tierCard, { backgroundColor: tc.bgCard, borderColor: tc.primary, borderWidth: 2, marginHorizontal: 0 }]}>
           <View style={styles.tierTop}>
             <Text style={[styles.tierName, { color: tc.text }]}>{currentTier.name}</Text>
             <Text style={[styles.tierStorage, { color: tc.text }]}>{currentTier.storageDisplay}</Text>
           </View>
-          <Text style={{ color: tc.textMuted, marginTop: 8 }}>
+          <Text style={{ color: tc.textSecondary, marginTop: 8 }}>
             {t('pricing.usedOf', { used: formatBytes(used), limit: formatBytes(limit) })}
           </Text>
         </View>
-        <Text style={{ color: tc.textMuted, fontSize: 13, lineHeight: 19 }}>
+        <Text style={{ color: tc.textSecondary, fontSize: 13, lineHeight: 19 }}>
           {t('pricing.manageOnWeb')}
         </Text>
       </ScrollView>
@@ -72,7 +65,7 @@ function PlanInfoScreen() {
 }
 
 function StorePricingScreen() {
-  const { colors: tc } = useTheme();
+  const { colors: tc, isDark } = useTheme();
   const { appUser } = useAuth();
   const [billing, setBilling] = useState<BillingPeriod>('yearly');
   const { t } = useT();
@@ -92,33 +85,46 @@ function StorePricingScreen() {
     Linking.openURL(`${API_URL}/checkout?tier=${tier.tier}&period=${period}`);
   }, [billing]);
 
+  const segSelected = { backgroundColor: isDark ? tc.bgCard : '#FFFFFF', ...styles.segSelected };
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: tc.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('pricing.choosePlan')}</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <StackHeader title={t('pricing.choosePlan')} />
 
       {/* STICKY billing toggle — stays above scroll */}
-      <View style={[styles.stickyBar, { backgroundColor: tc.bg, borderBottomColor: tc.border }]}>
-        <View style={[styles.billingRow, { backgroundColor: tc.bgInput }]}>
+      <View style={[styles.stickyBar, { backgroundColor: tc.bg }]}>
+        <View accessibilityRole="tablist" style={[styles.billingRow, { backgroundColor: tc.bgInput }]}>
           <TouchableOpacity
-            style={[styles.billingBtn, billing === 'short' && { backgroundColor: tc.primary }]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: billing === 'short' }}
+            style={[styles.billingBtn, billing === 'short' && segSelected]}
             onPress={() => setBilling('short')}
           >
-            <Text style={[styles.billingText, billing === 'short' && { color: '#fff' }]}>{t('pricing.shorter')}</Text>
+            <Text
+              style={[
+                styles.billingText,
+                { color: billing === 'short' ? tc.text : tc.textSecondary, fontWeight: billing === 'short' ? '700' : '600' },
+              ]}
+            >
+              {t('pricing.shorter')}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.billingBtn, billing === 'yearly' && { backgroundColor: tc.primary }]}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: billing === 'yearly' }}
+            style={[styles.billingBtn, billing === 'yearly' && segSelected]}
             onPress={() => setBilling('yearly')}
           >
-            <Text style={[styles.billingText, billing === 'yearly' && { color: '#fff' }]}>{t('pricing.yearly')}</Text>
-            <View style={styles.freeBadge}>
-              <Text style={styles.freeText}>{t('pricing.twoMonthsFree')}</Text>
+            <Text
+              style={[
+                styles.billingText,
+                { color: billing === 'yearly' ? tc.text : tc.textSecondary, fontWeight: billing === 'yearly' ? '700' : '600' },
+              ]}
+            >
+              {t('pricing.yearly')}
+            </Text>
+            <View style={[styles.freeBadge, { backgroundColor: tc.primaryLight }]}>
+              <Text style={[styles.freeText, { color: tc.primary }]}>{t('pricing.twoMonthsFree')}</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -127,18 +133,16 @@ function StorePricingScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 40, paddingTop: 8 }}>
         {/* Trust badges */}
         <View style={styles.trustRow}>
-          <View style={[styles.trustBadge, { backgroundColor: '#dcfce7' }]}>
-            <Ionicons name="shield-checkmark" size={12} color="#16a34a" />
-            <Text style={[styles.trustText, { color: '#16a34a' }]}>{t('pricing.noAiTraining')}</Text>
-          </View>
-          <View style={[styles.trustBadge, { backgroundColor: '#dbeafe' }]}>
-            <Ionicons name="server" size={12} color="#2563eb" />
-            <Text style={[styles.trustText, { color: '#2563eb' }]}>{t('pricing.euServers')}</Text>
-          </View>
-          <View style={[styles.trustBadge, { backgroundColor: '#f3e8ff' }]}>
-            <Ionicons name="lock-closed" size={12} color="#7c3aed" />
-            <Text style={[styles.trustText, { color: '#7c3aed' }]}>GDPR</Text>
-          </View>
+          {[
+            { icon: 'shield-checkmark' as const, label: t('pricing.noAiTraining') },
+            { icon: 'server' as const, label: t('pricing.euServers') },
+            { icon: 'lock-closed' as const, label: 'GDPR' },
+          ].map((b) => (
+            <View key={b.label} style={[styles.trustBadge, { backgroundColor: tc.bgInput }]}>
+              <Ionicons name={b.icon} size={12} color={tc.textSecondary} />
+              <Text style={[styles.trustText, { color: tc.textSecondary }]}>{b.label}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Tier cards — each shows BOTH prices */}
@@ -159,16 +163,16 @@ function StorePricingScreen() {
                 styles.tierCard,
                 { backgroundColor: tc.bgCard, borderColor: tc.border },
                 isPopular && { borderColor: tc.primary, borderWidth: 2 },
-                isCurrent && { borderColor: '#22c55e', borderWidth: 2 },
+                isCurrent && { borderColor: tc.success, borderWidth: 2 },
               ]}
             >
               {isPopular && !isCurrent && (
-                <View style={[styles.badge, { backgroundColor: '#fbbf24' }]}>
-                  <Text style={[styles.badgeText, { color: '#92400e' }]}>{t('pricing.mostPopular')}</Text>
+                <View style={[styles.badge, { backgroundColor: tc.primary }]}>
+                  <Text style={styles.badgeText}>{t('pricing.mostPopular')}</Text>
                 </View>
               )}
               {isCurrent && (
-                <View style={[styles.badge, { backgroundColor: '#22c55e' }]}>
+                <View style={[styles.badge, { backgroundColor: tc.success }]}>
                   <Text style={styles.badgeText}>{t('pricing.yourPlanBadge')}</Text>
                 </View>
               )}
@@ -181,8 +185,8 @@ function StorePricingScreen() {
 
               {/* Meme limits */}
               <View style={styles.memeRow}>
-                <Ionicons name="sparkles" size={12} color="#8b5cf6" />
-                <Text style={styles.memeText}>
+                <Ionicons name="sparkles" size={12} color={memeFlame} />
+                <Text style={[styles.memeText, { color: tc.textSecondary }]}>
                   {tier.memesPerDay > 0 ? t('pricing.aiPerDay', { count: tier.memesPerDay }) : t('pricing.noAi')} · {isFree ? t('pricing.manualNone') : t('pricing.manualUnlimited')} · {t('pricing.perMonthShort', { count: tier.memesPerMonth })}
                 </Text>
               </View>
@@ -196,12 +200,18 @@ function StorePricingScreen() {
                 <View style={styles.priceSection}>
                   {/* Shortest period this plan is sold in */}
                   {hasShort && (
-                    <View style={[styles.priceBox, billing === 'short' && styles.priceBoxActive]}>
-                      <Text style={[styles.priceLabel, { color: tc.textMuted }]}>{periodLabel(shortPeriod)}</Text>
+                    <View
+                      style={[
+                        styles.priceBox,
+                        { borderColor: tc.border },
+                        billing === 'short' && { borderColor: tc.primary, borderWidth: 2, backgroundColor: tc.primaryLight },
+                      ]}
+                    >
+                      <Text style={[styles.priceLabel, { color: tc.textSecondary }]}>{periodLabel(shortPeriod)}</Text>
                       <Text style={[styles.priceAmount, { color: billing === 'short' ? tc.primary : tc.text }]}>
                         €{getTierMonthlyEquivalent(tier, shortPeriod).toFixed(2)}
                       </Text>
-                      <Text style={[styles.priceSub, { color: tc.textMuted }]}>
+                      <Text style={[styles.priceSub, { color: tc.textSecondary }]}>
                         {shortPeriod === 'monthly'
                           ? t('pricing.perMonth')
                           : t('pricing.perPeriod', { price: shortTotal.toFixed(2), period: periodLabel(shortPeriod) })}
@@ -210,15 +220,21 @@ function StorePricingScreen() {
                   )}
 
                   {/* Yearly price */}
-                  <View style={[styles.priceBox, billing === 'yearly' && styles.priceBoxActive]}>
-                    <Text style={[styles.priceLabel, { color: tc.textMuted }]}>{t('pricing.yearly')}</Text>
-                    <Text style={[styles.priceAmount, { color: billing === 'yearly' ? '#16a34a' : tc.text }]}>
+                  <View
+                    style={[
+                      styles.priceBox,
+                      { borderColor: tc.border },
+                      billing === 'yearly' && { borderColor: tc.primary, borderWidth: 2, backgroundColor: tc.primaryLight },
+                    ]}
+                  >
+                    <Text style={[styles.priceLabel, { color: tc.textSecondary }]}>{t('pricing.yearly')}</Text>
+                    <Text style={[styles.priceAmount, { color: billing === 'yearly' ? tc.primary : tc.text }]}>
                       €{yearlyMonthly.toFixed(2)}
                     </Text>
-                    <Text style={[styles.priceSub, { color: tc.textMuted }]}>{t('pricing.perMonth')}</Text>
+                    <Text style={[styles.priceSub, { color: tc.textSecondary }]}>{t('pricing.perMonth')}</Text>
                     {savings > 0 && (
-                      <View style={styles.savingsPill}>
-                        <Text style={styles.savingsPillText}>-{savings}%</Text>
+                      <View style={[styles.savingsPill, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+                        <Text style={[styles.savingsPillText, { color: tc.success }]}>-{savings}%</Text>
                       </View>
                     )}
                   </View>
@@ -228,10 +244,15 @@ function StorePricingScreen() {
               {/* Select button */}
               {!isCurrent && !isFree && (
                 <TouchableOpacity
-                  style={[styles.selectBtn, isPopular && { backgroundColor: tc.primary, borderColor: tc.primary }]}
+                  accessibilityRole="button"
+                  style={[
+                    styles.selectBtn,
+                    { borderColor: tc.border, backgroundColor: tc.bgCard },
+                    isPopular && { backgroundColor: tc.primary, borderColor: tc.primary },
+                  ]}
                   onPress={() => handleSelectPlan(tier)}
                 >
-                  <Text style={[styles.selectBtnText, isPopular && { color: '#fff' }]}>
+                  <Text style={[styles.selectBtnText, { color: isPopular ? '#fff' : tc.primary }]}>
                     {t('pricing.select', { name: tier.name })}
                   </Text>
                 </TouchableOpacity>
@@ -241,7 +262,7 @@ function StorePricingScreen() {
         })}
 
         {/* Features */}
-        <View style={[styles.featuresCard, { backgroundColor: tc.bgCard }]}>
+        <View style={[styles.featuresCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
           <Text style={[styles.featuresTitle, { color: tc.text }]}>{t('pricing.allPlansInclude')}</Text>
           {[
             t('pricing.featureBackup'),
@@ -253,7 +274,7 @@ function StorePricingScreen() {
             t('pricing.featureCancel'),
           ].map((f, i) => (
             <View key={i} style={styles.featureRow}>
-              <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+              <Ionicons name="checkmark-circle" size={16} color={tc.success} />
               <Text style={[styles.featureText, { color: tc.textSecondary }]}>{f}</Text>
             </View>
           ))}
@@ -265,63 +286,58 @@ function StorePricingScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 12, paddingVertical: 12, paddingTop: Platform.OS === 'ios' ? 8 : 8,
-  },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
-  stickyBar: {
-    paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1,
-  },
-  billingRow: {
-    flexDirection: 'row', borderRadius: radius.md, padding: 4,
-  },
+  stickyBar: { paddingHorizontal: 16, paddingBottom: 10 },
+  billingRow: { flexDirection: 'row', borderRadius: 14, padding: 4 },
   billingBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 10, borderRadius: radius.sm,
+    height: 40, borderRadius: 10,
   },
-  billingText: { fontSize: 13, ...fonts.bold, color: colors.textSecondary },
-  freeBadge: { backgroundColor: '#dcfce7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  freeText: { fontSize: 9, ...fonts.bold, color: '#16a34a' },
-  trustRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 12, paddingHorizontal: 16 },
-  trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
-  trustText: { fontSize: 9, ...fonts.semibold },
+  segSelected: {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  billingText: { fontSize: 14 },
+  freeBadge: { borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
+  freeText: { fontSize: 10, ...fonts.bold },
+  trustRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 16, paddingHorizontal: 16 },
+  trustBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  trustText: { fontSize: 11, ...fonts.semibold },
   tierCard: {
-    marginHorizontal: 16, marginBottom: 10, borderRadius: radius.lg, borderWidth: 1,
-    padding: 16, position: 'relative',
+    marginHorizontal: 16, marginBottom: 14, borderRadius: 20, borderWidth: 1,
+    padding: 18, position: 'relative',
   },
   badge: {
-    position: 'absolute', top: -10, left: 16, borderRadius: 8,
+    position: 'absolute', top: -11, left: 18, borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 3, zIndex: 1,
   },
-  badgeText: { fontSize: 9, ...fonts.bold, color: '#fff' },
+  badgeText: { fontSize: 11, ...fonts.bold, color: '#fff' },
   tierTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  tierName: { fontSize: 16, ...fonts.bold },
-  tierStorage: { fontSize: 20, ...fonts.extrabold },
-  memeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, marginBottom: 10 },
-  memeText: { fontSize: 10, ...fonts.medium, color: '#8b5cf6' },
+  tierName: { fontSize: 18, ...fonts.display },
+  tierStorage: { fontSize: 22, ...fonts.display },
+  memeRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6, marginBottom: 12 },
+  memeText: { fontSize: 12, ...fonts.medium, flexShrink: 1 },
   priceSection: { flexDirection: 'row', gap: 10 },
-  priceMain: { fontSize: 22, ...fonts.extrabold },
+  priceMain: { fontSize: 22, ...fonts.display },
   priceBox: {
-    flex: 1, alignItems: 'center', borderRadius: radius.md, paddingVertical: 10,
-    borderWidth: 1, borderColor: '#e2e8f0',
+    flex: 1, alignItems: 'center', borderRadius: 14, paddingVertical: 12, borderWidth: 1,
   },
-  priceBoxActive: { borderColor: '#3b82f6', borderWidth: 2, backgroundColor: '#eff6ff' },
-  priceLabel: { fontSize: 9, ...fonts.bold, letterSpacing: 0.5, marginBottom: 2 },
-  priceAmount: { fontSize: 20, ...fonts.extrabold },
-  priceSub: { fontSize: 10, ...fonts.medium },
-  savingsPill: { backgroundColor: '#dcfce7', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginTop: 4 },
-  savingsPillText: { fontSize: 9, ...fonts.bold, color: '#16a34a' },
+  priceLabel: { fontSize: 11, ...fonts.semibold, letterSpacing: 0.3, marginBottom: 2 },
+  priceAmount: { fontSize: 22, ...fonts.extrabold },
+  priceSub: { fontSize: 11, ...fonts.medium },
+  savingsPill: { borderRadius: 999, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, marginTop: 6 },
+  savingsPillText: { fontSize: 11, ...fonts.bold },
   selectBtn: {
-    marginTop: 12, borderRadius: radius.md, paddingVertical: 12,
-    borderWidth: 1.5, borderColor: colors.primary, alignItems: 'center',
+    marginTop: 14, borderRadius: 26, height: 48, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
-  selectBtnText: { fontSize: 13, ...fonts.bold, color: colors.primary },
+  selectBtnText: { fontSize: 15, ...fonts.bold },
   featuresCard: {
-    marginHorizontal: 16, marginTop: 8, borderRadius: radius.lg, padding: 16,
+    marginHorizontal: 16, marginTop: 6, borderRadius: 20, borderWidth: 1, padding: 18,
   },
-  featuresTitle: { fontSize: 14, ...fonts.bold, marginBottom: 12 },
+  featuresTitle: { fontSize: 17, ...fonts.display, marginBottom: 12 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  featureText: { fontSize: 12, ...fonts.medium },
+  featureText: { fontSize: 13, ...fonts.medium, flexShrink: 1 },
 });

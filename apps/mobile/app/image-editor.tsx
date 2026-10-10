@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Dimensions, Alert,
+  View, Text, TouchableOpacity, StyleSheet, Alert,
   ActivityIndicator, Platform, ScrollView,
   Image as RNImage,
 } from 'react-native';
@@ -14,13 +14,14 @@ import { useAuth } from '@/lib/auth-context';
 import { useCloudGate } from '@/lib/cloud-gate';
 import { saveToMySpace } from '@/lib/myspace-upload';
 import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
-import { colors, radius, fonts } from '@/lib/theme';
-import { useTheme } from '@/lib/theme-context';
+import { radius, fonts, darkColors as ed, lightColors, memeFlame } from '@/lib/theme';
 import { useT, type TKey } from '@/lib/i18n';
 import { ZoomPanView, type ZoomPanTransform } from '@/components/ZoomPanView';
 
-const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
+/** The editor always sits on a dark canvas: chrome uses the dark palette,
+ *  filled buttons use the brand blue (white text passes 4.5:1 on it). */
+const BRAND_FILL = lightColors.primary;
 
 type FilterType = 'original' | 'bright' | 'contrast' | 'warm' | 'cool' | 'bw';
 
@@ -39,7 +40,6 @@ const FILTERS: { key: FilterType; label: TKey; icon: string; comingSoon?: boolea
 ];
 
 export default function ImageEditorScreen() {
-  const { colors: tc } = useTheme();
   const { t } = useT();
   const { id, name, uri: sourceUri, isUploaded } = useLocalSearchParams<{
     id: string; name: string; uri?: string; isUploaded?: string;
@@ -296,22 +296,39 @@ export default function ImageEditorScreen() {
   }, [currentUri, name, id, isUploaded]);
 
   return (
-    <View style={[styles.container, { backgroundColor: tc.bg }]}>
+    <View style={styles.container}>
       {/* Top bar */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
-          <Ionicons name="close" size={24} color="#fff" />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.topBtn}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+        >
+          <Ionicons name="chevron-back" size={26} color={ed.text} />
         </TouchableOpacity>
         <Text style={styles.fileName} numberOfLines={1}>{name || t('editor.title')}</Text>
         <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity onPress={handleSaveToSpace} disabled={savingSpace} style={styles.topBtn}>
+          <TouchableOpacity
+            onPress={handleSaveToSpace}
+            disabled={savingSpace}
+            style={styles.topBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('editor.saveToSpace')}
+          >
             {savingSpace ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Ionicons name="cloud-upload-outline" size={22} color="#fff" />
             )}
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.topBtn}>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={saving}
+            style={styles.topBtn}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.save')}
+          >
             {saving ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
@@ -328,7 +345,7 @@ export default function ImageEditorScreen() {
       >
         {processing || removingBg || imageLoading || cropping ? (
           <View style={styles.processingOverlay}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={ed.primary} />
             <Text style={styles.processingText}>
               {imageLoading
                 ? t('editor.loadingImage')
@@ -359,14 +376,14 @@ export default function ImageEditorScreen() {
       </View>
 
       {/* Tools */}
-      <View style={[styles.toolsContainer, { backgroundColor: tc.bgCard }]}>
-        <Text style={[styles.zoomHint, { color: tc.textMuted }]}>
+      <View style={styles.toolsContainer}>
+        <Text style={styles.zoomHint}>
           {t('editor.zoomHint')}
         </Text>
 
         {/* Crop to the visible viewport after pinch/pan. */}
         <TouchableOpacity
-          style={[styles.removeBgBtn, { backgroundColor: '#0ea5e9' }]}
+          style={styles.removeBgBtn}
           onPress={handleCrop}
           disabled={cropping || !currentUri || !intrinsic}
         >
@@ -380,7 +397,7 @@ export default function ImageEditorScreen() {
 
         {/* Remove Background button */}
         <TouchableOpacity
-          style={[styles.removeBgBtn, { backgroundColor: colors.accent }]}
+          style={styles.removeBgBtn}
           onPress={handleRemoveBg}
           disabled={removingBg}
         >
@@ -395,26 +412,26 @@ export default function ImageEditorScreen() {
         {/* Turn the current image straight into a sticker or meme */}
         <View style={styles.makeRow}>
           <TouchableOpacity
-            style={[styles.makeBtn, { backgroundColor: '#ec4899' }]}
+            style={styles.makeBtn}
             onPress={goToSticker}
             disabled={!currentUri || removingBg}
           >
-            <Ionicons name="happy-outline" size={18} color="#fff" />
+            <Ionicons name="happy-outline" size={18} color={ed.text} />
             <Text style={styles.makeBtnText}>{t('editor.makeSticker')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.makeBtn, { backgroundColor: '#f97316' }]}
+            style={styles.makeBtn}
             onPress={goToMeme}
             disabled={!currentUri || removingBg}
           >
-            <Ionicons name="flame-outline" size={18} color="#fff" />
+            <Ionicons name="flame-outline" size={18} color={memeFlame} />
             <Text style={styles.makeBtnText}>{t('editor.makeMeme')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Save to personal MySpace cloud */}
         <TouchableOpacity
-          style={[styles.spaceBtn, { backgroundColor: colors.primary }]}
+          style={[styles.spaceBtn, { backgroundColor: BRAND_FILL }]}
           onPress={handleSaveToSpace}
           disabled={!currentUri || savingSpace}
         >
@@ -423,7 +440,7 @@ export default function ImageEditorScreen() {
           ) : (
             <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
           )}
-          <Text style={styles.makeBtnText}>{t('editor.saveToSpace')}</Text>
+          <Text style={[styles.makeBtnText, { color: '#fff' }]}>{t('editor.saveToSpace')}</Text>
         </TouchableOpacity>
 
         {/* Filters */}
@@ -433,7 +450,7 @@ export default function ImageEditorScreen() {
               key={f.key}
               style={[
                 styles.filterBtn,
-                activeFilter === f.key && { borderColor: colors.primary, borderWidth: 2 },
+                activeFilter === f.key && { borderColor: ed.primary, borderWidth: 2 },
                 f.comingSoon && { opacity: 0.55 },
               ]}
               onPress={() => applyFilter(f.key)}
@@ -442,13 +459,13 @@ export default function ImageEditorScreen() {
               <Ionicons
                 name={f.icon as any}
                 size={20}
-                color={activeFilter === f.key ? colors.primary : tc.textMuted}
+                color={activeFilter === f.key ? ed.primary : ed.textSecondary}
               />
-              <Text style={[styles.filterLabel, activeFilter === f.key && { color: colors.primary }]}>
+              <Text style={[styles.filterLabel, activeFilter === f.key && { color: ed.primary }]}>
                 {t(f.label)}
               </Text>
               {f.comingSoon && (
-                <Text style={{ fontSize: 8, color: tc.textMuted, marginTop: 1 }}>{t('editor.soon')}</Text>
+                <Text style={{ fontSize: 9, color: ed.textMuted, marginTop: 1 }}>{t('editor.soon')}</Text>
               )}
             </TouchableOpacity>
           ))}
@@ -459,16 +476,15 @@ export default function ImageEditorScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: ed.bg },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: Platform.OS === 'ios' ? 54 : 36, paddingHorizontal: 8, paddingBottom: 8,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: ed.bg,
   },
-  topBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  fileName: { flex: 1, color: '#fff', fontSize: 14, ...fonts.semibold, textAlign: 'center', marginHorizontal: 8 },
+  topBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  fileName: { flex: 1, color: ed.text, fontSize: 15, ...fonts.semibold, textAlign: 'center', marginHorizontal: 8 },
   imageContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' },
-  image: { width: width, height: height * 0.55 },
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10, justifyContent: 'center', alignItems: 'center',
@@ -477,28 +493,30 @@ const styles = StyleSheet.create({
   processingText: { color: '#fff', fontSize: 13, ...fonts.medium, marginTop: 8 },
   toolsContainer: {
     paddingVertical: 12, paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+    backgroundColor: ed.bgCard,
   },
   removeBgBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 16, borderRadius: radius.md, paddingVertical: 12, marginBottom: 12,
+    marginHorizontal: 16, borderRadius: radius.full, minHeight: 46, paddingVertical: 12, marginBottom: 10,
+    backgroundColor: ed.bgInput,
   },
-  removeBgText: { color: '#fff', fontSize: 13, ...fonts.bold },
-  makeRow: { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginBottom: 12 },
+  removeBgText: { color: ed.text, fontSize: 14, ...fonts.semibold },
+  makeRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 10 },
   makeBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    borderRadius: radius.md, paddingVertical: 11,
+    borderRadius: radius.full, minHeight: 46, paddingVertical: 11, backgroundColor: ed.bgInput,
   },
-  makeBtnText: { color: '#fff', fontSize: 13, ...fonts.bold },
+  makeBtnText: { color: ed.text, fontSize: 14, ...fonts.semibold },
   spaceBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 16, marginBottom: 12, borderRadius: radius.md, paddingVertical: 11,
+    marginHorizontal: 16, marginBottom: 12, borderRadius: radius.full, minHeight: 48, paddingVertical: 12,
   },
   filtersRow: { paddingHorizontal: 12, gap: 12 },
   filterBtn: {
     alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 14,
     borderRadius: radius.md, borderWidth: 1, borderColor: 'transparent',
   },
-  filterLabel: { fontSize: 10, ...fonts.medium, color: colors.textMuted },
-  zoomHint: { fontSize: 11, textAlign: 'center', marginHorizontal: 16, marginBottom: 8 },
+  filterLabel: { fontSize: 11, ...fonts.medium, color: ed.textSecondary },
+  zoomHint: { fontSize: 12, color: ed.textSecondary, textAlign: 'center', marginHorizontal: 16, marginBottom: 8 },
 });

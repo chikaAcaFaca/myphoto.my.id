@@ -1,14 +1,16 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions,
-  Alert, ActivityIndicator, Share, Platform, ScrollView, FlatList, Modal,
+  Alert, ActivityIndicator, Share, ScrollView, FlatList, Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
+import { HeaderIconButton } from '@/components/ScreenHeader';
 import { useTheme } from '@/lib/theme-context';
 import { useT, type TKey } from '@/lib/i18n';
 
@@ -128,29 +130,32 @@ export default function ComicCreatorScreen() {
       <View style={styles.panelActions}>
         <TouchableOpacity
           style={styles.panelActionBtn}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={t('comic.bubbleTitle')}
           onPress={() => { setEditingPanel(item); setBubbleText(item.bubbleText); setBubblePos(item.bubblePosition); }}
         >
-          <Ionicons name="chatbubble-outline" size={14} color="#fff" />
+          <Ionicons name="chatbubble-outline" size={16} color="#fff" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.panelActionBtn} onPress={() => removePanel(item.id)}>
-          <Ionicons name="close" size={14} color="#fff" />
+        <TouchableOpacity
+          style={styles.panelActionBtn}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.remove')}
+          onPress={() => removePanel(item.id)}
+        >
+          <Ionicons name="close" size={16} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      {/* Header */}
-      <View style={[styles.topBar, { backgroundColor: '#8b5cf6' }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('comic.title')}</Text>
-        <TouchableOpacity onPress={handleShare} style={styles.topBtn}>
-          <Ionicons name="share-outline" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['top']}>
+      <StackHeader
+        title={t('comic.title')}
+        actions={<HeaderIconButton icon="share-outline" label={t('common.share')} onPress={handleShare} />}
+      />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Title input */}
@@ -168,10 +173,10 @@ export default function ComicCreatorScreen() {
           {LAYOUTS.map((l) => (
             <TouchableOpacity
               key={l.id}
-              style={[styles.layoutBtn, layout.id === l.id && { backgroundColor: '#8b5cf6' + '20', borderColor: '#8b5cf6' }]}
+              style={[styles.layoutBtn, { borderColor: tc.border }, layout.id === l.id && { backgroundColor: tc.primaryLight, borderColor: tc.primary }]}
               onPress={() => { setLayout(l); setPanels((prev) => prev.slice(0, l.cols * l.rows)); }}
             >
-              <Text style={[styles.layoutText, layout.id === l.id && { color: '#8b5cf6' }]}>{tp('common.photos', l.cols * l.rows)}</Text>
+              <Text style={[styles.layoutText, { color: tc.textSecondary }, layout.id === l.id && { color: tc.primary }]}>{tp('common.photos', l.cols * l.rows)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -200,7 +205,7 @@ export default function ComicCreatorScreen() {
                 onPress={addPanel}
               >
                 <Ionicons name="add-circle-outline" size={32} color={tc.textMuted} />
-                <Text style={[styles.addPanelText, { color: tc.textMuted }]}>{t('comic.addImage')}</Text>
+                <Text style={[styles.addPanelText, { color: tc.textSecondary }]}>{t('comic.addImage')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -227,52 +232,46 @@ export default function ComicCreatorScreen() {
               autoFocus
             />
 
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>{t('comic.position')}</Text>
+            <Text style={[styles.controlLabel, { color: tc.textSecondary }]}>{t('comic.position')}</Text>
             <View style={styles.posRow}>
               {BUBBLE_POSITIONS.map((p) => (
                 <TouchableOpacity
                   key={p.key}
-                  style={[styles.posBtn, bubblePos === p.key && { backgroundColor: '#8b5cf6' + '20', borderColor: '#8b5cf6' }]}
+                  style={[styles.posBtn, { borderColor: tc.border }, bubblePos === p.key && { backgroundColor: tc.primaryLight, borderColor: tc.primary }]}
                   onPress={() => setBubblePos(p.key)}
                 >
-                  <Text style={[styles.posText, bubblePos === p.key && { color: '#8b5cf6' }]}>{t(p.labelKey)}</Text>
+                  <Text style={[styles.posText, { color: tc.textSecondary }, bubblePos === p.key && { color: tc.primary }]}>{t(p.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setEditingPanel(null)} style={styles.cancelBtn}>
-                <Text style={{ color: tc.textMuted, ...fonts.semibold }}>{t('common.cancel')}</Text>
+              <TouchableOpacity onPress={() => setEditingPanel(null)} style={[styles.cancelBtn, { backgroundColor: tc.bgInput }]}>
+                <Text style={{ color: tc.text, ...fonts.semibold }}>{t('common.cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={updateBubble} style={[styles.saveBtn, { backgroundColor: '#8b5cf6' }]}>
+              <TouchableOpacity onPress={updateBubble} style={[styles.saveBtn, { backgroundColor: tc.primary }]}>
                 <Text style={{ color: '#fff', ...fonts.bold }}>{t('common.save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 10, paddingTop: Platform.OS === 'ios' ? 50 : 8,
-  },
-  topBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
   titleInput: {
-    marginHorizontal: 12, marginTop: 12, borderWidth: 1, borderRadius: radius.md,
-    paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, ...fonts.bold,
+    marginHorizontal: 12, marginTop: 4, borderWidth: 1, borderRadius: radius.md,
+    paddingHorizontal: 14, paddingVertical: 10, minHeight: 48, fontSize: 15, ...fonts.bold,
   },
   layoutRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 12 },
   layoutBtn: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
-    paddingHorizontal: 14, paddingVertical: 7,
+    borderWidth: 1, borderRadius: radius.full,
+    paddingHorizontal: 16, minHeight: 44, justifyContent: 'center',
   },
-  layoutText: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary },
+  layoutText: { fontSize: 13, ...fonts.semibold },
   comicFrame: {
     marginHorizontal: 12, borderRadius: radius.lg, borderWidth: 3,
     padding: 8, overflow: 'hidden',
@@ -291,15 +290,15 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 4, right: 4, flexDirection: 'row', gap: 4,
   },
   panelActionBtn: {
-    width: 24, height: 24, backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    width: 32, height: 32, backgroundColor: 'rgba(17,18,20,0.65)',
+    borderRadius: 16, alignItems: 'center', justifyContent: 'center',
   },
   bubble: {
     position: 'absolute', backgroundColor: '#fff', borderRadius: 12,
     paddingHorizontal: 10, paddingVertical: 6, maxWidth: '70%',
     shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
   },
-  bubbleText: { fontSize: 11, ...fonts.bold, color: '#1e293b' },
+  bubbleText: { fontSize: 11, ...fonts.bold, color: '#16181D' },
   bubbleTail: {
     position: 'absolute', width: 0, height: 0,
     borderLeftWidth: 6, borderRightWidth: 6, borderTopWidth: 8,
@@ -313,17 +312,17 @@ const styles = StyleSheet.create({
   watermark: { textAlign: 'center', fontSize: 9, paddingVertical: 6 },
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40 },
-  modalTitle: { fontSize: 16, ...fonts.bold, marginBottom: 12 },
+  modalContent: { borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: 20, paddingBottom: 40 },
+  modalTitle: { fontSize: 20, letterSpacing: -0.3, ...fonts.display, marginBottom: 12 },
   bubbleInput: {
     borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10,
     fontSize: 14, minHeight: 60, textAlignVertical: 'top',
   },
-  controlLabel: { fontSize: 10, ...fonts.bold, letterSpacing: 1, marginTop: 12, marginBottom: 6 },
-  posRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  posBtn: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 5 },
-  posText: { fontSize: 11, ...fonts.semibold, color: colors.textSecondary },
+  controlLabel: { fontSize: 12, ...fonts.semibold, letterSpacing: 0.3, marginTop: 12, marginBottom: 6 },
+  posRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  posBtn: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: 14, minHeight: 44, justifyContent: 'center' },
+  posText: { fontSize: 13, ...fonts.semibold },
   modalBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
-  cancelBtn: { paddingVertical: 8, paddingHorizontal: 16 },
-  saveBtn: { borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 20 },
+  cancelBtn: { borderRadius: radius.full, minHeight: 44, justifyContent: 'center', paddingHorizontal: 20 },
+  saveBtn: { borderRadius: radius.full, minHeight: 44, justifyContent: 'center', paddingHorizontal: 22 },
 });

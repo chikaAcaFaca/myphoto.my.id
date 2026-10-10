@@ -1,15 +1,17 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions,
-  Alert, ActivityIndicator, Platform, ScrollView, Share,
+  Alert, ActivityIndicator, ScrollView, Share,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts, memeFlame } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 import { generateAiCaptions, recaptionMeme, type CaptionLanguage } from '@/lib/ai-captions';
@@ -17,6 +19,8 @@ import { checkMemeLimit, incrementMemeUsage } from '@/lib/meme-limits';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
+/** Ink on the flame orange: white fails 4.5:1 for small text, this passes. */
+const ON_FLAME = '#111214';
 
 export default function AiCaptionScreen() {
   const { colors: tc } = useTheme();
@@ -101,14 +105,8 @@ export default function AiCaptionScreen() {
   }, [t]);
 
   return (
-    <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <View style={[styles.topBar, { backgroundColor: '#06b6d4' }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('aiCaption.title')}</Text>
-        <View style={{ width: 36 }} />
-      </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['top']}>
+      <StackHeader title={t('aiCaption.title')} />
 
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
         {/* Image preview */}
@@ -123,9 +121,9 @@ export default function AiCaptionScreen() {
               )}
             </View>
           ) : (
-            <TouchableOpacity style={[styles.pickBtn, { backgroundColor: tc.bgCard }]} onPress={pickImage}>
+            <TouchableOpacity style={[styles.pickBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]} onPress={pickImage}>
               <Ionicons name="image-outline" size={48} color={tc.textMuted} />
-              <Text style={[styles.pickText, { color: tc.textMuted }]}>{t('aiCaption.pickImage')}</Text>
+              <Text style={[styles.pickText, { color: tc.textSecondary }]}>{t('aiCaption.pickImage')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -134,16 +132,16 @@ export default function AiCaptionScreen() {
         {imageUri && (
           <View style={styles.langRow}>
             <TouchableOpacity
-              style={[styles.langBtn, lang === 'sr' && styles.langBtnActive]}
+              style={[styles.langBtn, { borderColor: tc.border }, lang === 'sr' && styles.langBtnActive]}
               onPress={() => setLang('sr')}
             >
-              <Text style={[styles.langText, lang === 'sr' && styles.langTextActive]}>Srpski</Text>
+              <Text style={[styles.langText, { color: tc.textSecondary }, lang === 'sr' && styles.langTextActive]}>Srpski</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.langBtn, lang === 'en' && styles.langBtnActive]}
+              style={[styles.langBtn, { borderColor: tc.border }, lang === 'en' && styles.langBtnActive]}
               onPress={() => setLang('en')}
             >
-              <Text style={[styles.langText, lang === 'en' && styles.langTextActive]}>English</Text>
+              <Text style={[styles.langText, { color: tc.textSecondary }, lang === 'en' && styles.langTextActive]}>English</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -151,14 +149,14 @@ export default function AiCaptionScreen() {
         {/* Generate button */}
         {imageUri && (
           <TouchableOpacity
-            style={[styles.generateBtn, { backgroundColor: '#06b6d4' }]}
+            style={[styles.generateBtn, { backgroundColor: memeFlame, opacity: generating ? 0.7 : 1 }]}
             onPress={generateCaptions}
             disabled={generating}
           >
             {generating ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={ON_FLAME} />
             ) : (
-              <Ionicons name="sparkles" size={18} color="#fff" />
+              <Ionicons name="sparkles" size={18} color={ON_FLAME} />
             )}
             <Text style={styles.generateText}>
               {generating ? t('aiCaption.generating') : captions.length > 0 ? t('aiCaption.generateMore') : t('aiCaption.generate')}
@@ -169,7 +167,7 @@ export default function AiCaptionScreen() {
         {/* Recaption existing meme */}
         {imageUri && selectedCaption && (
           <TouchableOpacity
-            style={[styles.recaptionBtn, { borderColor: '#06b6d4' }]}
+            style={[styles.recaptionBtn, { borderColor: tc.border, backgroundColor: tc.bgCard }]}
             onPress={async () => {
               setGenerating(true);
               const results = await recaptionMeme(selectedCaption, 'meme slika', 5, lang);
@@ -179,8 +177,8 @@ export default function AiCaptionScreen() {
             }}
             disabled={generating}
           >
-            <Ionicons name="refresh" size={16} color="#06b6d4" />
-            <Text style={[styles.recaptionText, { color: '#06b6d4' }]}>{t('aiCaption.recaption')}</Text>
+            <Ionicons name="refresh" size={16} color={tc.text} />
+            <Text style={[styles.recaptionText, { color: tc.text }]}>{t('aiCaption.recaption')}</Text>
           </TouchableOpacity>
         )}
 
@@ -189,8 +187,13 @@ export default function AiCaptionScreen() {
           <View style={styles.captionsContainer}>
             <View style={styles.captionsHeader}>
               <Text style={[styles.captionsTitle, { color: tc.text }]}>{t('aiCaption.chooseCaption')}</Text>
-              <TouchableOpacity onPress={generateCaptions}>
-                <Ionicons name="refresh" size={18} color={tc.primary} />
+              <TouchableOpacity
+                onPress={generateCaptions}
+                style={styles.iconBtn}
+                accessibilityRole="button"
+                accessibilityLabel={t('aiCaption.generateMore')}
+              >
+                <Ionicons name="refresh" size={20} color={tc.text} />
               </TouchableOpacity>
             </View>
 
@@ -199,18 +202,28 @@ export default function AiCaptionScreen() {
                 key={i}
                 style={[
                   styles.captionCard,
-                  { backgroundColor: tc.bgCard },
-                  selectedCaption === caption && { borderColor: '#06b6d4', borderWidth: 2 },
+                  { backgroundColor: tc.bgCard, borderColor: tc.border },
+                  selectedCaption === caption && { borderColor: memeFlame, borderWidth: 2 },
                 ]}
                 onPress={() => setSelectedCaption(caption)}
               >
                 <Text style={[styles.captionText, { color: tc.text }]}>{caption}</Text>
                 <View style={styles.captionActions}>
-                  <TouchableOpacity onPress={() => handleCopy(caption)} style={styles.captionActionBtn}>
-                    <Ionicons name="copy-outline" size={16} color={tc.textMuted} />
+                  <TouchableOpacity
+                    onPress={() => handleCopy(caption)}
+                    style={styles.iconBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('settings.invite.copy')}
+                  >
+                    <Ionicons name="copy-outline" size={18} color={tc.textSecondary} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleShare(caption)} style={styles.captionActionBtn}>
-                    <Ionicons name="share-outline" size={16} color={tc.textMuted} />
+                  <TouchableOpacity
+                    onPress={() => handleShare(caption)}
+                    style={styles.iconBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.share')}
+                  >
+                    <Ionicons name="share-outline" size={18} color={tc.textSecondary} />
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -221,24 +234,18 @@ export default function AiCaptionScreen() {
         {/* Change image */}
         {imageUri && (
           <TouchableOpacity style={styles.changeBtn} onPress={pickImage}>
-            <Ionicons name="swap-horizontal" size={16} color={tc.primary} />
-            <Text style={[styles.changeBtnText, { color: tc.primary }]}>{t('aiCaption.changeImage')}</Text>
+            <Ionicons name="swap-horizontal" size={16} color={tc.text} />
+            <Text style={[styles.changeBtnText, { color: tc.text }]}>{t('aiCaption.changeImage')}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 10, paddingTop: Platform.OS === 'ios' ? 50 : 8,
-  },
-  topBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
-  previewArea: { alignItems: 'center', paddingVertical: 16 },
+  previewArea: { alignItems: 'center', paddingTop: 4, paddingBottom: 16 },
   imageFrame: {
     width: width - 32, aspectRatio: 1, borderRadius: radius.lg, overflow: 'hidden',
     position: 'relative',
@@ -251,36 +258,35 @@ const styles = StyleSheet.create({
   captionOverlayText: { color: '#fff', fontSize: 14, ...fonts.bold, textAlign: 'center' },
   pickBtn: {
     width: width - 32, aspectRatio: 1, borderRadius: radius.lg,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderStyle: 'dashed',
   },
   pickText: { fontSize: 14, ...fonts.medium, marginTop: 8 },
   generateBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 16, borderRadius: radius.md, paddingVertical: 14,
+    marginHorizontal: 16, borderRadius: radius.full, minHeight: 50, paddingVertical: 14,
   },
-  generateText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  generateText: { color: ON_FLAME, fontSize: 15, ...fonts.bold },
   captionsContainer: { paddingHorizontal: 16, paddingTop: 8 },
   captionsHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: 8,
   },
-  captionsTitle: { fontSize: 14, ...fonts.bold },
+  captionsTitle: { fontSize: 18, letterSpacing: -0.2, ...fonts.display },
   captionCard: {
-    borderRadius: radius.md, padding: 12, marginBottom: 8,
-    borderWidth: 1, borderColor: 'transparent',
-    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1,
+    borderRadius: radius.lg, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, marginBottom: 8,
+    borderWidth: 1,
   },
-  captionText: { fontSize: 13, ...fonts.medium, lineHeight: 18 },
-  captionActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
-  captionActionBtn: { padding: 4 },
+  captionText: { fontSize: 15, ...fonts.medium, lineHeight: 21 },
+  captionActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 4, marginTop: 2 },
+  iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   recaptionBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginHorizontal: 16, marginTop: 8, borderWidth: 1, borderRadius: radius.md, paddingVertical: 10,
+    marginHorizontal: 16, marginTop: 8, borderWidth: 1, borderRadius: radius.full, minHeight: 44, paddingVertical: 10,
   },
   recaptionText: { fontSize: 13, ...fonts.semibold },
   changeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 16, paddingVertical: 10,
+    marginTop: 16, minHeight: 44, paddingVertical: 10,
   },
   changeBtnText: { fontSize: 13, ...fonts.semibold },
   langRow: {
@@ -288,12 +294,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, marginBottom: 10,
   },
   langBtn: {
-    paddingHorizontal: 20, paddingVertical: 8, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: 20, minHeight: 44, justifyContent: 'center', borderRadius: radius.full,
+    borderWidth: 1,
   },
   langBtnActive: {
-    backgroundColor: '#06b6d4', borderColor: '#06b6d4',
+    backgroundColor: memeFlame, borderColor: memeFlame,
   },
-  langText: { fontSize: 13, ...fonts.semibold, color: colors.textSecondary },
-  langTextActive: { color: '#fff' },
+  langText: { fontSize: 14, ...fonts.semibold },
+  langTextActive: { color: ON_FLAME },
 });

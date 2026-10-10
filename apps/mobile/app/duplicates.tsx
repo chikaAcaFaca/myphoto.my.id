@@ -11,6 +11,7 @@ import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
 
 const { width } = Dimensions.get('window');
 const THUMB = 80;
@@ -94,13 +95,13 @@ export default function DuplicatesScreen() {
   };
 
   const renderGroup = ({ item }: { item: DuplicateGroup }) => (
-    <View style={[styles.groupCard, { backgroundColor: tc.bgCard }]}>
+    <View style={[styles.groupCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
       <View style={styles.groupHeader}>
-        <View style={styles.similarityBadge}>
-          <Text style={styles.similarityText}>{t('duplicates.similarity', { percent: Math.round(item.similarity * 100) })}</Text>
+        <View style={[styles.similarityBadge, { backgroundColor: tc.bgInput }]}>
+          <Text style={[styles.similarityText, { color: tc.text }]}>{t('duplicates.similarity', { percent: Math.round(item.similarity * 100) })}</Text>
         </View>
-        <TouchableOpacity onPress={() => handleDismiss(item.id)}>
-          <Text style={styles.dismissText}>{t('duplicates.dismiss')}</Text>
+        <TouchableOpacity onPress={() => handleDismiss(item.id)} style={styles.dismissBtn}>
+          <Text style={[styles.dismissText, { color: tc.textSecondary }]}>{t('duplicates.dismiss')}</Text>
         </TouchableOpacity>
       </View>
       <View style={styles.thumbRow}>
@@ -115,13 +116,16 @@ export default function DuplicatesScreen() {
             >
               <Image
                 source={{ uri: `${API_URL}/api/thumbnail/${file.id}?size=small` }}
-                style={styles.thumb}
+                style={[styles.thumb, { backgroundColor: tc.bgInput }]}
               />
             </TouchableOpacity>
             {i > 0 && (
               <TouchableOpacity
-                style={styles.deleteSmall}
+                style={[styles.deleteSmall, { backgroundColor: tc.error }]}
                 onPress={() => handleDeleteFile(file.id, item.id)}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.delete')}
+                hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
               >
                 <Ionicons name="trash-outline" size={14} color="#fff" />
               </TouchableOpacity>
@@ -134,25 +138,17 @@ export default function DuplicatesScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('duplicates.title')}</Text>
-          <View style={{ width: 32 }} />
-        </View>
-      </View>
+      <StackHeader title={t('duplicates.title')} />
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : groups.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="checkmark-circle-outline" size={64} color={colors.success} />
-          <Text style={styles.emptyText}>{t('duplicates.empty')}</Text>
-          <Text style={styles.emptySubtext}>{t('duplicates.emptyHint')}</Text>
+          <Ionicons name="checkmark-circle-outline" size={64} color={tc.success} />
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('duplicates.empty')}</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textSecondary }]}>{t('duplicates.emptyHint')}</Text>
         </View>
       ) : (
         <FlatList
@@ -160,9 +156,9 @@ export default function DuplicatesScreen() {
           renderItem={renderGroup}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} />}
           ListHeaderComponent={
-            <Text style={styles.countText}>{tp('duplicates.groupCount', groups.length)}</Text>
+            <Text style={[styles.countText, { color: tc.textSecondary }]}>{tp('duplicates.groupCount', groups.length)}</Text>
           }
         />
       )}
@@ -172,30 +168,26 @@ export default function DuplicatesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   countText: { fontSize: 12, color: colors.textMuted, ...fonts.medium, marginBottom: 8 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: { fontSize: 18, ...fonts.bold, color: colors.text, marginTop: 12 },
   emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
   groupCard: {
-    backgroundColor: '#fff', borderRadius: radius.lg, padding: 12, marginBottom: 10,
-    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
+    borderRadius: radius.lg, padding: 12, marginBottom: 10, borderWidth: 1,
   },
   groupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   similarityBadge: {
-    backgroundColor: '#fef3c7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
   },
-  similarityText: { fontSize: 11, ...fonts.semibold, color: '#92400e' },
-  dismissText: { fontSize: 12, color: colors.textMuted, ...fonts.medium },
+  similarityText: { fontSize: 11, ...fonts.semibold },
+  dismissBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  dismissText: { fontSize: 13, ...fonts.semibold },
   thumbRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   thumbWrap: { position: 'relative' },
   thumb: { width: THUMB, height: THUMB, borderRadius: radius.sm, backgroundColor: colors.bgInput },
   deleteSmall: {
     position: 'absolute', top: 4, right: 4,
-    backgroundColor: 'rgba(239,68,68,0.85)', borderRadius: 10,
+    borderRadius: 11,
     width: 22, height: 22, alignItems: 'center', justifyContent: 'center',
   },
 });

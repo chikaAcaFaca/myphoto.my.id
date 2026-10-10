@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions,
-  Alert, ActivityIndicator, Platform, ScrollView, TextInput,
+  Alert, ActivityIndicator, ScrollView, TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
@@ -15,7 +16,9 @@ import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { useCloudGate } from '@/lib/cloud-gate';
 import { saveToMySpace } from '@/lib/myspace-upload';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
+import { HeaderIconButton } from '@/components/ScreenHeader';
 import { useTheme } from '@/lib/theme-context';
 import { ZoomPanView } from '@/components/ZoomPanView';
 import { useT, type TKey } from '@/lib/i18n';
@@ -220,9 +223,9 @@ export default function StickerMakerScreen() {
 
     if (!imageUri) {
       return (
-        <TouchableOpacity style={[styles.pickBtn, { backgroundColor: tc.bgCard }]} onPress={pickImage}>
+        <TouchableOpacity style={[styles.pickBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]} onPress={pickImage}>
           <Ionicons name="image-outline" size={48} color={tc.textMuted} />
-          <Text style={[styles.pickText, { color: tc.textMuted }]}>{t('sticker.pickImage')}</Text>
+          <Text style={[styles.pickText, { color: tc.textSecondary }]}>{t('sticker.pickImage')}</Text>
         </TouchableOpacity>
       );
     }
@@ -279,30 +282,33 @@ export default function StickerMakerScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <View style={[styles.topBar, { backgroundColor: '#ec4899' }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('sticker.title')}</Text>
-        <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity onPress={handleSaveToSpace} disabled={savingSpace} style={styles.topBtn}>
-            {savingSpace ? <ActivityIndicator size="small" color="#fff" /> : (
-              <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+    <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['top']}>
+      <StackHeader
+        title={t('sticker.title')}
+        actions={
+          <>
+            {savingSpace ? (
+              <View style={[styles.headerBusy, { backgroundColor: tc.bgInput }]}>
+                <ActivityIndicator size="small" color={tc.text} />
+              </View>
+            ) : (
+              <HeaderIconButton icon="cloud-upload-outline" label={t('sticker.saveToMySpace')} onPress={handleSaveToSpace} />
             )}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.topBtn}>
-            {saving ? <ActivityIndicator size="small" color="#fff" /> : (
-              <Ionicons name="download-outline" size={20} color="#fff" />
+            {saving ? (
+              <View style={[styles.headerBusy, { backgroundColor: tc.bgInput }]}>
+                <ActivityIndicator size="small" color={tc.text} />
+              </View>
+            ) : (
+              <HeaderIconButton icon="download-outline" label={t('common.save')} onPress={handleSave} />
             )}
-          </TouchableOpacity>
-        </View>
-      </View>
+          </>
+        }
+      />
 
       <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 60 }}>
         {/* Preview */}
         <View style={styles.previewArea}>
-          <View style={styles.checkerboard}>
+          <View style={[styles.checkerboard, { backgroundColor: tc.bgInput, borderColor: tc.border }]}>
             <View ref={stickerRef} collapsable={false}>
               {renderStickerPreview()}
             </View>
@@ -313,20 +319,20 @@ export default function StickerMakerScreen() {
             ZoomPanView now. The +/- buttons are gone — they were strictly worse
             and confused the user about which gesture was authoritative. */}
         {imageUri && shape !== 'text' && (
-          <Text style={[styles.zoomHint, { color: tc.textMuted }]}>
+          <Text style={[styles.zoomHint, { color: tc.textSecondary }]}>
             {t('sticker.gestureHint')}
           </Text>
         )}
 
         {/* Tools */}
-        <View style={[styles.toolsCard, { backgroundColor: tc.bgCard }]}>
+        <View style={[styles.toolsCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
           {/* Remove BG */}
           {imageUri && !bgRemoved && shape !== 'text' && (
-            <TouchableOpacity style={[styles.removeBgBtn, { backgroundColor: '#ec4899' }]} onPress={handleRemoveBg} disabled={removingBg}>
-              {removingBg ? <ActivityIndicator size="small" color="#fff" /> : (
-                <Ionicons name="cut-outline" size={16} color="#fff" />
+            <TouchableOpacity style={[styles.removeBgBtn, { backgroundColor: tc.bgInput }]} onPress={handleRemoveBg} disabled={removingBg}>
+              {removingBg ? <ActivityIndicator size="small" color={tc.text} /> : (
+                <Ionicons name="cut-outline" size={16} color={tc.text} />
               )}
-              <Text style={styles.removeBgText}>{t('sticker.removeBg')}</Text>
+              <Text style={[styles.removeBgText, { color: tc.text }]}>{t('sticker.removeBg')}</Text>
             </TouchableOpacity>
           )}
 
@@ -360,28 +366,30 @@ export default function StickerMakerScreen() {
           )}
 
           {/* Shape */}
-          <Text style={[styles.label, { color: tc.textMuted }]}>{t('sticker.shape')}</Text>
+          <Text style={[styles.label, { color: tc.textSecondary }]}>{t('sticker.shape')}</Text>
           <View style={styles.optionRow}>
             {SHAPES.map((s) => (
               <TouchableOpacity
                 key={s.key}
-                style={[styles.shapeBtn, shape === s.key && { backgroundColor: '#ec4899' + '20', borderColor: '#ec4899' }]}
+                style={[styles.shapeBtn, { borderColor: tc.border }, shape === s.key && { backgroundColor: tc.primaryLight, borderColor: tc.primary }]}
                 onPress={() => setShape(s.key)}
               >
-                <Ionicons name={s.icon as any} size={20} color={shape === s.key ? '#ec4899' : tc.textMuted} />
-                <Text style={[styles.shapeBtnText, shape === s.key && { color: '#ec4899' }]}>{t(s.labelKey)}</Text>
+                <Ionicons name={s.icon as any} size={20} color={shape === s.key ? tc.primary : tc.textSecondary} />
+                <Text style={[styles.shapeBtnText, { color: tc.textSecondary }, shape === s.key && { color: tc.primary }]}>{t(s.labelKey)}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* Border color */}
-          <Text style={[styles.label, { color: tc.textMuted }]}>{t('sticker.borderColor')}</Text>
+          <Text style={[styles.label, { color: tc.textSecondary }]}>{t('sticker.borderColor')}</Text>
           <View style={styles.colorRow}>
             {BORDER_COLORS.map((c) => (
               <TouchableOpacity
                 key={c}
-                style={[styles.colorCircle, { backgroundColor: c }, borderColor === c && styles.colorSelected]}
+                style={[styles.colorCircle, { backgroundColor: c, borderColor: tc.border }, borderColor === c && [styles.colorSelected, { borderColor: tc.text }]]}
                 onPress={() => setBorderColor(c)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: borderColor === c }}
               />
             ))}
           </View>
@@ -389,37 +397,32 @@ export default function StickerMakerScreen() {
           {/* Change image */}
           {shape !== 'text' && (
             <TouchableOpacity style={styles.changeBtn} onPress={pickImage}>
-              <Ionicons name="swap-horizontal" size={16} color={tc.primary} />
-              <Text style={[styles.changeBtnText, { color: tc.primary }]}>
+              <Ionicons name="swap-horizontal" size={16} color={tc.text} />
+              <Text style={[styles.changeBtnText, { color: tc.text }]}>
                 {imageUri ? t('sticker.changeImage') : t('sticker.pickImage')}
               </Text>
             </TouchableOpacity>
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 10, paddingTop: Platform.OS === 'ios' ? 50 : 8,
-  },
-  topBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
-  previewArea: { paddingVertical: 20 },
+  headerBusy: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  previewArea: { paddingTop: 8, paddingBottom: 20 },
   checkerboard: {
     width: STICKER_SIZE + 16, height: STICKER_SIZE + 16,
-    backgroundColor: '#e5e7eb', borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#d1d5db',
+    borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
   },
   stickerFrame: { width: STICKER_SIZE, height: STICKER_SIZE, overflow: 'hidden' },
   stickerImage: { width: '100%', height: '100%' },
   pickBtn: {
     width: STICKER_SIZE, height: STICKER_SIZE, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderStyle: 'dashed',
   },
   pickText: { fontSize: 14, ...fonts.medium, marginTop: 8 },
   textSticker: {
@@ -427,40 +430,32 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 4,
     backgroundColor: '#fff', padding: 20,
   },
-  textStickerContent: { fontSize: 24, ...fonts.extrabold, textAlign: 'center', color: '#1e293b' },
-  textStickerBrand: { fontSize: 10, ...fonts.medium, color: '#94a3b8', marginTop: 12 },
-  zoomRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 8,
-  },
-  zoomBtn: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#f1f5f9',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  zoomText: { fontSize: 14, ...fonts.bold, width: 50, textAlign: 'center' },
-  zoomHint: { fontSize: 11, textAlign: 'center', marginBottom: 8 },
-  toolsCard: { width: width - 24, borderRadius: radius.lg, padding: 16, marginTop: 8 },
+  textStickerContent: { fontSize: 24, ...fonts.extrabold, textAlign: 'center', color: '#16181D' },
+  textStickerBrand: { fontSize: 10, ...fonts.medium, color: '#8A909B', marginTop: 12 },
+  zoomHint: { fontSize: 12, textAlign: 'center', marginBottom: 8 },
+  toolsCard: { width: width - 24, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: 16, marginTop: 8 },
   removeBgBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: radius.md, paddingVertical: 12, marginBottom: 12,
+    borderRadius: radius.full, minHeight: 48, paddingVertical: 12, marginBottom: 10,
   },
-  removeBgText: { color: '#fff', fontSize: 13, ...fonts.bold },
+  removeBgText: { color: '#fff', fontSize: 15, ...fonts.bold },
   textInput: {
     borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 16, marginBottom: 12, minHeight: 60, textAlignVertical: 'top',
   },
-  label: { fontSize: 10, ...fonts.bold, letterSpacing: 1, marginTop: 8, marginBottom: 6 },
+  label: { fontSize: 12, ...fonts.semibold, letterSpacing: 0.3, marginTop: 8, marginBottom: 6 },
   optionRow: { flexDirection: 'row', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
   shapeBtn: {
-    alignItems: 'center', gap: 4, borderWidth: 1, borderColor: colors.border,
-    borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8,
+    alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1,
+    borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8, minWidth: 56, minHeight: 56,
   },
-  shapeBtnText: { fontSize: 9, ...fonts.medium, color: colors.textSecondary },
-  colorRow: { flexDirection: 'row', gap: 10, marginBottom: 8, flexWrap: 'wrap' },
-  colorCircle: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: '#d1d5db' },
-  colorSelected: { borderWidth: 3, borderColor: '#1e293b' },
+  shapeBtnText: { fontSize: 11, ...fonts.medium },
+  colorRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
+  colorCircle: { width: 36, height: 36, borderRadius: 18, borderWidth: 1 },
+  colorSelected: { borderWidth: 3 },
   changeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 12, paddingVertical: 10,
+    marginTop: 12, minHeight: 44, paddingVertical: 10,
   },
   changeBtnText: { fontSize: 13, ...fonts.semibold },
 });

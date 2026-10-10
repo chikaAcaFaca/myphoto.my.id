@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
 
 const NOTIF_KEY = '@myphoto/notifications';
 
@@ -43,67 +42,59 @@ export default function NotificationsSettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
-          <View style={{ width: 32 }} />
-        </View>
-      </View>
+      <StackHeader title={t('notifications.title')} />
 
-      <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-        <Text style={styles.sectionLabel}>{t('notifications.notifyMeWhen')}</Text>
+      <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+        <Text style={[styles.sectionLabel, { color: tc.textSecondary }]}>{t('notifications.notifyMeWhen')}</Text>
 
-        <View style={styles.settingRow}>
+        <View style={[styles.settingRow, { borderBottomColor: tc.border }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingText}>{t('notifications.uploadComplete')}</Text>
-            <Text style={styles.settingDesc}>{t('notifications.uploadCompleteDesc')}</Text>
+            <Text style={[styles.settingText, { color: tc.text }]}>{t('notifications.uploadComplete')}</Text>
+            <Text style={[styles.settingDesc, { color: tc.textSecondary }]}>{t('notifications.uploadCompleteDesc')}</Text>
           </View>
           <Switch
             value={settings.uploadComplete}
             onValueChange={(v) => update('uploadComplete', v)}
-            trackColor={{ false: '#cbd5e1', true: colors.success }}
+            trackColor={{ false: tc.border, true: tc.primary }}
             thumbColor="#fff"
           />
         </View>
 
-        <View style={styles.settingRow}>
+        <View style={[styles.settingRow, { borderBottomColor: tc.border }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingText}>{t('notifications.memoriesReady')}</Text>
-            <Text style={styles.settingDesc}>{t('notifications.memoriesReadyDesc')}</Text>
+            <Text style={[styles.settingText, { color: tc.text }]}>{t('notifications.memoriesReady')}</Text>
+            <Text style={[styles.settingDesc, { color: tc.textSecondary }]}>{t('notifications.memoriesReadyDesc')}</Text>
           </View>
           <Switch
             value={settings.memoriesReady}
             onValueChange={(v) => update('memoriesReady', v)}
-            trackColor={{ false: '#cbd5e1', true: colors.success }}
+            trackColor={{ false: tc.border, true: tc.primary }}
             thumbColor="#fff"
           />
         </View>
 
-        <View style={styles.settingRow}>
+        <View style={[styles.settingRow, { borderBottomColor: tc.border }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingText}>{t('notifications.storageWarning')}</Text>
-            <Text style={styles.settingDesc}>{t('notifications.storageWarningDesc')}</Text>
+            <Text style={[styles.settingText, { color: tc.text }]}>{t('notifications.storageWarning')}</Text>
+            <Text style={[styles.settingDesc, { color: tc.textSecondary }]}>{t('notifications.storageWarningDesc')}</Text>
           </View>
           <Switch
             value={settings.storageWarning}
             onValueChange={(v) => update('storageWarning', v)}
-            trackColor={{ false: '#cbd5e1', true: colors.success }}
+            trackColor={{ false: tc.border, true: tc.primary }}
             thumbColor="#fff"
           />
         </View>
 
         <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.settingText}>{t('notifications.weeklySummary')}</Text>
-            <Text style={styles.settingDesc}>{t('notifications.weeklySummaryDesc')}</Text>
+            <Text style={[styles.settingText, { color: tc.text }]}>{t('notifications.weeklySummary')}</Text>
+            <Text style={[styles.settingDesc, { color: tc.textSecondary }]}>{t('notifications.weeklySummaryDesc')}</Text>
           </View>
           <Switch
             value={settings.weeklySummary}
             onValueChange={(v) => update('weeklySummary', v)}
-            trackColor={{ false: '#cbd5e1', true: colors.success }}
+            trackColor={{ false: tc.border, true: tc.primary }}
             thumbColor="#fff"
           />
         </View>
@@ -114,19 +105,15 @@ export default function NotificationsSettingsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   card: {
-    backgroundColor: '#fff', borderRadius: radius.lg, marginHorizontal: 12, marginTop: 12,
-    padding: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
+    borderRadius: radius.xl, marginHorizontal: 12, marginTop: 4,
+    paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1,
   },
   sectionLabel: { fontSize: 10, ...fonts.bold, color: colors.textMuted, letterSpacing: 1, marginBottom: 8 },
   settingRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
-  settingText: { fontSize: 13, color: colors.text, ...fonts.medium },
-  settingDesc: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  settingText: { fontSize: 15, color: colors.text, ...fonts.semibold },
+  settingDesc: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
 });

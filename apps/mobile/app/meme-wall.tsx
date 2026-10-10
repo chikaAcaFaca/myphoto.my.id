@@ -18,6 +18,8 @@ import { SendMemeSheet } from '@/components/SendMemeSheet';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
+/** Ink on the flame orange: white fails 4.5:1 for small text, this passes. */
+const ON_FLAME = '#111214';
 
 interface MemePost {
   id: string;
@@ -414,22 +416,32 @@ export default function MemeWallScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         {isProfileMode ? (
           <>
-            <TouchableOpacity onPress={() => router.back()} style={styles.createBtn}>
-              <Ionicons name="arrow-back" size={22} color="#000" />
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.headerBtn}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+            >
+              <Ionicons name="chevron-back" size={26} color="#fff" />
             </TouchableOpacity>
             <View style={styles.headerCenter}>
-              <Text style={styles.headerTitle}>@{profileName || t('meme.wall.profileFallback')}</Text>
+              <Text style={styles.headerTitle} numberOfLines={1}>@{profileName || t('meme.wall.profileFallback')}</Text>
             </View>
-            <View style={{ width: 32 }} />
+            <View style={{ width: 44 }} />
           </>
         ) : (
           <>
             <View style={styles.headerCenter}>
-              <Ionicons name="flame" size={20} color="#fff" />
+              <Ionicons name="flame" size={22} color={memeFlame} />
               <Text style={styles.headerTitle}>MemeWall</Text>
             </View>
-            <TouchableOpacity onPress={() => router.push('/creative-hub')} style={styles.createBtn}>
-              <Ionicons name="add" size={24} color="#000" />
+            <TouchableOpacity
+              onPress={() => router.push('/creative-hub')}
+              style={styles.createBtn}
+              accessibilityRole="button"
+              accessibilityLabel={t('meme.wall.createMeme')}
+            >
+              <Ionicons name="add" size={26} color={ON_FLAME} />
             </TouchableOpacity>
           </>
         )}
@@ -441,10 +453,10 @@ export default function MemeWallScreen() {
         </View>
       ) : memes.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="flame-outline" size={64} color="#64748b" />
+          <Ionicons name="flame-outline" size={64} color={memeFlame} />
           <Text style={styles.emptyText}>{t('meme.wall.empty')}</Text>
           <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/creative-hub')}>
-            <Ionicons name="add" size={18} color="#fff" />
+            <Ionicons name="add" size={20} color={ON_FLAME} />
             <Text style={styles.emptyBtnText}>{t('meme.wall.createMeme')}</Text>
           </TouchableOpacity>
         </View>
@@ -517,24 +529,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingBottom: 10,
   },
   headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headerTitle: { fontSize: 20, ...fonts.extrabold, color: '#fff', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
-  createBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 22, letterSpacing: -0.4, ...fonts.display, color: '#fff', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 },
+  headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(17,18,20,0.45)', alignItems: 'center', justifyContent: 'center' },
+  createBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: memeFlame, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
-  emptyText: { fontSize: 18, ...fonts.bold, color: '#fff', marginTop: 8 },
+  emptyText: { fontSize: 20, letterSpacing: -0.3, ...fonts.display, color: '#fff', marginTop: 8 },
   emptyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#f97316',
-    borderRadius: 10, paddingVertical: 12, paddingHorizontal: 20, marginTop: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: memeFlame,
+    borderRadius: 999, minHeight: 48, paddingVertical: 12, paddingHorizontal: 22, marginTop: 8,
   },
-  emptyBtnText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  emptyBtnText: { color: ON_FLAME, fontSize: 15, ...fonts.bold },
   page: { backgroundColor: '#000', justifyContent: 'center' },
   rail: { position: 'absolute', right: 10, alignItems: 'center', gap: 18 },
   railBtn: { alignItems: 'center', gap: 3 },
   railCount: { color: '#fff', fontSize: 12, ...fonts.bold, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 3 },
   railAvatar: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: '#f97316',
+    width: 46, height: 46, borderRadius: 23, backgroundColor: memeFlame,
     alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff',
   },
-  railAvatarText: { color: '#fff', fontSize: 18, ...fonts.extrabold },
+  railAvatarText: { color: ON_FLAME, fontSize: 18, ...fonts.extrabold },
   bottomInfo: { position: 'absolute', left: 14, right: 80 },
   authorHandle: { color: '#fff', fontSize: 15, ...fonts.extrabold, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, marginBottom: 6 },
   caption: { color: '#fff', fontSize: 14, ...fonts.medium, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, lineHeight: 19 },

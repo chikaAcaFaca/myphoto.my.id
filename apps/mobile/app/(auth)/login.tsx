@@ -13,6 +13,8 @@ import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
 import { useT } from '@/lib/i18n';
+import { useTheme } from '@/lib/theme-context';
+import { fonts } from '@/lib/theme';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -23,6 +25,7 @@ export default function LoginScreen() {
 
   const { signIn, signInWithGoogle } = useAuth();
   const { t } = useT();
+  const { colors: tc } = useTheme();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -57,35 +60,39 @@ export default function LoginScreen() {
     }
   };
 
+  const inputBox = [styles.inputContainer, { backgroundColor: tc.bgCard, borderColor: tc.border }];
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: tc.bg }]}
     >
       <View style={styles.content}>
         {/* Logo */}
         <View style={styles.logoContainer}>
-          <Ionicons name="cloud" size={64} color="#0ea5e9" />
-          <Text style={styles.logoText}>MyPhoto</Text>
+          <View style={[styles.logoMark, { backgroundColor: tc.primaryLight }]}>
+            <Ionicons name="cloud" size={30} color={tc.primary} />
+          </View>
+          <Text style={[styles.logoText, { color: tc.text }]}>MyPhoto</Text>
         </View>
 
-        <Text style={styles.title}>{t('auth.login.title')}</Text>
-        <Text style={styles.subtitle}>{t('auth.login.subtitle')}</Text>
+        <Text style={[styles.title, { color: tc.text }]}>{t('auth.login.title')}</Text>
+        <Text style={[styles.subtitle, { color: tc.textSecondary }]}>{t('auth.login.subtitle')}</Text>
 
         {/* Error message */}
         {error ? (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={[styles.errorContainer, { borderColor: tc.error, backgroundColor: tc.bgCard }]}>
+            <Text style={[styles.errorText, { color: tc.error }]}>{error}</Text>
           </View>
         ) : null}
 
         {/* Email input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="mail-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+        <View style={inputBox}>
+          <Ionicons name="mail-outline" size={20} color={tc.textMuted} style={styles.inputIcon} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: tc.text }]}
             placeholder={t('auth.email')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={tc.textMuted}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -95,33 +102,40 @@ export default function LoginScreen() {
         </View>
 
         {/* Password input */}
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+        <View style={inputBox}>
+          <Ionicons name="lock-closed-outline" size={20} color={tc.textMuted} style={styles.inputIcon} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: tc.text }]}
             placeholder={t('auth.password')}
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={tc.textMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
           />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+            accessibilityState={{ checked: showPassword }}
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeBtn}
+          >
             <Ionicons
               name={showPassword ? 'eye-off-outline' : 'eye-outline'}
               size={20}
-              color="#9ca3af"
+              color={tc.textSecondary}
             />
           </TouchableOpacity>
         </View>
 
         {/* Forgot password link */}
         <TouchableOpacity style={styles.forgotPassword}>
-          <Text style={styles.forgotPasswordText}>{t('auth.login.forgotPassword')}</Text>
+          <Text style={[styles.forgotPasswordText, { color: tc.primary }]}>{t('auth.login.forgotPassword')}</Text>
         </TouchableOpacity>
 
         {/* Login button */}
         <TouchableOpacity
-          style={[styles.button, styles.primaryButton]}
+          accessibilityRole="button"
+          style={[styles.button, { backgroundColor: tc.primary }]}
           onPress={handleLogin}
           disabled={isLoading}
         >
@@ -134,27 +148,28 @@ export default function LoginScreen() {
 
         {/* Divider */}
         <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>{t('auth.login.or')}</Text>
-          <View style={styles.dividerLine} />
+          <View style={[styles.dividerLine, { backgroundColor: tc.border }]} />
+          <Text style={[styles.dividerText, { color: tc.textMuted }]}>{t('auth.login.or')}</Text>
+          <View style={[styles.dividerLine, { backgroundColor: tc.border }]} />
         </View>
 
         {/* Google login button */}
         <TouchableOpacity
-          style={[styles.button, styles.secondaryButton]}
+          accessibilityRole="button"
+          style={[styles.button, styles.secondaryButton, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
           onPress={handleGoogleLogin}
           disabled={isLoading}
         >
-          <Ionicons name="logo-google" size={20} color="#374151" style={{ marginRight: 8 }} />
-          <Text style={styles.secondaryButtonText}>{t('auth.continueWithGoogle')}</Text>
+          <Ionicons name="logo-google" size={20} color={tc.text} style={{ marginRight: 8 }} />
+          <Text style={[styles.secondaryButtonText, { color: tc.text }]}>{t('auth.continueWithGoogle')}</Text>
         </TouchableOpacity>
 
         {/* Register link */}
         <View style={styles.registerContainer}>
-          <Text style={styles.registerText}>{t('auth.login.noAccount')}</Text>
+          <Text style={[styles.registerText, { color: tc.textSecondary }]}>{t('auth.login.noAccount')}</Text>
           <Link href="/(auth)/register" asChild>
-            <TouchableOpacity>
-              <Text style={styles.registerLink}>{t('auth.login.signUpFree')}</Text>
+            <TouchableOpacity style={styles.linkHit}>
+              <Text style={[styles.registerLink, { color: tc.primary }]}>{t('auth.login.signUpFree')}</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -164,129 +179,36 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafb',
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  logoText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginTop: 8,
-    color: '#111827',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#111827',
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: '#6b7280',
-    marginTop: 8,
-    marginBottom: 32,
-  },
-  errorContainer: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: 14,
-    textAlign: 'center',
-  },
+  container: { flex: 1 },
+  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  logoContainer: { alignItems: 'center', marginBottom: 28, gap: 10 },
+  logoMark: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+  logoText: { fontSize: 40, letterSpacing: -1, ...fonts.displayHeavy },
+  title: { fontSize: 24, textAlign: 'center', letterSpacing: -0.3, ...fonts.display },
+  subtitle: { fontSize: 15, textAlign: 'center', lineHeight: 21, marginTop: 6, marginBottom: 28 },
+  errorContainer: { borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 14 },
+  errorText: { fontSize: 14, textAlign: 'center' },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    height: 56,
+    flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1,
+    paddingLeft: 16, paddingRight: 4, marginBottom: 12, height: 52,
   },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-  },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: '#0ea5e9',
-    fontSize: 14,
-  },
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, fontSize: 16, height: '100%' },
+  eyeBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  forgotPassword: { alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginBottom: 12 },
+  forgotPasswordText: { fontSize: 14, fontWeight: '600' },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    borderRadius: 12,
-    marginBottom: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    height: 52, borderRadius: 26,
   },
-  primaryButton: {
-    backgroundColor: '#0ea5e9',
-  },
-  secondaryButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButtonText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#9ca3af',
-    fontSize: 14,
-  },
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  registerText: {
-    color: '#6b7280',
-    fontSize: 14,
-  },
-  registerLink: {
-    color: '#0ea5e9',
-    fontSize: 14,
-    fontWeight: '600',
-  },
+  secondaryButton: { borderWidth: 1 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  secondaryButtonText: { fontSize: 16, fontWeight: '600' },
+  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { marginHorizontal: 16, fontSize: 13 },
+  registerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16 },
+  registerText: { fontSize: 14 },
+  linkHit: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
+  registerLink: { fontSize: 14, fontWeight: '700' },
 });

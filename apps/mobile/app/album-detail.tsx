@@ -11,6 +11,8 @@ import { setViewerPhotos } from '@/lib/photo-list-store';
 import { fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
+import { HeaderIconButton } from '@/components/ScreenHeader';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -90,7 +92,7 @@ export default function AlbumDetailScreen() {
     <TouchableOpacity style={styles.cell} activeOpacity={0.8} onPress={() => openPhoto(item)}>
       <Image
         source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=medium` }}
-        style={styles.thumb}
+        style={[styles.thumb, { backgroundColor: tc.bgInput }]}
         resizeMode="cover"
       />
       {item.type === 'video' ? (
@@ -101,22 +103,25 @@ export default function AlbumDetailScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: tc.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.hBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.hTitle} numberOfLines={1}>{name || t('albums.albumFallback')}</Text>
-        <TouchableOpacity onPress={shareAlbum} style={styles.hBtn} disabled={sharing}>
-          {sharing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="share-social-outline" size={20} color="#fff" />}
-        </TouchableOpacity>
-      </View>
+      <StackHeader
+        title={name || t('albums.albumFallback')}
+        actions={
+          sharing ? (
+            <View style={[styles.hBtn, { backgroundColor: tc.bgInput }]}>
+              <ActivityIndicator size="small" color={tc.text} />
+            </View>
+          ) : (
+            <HeaderIconButton icon="share-social-outline" label={t('albums.shareTitle')} onPress={shareAlbum} />
+          )
+        }
+      />
 
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={tc.primary} /></View>
       ) : files.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="images-outline" size={48} color={tc.textMuted} />
-          <Text style={[styles.empty, { color: tc.textMuted }]}>{t('albums.emptyAlbum')}</Text>
+          <Text style={[styles.empty, { color: tc.textSecondary }]}>{t('albums.emptyAlbum')}</Text>
         </View>
       ) : (
         <FlatList
@@ -133,14 +138,9 @@ export default function AlbumDetailScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 12, paddingVertical: 12, paddingTop: 8,
-  },
-  hBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  hTitle: { flex: 1, textAlign: 'center', fontSize: 18, ...fonts.extrabold, color: '#fff' },
+  hBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   cell: { width: CELL, height: CELL, margin: GAP / 2 },
-  thumb: { width: '100%', height: '100%', borderRadius: 4, backgroundColor: '#1e293b' },
+  thumb: { width: '100%', height: '100%', borderRadius: 4 },
   playBadge: {
     position: 'absolute', bottom: 4, right: 4,
     backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, padding: 3,

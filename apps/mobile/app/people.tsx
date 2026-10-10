@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -87,42 +88,34 @@ export default function PeopleScreen() {
       })}
       onLongPress={() => { setRenaming(item); setNewName(item.name || ''); }}
     >
-      <View style={styles.faceCircle}>
+      <View style={[styles.faceCircle, { backgroundColor: tc.bgInput }]}>
         {item.sampleFileId ? (
           <Image
             source={{ uri: `${API_URL}/api/thumbnail/${item.sampleFileId}?size=small` }}
             style={styles.faceImage}
           />
         ) : (
-          <Ionicons name="person" size={32} color={colors.textMuted} />
+          <Ionicons name="person" size={32} color={tc.textMuted} />
         )}
       </View>
-      <Text style={styles.personName} numberOfLines={1}>{item.name || t('people.unknown')}</Text>
-      <Text style={styles.personCount}>{tp('common.photos', item.photoCount)}</Text>
+      <Text style={[styles.personName, { color: tc.text }]} numberOfLines={1}>{item.name || t('people.unknown')}</Text>
+      <Text style={[styles.personCount, { color: tc.textSecondary }]}>{tp('common.photos', item.photoCount)}</Text>
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('people.title')}</Text>
-          <View style={{ width: 32 }} />
-        </View>
-      </View>
+      <StackHeader title={t('people.title')} />
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : people.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="people-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>{t('people.emptyTitle')}</Text>
-          <Text style={styles.emptySubtext}>{t('people.emptySubtitle')}</Text>
+          <Ionicons name="people-outline" size={64} color={tc.textMuted} />
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('people.emptyTitle')}</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textSecondary }]}>{t('people.emptySubtitle')}</Text>
         </View>
       ) : (
         <FlatList
@@ -132,7 +125,7 @@ export default function PeopleScreen() {
           numColumns={COL}
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} />}
         />
       )}
 
@@ -140,20 +133,20 @@ export default function PeopleScreen() {
       <Modal visible={!!renaming} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: tc.bgCard }]}>
-            <Text style={styles.modalTitle}>{t('people.renameTitle')}</Text>
+            <Text style={[styles.modalTitle, { color: tc.text }]}>{t('people.renameTitle')}</Text>
             <TextInput
-              style={[styles.modalInput, { borderColor: tc.border, color: tc.text }]}
+              style={[styles.modalInput, { backgroundColor: tc.bgInput, color: tc.text }]}
               value={newName}
               onChangeText={setNewName}
               placeholder={t('people.namePlaceholder')}
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={tc.textMuted}
               autoFocus
             />
             <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setRenaming(null)} style={styles.modalCancelBtn}>
-                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+              <TouchableOpacity onPress={() => setRenaming(null)} style={[styles.modalCancelBtn, { backgroundColor: tc.bgInput }]}>
+                <Text style={[styles.modalCancelText, { color: tc.text }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleRename} style={styles.modalSaveBtn}>
+              <TouchableOpacity onPress={handleRename} style={[styles.modalSaveBtn, { backgroundColor: tc.primary }]}>
                 <Text style={styles.modalSaveText}>{t('common.save')}</Text>
               </TouchableOpacity>
             </View>
@@ -166,10 +159,6 @@ export default function PeopleScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: { fontSize: 18, ...fonts.bold, color: colors.text, marginTop: 12 },
   emptySubtext: { fontSize: 13, color: colors.textMuted, textAlign: 'center', marginTop: 4 },
@@ -186,17 +175,16 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalContent: {
-    backgroundColor: '#fff', borderRadius: radius.lg, padding: 20, width: width - 48,
-    shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 5,
+    borderRadius: radius.xl, padding: 20, width: width - 48,
   },
   modalTitle: { fontSize: 16, ...fonts.bold, color: colors.text, marginBottom: 12 },
   modalInput: {
-    borderWidth: 1, borderColor: colors.borderLight, borderRadius: radius.md,
-    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: colors.text,
+    borderRadius: radius.md, minHeight: 44,
+    paddingHorizontal: 12, paddingVertical: 10, fontSize: 14,
   },
   modalBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
-  modalCancelBtn: { paddingVertical: 8, paddingHorizontal: 16 },
-  modalCancelText: { fontSize: 13, color: colors.textMuted, ...fonts.semibold },
-  modalSaveBtn: { backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 16 },
-  modalSaveText: { fontSize: 13, color: '#fff', ...fonts.semibold },
+  modalCancelBtn: { height: 44, borderRadius: 22, paddingHorizontal: 18, justifyContent: 'center' },
+  modalCancelText: { fontSize: 14, ...fonts.semibold },
+  modalSaveBtn: { height: 44, borderRadius: 22, paddingHorizontal: 18, justifyContent: 'center' },
+  modalSaveText: { fontSize: 14, color: '#fff', ...fonts.bold },
 });

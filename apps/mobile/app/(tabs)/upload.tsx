@@ -10,7 +10,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useSync } from '@/lib/sync-context';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 
@@ -196,47 +196,53 @@ export default function UploadScreen() {
         {/* Manual upload buttons */}
         <View style={styles.pickSection}>
           <TouchableOpacity
-            style={[styles.pickBtn, { backgroundColor: '#3b82f6' }]}
+            style={[styles.pickBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
             onPress={() => pickAndUpload('photos')}
             disabled={uploading}
           >
-            <Ionicons name="images-outline" size={28} color="#fff" />
-            <Text style={styles.pickBtnTitle}>{t('upload.photos')}</Text>
-            <Text style={styles.pickBtnSub}>{t('upload.photosSub')}</Text>
+            <View style={[styles.pickIcon, { backgroundColor: tc.primaryLight }]}>
+              <Ionicons name="images-outline" size={24} color={tc.primary} />
+            </View>
+            <Text style={[styles.pickBtnTitle, { color: tc.text }]}>{t('upload.photos')}</Text>
+            <Text style={[styles.pickBtnSub, { color: tc.textSecondary }]}>{t('upload.photosSub')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.pickBtn, { backgroundColor: '#8b5cf6' }]}
+            style={[styles.pickBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
             onPress={() => pickAndUpload('videos')}
             disabled={uploading}
           >
-            <Ionicons name="videocam-outline" size={28} color="#fff" />
-            <Text style={styles.pickBtnTitle}>{t('upload.videos')}</Text>
-            <Text style={styles.pickBtnSub}>{t('upload.videosSub')}</Text>
+            <View style={[styles.pickIcon, { backgroundColor: tc.primaryLight }]}>
+              <Ionicons name="videocam-outline" size={24} color={tc.primary} />
+            </View>
+            <Text style={[styles.pickBtnTitle, { color: tc.text }]}>{t('upload.videos')}</Text>
+            <Text style={[styles.pickBtnSub, { color: tc.textSecondary }]}>{t('upload.videosSub')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.pickBtn, { backgroundColor: '#f97316' }]}
+            style={[styles.pickBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
             onPress={() => pickAndUpload('files')}
             disabled={uploading}
           >
-            <Ionicons name="document-outline" size={28} color="#fff" />
-            <Text style={styles.pickBtnTitle}>{t('upload.files')}</Text>
-            <Text style={styles.pickBtnSub}>{t('upload.filesSub')}</Text>
+            <View style={[styles.pickIcon, { backgroundColor: tc.primaryLight }]}>
+              <Ionicons name="document-outline" size={24} color={tc.primary} />
+            </View>
+            <Text style={[styles.pickBtnTitle, { color: tc.text }]}>{t('upload.files')}</Text>
+            <Text style={[styles.pickBtnSub, { color: tc.textSecondary }]}>{t('upload.filesSub')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Upload progress */}
         {uploading && (
-          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
+          <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
             <View style={styles.progressItem}>
               <ActivityIndicator size="small" color={tc.primary} />
               <Text style={[styles.pendingTitle, { marginLeft: 10, color: tc.text }]}>
                 {t('upload.progress', { done: uploadCount, total: uploadTotal })}
               </Text>
             </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${uploadTotal > 0 ? (uploadCount / uploadTotal) * 100 : 0}%` }]} />
+            <View style={[styles.progressBar, { backgroundColor: tc.bgInput }]}>
+              <View style={[styles.progressFill, { backgroundColor: tc.primary, width: `${uploadTotal > 0 ? (uploadCount / uploadTotal) * 100 : 0}%` }]} />
             </View>
           </View>
         )}
@@ -245,7 +251,7 @@ export default function UploadScreen() {
         <Text style={[styles.sectionTitle, { color: tc.textSecondary }]}>{t('upload.autoBackupSection')}</Text>
 
         <TouchableOpacity
-          style={[styles.syncBtn, { borderColor: tc.primary }]}
+          style={[styles.syncBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
           activeOpacity={0.8}
           onPress={() => { if (isSyncing) stopSync(); else startSync(); }}
         >
@@ -257,11 +263,11 @@ export default function UploadScreen() {
 
         {/* Sync progress */}
         {isSyncing && (
-          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${syncProgress}%` }]} />
+          <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+            <View style={[styles.progressBar, { backgroundColor: tc.bgInput }]}>
+              <View style={[styles.progressFill, { backgroundColor: tc.primary, width: `${syncProgress}%` }]} />
             </View>
-            <Text style={[styles.progressText, { color: tc.textMuted }]}>{t('upload.syncingPercent', { percent: Math.round(syncProgress) })}</Text>
+            <Text style={[styles.progressText, { color: tc.textSecondary }]}>{t('upload.syncingPercent', { percent: Math.round(syncProgress) })}</Text>
           </View>
         )}
 
@@ -271,13 +277,13 @@ export default function UploadScreen() {
             <Text style={[styles.sectionTitle, { color: tc.textSecondary }]}>{t('upload.folderSyncSection')}</Text>
 
             <TouchableOpacity
-              style={[styles.syncBtn, { borderColor: '#8b5cf6' }]}
+              style={[styles.syncBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
               activeOpacity={0.8}
               onPress={() => { if (!isFolderSyncing) startFolderSync(); }}
               disabled={isFolderSyncing}
             >
-              <Ionicons name={isFolderSyncing ? 'hourglass' : 'folder-open'} size={20} color="#8b5cf6" />
-              <Text style={[styles.syncBtnText, { color: '#8b5cf6' }]}>
+              <Ionicons name={isFolderSyncing ? 'hourglass' : 'folder-open'} size={20} color={tc.primary} />
+              <Text style={[styles.syncBtnText, { color: tc.primary }]}>
                 {isFolderSyncing
                   ? t('upload.syncInProgress')
                   : folderSyncPending > 0
@@ -287,11 +293,11 @@ export default function UploadScreen() {
             </TouchableOpacity>
 
             {isFolderSyncing && (
-              <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${folderSyncProgress}%`, backgroundColor: '#8b5cf6' }]} />
+              <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+                <View style={[styles.progressBar, { backgroundColor: tc.bgInput }]}>
+                  <View style={[styles.progressFill, { width: `${folderSyncProgress}%`, backgroundColor: tc.primary }]} />
                 </View>
-                <Text style={[styles.progressText, { color: tc.textMuted }]}>{t('upload.folderSyncPercent', { percent: Math.round(folderSyncProgress) })}</Text>
+                <Text style={[styles.progressText, { color: tc.textSecondary }]}>{t('upload.folderSyncPercent', { percent: Math.round(folderSyncProgress) })}</Text>
               </View>
             )}
           </>
@@ -299,20 +305,20 @@ export default function UploadScreen() {
 
         {/* Status */}
         {!isSyncing && !uploading && (
-          <View style={[styles.card, { backgroundColor: tc.bgCard }]}>
+          <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
             <View style={styles.statusRow}>
-              <View style={[styles.statusIcon, { backgroundColor: pendingCount > 0 ? '#fff7ed' : '#dcfce7' }]}>
+              <View style={[styles.statusIcon, { backgroundColor: tc.bgInput }]}>
                 <Ionicons
                   name={pendingCount > 0 ? 'time' : 'checkmark-circle'}
                   size={20}
-                  color={pendingCount > 0 ? colors.accent : colors.success}
+                  color={pendingCount > 0 ? tc.warning : tc.success}
                 />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.pendingTitle, { color: tc.text }]}>
                   {pendingCount > 0 ? tp('upload.pendingSync', pendingCount) : t('upload.allSynced')}
                 </Text>
-                <Text style={[styles.pendingSubtitle, { color: tc.textMuted }]}>
+                <Text style={[styles.pendingSubtitle, { color: tc.textSecondary }]}>
                   {pendingCount > 0 ? t('upload.startSyncHint') : t('upload.upToDateHint')}
                 </Text>
               </View>
@@ -326,36 +332,32 @@ export default function UploadScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  headerBg: { paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8, paddingBottom: 24, alignItems: 'center' },
-  headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { fontSize: 20, ...fonts.extrabold, color: '#fff' },
   headerSubtitle: { fontSize: 14, marginTop: -4 },
   pickSection: {
-    flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginTop: 8,
+    flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginTop: 8,
   },
   pickBtn: {
     flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4,
-    borderRadius: radius.lg, paddingVertical: 20,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+    borderRadius: 20, borderWidth: 1, paddingVertical: 18, paddingHorizontal: 6,
   },
-  pickBtnTitle: { color: '#fff', fontSize: 14, ...fonts.bold },
-  pickBtnSub: { color: 'rgba(255,255,255,0.75)', fontSize: 9, ...fonts.medium },
-  sectionTitle: { fontSize: 11, ...fonts.bold, letterSpacing: 1, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 6 },
+  pickIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  pickBtnTitle: { fontSize: 15, ...fonts.bold },
+  pickBtnSub: { fontSize: 11, ...fonts.medium, textAlign: 'center' },
+  sectionTitle: { fontSize: 11, ...fonts.bold, letterSpacing: 1, paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8 },
   syncBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    marginHorizontal: 12, borderWidth: 1.5, borderRadius: radius.lg, paddingVertical: 14,
+    marginHorizontal: 16, borderWidth: 1, borderRadius: 26, height: 52,
   },
-  syncBtnText: { fontSize: 14, ...fonts.bold },
+  syncBtnText: { fontSize: 15, ...fonts.bold },
   card: {
-    borderRadius: radius.lg, marginHorizontal: 12, marginTop: 12,
-    padding: 14, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 8, elevation: 1,
+    borderRadius: 20, borderWidth: 1, marginHorizontal: 16, marginTop: 12, padding: 16,
   },
   progressItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  progressBar: { height: 6, backgroundColor: '#f1f5f9', borderRadius: 3, overflow: 'hidden', marginTop: 8 },
-  progressFill: { height: '100%', borderRadius: 3, backgroundColor: '#22c55e' },
-  progressText: { fontSize: 10, marginTop: 4 },
+  progressBar: { height: 6, borderRadius: 3, overflow: 'hidden', marginTop: 8 },
+  progressFill: { height: '100%', borderRadius: 3 },
+  progressText: { fontSize: 12, marginTop: 6 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  statusIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  pendingTitle: { fontSize: 13, ...fonts.semibold },
-  pendingSubtitle: { fontSize: 11, marginTop: 1 },
+  statusIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  pendingTitle: { fontSize: 15, ...fonts.semibold },
+  pendingSubtitle: { fontSize: 13, marginTop: 2 },
 });
