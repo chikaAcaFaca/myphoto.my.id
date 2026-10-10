@@ -3,6 +3,7 @@ import { FieldValue, type DocumentReference, type Query } from 'firebase-admin/f
 import { db, auth } from '@/lib/firebase-admin';
 import { deleteObject, deletePrefix } from '@/lib/s3';
 import { cancelCreemSubscription } from '@/lib/creem';
+import { deleteConversationsOf } from '@/lib/messages';
 
 /**
  * Permanent account deletion (GDPR art. 17 + Google Play account-deletion
@@ -195,6 +196,13 @@ export async function deleteUserAccount(userId: string): Promise<DeletionReport>
     } catch (e) {
       note(`s3 ${key}`, e);
     }
+  }
+
+  // Their conversations and messages (both sides lose the thread).
+  try {
+    await deleteConversationsOf(userId);
+  } catch (e) {
+    note('conversations', e);
   }
 
   // The user document last (with its reposts/savedMemes/following/followers).

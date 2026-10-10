@@ -189,6 +189,14 @@ export default async function PrivacyPage() {
                 <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
                 <span>{t('pages.privacy.s4.content.albums')}</span>
               </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
+                <span>{t('pages.privacy.s4.content.messages')}</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Check className="mt-1 h-4 w-4 flex-shrink-0 text-green-500" />
+                <span>{t('pages.privacy.s4.content.push')}</span>
+              </li>
             </ul>
 
             <p className="mt-4 font-semibold text-gray-900 dark:text-white">{t('pages.privacy.s4.technical.title')}</p>

@@ -60,6 +60,8 @@ export const privacy: DeepStrings<typeof En> = {
       files: 'Fotografije i video zapisi koje uploadujete',
       exif: 'EXIF metapodaci (datum, lokacija, kamera — ako su prisutni u fajlu)',
       albums: 'Albumi, tagovi i organizacione strukture koje kreirate',
+      messages: 'Poruke koje šaljete drugim korisnicima (tekst i podeljeni mimovi), čuvaju se da biste ih oboje mogli čitati; brišu se zajedno sa nalogom. Ako neko prijavi razgovor, naš tim pregleda poslednje poruke tog razgovora da bi reagovao na zloupotrebu',
+      push: 'Token uređaja za obaveštenja (nove poruke, lajkovi, komentari); briše se kada se odjavite',
     },
     technical: {
       title: 'c) Tehnički podaci',

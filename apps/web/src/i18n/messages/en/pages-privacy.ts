@@ -63,6 +63,8 @@ export const privacy = {
       files: 'Photos and videos you upload',
       exif: 'EXIF metadata (date, location, camera — if present in the file)',
       albums: 'Albums, tags and organizational structures you create',
+      messages: 'Messages you send to other users (text and shared memes), stored so both of you can read them; deleted with your account. If someone reports a conversation, our team reviews the last messages of that conversation to act on abuse',
+      push: 'A device token for push notifications (new messages, likes, comments); removed when you sign out',
     },
     technical: {
       title: 'c) Technical data',

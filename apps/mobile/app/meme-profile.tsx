@@ -159,16 +159,25 @@ export default function MemeProfileScreen() {
             <Text style={styles.ctaText}>{t('meme.profile.signUpCta')}</Text>
           </TouchableOpacity>
         ) : !isOwnProfile ? (
-          <TouchableOpacity
-            style={[styles.ctaBtn, isFollowing && { backgroundColor: tc.bgInput }]}
-            onPress={handleFollow}
-            disabled={followBusy}
-          >
-            <Ionicons name={isFollowing ? 'checkmark' : 'person-add'} size={18} color={isFollowing ? tc.text : '#fff'} />
-            <Text style={[styles.ctaText, isFollowing && { color: tc.text }]}>
-              {isFollowing ? t('meme.profile.following') : t('meme.profile.follow')}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.ctaBtn, isFollowing && { backgroundColor: tc.bgInput }]}
+              onPress={handleFollow}
+              disabled={followBusy}
+            >
+              <Ionicons name={isFollowing ? 'checkmark' : 'person-add'} size={18} color={isFollowing ? tc.text : '#fff'} />
+              <Text style={[styles.ctaText, isFollowing && { color: tc.text }]}>
+                {isFollowing ? t('meme.profile.following') : t('meme.profile.follow')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.ctaBtn, { backgroundColor: tc.bgInput }]}
+              onPress={() => router.push({ pathname: '/chat', params: { userId, name: userName } })}
+            >
+              <Ionicons name="chatbubble-outline" size={18} color={tc.text} />
+              <Text style={[styles.ctaText, { color: tc.text }]}>{t('messages.message')}</Text>
+            </TouchableOpacity>
+          </View>
         ) : null}
       </View>
 
@@ -196,6 +205,7 @@ export default function MemeProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  actionRow: { flexDirection: 'row', gap: 10 },
   safe: { flex: 1 },
   headerBg: { paddingHorizontal: 16, paddingVertical: 14, paddingTop: Platform.OS === 'ios' ? 8 : 8 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
