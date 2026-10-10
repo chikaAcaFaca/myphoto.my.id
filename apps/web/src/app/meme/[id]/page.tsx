@@ -4,13 +4,14 @@ import { db } from '@/lib/firebase-admin';
 import { generateDownloadUrl } from '@/lib/s3';
 import { initAdmin } from '@/lib/firebase-admin';
 import MemeSocial from './meme-social';
+import { SharedMemeFeed } from '@/components/meme-wall/shared-meme-feed';
 import { getT } from '@/i18n/server';
 import { isValidRef } from '@/lib/referral-link';
 import { headers } from 'next/headers';
 
 interface MemePageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<{ ref?: string; view?: string }>;
 }
 
 async function getMeme(id: string) {
@@ -65,7 +66,7 @@ export async function generateMetadata({ params }: MemePageProps): Promise<Metad
 export default async function MemePage({ params, searchParams }: MemePageProps) {
   const { id } = await params;
   // Shared with ?ref=CODE: credit whoever shared the link, not the meme author.
-  const { ref } = await searchParams;
+  const { ref, view } = await searchParams;
   const ua = (await headers()).get('user-agent') || '';
   const isIos = /iPhone|iPad|iPod/i.test(ua);
   const meme = await getMeme(id);
@@ -80,6 +81,30 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
           <a href="/" style={{ color: '#0ea5e9' }}>{t('pages.meme.goHome')}</a>
         </div>
       </div>
+    );
+  }
+
+  // Default: the swipe-up Meme Wall feed starting at this meme (what people
+  // opening a shared link expect). ?view=detail keeps the single-meme page
+  // with comments.
+  if (view !== 'detail') {
+    return (
+      <SharedMemeFeed
+        first={{
+          id: meme.id,
+          caption: meme.caption,
+          topText: meme.topText,
+          bottomText: meme.bottomText,
+          imageUrl: meme.imageUrl,
+          mediaType: meme.mediaType,
+          authorName: meme.authorName,
+          authorId: meme.authorId,
+          likes: meme.likes,
+          commentCount: meme.commentCount,
+        }}
+        refCode={isValidRef(ref) ? ref : null}
+        isIos={isIos}
+      />
     );
   }
 
