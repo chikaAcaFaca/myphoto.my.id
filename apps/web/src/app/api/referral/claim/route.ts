@@ -3,6 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { initAdmin, db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { REFERRAL_BONUS, MAX_REFERRALS } from '@myphoto/shared';
+import { notify } from '@/lib/inbox';
 
 const REFEREE_MAX_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -93,6 +94,12 @@ export async function POST(request: NextRequest) {
   });
 
   await batch.commit();
+
+  await notify(referrerUserId, {
+    type: 'referral_joined',
+    actorId: userId,
+    actorName: refereeData.displayName || '',
+  });
 
   return NextResponse.json({
     success: true,

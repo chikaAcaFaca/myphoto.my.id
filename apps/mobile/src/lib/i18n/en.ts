@@ -34,6 +34,7 @@ import cloudGate from './en/cloudGate';
 import appUpdate from './en/appUpdate';
 import shareIntent from './en/shareIntent';
 import libs from './en/libs';
+import inbox from './en/inbox';
 
 export const en = {
   common,
@@ -70,6 +71,7 @@ export const en = {
   appUpdate,
   shareIntent,
   libs,
+  inbox,
 };
 
 export type Dictionary = typeof en;

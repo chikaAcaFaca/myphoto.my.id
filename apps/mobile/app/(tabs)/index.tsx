@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenHeader, HeaderIconButton } from '@/components/ScreenHeader';
+import { LibrarySwitcher } from '@/components/LibrarySwitcher';
 import { router } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import { useAuth } from '@/lib/auth-context';
@@ -279,67 +281,52 @@ export default function MyPhotoScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <Ionicons name="cloud" size={22} color="#fff" />
-            <Text style={styles.headerTitle}>MyPhoto</Text>
-          </View>
-          {/* Manual "Sync now" button — gives the user explicit
-              control when auto-backup hasn't kicked in yet (typically
-              the first session after install before the device
-              settles into the foreground autoBackup useEffect). */}
-          <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-            <TouchableOpacity
-              onPress={() => startSync().catch((e) => console.warn('Manual sync error:', e))}
+      <ScreenHeader
+        title={t('nav.tabs.photos')}
+        actions={
+          <>
+            {/* Manual "Sync now" — explicit control when auto-backup hasn't
+                kicked in yet (typically the first session after install). */}
+            <HeaderIconButton
+              icon={isSyncing ? 'cloud-upload-outline' : 'refresh'}
+              label={t('home.syncNow')}
               disabled={isSyncing}
-              style={{ opacity: isSyncing ? 0.5 : 1 }}
-            >
-              <Ionicons
-                name={isSyncing ? 'cloud-upload' : 'refresh'}
-                size={22}
-                color="rgba(255,255,255,0.9)"
-              />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
-              <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
-            </TouchableOpacity>
+              onPress={() => startSync().catch((e) => console.warn('Manual sync error:', e))}
+            />
+            <HeaderIconButton
+              icon="search"
+              label={t('search.title')}
+              onPress={() => router.push('/(tabs)/search')}
+            />
+          </>
+        }
+      >
+        <LibrarySwitcher active="photos" />
+
+        {/* Sync status pill: the cloud-with-check is the app's signature. */}
+        {isSyncing ? (
+          <View style={[styles.syncPill, { backgroundColor: tc.primaryLight }]}>
+            <ActivityIndicator size="small" color={tc.primary} />
+            <Text style={[styles.syncText, { color: tc.primary }]}>
+              {t('home.syncing', { percent: Math.round(syncProgress) })}
+            </Text>
           </View>
-        </View>
-      </View>
-
-      {/* Sync status bar */}
-      {(isSyncing || pendingCount > 0) && (
-        <View style={[styles.syncBar, { backgroundColor: isSyncing ? colors.primary : colors.accent }]}>
-          {isSyncing ? (
-            <>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.syncText}>
-                {t('home.syncing', { percent: Math.round(syncProgress) })}
-              </Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="cloud-upload-outline" size={14} color="#fff" />
-              <Text style={styles.syncText}>
-                {tp('home.pendingUpload', pendingCount)}
-              </Text>
-            </>
-          )}
-          <Text style={styles.syncCount}>
-            ☁️ {uploadedCount}/{photos.length}
-          </Text>
-        </View>
-      )}
-
-      {/* Photo count */}
-      {!isSyncing && pendingCount === 0 && photos.length > 0 && (
-        <View style={[styles.syncBar, { backgroundColor: '#22c55e' }]}>
-          <Ionicons name="checkmark-circle" size={14} color="#fff" />
-          <Text style={styles.syncText}>{t('home.deviceSummary', { device: photos.length, cloud: uploadedCount })}</Text>
-        </View>
-      )}
+        ) : pendingCount > 0 ? (
+          <View style={[styles.syncPill, { backgroundColor: tc.bgInput }]}>
+            <Ionicons name="cloud-upload-outline" size={16} color={tc.text} />
+            <Text style={[styles.syncText, { color: tc.text }]}>
+              {tp('home.pendingUpload', pendingCount)} · {uploadedCount}/{photos.length}
+            </Text>
+          </View>
+        ) : photos.length > 0 ? (
+          <View style={[styles.syncPill, { backgroundColor: tc.primaryLight }]}>
+            <Ionicons name="cloud-done-outline" size={16} color={tc.primary} />
+            <Text style={[styles.syncText, { color: tc.primary }]}>
+              {t('home.deviceSummary', { device: photos.length, cloud: uploadedCount })}
+            </Text>
+          </View>
+        ) : null}
+      </ScreenHeader>
 
       {/* Photo Grid */}
       {loading && photos.length === 0 ? (
@@ -380,17 +367,11 @@ export default function MyPhotoScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
-  syncBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginHorizontal: 12, marginTop: 8,
-    borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 14,
+  syncPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start',
+    borderRadius: 999, paddingVertical: 8, paddingLeft: 10, paddingRight: 14,
   },
-  syncText: { color: '#fff', fontSize: 11, ...fonts.semibold, flex: 1 },
-  syncCount: { fontSize: 11, color: 'rgba(255,255,255,0.8)' },
+  syncText: { fontSize: 13, ...fonts.semibold },
   row: { gap: GAP, paddingHorizontal: 1 },
   cell: { width: CELL, height: CELL, marginBottom: GAP, backgroundColor: colors.bgInput, borderRadius: 2 },
   cellImage: { width: '100%', height: '100%', borderRadius: 2 },

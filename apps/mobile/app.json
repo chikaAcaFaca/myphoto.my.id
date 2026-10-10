@@ -59,6 +59,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-notifications",
+        {
+          "color": "#2453E6"
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Allow MyPhoto to access your photos for backup.",

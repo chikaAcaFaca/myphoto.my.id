@@ -2,6 +2,8 @@ import { Component, useState, useEffect, useCallback, type ErrorInfo, type React
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenHeader } from '@/components/ScreenHeader';
+import { LibrarySwitcher } from '@/components/LibrarySwitcher';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
@@ -256,14 +258,9 @@ function MySpaceScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      {/* Header */}
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>MySpace</Text>
-          <Ionicons name="search" size={22} color="rgba(255,255,255,0.8)" />
-        </View>
-        <Text style={styles.headerSubtitle}>{t('myspace.subtitle')}</Text>
-      </View>
+      <ScreenHeader title={t('nav.tabs.photos')}>
+        <LibrarySwitcher active="myspace" />
+      </ScreenHeader>
 
       {/* Nav toolbar — Windows-Explorer-style: ← Back / → Forward / ↑ Up
           on the left, then the home button + breadcrumbs as the address

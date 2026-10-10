@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenHeader, HeaderIconButton } from '@/components/ScreenHeader';
+import { LibrarySwitcher } from '@/components/LibrarySwitcher';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
@@ -111,14 +113,12 @@ export default function AlbumsScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>{t('albums.title')}</Text>
-          <TouchableOpacity style={styles.addBtn} activeOpacity={0.7} onPress={() => setShowCreate(true)}>
-            <Ionicons name="add" size={22} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      <ScreenHeader
+        title={t('nav.tabs.photos')}
+        actions={<HeaderIconButton icon="add" label={t('albums.create')} onPress={() => setShowCreate(true)} />}
+      >
+        <LibrarySwitcher active="albums" />
+      </ScreenHeader>
 
       {loading ? (
         <View style={styles.center}>

@@ -55,6 +55,15 @@ const settings = {
   notifications: 'Notifications',
   about: 'About',
   deleteAccount: 'Delete account',
+  invite: {
+    title: 'Invite friends',
+    body: '+250 MB for you for every friend who signs up. Up to 2.5 GB free.',
+    progress: '{count} of {max} friends, you earned {bonus}',
+    copy: 'Copy',
+    copied: 'Link copied',
+    more: 'More',
+    message: 'I keep my photos on MyPhoto: 1 GB free. Sign up with my link and we both get more space: {link}',
+  },
 };
 
 export default settings;
