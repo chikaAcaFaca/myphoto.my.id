@@ -13,6 +13,7 @@ import { colors, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { MemeComments } from '@/components/MemeComments';
 import { useT } from '@/lib/i18n';
+import { withRef } from '@/lib/referral-link';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -57,7 +58,7 @@ export default function MemeWallScreen() {
   const { colors: tc } = useTheme();
   const { t } = useT();
   const insets = useSafeAreaInsets();
-  const { user, getToken } = useAuth();
+  const { user, appUser, getToken } = useAuth();
   // Profile mode: when opened from a profile grid, this screen shows ONE
   // author's published memes (TikTok-style) starting at the tapped one.
   const { profileUserId, profileName, startId } = useLocalSearchParams<{
@@ -216,7 +217,7 @@ export default function MemeWallScreen() {
   const handleShare = useCallback(async (m: MemePost) => {
     try {
       await Share.share({
-        message: `${m.caption}\n\n${t('meme.wall.shareMessage')}\nhttps://myphotomy.space/meme/${m.id}`,
+        message: `${m.caption}\n\n${t('meme.wall.shareMessage')}\n${withRef(`https://myphotomy.space/meme/${m.id}`, appUser?.referralCode)}`,
       });
       patch(m.id, x => ({ ...x, shares: x.shares + 1 }));
       const token = await getToken();
@@ -225,7 +226,7 @@ export default function MemeWallScreen() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
     } catch {}
-  }, [getToken, patch, t]);
+  }, [getToken, patch, t, appUser?.referralCode]);
 
   const openProfile = (m: MemePost) =>
     router.push({ pathname: '/meme-profile', params: { userId: m.authorId, userName: m.authorName } });

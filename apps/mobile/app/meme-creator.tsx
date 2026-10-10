@@ -19,6 +19,7 @@ import { moderateCaption } from '@/lib/ai-captions';
 import { saveToMySpace } from '@/lib/myspace-upload';
 import { ZoomPanView } from '@/components/ZoomPanView';
 import { useT, type TKey } from '@/lib/i18n';
+import { withRef } from '@/lib/referral-link';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -368,7 +369,7 @@ export default function MemeCreatorScreen() {
           }
         }
 
-        const shareUrl = `${API_URL}${responseData.shareUrl || '/meme-wall'}`;
+        const shareUrl = withRef(`${API_URL}${responseData.shareUrl || '/meme-wall'}`, appUser?.referralCode);
         Alert.alert(t('meme.creator.publishedTitle'), t('meme.creator.publishedMessage'), [
           { text: t('meme.creator.view'), onPress: () => router.push('/meme-wall') },
           {

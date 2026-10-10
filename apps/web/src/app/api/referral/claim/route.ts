@@ -4,6 +4,8 @@ import { initAdmin, db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { REFERRAL_BONUS, MAX_REFERRALS } from '@myphoto/shared';
 
+const REFEREE_MAX_ACCOUNT_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
@@ -55,6 +57,13 @@ export async function POST(request: NextRequest) {
 
   if (refereeData.referredBy) {
     return NextResponse.json({ error: 'Already referred' }, { status: 400 });
+  }
+
+  // Only a fresh signup can be credited to someone. A remembered ?ref= code
+  // must not turn an existing user who later visits /register into a referral.
+  const createdAtMs = refereeData.createdAt?.toMillis?.() ?? 0;
+  if (Date.now() - createdAtMs > REFEREE_MAX_ACCOUNT_AGE_MS) {
+    return NextResponse.json({ error: 'Account too old to be referred' }, { status: 400 });
   }
 
   // Check referrer hasn't hit the max

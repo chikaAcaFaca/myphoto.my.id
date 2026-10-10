@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
+import { withRef } from '@/lib/referral-link';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -29,7 +30,7 @@ export default function MemeProfileScreen() {
   const { colors: tc } = useTheme();
   const { t, tp } = useT();
   const { userId, userName } = useLocalSearchParams<{ userId: string; userName: string }>();
-  const { user, getToken } = useAuth();
+  const { user, appUser, getToken } = useAuth();
   const [memes, setMemes] = useState<ProfileMeme[]>([]);
   const [loading, setLoading] = useState(true);
   const [followerCount, setFollowerCount] = useState(0);
@@ -94,9 +95,9 @@ export default function MemeProfileScreen() {
 
   const handleShareProfile = useCallback(async () => {
     await Share.share({
-      message: `${t('meme.profile.shareMessage', { name: userName })}\nhttps://myphotomy.space/user/${userId}`,
+      message: `${t('meme.profile.shareMessage', { name: userName })}\n${withRef(`https://myphotomy.space/user/${userId}`, appUser?.referralCode)}`,
     });
-  }, [userId, userName, t]);
+  }, [userId, userName, t, appUser?.referralCode]);
 
   // Tapping any thumbnail opens the full-screen feed viewer scoped to this
   // user, starting on the tapped meme (TikTok-style).

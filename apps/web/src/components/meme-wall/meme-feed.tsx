@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
+import { withRef } from '@/lib/referral-link';
 import { getIdToken } from '@/lib/firebase';
 import { useT } from '@/i18n/client';
 
@@ -238,7 +239,7 @@ export function MemeFeed({
   };
 
   const handleShare = async (meme: Meme) => {
-    const url = `${window.location.origin}/meme/${meme.id}`;
+    const url = withRef(`${window.location.origin}/meme/${meme.id}`, user?.referralCode);
     try {
       if (navigator.share) {
         await navigator.share({
