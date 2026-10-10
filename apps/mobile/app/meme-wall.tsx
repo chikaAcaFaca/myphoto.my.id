@@ -50,7 +50,7 @@ function RailButton({ icon, color, count, label, onPress }: {
 }) {
   return (
     <TouchableOpacity style={styles.railBtn} onPress={onPress} activeOpacity={0.7}>
-      <Ionicons name={icon as any} size={32} color={color} />
+      <Ionicons name={icon as any} size={29} color={color} />
       {count !== undefined && <Text style={styles.railCount}>{count}</Text>}
       {label && <Text style={styles.railCount}>{label}</Text>}
     </TouchableOpacity>
@@ -540,11 +540,13 @@ const styles = StyleSheet.create({
   },
   emptyBtnText: { color: ON_FLAME, fontSize: 15, ...fonts.bold },
   page: { backgroundColor: '#000', justifyContent: 'center' },
-  rail: { position: 'absolute', right: 10, alignItems: 'center', gap: 18 },
+  // Compact: with Send + Remix (+ Edit for owners) the rail must stay below
+  // the floating header on short screens.
+  rail: { position: 'absolute', right: 10, alignItems: 'center', gap: 10 },
   railBtn: { alignItems: 'center', gap: 3 },
   railCount: { color: '#fff', fontSize: 12, ...fonts.bold, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 3 },
   railAvatar: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: memeFlame,
+    width: 42, height: 42, borderRadius: 21, backgroundColor: memeFlame,
     alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff',
   },
   railAvatarText: { color: ON_FLAME, fontSize: 18, ...fonts.extrabold },

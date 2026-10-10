@@ -44,9 +44,11 @@ export default function TabLayout() {
         name="meme-wall-tab"
         options={{
           title: t('nav.tabs.memeWall'),
-          // The flame stays orange on every screen — Meme Wall's own color.
+          // Options here style the whole bar while this tab is focused: the
+          // other tabs go light grey on the dark bar. The flame icon itself
+          // ignores `color` and stays orange on every screen.
           tabBarActiveTintColor: memeFlame,
-          tabBarInactiveTintColor: memeFlame,
+          tabBarInactiveTintColor: '#A3A7B0',
           // Meme Wall is a dark, full-bleed feed: the bar goes dark with it.
           tabBarStyle: {
             backgroundColor: '#111214',
