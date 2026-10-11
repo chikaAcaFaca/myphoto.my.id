@@ -14,6 +14,7 @@ import { useTheme } from '@/lib/theme-context';
 import { searchLocalPhotos, type PhotoIndexEntry } from '@/lib/local-search-index';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT, type TKey } from '@/lib/i18n';
+import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -36,6 +37,7 @@ const SUGGESTIONS: { label: string; key: TKey; icon: string }[] = [
 
 export default function SearchScreen() {
   const { colors: tc, isDark } = useTheme();
+  const authHeaders = useAuthHeaders();
   const { t, tp } = useT();
   const { getToken } = useAuth();
   const [query, setQuery] = useState('');
@@ -97,7 +99,7 @@ export default function SearchScreen() {
       }}
     >
       <Image
-        source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=small` }}
+        source={authHeaders ? thumbSource(item.id, 'small', authHeaders) : undefined}
         style={styles.cellImage}
         resizeMode="cover"
       />

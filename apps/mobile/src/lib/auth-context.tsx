@@ -294,12 +294,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [promptGoogle]);
 
-  const getToken = async (): Promise<string | null> => {
+  // Stable across renders (only changes on sign-in/out): screens put getToken
+  // in effect deps, and a new function every render re-ran their loads.
+  const getToken = useCallback(async (): Promise<string | null> => {
     if (user) {
       return user.getIdToken();
     }
     return SecureStore.getItemAsync('auth_token');
-  };
+  }, [user]);
 
   const usesPassword = !!user?.providerData.some((p) => p.providerId === 'password');
 

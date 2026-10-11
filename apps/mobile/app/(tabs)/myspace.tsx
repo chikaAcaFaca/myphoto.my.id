@@ -1,5 +1,6 @@
 import { Component, useState, useEffect, useCallback, type ErrorInfo, type ReactNode } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -67,6 +68,23 @@ function getFileIcon(mimeType: string | undefined | null, filename?: string): st
   if (['mp3', 'wav', 'm4a', 'ogg', 'flac'].includes(ext)) return 'musical-notes';
   if (ext === 'pdf') return 'document-text';
   return 'document';
+}
+
+/** What kind of document a file is: a short label and a colour to show it by. */
+function fileKind(mimeType: string | undefined | null, filename?: string): { label: string; color: string } {
+  const m = (mimeType || '').toLowerCase();
+  const ext = ((filename || '').toLowerCase().split('.').pop() || '').slice(0, 5);
+  if (m.includes('pdf') || ext === 'pdf') return { label: 'PDF', color: '#E5484D' };
+  if (m.includes('wordprocessing') || m.includes('msword') || ['doc', 'docx', 'odt', 'rtf'].includes(ext)) return { label: 'WORD', color: '#2B579A' };
+  if (m.includes('spreadsheet') || m.includes('excel') || ['xls', 'xlsx', 'ods', 'csv'].includes(ext)) return { label: ext === 'csv' ? 'CSV' : 'EXCEL', color: '#217346' };
+  if (m.includes('presentation') || m.includes('powerpoint') || ['ppt', 'pptx', 'odp'].includes(ext)) return { label: 'PPT', color: '#D24726' };
+  if (m.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].includes(ext)) return { label: (ext || 'IMG').toUpperCase(), color: '#2453E6' };
+  if (m.startsWith('video/') || ['mp4', 'mov', 'webm', 'mkv'].includes(ext)) return { label: 'VIDEO', color: '#7C3AED' };
+  if (m.startsWith('audio/') || ['mp3', 'wav', 'm4a', 'ogg', 'flac'].includes(ext)) return { label: 'AUDIO', color: '#DB2777' };
+  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext) || m.includes('zip')) return { label: ext.toUpperCase() || 'ZIP', color: '#8A6D3B' };
+  if (ext === 'apk') return { label: 'APK', color: '#3DDC84' };
+  if (m.startsWith('text/') || ['txt', 'md'].includes(ext)) return { label: 'TXT', color: '#5E6470' };
+  return { label: ext ? ext.toUpperCase() : 'FILE', color: '#5E6470' };
 }
 
 export default function MySpaceScreenWithBoundary() {
@@ -242,18 +260,29 @@ function MySpaceScreen() {
     ]);
   };
 
-  const renderFile = (file: DiskFile) => (
+  const renderFile = (file: DiskFile) => {
+    const kind = fileKind(file.mimeType, file.name);
+    const preview = (file as DiskFile & { previewUrl?: string }).previewUrl;
+    return (
     <TouchableOpacity key={file.id} style={[styles.folderItem, { backgroundColor: tc.bgCard, borderColor: tc.border }]} onPress={() => handleFilePress(file)}>
-      <View style={[styles.folderIcon, { backgroundColor: tc.bgInput }]}>
-        <Ionicons name={getFileIcon(file.mimeType, file.name) as any} size={20} color={tc.textSecondary} />
-      </View>
+      {preview ? (
+        <Image source={{ uri: preview }} style={[styles.preview, { backgroundColor: tc.bgInput }]} contentFit="cover" recyclingKey={file.id} />
+      ) : (
+        <View style={[styles.preview, { backgroundColor: kind.color + '1A' }]}>
+          <Ionicons name={getFileIcon(file.mimeType, file.name) as any} size={24} color={kind.color} />
+        </View>
+      )}
       <View style={styles.folderInfo}>
-        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={1}>{file.name || t('myspace.untitled')}</Text>
-        <Text style={[styles.folderMeta, { color: tc.textSecondary }]}>{formatBytes(file.size || 0)}</Text>
+        <Text style={[styles.folderName, { color: tc.text }]} numberOfLines={2}>{file.name || t('myspace.untitled')}</Text>
+        <View style={styles.metaRow}>
+          <Text style={[styles.kindBadge, { color: kind.color, backgroundColor: kind.color + '1A' }]}>{kind.label}</Text>
+          <Text style={[styles.folderMeta, { color: tc.textSecondary, marginTop: 0 }]}>{formatBytes(file.size || 0)}</Text>
+        </View>
       </View>
       <Ionicons name="download-outline" size={18} color={tc.textMuted} />
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
@@ -363,6 +392,9 @@ const styles = StyleSheet.create({
   folderInfo: { flex: 1 },
   folderName: { fontSize: 15, ...fonts.semibold },
   folderMeta: { fontSize: 12, marginTop: 2 },
+  preview: { width: 56, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  kindBadge: { fontSize: 10, ...fonts.bold, letterSpacing: 0.5, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: { fontSize: 16, ...fonts.semibold, marginTop: 12 },
 });

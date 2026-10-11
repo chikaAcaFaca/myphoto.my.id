@@ -12,6 +12,7 @@ import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
 import type { FileMetadata } from '@myphoto/shared';
+import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const THUMB = 120;
@@ -28,6 +29,7 @@ interface MemoryGroup {
 
 export default function MemoriesScreen() {
   const { colors: tc } = useTheme();
+  const authHeaders = useAuthHeaders();
   const { t } = useT();
   const { getToken } = useAuth();
   const [onThisDay, setOnThisDay] = useState<FileMetadata[]>([]);
@@ -117,7 +119,7 @@ export default function MemoriesScreen() {
                 renderItem={({ item }) => (
                   <TouchableOpacity onPress={() => openPhoto(item)} activeOpacity={0.8}>
                     <Image
-                      source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=medium` }}
+                      source={authHeaders ? thumbSource(item.id, 'medium', authHeaders) : undefined}
                       style={[styles.otdThumb, { backgroundColor: tc.bgInput }]}
                     />
                     {item.takenAt && (
@@ -147,7 +149,7 @@ export default function MemoriesScreen() {
                 renderItem={({ item }) => (
                   <TouchableOpacity onPress={() => openPhoto(item)} activeOpacity={0.8}>
                     <Image
-                      source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=small` }}
+                      source={authHeaders ? thumbSource(item.id, 'small', authHeaders) : undefined}
                       style={[styles.memThumb, { backgroundColor: tc.bgInput }]}
                     />
                   </TouchableOpacity>

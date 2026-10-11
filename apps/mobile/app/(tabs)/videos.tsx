@@ -16,6 +16,7 @@ import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
+import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 2;
@@ -40,6 +41,7 @@ function formatDuration(seconds?: number): string {
 
 export default function VideosScreen() {
   const { colors: tc } = useTheme();
+  const authHeaders = useAuthHeaders();
   const { t } = useT();
   const { getToken } = useAuth();
   const [cloudVideos, setCloudVideos] = useState<FileMetadata[]>([]);
@@ -182,7 +184,7 @@ export default function VideosScreen() {
           />
         ) : item.thumbnailKey ? (
           <Image
-            source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=medium` }}
+            source={authHeaders ? thumbSource(item.id, 'medium', authHeaders) : undefined}
             style={styles.thumbImage}
             resizeMode="cover"
           />

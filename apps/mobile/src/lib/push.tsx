@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
@@ -41,6 +41,21 @@ async function registerDevice(getToken: () => Promise<string | null>) {
   if (res.ok) await SecureStore.setItemAsync(PUSH_TOKEN_KEY, fcmToken);
 }
 
+// The last push tap we acted on. getLastNotificationResponseAsync keeps
+// returning the same old tap for the life of the app (and across restarts),
+// so without this every re-run would throw the user back into the Inbox.
+const HANDLED_KEY = 'push_last_handled_id';
+let handledId: string | null = null;
+
+async function openOnce(response: Notifications.NotificationResponse, uid: string) {
+  const id = response.notification.request.identifier;
+  if (handledId === null) handledId = await SecureStore.getItemAsync(HANDLED_KEY).catch(() => null);
+  if (id && id === handledId) return;
+  handledId = id;
+  if (id) SecureStore.setItemAsync(HANDLED_KEY, id).catch(() => {});
+  openFromPush(response.notification.request.content.data, uid);
+}
+
 function openFromPush(data: Record<string, unknown> | undefined, uid: string | undefined) {
   const memeId = typeof data?.memeId === 'string' ? data.memeId : null;
   const conversationId = typeof data?.conversationId === 'string' ? data.conversationId : null;
@@ -57,29 +72,37 @@ function openFromPush(data: Record<string, unknown> | undefined, uid: string | u
 export function PushRegistrar() {
   const { user, getToken } = useAuth();
   const { refresh } = useInbox();
+  // getToken/refresh change identity on every auth render; keep the latest in
+  // refs so the listeners below are set up once per signed-in user, not on
+  // every render (which re-ran the cold-start tap and yanked the user to Inbox).
+  const getTokenRef = useRef(getToken);
+  const refreshRef = useRef(refresh);
+  getTokenRef.current = getToken;
+  refreshRef.current = refresh;
+  const uid = user?.uid;
 
   useEffect(() => {
-    if (!user) return;
-    registerDevice(getToken).catch((e) => console.warn('Push registration failed:', e));
+    if (!uid) return;
+    registerDevice(() => getTokenRef.current()).catch((e) => console.warn('Push registration failed:', e));
 
     // A push arriving while the app is open: update the badge right away.
     const received = Notifications.addNotificationReceivedListener(() => {
-      refresh();
+      refreshRef.current();
     });
     // Tapping a push (app in background or closed) opens what it is about.
     const tapped = Notifications.addNotificationResponseReceivedListener((response) => {
-      openFromPush(response.notification.request.content.data, user.uid);
+      openOnce(response, uid);
     });
-    // Cold start from a tap.
+    // Cold start from a tap — only if it is a tap we haven't handled yet.
     Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) openFromPush(response.notification.request.content.data, user.uid);
+      if (response) openOnce(response, uid);
     }).catch(() => {});
 
     return () => {
       received.remove();
       tapped.remove();
     };
-  }, [user, getToken, refresh]);
+  }, [uid]);
 
   return null;
 }

@@ -29,12 +29,17 @@ export function InboxProvider({ children }: { children: ReactNode }) {
   const unread = counts.activity + counts.messages;
   const clearActivity = useCallback(() => setCounts((c) => ({ ...c, activity: 0 })), []);
   const inFlight = useRef(false);
+  // getToken is a new function on every auth render; read it through a ref so
+  // refresh (and the polling effect) stay stable.
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const uid = user?.uid;
 
   const refresh = useCallback(async () => {
-    if (!user || inFlight.current) return;
+    if (!uid || inFlight.current) return;
     inFlight.current = true;
     try {
-      const token = await getToken();
+      const token = await getTokenRef.current();
       if (!token) return;
       const res = await fetch(`${API_URL}/api/inbox/unread`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -48,10 +53,10 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     } finally {
       inFlight.current = false;
     }
-  }, [user, getToken]);
+  }, [uid]);
 
   useEffect(() => {
-    if (!user) {
+    if (!uid) {
       setCounts({ activity: 0, messages: 0 });
       return;
     }
@@ -66,7 +71,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
       clearInterval(timer);
       sub.remove();
     };
-  }, [user, refresh]);
+  }, [uid, refresh]);
 
   return (
     <InboxContext.Provider

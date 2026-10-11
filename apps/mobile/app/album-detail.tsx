@@ -13,6 +13,7 @@ import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
 import { HeaderIconButton } from '@/components/ScreenHeader';
+import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -24,10 +25,12 @@ interface AlbumFile {
   id: string;
   name: string;
   type: string;
+  thumbUrl?: string | null;
 }
 
 export default function AlbumDetailScreen() {
   const { colors: tc } = useTheme();
+  const authHeaders = useAuthHeaders();
   const { t } = useT();
   const { getToken, appUser } = useAuth();
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
@@ -45,6 +48,7 @@ export default function AlbumDetailScreen() {
         const data = await res.json();
         const list: AlbumFile[] = (data.files || data.items || []).map((f: any) => ({
           id: f.id, name: f.name, type: f.type || 'image',
+          thumbUrl: f.thumbnailUrl || f.smallThumbUrl || null,
         }));
         setFiles(list);
       }
@@ -91,7 +95,7 @@ export default function AlbumDetailScreen() {
   const renderCell = ({ item }: { item: AlbumFile }) => (
     <TouchableOpacity style={styles.cell} activeOpacity={0.8} onPress={() => openPhoto(item)}>
       <Image
-        source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=medium` }}
+        source={item.thumbUrl ? { uri: item.thumbUrl } : authHeaders ? thumbSource(item.id, 'medium', authHeaders) : undefined}
         style={[styles.thumb, { backgroundColor: tc.bgInput }]}
         resizeMode="cover"
       />
