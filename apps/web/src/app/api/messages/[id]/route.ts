@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { memeMediaUrls } from '@/lib/meme-video';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { generateDownloadUrl } from '@/lib/s3';
@@ -39,10 +40,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       memeIds.map(async (memeId) => {
         const m = (await db.collection('memes').doc(memeId).get()).data();
         if (!m) return;
-        let imageUrl = m.imageUrl || '';
-        if (m.s3Key && !imageUrl) {
-          try { imageUrl = await generateDownloadUrl(m.s3Key); } catch {}
-        }
+        const { imageUrl } = await memeMediaUrls(m);
         memes[memeId] = { imageUrl, caption: m.caption || '', mediaType: m.mediaType || 'image' };
       })
     );

@@ -51,7 +51,7 @@ export async function generateUploadUrl(
 
 export async function generateDownloadUrl(
   key: string,
-  opts: { expiresIn?: number; filename?: string; contentType?: string } = {}
+  opts: { expiresIn?: number; filename?: string; contentType?: string; stable?: boolean } = {}
 ): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
@@ -60,12 +60,26 @@ export async function generateDownloadUrl(
       ? { ResponseContentDisposition: `attachment; filename="${opts.filename}"` }
       : {}),
     ...(opts.contentType ? { ResponseContentType: opts.contentType } : {}),
+    ...(opts.stable ? { ResponseCacheControl: 'public, max-age=86400, immutable' } : {}),
   });
+
+  if (opts.stable) {
+    // Same URL for a whole day: signed as of the start of the current
+    // 24 h window, valid 48 h. A fresh signature per request made every
+    // phone and browser download the same meme again on each visit.
+    const windowStart = Math.floor(Date.now() / STABLE_WINDOW_MS) * STABLE_WINDOW_MS;
+    return getSignedUrl(s3Client, command, {
+      signingDate: new Date(windowStart),
+      expiresIn: (2 * STABLE_WINDOW_MS) / 1000,
+    });
+  }
 
   return getSignedUrl(s3Client, command, {
     expiresIn: opts.expiresIn ?? PRESIGNED_URL_EXPIRY,
   });
 }
+
+const STABLE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function deleteObject(key: string): Promise<void> {
   const command = new DeleteObjectCommand({

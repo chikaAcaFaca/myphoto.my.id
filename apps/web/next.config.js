@@ -24,7 +24,15 @@ const nextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['undici'],
+  serverExternalPackages: ['undici', '@ffmpeg-installer/ffmpeg'],
+  // The ffmpeg binary is picked at runtime by platform, so tracing can't see
+  // it: ship the Linux one with the routes that convert meme videos.
+  outputFileTracingIncludes: {
+    '/api/meme-wall': [
+      './node_modules/@ffmpeg-installer/linux-x64/**',
+      '../../node_modules/@ffmpeg-installer/linux-x64/**',
+    ],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',

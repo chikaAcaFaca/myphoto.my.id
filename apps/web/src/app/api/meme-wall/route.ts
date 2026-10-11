@@ -4,6 +4,7 @@ import { verifyAuthWithRateLimit, getOptionalUserId } from '@/lib/auth-utils';
 import { generateUploadUrl, generateDownloadUrl } from '@/lib/s3';
 import { FieldValue } from 'firebase-admin/firestore';
 import { rankedFeed } from '@/lib/meme-feed';
+import { memeMediaUrls, scheduleOptimization } from '@/lib/meme-video';
 import {
   generateFileId,
   formatBytes,
@@ -12,6 +13,8 @@ import {
 } from '@myphoto/shared';
 
 export const dynamic = 'force-dynamic';
+// Room for the background video conversion scheduled after a response.
+export const maxDuration = 300;
 
 // GET /api/meme-wall — public listing of memes, newest first (LIFO).
 // Auth is optional: when a valid token is supplied we also return the
@@ -111,15 +114,13 @@ async function toMemes(docs: FirebaseFirestore.QueryDocumentSnapshot[], viewerId
       });
     } catch {}
   }
+  scheduleOptimization(docs);
   return Promise.all(docs.map((doc) => toMeme(doc, states.get(doc.id))));
 }
 
 async function toMeme(doc: FirebaseFirestore.QueryDocumentSnapshot, state?: ViewerState) {
   const data = doc.data();
-  let imageUrl = data.imageUrl || '';
-  if (data.s3Key && !imageUrl) {
-    try { imageUrl = await generateDownloadUrl(data.s3Key, { expiresIn: 3600 }); } catch {}
-  }
+  const { imageUrl, posterUrl } = await memeMediaUrls(data);
 
   const userReaction = state?.reaction ?? null;
   const userFavorited = state?.favorited ?? false;
@@ -131,6 +132,7 @@ async function toMeme(doc: FirebaseFirestore.QueryDocumentSnapshot, state?: View
     topText: data.topText || '',
     bottomText: data.bottomText || '',
     imageUrl,
+    posterUrl,
     mediaType: data.mediaType || 'image',
     authorName: data.authorName || 'Anonymous',
     authorId: data.authorId,

@@ -50,7 +50,7 @@ const OTHER_OWNED: Array<[string, string]> = [
   ['memeReferrals', 'refereeId'],
 ];
 
-const KEY_FIELDS = ['s3Key', 'thumbnailKey', 'previewKey', 'posterKey'];
+const KEY_FIELDS = ['s3Key', 'thumbnailKey', 'previewKey', 'posterKey', 'optimizedKey'];
 
 export interface DeletionReport {
   objectsDeleted: number;

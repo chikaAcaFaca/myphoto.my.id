@@ -10,6 +10,7 @@ import { InstallAppButton } from '@/components/install/android-install';
 
 export interface FeedMeme {
   id: string;
+  posterUrl?: string | null;
   caption: string;
   topText: string;
   bottomText: string;
@@ -260,6 +261,8 @@ export function SharedMemeFeed({
                   <video
                     ref={(el) => { if (el) videos.current.set(m.id, el); else videos.current.delete(m.id); }}
                     src={m.imageUrl}
+                    poster={m.posterUrl || undefined}
+                    preload={i === activeIndex ? 'auto' : 'metadata'}
                     muted={muted}
                     loop
                     playsInline

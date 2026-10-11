@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { memeMediaUrls } from '@/lib/meme-video';
 import { db } from '@/lib/firebase-admin';
 import { getOptionalUserId } from '@/lib/auth-utils';
 import { generateDownloadUrl } from '@/lib/s3';
@@ -46,10 +47,7 @@ export async function GET(
     const memes = await Promise.all(
       docs.map(async (doc) => {
         const data = doc.data();
-        let imageUrl = data.imageUrl || '';
-        if (data.s3Key && !imageUrl) {
-          try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
-        }
+        const { imageUrl, posterUrl } = await memeMediaUrls(data);
         // Per-viewer reaction/favorite/repost state so the profile feed-viewer
         // can render the same right-rail as the main wall.
         let userReaction: 'like' | 'dislike' | null = null;
@@ -73,6 +71,7 @@ export async function GET(
           topText: data.topText || '',
           bottomText: data.bottomText || '',
           imageUrl,
+          posterUrl,
           mediaType: data.mediaType || 'image',
           authorName: data.authorName || 'Anonymous',
           authorId: data.authorId,

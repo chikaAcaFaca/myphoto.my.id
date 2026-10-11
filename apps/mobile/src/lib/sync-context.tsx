@@ -28,6 +28,7 @@ import {
   isForegroundSyncRunning,
 } from './foreground-sync';
 import { withTimeout } from './net';
+import { waitWhileMediaBusy } from './media-busy';
 
 const BACKGROUND_SYNC_TASK = 'MYPHOTO_BACKGROUND_SYNC';
 const SYNC_STATE_KEY = '@myphoto/sync_state';
@@ -697,7 +698,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       } finally {
         refreshAppUser().catch(() => {});
       }
-    }, 2000);
+    }, 15000);
     return () => clearTimeout(t);
   }, [user, settings.autoBackup, settings.syncMode, stateLoaded]);
 
@@ -883,6 +884,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
       const worker = async () => {
         while (queue.length > 0 && !cancelRef.current) {
+          await waitWhileMediaBusy(() => cancelRef.current);
+          if (cancelRef.current) break;
           const asset = queue.shift();
           if (!asset) break;
 
