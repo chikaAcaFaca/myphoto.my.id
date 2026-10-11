@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Search,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore, useUIStore, useFilesStore } from '@/lib/stores';
 import { usePWA } from '@/lib/hooks/use-pwa';
+import { useInboxBadge } from '@/lib/hooks/use-inbox';
 import { cn } from '@/lib/utils';
 import { useT } from '@/i18n/client';
 import { LanguageSwitcher } from './language-switcher';
@@ -30,6 +32,7 @@ export function Header() {
   const { selectedFiles, deselectAll } = useFilesStore();
   const { isInstallable, isInstalled, isIOS, installApp } = usePWA();
   const router = useRouter();
+  const unread = useInboxBadge((s) => s.activity + s.messages);
   const t = useT();
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -76,7 +79,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-canvas-light px-4 dark:bg-canvas-dark lg:h-16 lg:border-b lg:border-gray-200 lg:bg-white lg:dark:border-gray-700 lg:dark:bg-gray-800">
       {/* Left side */}
       <div className="flex items-center gap-4">
         <button
@@ -102,7 +105,12 @@ export function Header() {
             </span>
           </div>
         ) : (
-          /* Search */
+          <>
+          {/* Phones: the app's wordmark; search lives under Slike */}
+          <Link href="/meme-wall" className="font-display text-[24px] font-extrabold tracking-tight text-ink dark:text-white md:hidden">
+            MyPhoto
+          </Link>
+          {/* Search */}
           <form onSubmit={handleSearch} className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -124,6 +132,7 @@ export function Header() {
               </kbd>
             )}
           </form>
+          </>
         )}
       </div>
 
@@ -173,25 +182,32 @@ export function Header() {
           </button>
         )}
 
-        <LanguageSwitcher />
+        <div className="hidden lg:block">
+          <LanguageSwitcher />
+        </div>
 
         {/* Dark mode toggle */}
         <button
           onClick={toggleDarkMode}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+          className="hidden rounded-lg p-2 lg:inline-flex text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
           title={isDarkMode ? t('components.header.lightMode') : t('components.header.darkMode')}
         >
           {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
 
         {/* Notifications */}
-        <button aria-label={t('components.header.notifications')} className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+        {/* Inbox (phones use the tab bar) */}
+        <Link href="/inbox" aria-label={t('components.header.notifications')} className="relative hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 lg:inline-flex">
           <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-        </button>
+          {unread > 0 && (
+            <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E5484D] px-1 text-[10px] font-bold text-white">
+              {unread > 99 ? '99+' : unread}
+            </span>
+          )}
+        </Link>
 
         {/* User menu */}
-        <div className="relative" ref={userMenuRef}>
+        <div className="relative hidden lg:block" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"

@@ -1,14 +1,17 @@
 {
   "name": "MyPhoto",
   "short_name": "MyPhoto",
-  "description": "Privatni cloud backup za vaše slike, video i dokumente. EU serveri, GDPR zaštita.",
+  "description": "Mimovi, slike i poruke — privatni cloud za tvoje slike i video. EU serveri, GDPR zaštita.",
   "id": "com.mycamerabackup.app",
-  "start_url": "/photos",
+  "start_url": "/meme-wall?source=pwa",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#2563eb",
-  "orientation": "any",
-  "categories": ["photo", "productivity"],
+  "background_color": "#FAFAF8",
+  "theme_color": "#2453E6",
+  "orientation": "portrait",
+  "categories": [
+    "photo",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -44,9 +47,45 @@
       "files": [
         {
           "name": "media",
-          "accept": ["image/*", "video/*"]
+          "accept": [
+            "image/*",
+            "video/*"
+          ]
         }
       ]
     }
-  }
+  },
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "Mimovi",
+      "url": "/meme-wall",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Slike",
+      "url": "/photos",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Inbox",
+      "url": "/inbox",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
 }

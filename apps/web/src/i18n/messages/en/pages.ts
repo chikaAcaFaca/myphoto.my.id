@@ -2,6 +2,7 @@ import { privacy } from './pages-privacy';
 import { terms } from './pages-terms';
 import { refund } from './pages-refund';
 import { keepFiles } from './pages-keep-files';
+import { inbox } from './pages-inbox';
 import { shared } from './pages-shared';
 import { checkout, pricing } from './pages-billing';
 import { auth } from './pages-auth';
@@ -12,6 +13,7 @@ export const pages = {
   terms,
   refund,
   keepFiles,
+  inbox,
   shared,
   checkout,
   pricing,

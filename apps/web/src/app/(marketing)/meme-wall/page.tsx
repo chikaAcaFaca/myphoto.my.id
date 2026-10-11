@@ -5,11 +5,26 @@ import Link from 'next/link';
 import { useAuthStore } from '@/lib/stores';
 import { useT } from '@/i18n/client';
 import { MemeFeed } from '@/components/meme-wall/meme-feed';
+import { SharedMemeFeed } from '@/components/meme-wall/shared-meme-feed';
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
+import { useIsMobile, useInboxPolling } from '@/lib/hooks';
 
 export default function MemeWallPage() {
   const { user } = useAuthStore();
   const t = useT();
+  const isMobile = useIsMobile();
   const [showCreator, setShowCreator] = useState(false);
+  useInboxPolling();
+
+  // Signed in on a phone: the app's home tab — full-screen feed + tab bar.
+  if (user && isMobile) {
+    return (
+      <>
+        <SharedMemeFeed app />
+        <MobileBottomNav dark />
+      </>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#fff', fontFamily: 'system-ui' }}>
