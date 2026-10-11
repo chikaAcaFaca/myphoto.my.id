@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore, useUIStore, useFilesStore } from '@/lib/stores';
-import { useIsMobile } from '@/lib/hooks';
+import { useIsMobile, useInboxPolling } from '@/lib/hooks';
 import { getIdToken } from '@/lib/firebase';
 import { syncSettingsToIDB, refreshStaleTokens, requestBackgroundSync } from '@/lib/upload-queue';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -18,6 +18,7 @@ import { Notifications } from '@/components/ui/notifications';
 import { UploadToast } from '@/components/upload/upload-toast';
 import { PWAPrompt } from '@/components/pwa/pwa-prompt';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
+import { LibrarySwitcher } from '@/components/layout/library-switcher';
 
 export default function DashboardLayout({
   children,
@@ -30,6 +31,7 @@ export default function DashboardLayout({
   const isMobile = useIsMobile();
   const router = useRouter();
   const queryClient = useQueryClient();
+  useInboxPolling();
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -94,7 +96,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-[100dvh] overflow-hidden bg-canvas-light dark:bg-canvas-dark lg:bg-gray-50 lg:dark:bg-gray-900">
       {/* Sidebar */}
       <Sidebar />
 
@@ -107,7 +109,8 @@ export default function DashboardLayout({
         <Header />
         <AndroidAppBanner />
         <WindowsAppBanner />
-        <main className="flex-1 overflow-auto p-2 pb-20 lg:p-6 lg:pb-6">{children}</main>
+        <LibrarySwitcher />
+        <main className="flex-1 overflow-auto px-3 pb-[calc(76px+env(safe-area-inset-bottom))] pt-1 lg:p-6 lg:pb-6">{children}</main>
       </div>
 
       {/* Modals */}

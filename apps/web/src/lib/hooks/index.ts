@@ -8,3 +8,4 @@ export * from './use-mobile';
 export * from './use-referral';
 export * from './use-bonus';
 export * from './use-plan-recommendation';
+export * from './use-inbox';

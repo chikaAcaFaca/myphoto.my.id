@@ -18,6 +18,7 @@ export interface FeedMeme {
   authorId: string;
   likes: number;
   commentCount: number;
+  userReaction?: 'like' | 'dislike' | null;
 }
 
 /** How many memes a visitor without an account sees before signing up. */
@@ -27,24 +28,30 @@ const FLAME = '#FF7A3D';
 const ON_FLAME = '#111214';
 const memeTextShadow = '2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000';
 
+/** Height of the app tab bar (MobileBottomNav) the feed sits above in `app` mode. */
+const TAB_BAR = 'calc(60px + env(safe-area-inset-bottom))';
+
 /**
- * A shared meme opened from WhatsApp/Viber: the same full-screen, swipe-up
- * feed as the app's Meme Wall, starting at the shared meme. Visitors without
- * an account get GUEST_LIMIT memes, then a sign-up gate (credited to whoever
- * shared the link via `ref`).
+ * The full-screen, swipe-up Meme Wall feed, same as the app's.
+ * - Shared link (`first` set): starts at the shared meme. Visitors without an
+ *   account get GUEST_LIMIT memes, then a sign-up gate (credited to whoever
+ *   shared the link via `ref`).
+ * - `app`: the signed-in phone web app's home tab, above the tab bar.
  */
 export function SharedMemeFeed({
   first,
-  refCode,
-  isIos,
+  refCode = null,
+  isIos = false,
+  app = false,
 }: {
-  first: FeedMeme;
-  refCode: string | null;
-  isIos: boolean;
+  first?: FeedMeme;
+  refCode?: string | null;
+  isIos?: boolean;
+  app?: boolean;
 }) {
   const { user, isLoading } = useAuthStore();
   const t = useT();
-  const [memes, setMemes] = useState<FeedMeme[]>([first]);
+  const [memes, setMemes] = useState<FeedMeme[]>(first ? [first] : []);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -54,17 +61,25 @@ export function SharedMemeFeed({
   const scroller = useRef<HTMLDivElement>(null);
   const videos = useRef<Map<string, HTMLVideoElement>>(new Map());
 
-  const registerHref = `/register?ref=${encodeURIComponent(refCode || `meme_${first.id}`)}`;
-  const loginHref = `/login?redirect=${encodeURIComponent(`/meme/${first.id}`)}`;
-  const gated = !isLoading && !user && activeIndex >= GUEST_LIMIT;
+  const registerHref = `/register${refCode || first ? `?ref=${encodeURIComponent(refCode || `meme_${first!.id}`)}` : ''}`;
+  const loginHref = `/login?redirect=${encodeURIComponent(first ? `/meme/${first.id}` : '/meme-wall')}`;
+  const gated = !app && !isLoading && !user && activeIndex >= GUEST_LIMIT;
+  const slideHeight = app ? `calc(100dvh - ${TAB_BAR})` : '100dvh';
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      const res = await fetch(`/api/meme-wall?page=${page}&pageSize=${PAGE_SIZE}`);
+      // Signed in: send the token so each meme carries my like state.
+      const token = user ? await getIdToken() : null;
+      const res = await fetch(`/api/meme-wall?page=${page}&pageSize=${PAGE_SIZE}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
+      const mine: Record<string, boolean> = {};
+      for (const m of (data.memes || []) as FeedMeme[]) if (m.userReaction === 'like') mine[m.id] = true;
+      setLiked((s) => ({ ...mine, ...s }));
       setMemes((prev) => {
         const known = new Set(prev.map((m) => m.id));
         return [...prev, ...((data.memes || []) as FeedMeme[]).filter((m) => !known.has(m.id))];
@@ -76,13 +91,13 @@ export function SharedMemeFeed({
     } finally {
       setLoadingMore(false);
     }
-  }, [page, hasMore, loadingMore]);
+  }, [page, hasMore, loadingMore, user]);
 
   useEffect(() => {
-    loadMore();
-    // first page once
+    // First page once auth is known (the token adds my like state).
+    if (!isLoading) loadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLoading]);
 
   // Which slide is on screen: drives video playback, prefetch and the gate.
   useEffect(() => {
@@ -148,7 +163,7 @@ export function SharedMemeFeed({
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: '#000', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 45, backgroundColor: '#000', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
       {/* Top bar */}
       <header style={{
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
@@ -157,10 +172,15 @@ export function SharedMemeFeed({
       }}>
         <Link href="/meme-wall" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#fff', textDecoration: 'none' }}>
           <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill={FLAME}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></svg>
-          <span style={{ fontWeight: 800, fontSize: 20, letterSpacing: -0.4 }}>MemeWall</span>
+          <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: -0.4, fontFamily: 'var(--font-display), system-ui, sans-serif' }}>MemeWall</span>
         </Link>
         <div style={{ display: 'flex', gap: 8 }}>
-          {!isIos && (
+          {app && (
+            <Link href="/meme-creator" style={{ ...pill, backgroundColor: 'rgba(255,255,255,0.16)', color: '#fff' }}>
+              {t('pages.inbox.create')}
+            </Link>
+          )}
+          {!app && !isIos && (
             <a href="/api/download/android" style={{ ...pill, backgroundColor: FLAME, color: ON_FLAME }}>
               {t('pages.meme.feed.getApp')}
             </a>
@@ -177,7 +197,7 @@ export function SharedMemeFeed({
       <div
         ref={scroller}
         style={{
-          height: '100%', overflowY: gated ? 'hidden' : 'auto', scrollSnapType: 'y mandatory',
+          height: app ? `calc(100% - ${TAB_BAR})` : '100%', overflowY: gated ? 'hidden' : 'auto', scrollSnapType: 'y mandatory',
           overscrollBehavior: 'contain',
         }}
       >
@@ -185,7 +205,7 @@ export function SharedMemeFeed({
           <section
             key={m.id}
             data-index={i}
-            style={{ height: '100dvh', scrollSnapAlign: 'start', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ height: slideHeight, scrollSnapAlign: 'start', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             {Math.abs(i - activeIndex) <= 2 && m.imageUrl ? (
               <div style={{ position: 'relative', width: '100%', maxWidth: 560 }}>
@@ -197,11 +217,11 @@ export function SharedMemeFeed({
                     loop
                     playsInline
                     onClick={() => setMuted((x) => !x)}
-                    style={{ width: '100%', maxHeight: '80dvh', display: 'block', objectFit: 'contain' }}
+                    style={{ width: '100%', maxHeight: '78dvh', display: 'block', objectFit: 'contain' }}
                   />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.imageUrl} alt={m.caption} style={{ width: '100%', maxHeight: '80dvh', display: 'block', objectFit: 'contain' }} />
+                  <img src={m.imageUrl} alt={m.caption} style={{ width: '100%', maxHeight: '78dvh', display: 'block', objectFit: 'contain' }} />
                 )}
                 {m.mediaType !== 'image' && m.topText && (
                   <span style={{ position: 'absolute', top: 10, left: 0, right: 0, textAlign: 'center', fontFamily: 'Impact, Arial Black, sans-serif', fontWeight: 900, fontSize: 30, textTransform: 'uppercase', padding: '0 8px', textShadow: memeTextShadow }}>{m.topText}</span>
@@ -221,7 +241,7 @@ export function SharedMemeFeed({
             ) : null}
 
             {/* Right rail */}
-            <div style={{ position: 'absolute', right: 10, bottom: 120, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div style={{ position: 'absolute', right: 10, bottom: app ? 90 : 120, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
               <button aria-label={t('pages.meme.feed.like')} onClick={() => like(m)} style={railBtn}>
                 <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill={liked[m.id] ? FLAME : 'none'} stroke={liked[m.id] ? FLAME : '#fff'} strokeWidth="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>
                 <span style={railCount}>{m.likes}</span>
@@ -236,7 +256,7 @@ export function SharedMemeFeed({
             </div>
 
             {/* Author + caption */}
-            <div style={{ position: 'absolute', left: 14, right: 80, bottom: 28, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+            <div style={{ position: 'absolute', left: 14, right: 80, bottom: app ? 16 : 28, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
               <Link href={`/user/${m.authorId}`} style={{ color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>@{m.authorName}</Link>
               {m.caption ? <p style={{ margin: '6px 0 0', fontSize: 14, lineHeight: 1.35 }}>{m.caption}</p> : null}
             </div>
