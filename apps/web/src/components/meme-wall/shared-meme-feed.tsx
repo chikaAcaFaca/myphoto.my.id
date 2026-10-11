@@ -59,6 +59,10 @@ export function SharedMemeFeed({
   const [muted, setMuted] = useState(true);
   const [liked, setLiked] = useState<Record<string, boolean>>({});
   const scroller = useRef<HTMLDivElement>(null);
+  // "Za tebe" order: one seed per visit keeps paging stable; `since` marks
+  // which memes count as already seen (seen before this visit).
+  const session = useRef({ seed: Math.random().toString(36).slice(2, 10), since: Date.now() });
+  const seenQueue = useRef<Set<string>>(new Set());
   const videos = useRef<Map<string, HTMLVideoElement>>(new Map());
 
   const registerHref = `/register${refCode || first ? `?ref=${encodeURIComponent(refCode || `meme_${first!.id}`)}` : ''}`;
@@ -72,7 +76,8 @@ export function SharedMemeFeed({
     try {
       // Signed in: send the token so each meme carries my like state.
       const token = user ? await getIdToken() : null;
-      const res = await fetch(`/api/meme-wall?page=${page}&pageSize=${PAGE_SIZE}`, {
+      const { seed, since } = session.current;
+      const res = await fetch(`/api/meme-wall?feed=foryou&seed=${seed}&since=${since}&page=${page}&pageSize=${PAGE_SIZE}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(String(res.status));
@@ -116,6 +121,37 @@ export function SharedMemeFeed({
     root.querySelectorAll('[data-index]').forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, [memes.length]);
+
+  // Report scrolled-past memes in batches (signed in only).
+  const flushSeen = useCallback(async () => {
+    const ids = [...seenQueue.current];
+    if (!user || ids.length === 0) return;
+    seenQueue.current.clear();
+    try {
+      const token = await getIdToken();
+      await fetch('/api/meme-wall/seen', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ ids }),
+      });
+    } catch {}
+  }, [user]);
+
+  useEffect(() => {
+    const m = memes[activeIndex];
+    if (m) seenQueue.current.add(m.id);
+    if (seenQueue.current.size >= 10) flushSeen();
+  }, [activeIndex, memes, flushSeen]);
+
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flushSeen(); };
+    document.addEventListener('visibilitychange', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      flushSeen();
+    };
+  }, [flushSeen]);
 
   useEffect(() => {
     if (activeIndex >= memes.length - 3) loadMore();

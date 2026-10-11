@@ -3,6 +3,7 @@ import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit, getOptionalUserId } from '@/lib/auth-utils';
 import { generateUploadUrl, generateDownloadUrl } from '@/lib/s3';
 import { FieldValue } from 'firebase-admin/firestore';
+import { rankedFeed } from '@/lib/meme-feed';
 import {
   generateFileId,
   formatBytes,
@@ -21,6 +22,21 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1', 10);
     const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '30', 10), 100);
     const offset = (page - 1) * pageSize;
+    // Optional auth — the caller's reaction state, and "seen" for the feed.
+    const viewerId = await getOptionalUserId(request);
+
+    // ?feed=foryou&seed=…&since=ms — ranked "Za tebe" order (lib/meme-feed).
+    if (searchParams.get('feed') === 'foryou') {
+      const seed = (searchParams.get('seed') || 'x').slice(0, 64);
+      const since = Number(searchParams.get('since')) || Date.now();
+      const ranked = await rankedFeed({ seed, viewerId, since });
+      const slice = ranked.slice(offset, offset + pageSize);
+      return NextResponse.json({
+        memes: await Promise.all(slice.map((doc) => toMeme(doc, viewerId))),
+        hasMore: ranked.length > offset + pageSize,
+        page,
+      });
+    }
 
     let docs: FirebaseFirestore.QueryDocumentSnapshot[];
     try {
@@ -54,68 +70,65 @@ export async function GET(request: NextRequest) {
 
     const hasMore = docs.length > pageSize;
     const pageDocs = docs.slice(0, pageSize);
-
-    // Optional auth — used only to surface the caller's reaction state.
-    const viewerId = await getOptionalUserId(request);
-
-    const memes = await Promise.all(
-      pageDocs.map(async (doc) => {
-        const data = doc.data();
-        let imageUrl = data.imageUrl || '';
-        if (data.s3Key && !imageUrl) {
-          try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
-        }
-
-        let userReaction: 'like' | 'dislike' | null = null;
-        let userFavorited = false;
-        let userReposted = false;
-        if (viewerId) {
-          try {
-            const [reactionDoc, favDoc, repostDoc] = await Promise.all([
-              doc.ref.collection('reactions').doc(viewerId).get(),
-              doc.ref.collection('favorites').doc(viewerId).get(),
-              doc.ref.collection('reposts').doc(viewerId).get(),
-            ]);
-            if (reactionDoc.exists) userReaction = reactionDoc.data()!.type;
-            userFavorited = favDoc.exists;
-            userReposted = repostDoc.exists;
-          } catch {}
-        }
-
-        return {
-          id: doc.id,
-          caption: data.caption || '',
-          topText: data.topText || '',
-          bottomText: data.bottomText || '',
-          imageUrl,
-          mediaType: data.mediaType || 'image',
-          authorName: data.authorName || 'Anonymous',
-          authorId: data.authorId,
-          likes: data.likes || 0,
-          dislikes: data.dislikes || 0,
-          shares: data.shares || 0,
-          favorites: data.favorites || 0,
-          reposts: data.reposts || 0,
-          views: data.views || 0,
-          commentCount: data.commentCount || 0,
-          template: data.template || 'classic',
-          createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
-          userReaction,
-          userFavorited,
-          userReposted,
-          // Remix lineage — present when this meme was derived from another
-          // (user "stripped" the original caption and added their own). The
-          // wall surfaces this so the original author still gets credit.
-          remixOf: data.remixOf || null,
-        };
-      })
-    );
+    const memes = await Promise.all(pageDocs.map((doc) => toMeme(doc, viewerId)));
 
     return NextResponse.json({ memes, hasMore, page });
   } catch (error) {
     console.error('MemeWall GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+/** Public meme JSON, with the viewer's reaction/favorite/repost state. */
+async function toMeme(doc: FirebaseFirestore.QueryDocumentSnapshot, viewerId: string | null) {
+  const data = doc.data();
+  let imageUrl = data.imageUrl || '';
+  if (data.s3Key && !imageUrl) {
+    try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
+  }
+
+  let userReaction: 'like' | 'dislike' | null = null;
+  let userFavorited = false;
+  let userReposted = false;
+  if (viewerId) {
+    try {
+      const [reactionDoc, favDoc, repostDoc] = await Promise.all([
+        doc.ref.collection('reactions').doc(viewerId).get(),
+        doc.ref.collection('favorites').doc(viewerId).get(),
+        doc.ref.collection('reposts').doc(viewerId).get(),
+      ]);
+      if (reactionDoc.exists) userReaction = reactionDoc.data()!.type;
+      userFavorited = favDoc.exists;
+      userReposted = repostDoc.exists;
+    } catch {}
+  }
+
+  return {
+    id: doc.id,
+    caption: data.caption || '',
+    topText: data.topText || '',
+    bottomText: data.bottomText || '',
+    imageUrl,
+    mediaType: data.mediaType || 'image',
+    authorName: data.authorName || 'Anonymous',
+    authorId: data.authorId,
+    likes: data.likes || 0,
+    dislikes: data.dislikes || 0,
+    shares: data.shares || 0,
+    favorites: data.favorites || 0,
+    reposts: data.reposts || 0,
+    views: data.views || 0,
+    commentCount: data.commentCount || 0,
+    template: data.template || 'classic',
+    createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
+    userReaction,
+    userFavorited,
+    userReposted,
+    // Remix lineage — present when this meme was derived from another
+    // (user "stripped" the original caption and added their own). The
+    // wall surfaces this so the original author still gets credit.
+    remixOf: data.remixOf || null,
+  };
 }
 
 // POST /api/meme-wall — publish a meme (auth required).
