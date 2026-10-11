@@ -31,11 +31,11 @@ export async function GET(request: NextRequest) {
       const since = Number(searchParams.get('since')) || Date.now();
       const ranked = await rankedFeed({ seed, viewerId, since });
       const slice = ranked.slice(offset, offset + pageSize);
-      return NextResponse.json({
-        memes: await Promise.all(slice.map((doc) => toMeme(doc, viewerId))),
+      return withGuestCache(NextResponse.json({
+        memes: await toMemes(slice, viewerId),
         hasMore: ranked.length > offset + pageSize,
         page,
-      });
+      }), viewerId);
     }
 
     let docs: FirebaseFirestore.QueryDocumentSnapshot[];
@@ -70,9 +70,9 @@ export async function GET(request: NextRequest) {
 
     const hasMore = docs.length > pageSize;
     const pageDocs = docs.slice(0, pageSize);
-    const memes = await Promise.all(pageDocs.map((doc) => toMeme(doc, viewerId)));
+    const memes = await toMemes(pageDocs, viewerId);
 
-    return NextResponse.json({ memes, hasMore, page });
+    return withGuestCache(NextResponse.json({ memes, hasMore, page }), viewerId);
   } catch (error) {
     console.error('MemeWall GET error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -80,28 +80,50 @@ export async function GET(request: NextRequest) {
 }
 
 /** Public meme JSON, with the viewer's reaction/favorite/repost state. */
-async function toMeme(doc: FirebaseFirestore.QueryDocumentSnapshot, viewerId: string | null) {
+/**
+ * Guests all get the same pages, so let the CDN serve them for a short while:
+ * a burst of visitors from a shared link costs one function run and one
+ * Firestore query instead of one per visitor. Signed-in responses carry the
+ * viewer's own like state and are never cached.
+ */
+function withGuestCache(res: NextResponse, viewerId: string | null) {
+  if (!viewerId) res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+  else res.headers.set('Cache-Control', 'private, no-store');
+  return res;
+}
+
+type ViewerState = { reaction: 'like' | 'dislike' | null; favorited: boolean; reposted: boolean };
+
+/** Memes for a page; the viewer's state for all of them in one batched read. */
+async function toMemes(docs: FirebaseFirestore.QueryDocumentSnapshot[], viewerId: string | null) {
+  const states = new Map<string, ViewerState>();
+  if (viewerId && docs.length) {
+    try {
+      const refs = docs.flatMap((d) => [
+        d.ref.collection('reactions').doc(viewerId),
+        d.ref.collection('favorites').doc(viewerId),
+        d.ref.collection('reposts').doc(viewerId),
+      ]);
+      const snaps = await db.getAll(...refs);
+      docs.forEach((d, i) => {
+        const [r, f, p] = snaps.slice(i * 3, i * 3 + 3);
+        states.set(d.id, { reaction: r.exists ? r.data()!.type : null, favorited: f.exists, reposted: p.exists });
+      });
+    } catch {}
+  }
+  return Promise.all(docs.map((doc) => toMeme(doc, states.get(doc.id))));
+}
+
+async function toMeme(doc: FirebaseFirestore.QueryDocumentSnapshot, state?: ViewerState) {
   const data = doc.data();
   let imageUrl = data.imageUrl || '';
   if (data.s3Key && !imageUrl) {
-    try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
+    try { imageUrl = await generateDownloadUrl(data.s3Key, { expiresIn: 3600 }); } catch {}
   }
 
-  let userReaction: 'like' | 'dislike' | null = null;
-  let userFavorited = false;
-  let userReposted = false;
-  if (viewerId) {
-    try {
-      const [reactionDoc, favDoc, repostDoc] = await Promise.all([
-        doc.ref.collection('reactions').doc(viewerId).get(),
-        doc.ref.collection('favorites').doc(viewerId).get(),
-        doc.ref.collection('reposts').doc(viewerId).get(),
-      ]);
-      if (reactionDoc.exists) userReaction = reactionDoc.data()!.type;
-      userFavorited = favDoc.exists;
-      userReposted = repostDoc.exists;
-    } catch {}
-  }
+  const userReaction = state?.reaction ?? null;
+  const userFavorited = state?.favorited ?? false;
+  const userReposted = state?.reposted ?? false;
 
   return {
     id: doc.id,

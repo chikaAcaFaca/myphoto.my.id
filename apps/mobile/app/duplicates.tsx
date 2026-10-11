@@ -12,6 +12,7 @@ import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const THUMB = 80;
@@ -25,6 +26,7 @@ interface DuplicateGroup {
 
 export default function DuplicatesScreen() {
   const { colors: tc } = useTheme();
+  const authHeaders = useAuthHeaders();
   const { t, tp } = useT();
   const { getToken } = useAuth();
   const [groups, setGroups] = useState<DuplicateGroup[]>([]);
@@ -115,7 +117,7 @@ export default function DuplicatesScreen() {
               })}
             >
               <Image
-                source={{ uri: `${API_URL}/api/thumbnail/${file.id}?size=small` }}
+                source={pickThumb(file as any, 'small', authHeaders)}
                 style={[styles.thumb, { backgroundColor: tc.bgInput }]}
               />
             </TouchableOpacity>

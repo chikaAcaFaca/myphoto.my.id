@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
-import { checkIpRateLimit } from '@/lib/auth-utils';
+import { checkIpRateLimit, getOptionalUserId } from '@/lib/auth-utils';
 import { generateDownloadUrl, objectExists } from '@/lib/s3';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
 import { shareAccess } from '@/lib/share-access';
@@ -28,6 +28,12 @@ async function verifyAccess(
     if (userId && fileData.userId === userId) {
       return { authorized: true };
     }
+  }
+
+  // Path 1b: Bearer token (the mobile app has no web session cookie)
+  const bearerUid = await getOptionalUserId(request);
+  if (bearerUid && fileData.userId === bearerUid) {
+    return { authorized: true };
   }
 
   // Path 2: Share token (public shared links)
@@ -95,11 +101,17 @@ export async function GET(
       keysToTry.push(fileData.s3Key as string);
     }
 
-    // Try each key in order — redirect to presigned URL instead of proxying
+    // Try each key in order — redirect to presigned URL instead of proxying.
+    // The requested size is trusted without a storage HEAD (the record says
+    // it was written); only fallbacks are checked, to save a round-trip per image.
     for (const key of keysToTry) {
-      const exists = await objectExists(key);
+      const exists = key === requestedKey || (await objectExists(key));
       if (exists) {
         const presignedUrl = await generateDownloadUrl(key);
+        // ?resolve=1: return the URL as JSON (the app downloads it for editing)
+        if (url.searchParams.get('resolve') === '1') {
+          return NextResponse.json({ url: presignedUrl });
+        }
         // 302 redirect — browser fetches directly from S3, zero Vercel bandwidth
         return NextResponse.redirect(presignedUrl, 302);
       }

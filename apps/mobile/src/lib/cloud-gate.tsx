@@ -14,8 +14,8 @@
  * gently funnels users toward a larger plan. Mount <CloudGateProvider> once and
  * call useCloudGate().ensureOnCloud(...) from any tool before processing.
  */
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { Modal, View, Text, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { Modal, View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from './auth-context';
 import { useSync } from './sync-context';
@@ -43,6 +43,7 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
   const { appUser } = useAuth();
   const { uploadSingleAsset } = useSync();
   const [uploading, setUploading] = useState(false);
+  const cancelRef = useRef<(() => void) | null>(null);
   const { t } = useT();
 
   const ensureOnCloud = useCallback(
@@ -72,6 +73,7 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
                 },
               },
             ],
+            { cancelable: true, onDismiss: () => resolve(false) },
           );
         });
       }
@@ -86,6 +88,7 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
             { text: translate('cloudGate.cancel'), style: 'cancel', onPress: () => resolve(false) },
             { text: translate('cloudGate.saveAndProcess'), onPress: () => resolve(true) },
           ],
+          { cancelable: true, onDismiss: () => resolve(false) },
         );
       });
       if (!confirmed) return false;
@@ -93,8 +96,17 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
       setUploading(true);
       let ok = false;
       try {
-        ok = await uploadSingleAsset(assetId);
+        // Never longer than SAVE_DEADLINE_MS, and the user can cancel: this
+        // overlay used to wait forever on a dead connection (force-stop only).
+        ok = await Promise.race([
+          uploadSingleAsset(assetId).catch(() => false),
+          new Promise<boolean>((resolve) => {
+            cancelRef.current = () => resolve(false);
+            setTimeout(() => resolve(false), SAVE_DEADLINE_MS);
+          }),
+        ]);
       } finally {
+        cancelRef.current = null;
         setUploading(false);
       }
       if (!ok) {
@@ -112,7 +124,12 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
   return (
     <CloudGateContext.Provider value={{ ensureOnCloud }}>
       {children}
-      <Modal visible={uploading} transparent animationType="fade">
+      <Modal
+        visible={uploading}
+        transparent
+        animationType="fade"
+        onRequestClose={() => cancelRef.current?.()}
+      >
         <View style={styles.overlay}>
           <View style={styles.card}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -120,6 +137,13 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
             <Text style={styles.subtitle}>
               {t('cloudGate.savingSubtitle')}
             </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => cancelRef.current?.()}
+              style={styles.cancelBtn}
+            >
+              <Text style={styles.cancelText}>{t('cloudGate.cancel')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -133,7 +157,12 @@ export function useCloudGate(): CloudGateContextType {
   return ctx;
 }
 
+// Longest we keep the user waiting on a one-off "save to cloud".
+const SAVE_DEADLINE_MS = 120_000;
+
 const styles = StyleSheet.create({
+  cancelBtn: { marginTop: 16, minHeight: 44, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' },
+  cancelText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',

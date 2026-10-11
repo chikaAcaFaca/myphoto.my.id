@@ -102,7 +102,9 @@ export default function MyPhotoScreen() {
       const data = await AsyncStorage.getItem('@myphoto/sync_state');
       if (data) {
         const state = JSON.parse(data);
-        setUploadedIds(new Set(state.uploadedAssets || []));
+        const ids: string[] = state.uploadedAssets || [];
+        // Same count = nothing new; skip the Set rebuild and grid re-render.
+        setUploadedIds((prev) => (prev.size === ids.length ? prev : new Set(ids)));
       }
     } catch {}
   }, []);
@@ -156,10 +158,19 @@ export default function MyPhotoScreen() {
     loadUploadedIds().then(() => loadLocalPhotos(true));
   }, []);
 
-  // Refresh uploaded IDs when sync progresses
+  // Refresh uploaded IDs when a sync starts/ends, and at most every 15 s while
+  // it runs. Doing it on every progress tick parsed the whole sync state
+  // (thousands of IDs) and re-rendered the grid per upload, starving the UI.
+  const lastIdsLoadRef = useRef(0);
   useEffect(() => {
+    lastIdsLoadRef.current = Date.now();
     loadUploadedIds();
-  }, [syncProgress, isSyncing]);
+  }, [isSyncing, loadUploadedIds]);
+  useEffect(() => {
+    if (!isSyncing || Date.now() - lastIdsLoadRef.current < 15_000) return;
+    lastIdsLoadRef.current = Date.now();
+    loadUploadedIds();
+  }, [syncProgress, isSyncing, loadUploadedIds]);
 
   // Update uploaded status when IDs change
   useEffect(() => {
@@ -188,9 +199,15 @@ export default function MyPhotoScreen() {
     loadUploadedIds().then(() => loadLocalPhotos(true));
   };
 
+  // onEndReached can fire several times before the first page lands; one
+  // load at a time, or the same cursor is fetched twice (duplicate keys).
+  const loadingMoreRef = useRef(false);
   const loadMore = () => {
-    if (hasMore && !loading) {
-      loadLocalPhotos(false);
+    if (hasMore && !loading && !loadingMoreRef.current) {
+      loadingMoreRef.current = true;
+      loadLocalPhotos(false).finally(() => {
+        loadingMoreRef.current = false;
+      });
     }
   };
 

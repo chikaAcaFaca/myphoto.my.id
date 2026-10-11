@@ -112,6 +112,15 @@ const backupLoop = async () => {
   });
 };
 
+/** True while the persistent backup service is uploading in the background. */
+export function isForegroundSyncRunning(): boolean {
+  try {
+    return !!BackgroundService?.isRunning();
+  } catch {
+    return false;
+  }
+}
+
 export function isForegroundSyncAvailable(): boolean {
   return Platform.OS === 'android' && !!BackgroundService;
 }

@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
+import { generateDownloadUrl } from '@/lib/s3';
+
+// Image files small enough to show as their own preview in the list. The URL
+// is signed locally (no storage round-trip), so listing stays cheap and the
+// phone loads previews straight from storage, not through our server.
+const PREVIEW_MAX_BYTES = 8 * 1024 * 1024;
+const PREVIEW_MAX_FILES = 200;
+const PREVIEW_TYPES = /^image\/(jpe?g|png|gif|webp)$/i;
+const PREVIEW_EXT = /\.(jpe?g|png|gif|webp)$/i;
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +56,18 @@ export async function GET(request: NextRequest) {
       }))
       .filter((f: any) => !f.isTrashed)
       .sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+
+    let previews = 0;
+    await Promise.all(
+      files.map(async (f: any) => {
+        const isImage = PREVIEW_TYPES.test(f.mimeType || '') || PREVIEW_EXT.test(f.name || '');
+        if (!isImage || !f.s3Key || (f.size || 0) > PREVIEW_MAX_BYTES || previews >= PREVIEW_MAX_FILES) return;
+        previews++;
+        try {
+          f.previewUrl = await generateDownloadUrl(f.s3Key, { expiresIn: 3600 });
+        } catch {}
+      })
+    );
 
     return NextResponse.json({ folders, files });
   } catch (error) {

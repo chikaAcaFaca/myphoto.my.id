@@ -23,6 +23,7 @@ export default function TabLayout() {
   return (
     <Tabs
       initialRouteName="meme-wall-tab"
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.tabActive,

@@ -61,7 +61,8 @@ export function SharedMemeFeed({
   const scroller = useRef<HTMLDivElement>(null);
   // "Za tebe" order: one seed per visit keeps paging stable; `since` marks
   // which memes count as already seen (seen before this visit).
-  const session = useRef({ seed: Math.random().toString(36).slice(2, 10), since: Date.now() });
+  // Guests share five orders (and no "seen") so the CDN can cache their pages.
+  const session = useRef<{ seed: string; since: number } | null>(null);
   const seenQueue = useRef<Set<string>>(new Set());
   const videos = useRef<Map<string, HTMLVideoElement>>(new Map());
 
@@ -76,6 +77,11 @@ export function SharedMemeFeed({
     try {
       // Signed in: send the token so each meme carries my like state.
       const token = user ? await getIdToken() : null;
+      if (!session.current) {
+        session.current = user
+          ? { seed: Math.random().toString(36).slice(2, 10), since: Date.now() }
+          : { seed: `g${Math.floor(Math.random() * 5)}`, since: 0 };
+      }
       const { seed, since } = session.current;
       const res = await fetch(`/api/meme-wall?feed=foryou&seed=${seed}&since=${since}&page=${page}&pageSize=${PAGE_SIZE}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -18,12 +18,12 @@ export const dynamic = 'force-dynamic';
 // Matches the appBuild embedded in the currently published APK
 // (apps/mobile app.json → extra.appBuild). Keep them equal or the app
 // nags itself to "update" to the very build it's already running.
-const LATEST_BUILD = '2026-10-11';
+const LATEST_BUILD = '2026-10-11.4';
 
 export async function GET() {
   return NextResponse.json({
     build: LATEST_BUILD,
     url: '/api/download/android',
-    notes: 'Novi izgled, Inbox sa porukama i obaveštenjima, Pozovi prijatelje.',
+    notes: 'Brža i stabilnija aplikacija: bez zamrzavanja pri backupu, ispravljeno vraćanje na Inbox, sličice u albumima, pregledi u MySpace-u, feed Za tebe.',
   });
 }

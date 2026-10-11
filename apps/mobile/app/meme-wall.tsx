@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
   RefreshControl, Dimensions, Share, ViewToken, Alert, TextInput,
@@ -350,14 +350,24 @@ export default function MemeWallScreen() {
     ]);
   }, [openEdit, handleDelete, t]);
 
-  const renderMeme = useCallback(({ item }: { item: MemePost }) => (
+  // Only the visible meme and its neighbours get a real video player: each
+  // expo-av <Video> holds a decoder and buffers, and a window full of them
+  // ran the phone out of memory (the same crash the grid had).
+  const visibleIndex = useMemo(() => memes.findIndex((m) => m.id === visibleId), [memes, visibleId]);
+
+  const renderMeme = useCallback(({ item, index }: { item: MemePost; index: number }) => (
     <View style={[styles.page, { height: pageH, width }]}>
-      {item.mediaType === 'video' ? (
+      {item.mediaType === 'video' && Math.abs(index - Math.max(0, visibleIndex)) > 1 ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }]} />
+      ) : item.mediaType === 'video' ? (
         <Video
           // Callback ref stores per-item handles into videoRefs so the effect
           // above can imperatively play/pause the right one as visibility
           // shifts on the pager.
-          ref={(r) => { videoRefs.current.set(item.id, r); }}
+          ref={(r) => {
+            if (r) videoRefs.current.set(item.id, r);
+            else videoRefs.current.delete(item.id);
+          }}
           source={{ uri: item.imageUrl }}
           style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.CONTAIN}
@@ -448,7 +458,7 @@ export default function MemeWallScreen() {
         {item.caption ? <Text style={styles.caption} numberOfLines={3}>{item.caption}</Text> : null}
       </View>
     </View>
-  ), [pageH, visibleId, focused, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix, user, ownerActions, t]);
+  ), [pageH, visibleId, visibleIndex, focused, insets.bottom, handleLike, handleFavorite, handleRepost, handleShare, handleRemix, user, ownerActions, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: '#000' }]} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
@@ -507,6 +517,10 @@ export default function MemeWallScreen() {
           keyExtractor={(item) => item.id}
           pagingEnabled
           showsVerticalScrollIndicator={false}
+          windowSize={3}
+          initialNumToRender={2}
+          maxToRenderPerBatch={2}
+          removeClippedSubviews
           getItemLayout={(_, index) => ({ length: pageH, offset: pageH * index, index })}
           initialScrollIndex={startId ? Math.max(0, memes.findIndex(m => m.id === startId)) : undefined}
           onViewableItemsChanged={onViewableItemsChanged}

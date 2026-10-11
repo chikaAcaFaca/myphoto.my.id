@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { getIdToken } from '@/lib/firebase';
 import { useAuthStore } from '@/lib/stores';
 
-const POLL_MS = 60_000;
+const POLL_MS = 2 * 60_000;
 
 interface InboxBadgeState {
   activity: number;

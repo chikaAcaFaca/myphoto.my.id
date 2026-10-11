@@ -23,6 +23,7 @@ import { saveToMySpace } from '@/lib/myspace-upload';
 import { ZoomPanView } from '@/components/ZoomPanView';
 import { useT, type TKey } from '@/lib/i18n';
 import { withRef } from '@/lib/referral-link';
+import { resolveThumbUrl } from '@/lib/auth-image';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -68,9 +69,18 @@ export default function MemeCreatorScreen() {
   // version always hit /api/thumbnail/{deviceId} which 404s for
   // photos that haven't been backed up yet, so the meme creator
   // landed empty and forced the user to pick from album again.
-  const [mediaUri, setMediaUri] = useState<string | null>(
-    sourceUri || (id && isUploaded === '1' ? `${API_URL}/api/thumbnail/${id}?size=large` : null)
-  );
+  const [mediaUri, setMediaUri] = useState<string | null>(sourceUri || null);
+  // A backed-up photo: fetch a short-lived direct URL (no web session cookie
+  // in the app, so the plain /api/thumbnail URL would not load).
+  useEffect(() => {
+    if (sourceUri || !id || isUploaded !== '1') return;
+    let alive = true;
+    getToken().then((token) => resolveThumbUrl(id, 'large', token)).then((url) => {
+      if (alive && url) setMediaUri((prev) => prev ?? url);
+    }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, sourceUri, isUploaded]);
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'gif'>(type === 'video' ? 'video' : 'image');
   const [topText, setTopText] = useState('');
   const [bottomText, setBottomText] = useState('');

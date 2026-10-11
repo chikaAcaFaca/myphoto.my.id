@@ -13,6 +13,7 @@ import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -22,6 +23,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function ArchiveScreen() {
   const { colors: tc } = useTheme();
+  const authHeaders = useAuthHeaders();
   const { t } = useT();
   const { getToken } = useAuth();
   const [files, setFiles] = useState<FileMetadata[]>([]);
@@ -66,7 +68,7 @@ export default function ArchiveScreen() {
       }}
     >
       <Image
-        source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=small` }}
+        source={pickThumb(item as any, 'small', authHeaders)}
         style={styles.cellImage}
         resizeMode="cover"
       />

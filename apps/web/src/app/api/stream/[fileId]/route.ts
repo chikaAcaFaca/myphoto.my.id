@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
-import { checkIpRateLimit } from '@/lib/auth-utils';
+import { checkIpRateLimit, getOptionalUserId } from '@/lib/auth-utils';
 import { generateDownloadUrl } from '@/lib/s3';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
 import { shareAccess } from '@/lib/share-access';
@@ -24,6 +24,12 @@ async function verifyAccess(
     if (userId && fileData.userId === userId) {
       return { authorized: true };
     }
+  }
+
+  // Path 1b: Bearer token (the mobile app has no web session cookie)
+  const bearerUid = await getOptionalUserId(request);
+  if (bearerUid && fileData.userId === bearerUid) {
+    return { authorized: true };
   }
 
   // Path 2: Share token (public shared links)

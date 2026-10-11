@@ -13,6 +13,7 @@ import { fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { Album } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
+import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 2;
@@ -22,6 +23,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function AlbumsScreen() {
   const { colors: tc } = useTheme();
+  const authHeaders = useAuthHeaders();
   const { t, tp } = useT();
   const { getToken } = useAuth();
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -80,9 +82,12 @@ export default function AlbumsScreen() {
 
   const renderAlbum = ({ item }: { item: Album }) => {
     const previews: string[] = (item as any).previewThumbUrls || [];
-    const cover =
-      (item as any).coverThumbUrl ||
-      (item.coverFileId ? `${API_URL}/api/thumbnail/${item.coverFileId}?size=medium` : null);
+    const coverUrl: string | null = previews[0] || (item as any).coverThumbUrl || null;
+    const cover = coverUrl
+      ? { uri: coverUrl }
+      : item.coverFileId && authHeaders
+        ? thumbSource(item.coverFileId, 'medium', authHeaders)
+        : null;
     return (
       <TouchableOpacity
         style={[styles.albumCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
@@ -97,7 +102,7 @@ export default function AlbumsScreen() {
             ))}
           </View>
         ) : previews.length === 1 || cover ? (
-          <Image source={{ uri: previews[0] || cover! }} style={styles.albumCover} resizeMode="cover" />
+          <Image source={cover ?? undefined} style={styles.albumCover} resizeMode="cover" />
         ) : (
           <View style={[styles.albumCover, styles.albumCoverEmpty, { backgroundColor: tc.bgInput }]}>
             <Ionicons name="images-outline" size={32} color={tc.textMuted} />

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions,
   Alert, ActivityIndicator, ScrollView, Share,
@@ -16,6 +16,7 @@ import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 import { generateAiCaptions, recaptionMeme, type CaptionLanguage } from '@/lib/ai-captions';
 import { checkMemeLimit, incrementMemeUsage } from '@/lib/meme-limits';
+import { resolveThumbUrl } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
@@ -28,9 +29,18 @@ export default function AiCaptionScreen() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
   const { appUser, getToken } = useAuth();
 
-  const [imageUri, setImageUri] = useState<string | null>(
-    id ? `${API_URL}/api/thumbnail/${id}?size=large` : null
-  );
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  // The backed-up photo, as a short-lived direct URL (the app has no web
+  // session cookie, so the plain /api/thumbnail URL would not load).
+  useEffect(() => {
+    if (!id) return;
+    let alive = true;
+    getToken().then((token) => resolveThumbUrl(id, 'large', token)).then((url) => {
+      if (alive && url) setImageUri((prev) => prev ?? url);
+    }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
   const [captions, setCaptions] = useState<string[]>([]);
   const [selectedCaption, setSelectedCaption] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
