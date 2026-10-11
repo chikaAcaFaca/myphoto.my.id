@@ -593,8 +593,5 @@ Svaki komentar u novom redu, bez numeracije.`;
   const grokResult = await tryGrok(prompt);
   if (grokResult) return grokResult.slice(0, count);
 
-  const claudeResult = await tryClaude(prompt);
-  if (claudeResult) return claudeResult.slice(0, count);
-
   return generateTemplateCaptions([], 'default', count, lang);
 }

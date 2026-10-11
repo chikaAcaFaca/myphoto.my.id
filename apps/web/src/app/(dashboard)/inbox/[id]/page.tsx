@@ -10,7 +10,9 @@ import { Avatar } from '@/components/inbox/avatar';
 import { useT } from '@/i18n/client';
 import { cn } from '@/lib/utils';
 
-const POLL_MS = 4000;
+// Poll fast while the conversation is active, then back off (idle open tabs
+// were most of the chat load).
+const pollDelay = (idleMs: number) => (idleMs < 60_000 ? 4000 : idleMs < 180_000 ? 10_000 : 30_000);
 
 interface ChatMessage {
   id: string;
@@ -57,6 +59,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   const [reportOpen, setReportOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const lastAt = useRef<string | null>(null);
+  const lastActivity = useRef(Date.now());
   const exists = useRef(true);
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -84,6 +87,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
       const incoming: ChatMessage[] = data.messages || [];
       if (incoming.length) {
         lastAt.current = incoming[incoming.length - 1].createdAt;
+        lastActivity.current = Date.now();
         setMessages((prev) => {
           if (initial) return incoming;
           const known = new Set(prev.map((m) => m.id));
@@ -101,10 +105,21 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     lastAt.current = null;
     load(true);
-    const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') load(false);
-    }, POLL_MS);
-    return () => clearInterval(timer);
+    let timer: ReturnType<typeof setTimeout>;
+    let alive = true;
+    const tick = () => {
+      timer = setTimeout(async () => {
+        if (!alive) return;
+        if (document.visibilityState === 'visible') await load(false);
+        tick();
+      }, pollDelay(Date.now() - lastActivity.current));
+    };
+    lastActivity.current = Date.now();
+    tick();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [load]);
 
   useEffect(() => {
@@ -127,6 +142,7 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     };
     setMessages((prev) => [...prev, temp]);
     setText('');
+    lastActivity.current = Date.now();
     try {
       const res = exists.current
         ? await authedFetch(`/api/messages/${convId}`, { method: 'POST', body: JSON.stringify({ text: body }) })

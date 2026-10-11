@@ -101,9 +101,11 @@ export async function GET(
       keysToTry.push(fileData.s3Key as string);
     }
 
-    // Try each key in order — redirect to presigned URL instead of proxying
+    // Try each key in order — redirect to presigned URL instead of proxying.
+    // The requested size is trusted without a storage HEAD (the record says
+    // it was written); only fallbacks are checked, to save a round-trip per image.
     for (const key of keysToTry) {
-      const exists = await objectExists(key);
+      const exists = key === requestedKey || (await objectExists(key));
       if (exists) {
         const presignedUrl = await generateDownloadUrl(key);
         // ?resolve=1: return the URL as JSON (the app downloads it for editing)

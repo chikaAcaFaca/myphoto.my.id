@@ -3,7 +3,8 @@ import { AppState } from 'react-native';
 import { useAuth } from './auth-context';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
-const POLL_MS = 60_000;
+// Pushes refresh the badge right away; polling is only a fallback.
+const POLL_MS = 5 * 60_000;
 
 interface InboxContextValue {
   /** Unread activity + messages, shown as the badge on the Inbox tab. */

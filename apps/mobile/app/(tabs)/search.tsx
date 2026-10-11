@@ -14,7 +14,7 @@ import { useTheme } from '@/lib/theme-context';
 import { searchLocalPhotos, type PhotoIndexEntry } from '@/lib/local-search-index';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT, type TKey } from '@/lib/i18n';
-import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -99,7 +99,7 @@ export default function SearchScreen() {
       }}
     >
       <Image
-        source={authHeaders ? thumbSource(item.id, 'small', authHeaders) : undefined}
+        source={pickThumb(item as any, 'small', authHeaders)}
         style={styles.cellImage}
         resizeMode="cover"
       />

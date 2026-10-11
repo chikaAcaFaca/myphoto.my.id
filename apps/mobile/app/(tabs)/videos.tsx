@@ -16,7 +16,7 @@ import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
-import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 2;
@@ -184,7 +184,7 @@ export default function VideosScreen() {
           />
         ) : item.thumbnailKey ? (
           <Image
-            source={authHeaders ? thumbSource(item.id, 'medium', authHeaders) : undefined}
+            source={pickThumb(item as any, 'medium', authHeaders)}
             style={styles.thumbImage}
             resizeMode="cover"
           />

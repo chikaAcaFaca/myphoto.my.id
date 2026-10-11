@@ -12,7 +12,7 @@ import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
 import type { FileMetadata } from '@myphoto/shared';
-import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const THUMB = 120;
@@ -119,7 +119,7 @@ export default function MemoriesScreen() {
                 renderItem={({ item }) => (
                   <TouchableOpacity onPress={() => openPhoto(item)} activeOpacity={0.8}>
                     <Image
-                      source={authHeaders ? thumbSource(item.id, 'medium', authHeaders) : undefined}
+                      source={pickThumb(item as any, 'medium', authHeaders)}
                       style={[styles.otdThumb, { backgroundColor: tc.bgInput }]}
                     />
                     {item.takenAt && (
@@ -149,7 +149,7 @@ export default function MemoriesScreen() {
                 renderItem={({ item }) => (
                   <TouchableOpacity onPress={() => openPhoto(item)} activeOpacity={0.8}>
                     <Image
-                      source={authHeaders ? thumbSource(item.id, 'small', authHeaders) : undefined}
+                      source={pickThumb(item as any, 'small', authHeaders)}
                       style={[styles.memThumb, { backgroundColor: tc.bgInput }]}
                     />
                   </TouchableOpacity>

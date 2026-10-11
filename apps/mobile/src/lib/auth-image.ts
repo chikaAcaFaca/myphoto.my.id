@@ -53,3 +53,18 @@ export async function resolveThumbUrl(fileId: string, size: ThumbSize, token: st
     return null;
   }
 }
+
+/**
+ * Image source for a file's thumbnail: the presigned URL the list API already
+ * returned (straight from storage, no server call), else /api/thumbnail with
+ * the auth header, else nothing yet (token still loading).
+ */
+export function pickThumb(
+  file: { id: string; smallThumbUrl?: string | null; thumbnailUrl?: string | null },
+  size: ThumbSize,
+  headers: Record<string, string> | null
+) {
+  const direct = size === 'small' ? file.smallThumbUrl || file.thumbnailUrl : file.thumbnailUrl || file.smallThumbUrl;
+  if (direct) return { uri: direct };
+  return headers ? thumbSource(file.id, size, headers) : undefined;
+}

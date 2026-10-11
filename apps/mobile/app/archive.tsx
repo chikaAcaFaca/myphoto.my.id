@@ -13,7 +13,7 @@ import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
-import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -68,7 +68,7 @@ export default function ArchiveScreen() {
       }}
     >
       <Image
-        source={authHeaders ? thumbSource(item.id, 'small', authHeaders) : undefined}
+        source={pickThumb(item as any, 'small', authHeaders)}
         style={styles.cellImage}
         resizeMode="cover"
       />

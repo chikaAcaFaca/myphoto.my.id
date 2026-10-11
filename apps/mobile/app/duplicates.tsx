@@ -12,7 +12,7 @@ import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
 import { useT } from '@/lib/i18n';
 import { StackHeader } from '@/components/StackHeader';
-import { useAuthHeaders, thumbSource } from '@/lib/auth-image';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const THUMB = 80;
@@ -117,7 +117,7 @@ export default function DuplicatesScreen() {
               })}
             >
               <Image
-                source={authHeaders ? thumbSource(file.id, 'small', authHeaders) : undefined}
+                source={pickThumb(file as any, 'small', authHeaders)}
                 style={[styles.thumb, { backgroundColor: tc.bgInput }]}
               />
             </TouchableOpacity>

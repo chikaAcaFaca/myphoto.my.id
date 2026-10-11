@@ -11,9 +11,13 @@ import { useAuth } from '@/lib/auth-context';
 import { useInbox } from '@/lib/inbox-context';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
+import * as Notifications from 'expo-notifications';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
-const POLL_MS = 4000;
+// Poll fast while the conversation is active, then back off: most of the
+// server load from chat was idle open screens polling every 4 s. A push for
+// this conversation triggers an immediate load anyway.
+const pollDelay = (idleMs: number) => (idleMs < 60_000 ? 4000 : idleMs < 180_000 ? 10_000 : 30_000);
 
 interface ChatMessage {
   id: string;
@@ -50,6 +54,7 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const lastAt = useRef<string | null>(null);
+  const lastActivity = useRef(Date.now());
   const exists = useRef(true);
 
   const otherName = info?.other.name || params.name || '';
@@ -84,6 +89,7 @@ export default function ChatScreen() {
       const incoming: ChatMessage[] = data.messages || [];
       if (incoming.length) {
         lastAt.current = incoming[incoming.length - 1].createdAt;
+        lastActivity.current = Date.now();
         setMessages((prev) => {
           if (initial) return incoming;
           const known = new Set(prev.map((m) => m.id));
@@ -103,14 +109,30 @@ export default function ChatScreen() {
     load(true);
   }, [load]);
 
-  // Poll while this screen is focused and the app is in the foreground.
+  // Poll while this screen is focused and the app is in the foreground,
+  // backing off when nothing happens; a push for this chat loads right away.
   useFocusEffect(
     useCallback(() => {
-      const timer = setInterval(() => {
-        if (AppState.currentState === 'active') load(false);
-      }, POLL_MS);
-      return () => clearInterval(timer);
-    }, [load])
+      let timer: ReturnType<typeof setTimeout>;
+      let alive = true;
+      const tick = () => {
+        timer = setTimeout(async () => {
+          if (!alive) return;
+          if (AppState.currentState === 'active') await load(false);
+          tick();
+        }, pollDelay(Date.now() - lastActivity.current));
+      };
+      lastActivity.current = Date.now();
+      tick();
+      const pushed = Notifications.addNotificationReceivedListener((n) => {
+        if (n.request.content.data?.conversationId === convId) load(false);
+      });
+      return () => {
+        alive = false;
+        clearTimeout(timer);
+        pushed.remove();
+      };
+    }, [load, convId])
   );
 
   const showError = (code?: string) => {
@@ -128,6 +150,7 @@ export default function ChatScreen() {
     };
     setMessages((prev) => [...prev, temp]);
     setText('');
+    lastActivity.current = Date.now();
     try {
       const res = exists.current
         ? await api(`/api/messages/${convId}`, { method: 'POST', body: JSON.stringify({ text: body }) })

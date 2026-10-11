@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 // Matches the appBuild embedded in the currently published APK
 // (apps/mobile app.json → extra.appBuild). Keep them equal or the app
 // nags itself to "update" to the very build it's already running.
-const LATEST_BUILD = '2026-10-11.2';
+const LATEST_BUILD = '2026-10-11.3';
 
 export async function GET() {
   return NextResponse.json({
