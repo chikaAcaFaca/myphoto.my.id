@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { useT } from '@/i18n/client';
+import { InstallAppButton } from '@/components/install/android-install';
 
 interface Profile {
   id: string;
@@ -210,6 +211,24 @@ export default function UserProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Visitors from a shared profile link: 1 GB free + install the app */}
+      {!user && (
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 0' }}>
+          <div style={{
+            backgroundColor: '#111214', border: '1px solid #2C2F36', borderRadius: 16, padding: 20,
+            display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'center',
+          }}>
+            <strong style={{ color: '#FF7A3D', fontSize: 20 }}>{t('components.installGuide.freeBadge')}</strong>
+            <p style={{ margin: 0, color: '#D6D8DD', fontSize: 15 }}>{t('components.installGuide.barText')}</p>
+            <InstallAppButton style={{
+              alignSelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              minHeight: 50, padding: '0 28px', borderRadius: 999, backgroundColor: '#FF7A3D', color: '#111214',
+              fontWeight: 800, fontSize: 16, textDecoration: 'none',
+            }} />
+          </div>
+        </div>
+      )}
 
       {/* Public memes grid */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>

@@ -8,6 +8,7 @@ import { SharedMemeFeed } from '@/components/meme-wall/shared-meme-feed';
 import { getT } from '@/i18n/server';
 import { isValidRef } from '@/lib/referral-link';
 import { headers } from 'next/headers';
+import { InstallAppButton } from '@/components/install/android-install';
 
 interface MemePageProps {
   params: Promise<{ id: string }>;
@@ -237,8 +238,8 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
           {isIos ? (
             <p style={{ fontSize: 14, color: '#E8E8EA', margin: 0 }}>{t('pages.meme.iosHint')}</p>
           ) : (
-            <a
-              href="/api/download/android"
+            <InstallAppButton
+              registerHref={`/register?ref=${isValidRef(ref) ? encodeURIComponent(ref) : `meme_${meme.id}`}`}
               style={{
                 display: 'inline-block',
                 alignSelf: 'center',
@@ -252,7 +253,7 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
               }}
             >
               {t('pages.meme.downloadAndroid')}
-            </a>
+            </InstallAppButton>
           )}
           {!isIos && (
             <p style={{ fontSize: 12, color: '#A3A7B0', margin: 0 }}>{t('pages.meme.downloadHint')}</p>
