@@ -12,6 +12,7 @@ import { useInbox } from '@/lib/inbox-context';
 import { useTheme } from '@/lib/theme-context';
 import { useT } from '@/lib/i18n';
 import * as Notifications from 'expo-notifications';
+import { fetchWithTimeout } from '@/lib/net';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 // Poll fast while the conversation is active, then back off: most of the
@@ -62,7 +63,7 @@ export default function ChatScreen() {
 
   const api = useCallback(async (path: string, init: RequestInit = {}) => {
     const token = await getToken();
-    return fetch(`${API_URL}${path}`, {
+    return fetchWithTimeout(`${API_URL}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',

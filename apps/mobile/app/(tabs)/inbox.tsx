@@ -9,6 +9,7 @@ import { useInbox } from '@/lib/inbox-context';
 import { useTheme } from '@/lib/theme-context';
 import { memeFlame } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
+import { fetchWithTimeout } from '@/lib/net';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
@@ -60,7 +61,7 @@ export default function InboxScreen() {
 
   const authed = useCallback(async (path: string, init: RequestInit = {}) => {
     const token = await getToken();
-    return fetch(`${API_URL}${path}`, {
+    return fetchWithTimeout(`${API_URL}${path}`, {
       ...init,
       headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });

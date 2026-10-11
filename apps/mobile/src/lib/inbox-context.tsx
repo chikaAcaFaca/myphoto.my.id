@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 import { useAuth } from './auth-context';
+import { fetchWithTimeout } from './net';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 // Pushes refresh the badge right away; polling is only a fallback.
@@ -42,7 +43,7 @@ export function InboxProvider({ children }: { children: ReactNode }) {
     try {
       const token = await getTokenRef.current();
       if (!token) return;
-      const res = await fetch(`${API_URL}/api/inbox/unread`, {
+      const res = await fetchWithTimeout(`${API_URL}/api/inbox/unread`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

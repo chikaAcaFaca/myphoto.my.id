@@ -25,7 +25,9 @@ import {
   startForegroundSync,
   stopForegroundSync,
   isForegroundSyncAvailable,
+  isForegroundSyncRunning,
 } from './foreground-sync';
+import { withTimeout } from './net';
 
 const BACKGROUND_SYNC_TASK = 'MYPHOTO_BACKGROUND_SYNC';
 const SYNC_STATE_KEY = '@myphoto/sync_state';
@@ -542,6 +544,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   });
   const [syncCancelled, setSyncCancelled] = useState(false);
   const [settings, setSettings] = useState<SyncSettings>(defaultSettings);
+  // Live values for long-running sync code. startSync runs for minutes; reading
+  // state through its closure saw the values from when it started (empty
+  // uploaded list before load: re-uploaded the whole library; cancel never
+  // seen: Stop didn't stop). Refs always hold the current value.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const cancelRef = useRef(false);
+  const syncingRef = useRef(false);
+  const [stateLoaded, setStateLoaded] = useState(false);
   const [deviceAlbums, setDeviceAlbums] = useState<DeviceAlbum[]>([]);
   const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
   // Folder sync state
@@ -599,6 +610,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const loadedSettings = await loadSyncSettings();
       setSyncState(loadedState);
       setSettings(loadedSettings);
+      setStateLoaded(true);
       // Load folder sync settings
       const fsSettings = await loadFolderSyncSettings();
       const fsState = await loadFolderSyncState();
@@ -665,6 +677,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (autoBackupKickedRef.current) return;
+    // Wait for the saved sync state, or the kick runs against an empty
+    // "uploaded" list and re-sends everything.
+    if (!stateLoaded) return;
     if (!settings.autoBackup || settings.syncMode === 'manual') return;
     autoBackupKickedRef.current = true;
     // Give MediaLibrary permissions a moment to settle on first launch
@@ -675,7 +690,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       // the quota so the storage gauge + proactive upsell react to what we
       // just uploaded. Each call self-guards (network policy, enabled flags).
       try {
-        await startSync();
+        await startSyncRef.current();
         await startFolderSync();
       } catch (e) {
         console.warn('Auto-backup kick failed:', e);
@@ -684,7 +699,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       }
     }, 2000);
     return () => clearTimeout(t);
-  }, [user, settings.autoBackup, settings.syncMode]);
+  }, [user, settings.autoBackup, settings.syncMode, stateLoaded]);
 
   const registerBackgroundFetch = async () => {
     try {
@@ -709,7 +724,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   };
 
   // Find new photos to upload (filtered by selected backup folders)
-  const findNewPhotos = async (): Promise<MediaLibrary.Asset[]> => {
+  const findNewPhotos = async (uploadedIds: string[]): Promise<MediaLibrary.Asset[]> => {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
       if (status !== 'granted') return [];
@@ -720,11 +735,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
     let allAssets: MediaLibrary.Asset[] = [];
 
-    if (settings.backupFolders.length > 0) {
+    if (settingsRef.current.backupFolders.length > 0) {
       // Get assets only from selected albums
       const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: true });
       const selectedAlbums = albums.filter((a) =>
-        settings.backupFolders.includes(a.title)
+        settingsRef.current.backupFolders.includes(a.title)
       );
 
       for (const album of selectedAlbums) {
@@ -757,11 +772,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     // Filter out already uploaded ones. Set lookup, not Array.includes — the
     // uploaded list grows to one entry per backed-up photo, so the linear scan
     // made this quadratic in library size.
-    const uploaded = new Set(syncState.uploadedAssets);
+    const uploaded = new Set(uploadedIds);
     return allAssets.filter((asset) => !uploaded.has(asset.id));
   };
 
-  const uploadAsset = async (asset: MediaLibrary.Asset): Promise<boolean> => {
+  const uploadAsset = async (asset: MediaLibrary.Asset, knownAlbum?: string | null): Promise<boolean> => {
     try {
       const token = await getToken();
       if (!token) throw new Error('Not authenticated');
@@ -771,10 +786,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
       // Find which album this asset belongs to (for MySpace folder structure),
       // via the shared index instead of re-scanning every album per photo.
-      const albumTitle = (await getAlbumIndex()).get(asset.id);
+      // A single upload passes its album in: building the index walks every
+      // album on the phone (tens of thousands of assets), which is what made
+      // the "saving to cloud" step look frozen.
+      const albumTitle = knownAlbum !== undefined ? knownAlbum || undefined : (await getAlbumIndex()).get(asset.id);
 
-      // Upload to both MySpace (folder structure) and MyPhoto (gallery + AI)
-      return await uploadAssetDual(asset, albumTitle, token, apiUrl);
+      // Upload to both MySpace (folder structure) and MyPhoto (gallery + AI).
+      // Hard deadline: one dead socket must not park a worker (and the
+      // "saving to cloud" overlay) forever. Bigger files get longer.
+      const deadline = 60_000 + Math.min(10 * 60_000, Math.round(((asset as any).fileSize || 0) / 50_000));
+      return await withTimeout(uploadAssetDual(asset, albumTitle, token, apiUrl), deadline, 'upload');
     } catch (error) {
       console.error('Upload error:', error);
       return false;
@@ -782,7 +803,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   };
 
   const startSync = useCallback(async () => {
-    if (isSyncing || !user) return;
+    if (syncingRef.current || !user) return;
+    // The Android backup service already uploads in the background; a second
+    // uploader in the app would send the same photos twice and load the UI.
+    if (isForegroundSyncRunning()) {
+      console.log('Backup service is running, in-app sync skipped');
+      return;
+    }
+    const settings = settingsRef.current;
 
     // Check network conditions
     const networkState = await Network.getNetworkStateAsync();
@@ -796,15 +824,42 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    syncingRef.current = true;
+    cancelRef.current = false;
     setIsSyncing(true);
     setSyncProgress(0);
     setSyncCancelled(false);
+    // Progress at most about once a second: every tick re-renders all sync
+    // consumers (the photo grid re-read storage on each one).
+    let lastProgressAt = 0;
+    const reportProgress = (pct: number) => {
+      const now = Date.now();
+      if (now - lastProgressAt > 1000) {
+        lastProgressAt = now;
+        setSyncProgress(pct);
+      }
+    };
+    // Save = merge into the freshest saved state (the background service
+    // writes it too), never overwrite it with an old copy.
+    const saveMerged = async (uploaded: string[], failed: FailedUpload[]) => {
+      const fresh = await loadSyncState();
+      const merged: SyncState = {
+        ...fresh,
+        uploadedAssets: Array.from(new Set([...fresh.uploadedAssets, ...uploaded])),
+        failedUploads: failed,
+        lastSyncTime: Date.now(),
+      };
+      await saveSyncState(merged);
+      return merged;
+    };
 
     // Photos taken since the last run need their album resolved too.
     invalidateAlbumIndex();
 
     try {
-      const newPhotos = await findNewPhotos();
+      // Always start from what is saved now.
+      const syncState = await loadSyncState();
+      const newPhotos = await findNewPhotos(syncState.uploadedAssets);
       // Also gather retryable failed uploads
       const retryable = syncState.failedUploads.filter(shouldRetry);
       const retryAssetIds = new Set(retryable.map(f => f.assetId));
@@ -813,7 +868,6 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
       if (total === 0) {
         console.log('No new photos to sync');
-        setIsSyncing(false);
         return;
       }
 
@@ -828,7 +882,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       const queue = [...newPhotos];
 
       const worker = async () => {
-        while (queue.length > 0 && !syncCancelled) {
+        while (queue.length > 0 && !cancelRef.current) {
           const asset = queue.shift();
           if (!asset) break;
 
@@ -846,17 +900,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
             });
           }
 
-          setSyncProgress((processed / total) * 100);
+          reportProgress((processed / total) * 100);
 
           // Save progress every 10 uploads so MyPhoto tab can refresh
-          if (newUploaded.length % 10 === 0 && newUploaded.length > 0) {
-            const progressState: SyncState = {
-              ...syncState,
-              uploadedAssets: [...syncState.uploadedAssets, ...newUploaded],
-              failedUploads: newFailed,
-              lastSyncTime: Date.now(),
-            };
-            await saveSyncState(progressState);
+          if (success && newUploaded.length % 10 === 0) {
+            await saveMerged(newUploaded, newFailed);
           }
         }
       };
@@ -865,7 +913,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
       // Retry previously failed uploads
       for (const failed of retryable) {
-        if (syncCancelled) break;
+        if (cancelRef.current) break;
 
         try {
           // Look the asset up directly by id. This used to pull 5000 assets
@@ -878,7 +926,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           if (!asset) {
             // Asset may have been deleted from device, remove from retry queue
             processed++;
-            setSyncProgress((processed / total) * 100);
+            reportProgress((processed / total) * 100);
             continue;
           }
 
@@ -908,21 +956,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           processed++;
         }
 
-        setSyncProgress((processed / total) * 100);
+        reportProgress((processed / total) * 100);
       }
 
       // Clean up: remove failed entries that exceeded max retries
       const activeFailed = newFailed.filter(f => f.attempts < MAX_RETRY_ATTEMPTS);
 
       // Update sync state
-      const newState: SyncState = {
-        ...syncState,
-        uploadedAssets: [...syncState.uploadedAssets, ...newUploaded],
-        failedUploads: activeFailed,
-        lastSyncTime: Date.now(),
-      };
+      const newState = await saveMerged(newUploaded, activeFailed);
       setSyncState(newState);
-      await saveSyncState(newState);
 
       // Try to claim backup bonus after first successful upload
       if (newUploaded.length > 0) {
@@ -937,14 +979,20 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Sync error:', error);
     } finally {
+      syncingRef.current = false;
       setIsSyncing(false);
       setSyncProgress(0);
       // Reflect the new storageUsed in the quota gauge + upsell.
       refreshAppUser().catch(() => {});
     }
-  }, [isSyncing, user, settings, syncState, syncCancelled, refreshAppUser]);
+  }, [user, refreshAppUser]);
+  const startSyncRef = useRef(startSync);
+  startSyncRef.current = startSync;
 
   const stopSync = useCallback(() => {
+    // Workers see this right away; syncingRef stays set until they finish
+    // their current file, so a new Sync can't start a second set of workers.
+    cancelRef.current = true;
     setSyncCancelled(true);
     setIsSyncing(false);
     setSyncProgress(0);
@@ -975,18 +1023,22 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     try {
       const info = await MediaLibrary.getAssetInfoAsync(assetId);
       if (!info) return false;
-      const ok = await uploadAsset(info as unknown as MediaLibrary.Asset);
+      // Album name from the user's own albums only (cheap), not the full index.
+      let album: string | null = null;
+      const albumId = (info as any).albumId as string | undefined;
+      if (albumId) {
+        const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: false }).catch(() => []);
+        album = albums.find((a) => a.id === albumId)?.title || null;
+      }
+      const ok = await uploadAsset(info as unknown as MediaLibrary.Asset, album);
       if (ok) {
-        setSyncState(prev => {
-          if (prev.uploadedAssets.includes(assetId)) return prev;
-          const next: SyncState = {
-            ...prev,
-            uploadedAssets: [...prev.uploadedAssets, assetId],
-            lastSyncTime: Date.now(),
-          };
-          saveSyncState(next);
-          return next;
-        });
+        // Merge into the freshest saved state (the background service writes it too).
+        const fresh = await loadSyncState();
+        if (!fresh.uploadedAssets.includes(assetId)) {
+          const next: SyncState = { ...fresh, uploadedAssets: [...fresh.uploadedAssets, assetId], lastSyncTime: Date.now() };
+          await saveSyncState(next);
+          setSyncState(next);
+        }
         const token = await getToken();
         const apiUrl = process.env.EXPO_PUBLIC_API_URL;
         if (token && apiUrl) await tryClaimBackupBonus(token, apiUrl);
@@ -1005,7 +1057,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [settings]);
 
   const getQueuedPhotos = useCallback(async () => {
-    return findNewPhotos();
+    return findNewPhotos(syncState.uploadedAssets);
   }, [syncState]);
 
   // ---- Folder Sync Methods ----
@@ -1132,7 +1184,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // Refresh pending count when sync state changes
   useEffect(() => {
     if (user && settings.autoBackup) {
-      findNewPhotos().then((photos) => setPendingCount(photos.length)).catch(() => {});
+      findNewPhotos(syncState.uploadedAssets).then((photos) => setPendingCount(photos.length)).catch(() => {});
     }
   }, [syncState.uploadedAssets.length, user, settings.autoBackup]);
 
