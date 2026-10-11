@@ -2,6 +2,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { generateDownloadUrl } from '@/lib/s3';
+import { notify } from '@/lib/inbox';
+
+const MAX_FAMILY_MEMBERS = 5;
+
+// Pending invites live in familyInvites/{familyId}_{inviteeId} (server-only).
+// Nobody joins a family without accepting, and the invite response is the
+// same whether or not the email has an account (no account enumeration).
+const inviteRef = (familyId: string, inviteeId: string) =>
+  db.collection('familyInvites').doc(`${familyId}_${inviteeId}`);
+
+async function pendingInvites(userId: string) {
+  const snap = await db.collection('familyInvites').where('toId', '==', userId).get();
+  return snap.docs.map((d) => {
+    const x = d.data();
+    return { familyId: x.familyId, familyName: x.familyName || '', fromName: x.fromName || '' };
+  });
+}
+
+/** Take a member's files out of the family when they leave. */
+async function unshareFilesOf(userId: string, familyId: string) {
+  const snap = await db.collection('files').where('userId', '==', userId).where('familyId', '==', familyId).get();
+  for (let i = 0; i < snap.docs.length; i += 450) {
+    const batch = db.batch();
+    snap.docs.slice(i, i + 450).forEach((d) => batch.update(d.ref, { familyId: null }));
+    await batch.commit();
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +49,7 @@ export async function GET(request: NextRequest) {
     const familyId = userData.familyId;
 
     if (!familyId) {
-      return NextResponse.json({ family: null, members: [], sharedFiles: [] });
+      return NextResponse.json({ family: null, members: [], sharedFiles: [], invites: await pendingInvites(userId) });
     }
 
     // Get family doc
@@ -166,39 +193,73 @@ export async function POST(request: NextRequest) {
         .limit(1)
         .get();
 
-      if (usersSnap.empty) {
-        return NextResponse.json({ error: 'User not found with this email' }, { status: 404 });
+      const familyData = familyDoc.data()!;
+      if ((familyData.memberIds || []).length >= MAX_FAMILY_MEMBERS) {
+        return NextResponse.json({ error: 'Family is full' }, { status: 400 });
       }
 
-      const inviteeDoc = usersSnap.docs[0];
-      const inviteeData = inviteeDoc.data();
-
-      if (inviteeData.familyId) {
-        return NextResponse.json({ error: 'User already belongs to a family' }, { status: 400 });
+      // Same answer whether or not the email has an account, is already in a
+      // family, or was invited before. Only a real, free account gets an invite.
+      const invitee = usersSnap.empty ? null : usersSnap.docs[0];
+      if (invitee && invitee.id !== userId && !invitee.data().familyId) {
+        await inviteRef(userData.familyId, invitee.id).set({
+          familyId: userData.familyId,
+          familyName: familyData.name || '',
+          fromId: userId,
+          fromName: userData.displayName || '',
+          toId: invitee.id,
+          createdAt: new Date(),
+        });
+        await notify(invitee.id, {
+          type: 'system',
+          actorId: userId,
+          actorName: userData.displayName || '',
+          text: `${userData.displayName || 'Neko'} te poziva u porodicu „${familyData.name || 'Porodica'}“. Otvori Porodica da prihvatiš.`,
+        });
       }
 
-      // Add to family
-      const memberIds: string[] = familyDoc.data()!.memberIds || [];
-      if (memberIds.includes(inviteeDoc.id)) {
-        return NextResponse.json({ error: 'Already a member' }, { status: 400 });
+      // memberName keeps older app builds' "added" alert readable.
+      return NextResponse.json({ success: true, invited: true, memberName: String(email).trim() });
+    }
+
+    // Accept or decline an invite (the invitee)
+    if (action === 'accept' || action === 'decline') {
+      const { familyId } = body;
+      if (!familyId || typeof familyId !== 'string') {
+        return NextResponse.json({ error: 'familyId required' }, { status: 400 });
       }
-
-      memberIds.push(inviteeDoc.id);
-      await db.collection('families').doc(userData.familyId).update({
-        memberIds,
-        updatedAt: new Date(),
-      });
-
-      await db.collection('users').doc(inviteeDoc.id).update({
-        familyId: userData.familyId,
-        role: 'user',
-      });
-
-      return NextResponse.json({
-        success: true,
-        memberId: inviteeDoc.id,
-        memberName: inviteeData.displayName || inviteeData.email,
-      });
+      const ref = inviteRef(familyId, userId);
+      if (action === 'decline') {
+        await ref.delete();
+        return NextResponse.json({ success: true });
+      }
+      try {
+        await db.runTransaction(async (tx) => {
+          const [invite, family, me] = await Promise.all([
+            tx.get(ref),
+            tx.get(db.collection('families').doc(familyId)),
+            tx.get(db.collection('users').doc(userId)),
+          ]);
+          if (!invite.exists || !family.exists) throw new Error('NO_INVITE');
+          if (me.data()?.familyId) throw new Error('IN_FAMILY');
+          const memberIds: string[] = family.data()!.memberIds || [];
+          if (memberIds.length >= MAX_FAMILY_MEMBERS) throw new Error('FULL');
+          if (!memberIds.includes(userId)) memberIds.push(userId);
+          tx.update(family.ref, { memberIds, updatedAt: new Date() });
+          tx.update(me.ref, { familyId, role: 'user' });
+          tx.delete(ref);
+        });
+      } catch (e: any) {
+        const map: Record<string, [string, number]> = {
+          NO_INVITE: ['Invite not found', 404],
+          IN_FAMILY: ['Already in a family', 400],
+          FULL: ['Family is full', 400],
+        };
+        const hit = map[e?.message];
+        if (hit) return NextResponse.json({ error: hit[0] }, { status: hit[1] });
+        throw e;
+      }
+      return NextResponse.json({ success: true });
     }
 
     // Remove member
@@ -220,6 +281,11 @@ export async function POST(request: NextRequest) {
       }
 
       const familyData = familyDoc.data()!;
+
+      // Only members of this family can be removed
+      if (!(familyData.memberIds || []).includes(memberId)) {
+        return NextResponse.json({ error: 'Not a member' }, { status: 404 });
+      }
 
       // Only admin can remove, or member can remove themselves
       if (familyData.adminId !== userId && memberId !== userId) {
@@ -243,11 +309,12 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Remove familyId from user
+      // Remove familyId from user, and their files from the family view
       await db.collection('users').doc(memberId).update({
         familyId: null,
         role: 'user',
       });
+      await unshareFilesOf(memberId, userData.familyId);
 
       return NextResponse.json({ success: true });
     }

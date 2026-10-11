@@ -103,11 +103,11 @@ service cloud.firestore {
                        request.resource.data.adminId == request.auth.uid &&
                        request.resource.data.memberIds.hasOnly([request.auth.uid]);
 
+      // Membership changes only through /api/family (invites need the
+      // invitee's consent); the admin may rename the family here.
       allow update: if isFamilyAdmin(familyId) &&
-                       // Cannot change admin to non-member
-                       request.resource.data.adminId in request.resource.data.memberIds &&
-                       // Max 5 members
-                       request.resource.data.memberIds.size() <= 5;
+                       request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['name', 'updatedAt']);
 
       allow delete: if isFamilyAdmin(familyId);
     }

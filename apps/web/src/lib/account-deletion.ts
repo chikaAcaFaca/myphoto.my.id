@@ -189,6 +189,17 @@ export async function deleteUserAccount(userId: string): Promise<DeletionReport>
     }
   }
 
+  // Pending family invites to or from this account.
+  try {
+    const [to, from] = await Promise.all([
+      db.collection('familyInvites').where('toId', '==', userId).get(),
+      db.collection('familyInvites').where('fromId', '==', userId).get(),
+    ]);
+    await Promise.all([...to.docs, ...from.docs].map((d) => d.ref.delete()));
+  } catch (e) {
+    note('family invites', e);
+  }
+
   for (const key of strayKeys) {
     try {
       await deleteObject(key);

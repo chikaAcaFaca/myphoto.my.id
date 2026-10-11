@@ -3,6 +3,7 @@ import { db } from '@/lib/firebase-admin';
 import { checkIpRateLimit } from '@/lib/auth-utils';
 import { generateDownloadUrl } from '@/lib/s3';
 import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/session';
+import { shareAccess } from '@/lib/share-access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,35 +27,10 @@ async function verifyAccess(
   }
 
   // Path 2: Share token (public shared links)
-  const url = new URL(request.url);
-  const shareToken = url.searchParams.get('share');
+  const shareToken = new URL(request.url).searchParams.get('share');
   if (shareToken) {
     const sharedDoc = await db.collection('shared').doc(shareToken).get();
-    if (sharedDoc.exists) {
-      const sharedData = sharedDoc.data()!;
-      if (sharedData.isActive) {
-        if (sharedData.type === 'album') {
-          // Album share: fileId must be in albumFileIds
-          const albumFileIds: string[] = sharedData.albumFileIds || [];
-          if (albumFileIds.includes(fileId)) {
-            return { authorized: true };
-          }
-          return {
-            authorized: false,
-            response: NextResponse.json({ error: 'File not in shared album' }, { status: 403 }),
-          };
-        } else {
-          // Single file share: fileId must match
-          if (sharedData.fileId === fileId) {
-            return { authorized: true };
-          }
-          return {
-            authorized: false,
-            response: NextResponse.json({ error: 'File not matching share' }, { status: 403 }),
-          };
-        }
-      }
-    }
+    return shareAccess(sharedDoc.data(), fileId, fileData);
   }
 
   // Neither valid session nor valid share token

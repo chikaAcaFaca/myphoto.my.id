@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import NextImage from 'next/image';
+import { isShareUsable } from '@/lib/share-access';
 import { db } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import {
@@ -30,7 +31,7 @@ async function getSharedLink(token: string) {
   const doc = await db.collection('shared').doc(token).get();
   if (!doc.exists) return null;
   const data = doc.data()!;
-  if (!data.isActive) return null;
+  if (!isShareUsable(data)) return null;
   return data;
 }
 
