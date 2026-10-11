@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { memeMediaUrls } from '@/lib/meme-video';
 import Link from 'next/link';
 import { db } from '@/lib/firebase-admin';
 import { generateDownloadUrl } from '@/lib/s3';
@@ -8,6 +9,7 @@ import { SharedMemeFeed } from '@/components/meme-wall/shared-meme-feed';
 import { getT } from '@/i18n/server';
 import { isValidRef } from '@/lib/referral-link';
 import { headers } from 'next/headers';
+import { InstallAppButton } from '@/components/install/android-install';
 
 interface MemePageProps {
   params: Promise<{ id: string }>;
@@ -19,10 +21,7 @@ async function getMeme(id: string) {
   const doc = await db.collection('memes').doc(id).get();
   if (!doc.exists) return null;
   const data = doc.data()!;
-  let imageUrl = '';
-  if (data.s3Key) {
-    try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
-  }
+  const { imageUrl, posterUrl } = await memeMediaUrls(data);
   return {
     id: doc.id,
     caption: data.caption || '',
@@ -30,6 +29,7 @@ async function getMeme(id: string) {
     bottomText: data.bottomText || '',
     mediaType: (data.mediaType || 'image') as 'image' | 'video' | 'gif',
     imageUrl,
+    posterUrl,
     authorName: data.authorName || 'Anonymous',
     authorId: data.authorId || '',
     likes: data.likes || 0,
@@ -45,20 +45,21 @@ export async function generateMetadata({ params }: MemePageProps): Promise<Metad
   const meme = await getMeme(id);
   const t = await getT();
   if (!meme) return { title: t('pages.meme.notFoundTitle') };
+  const ogImage = meme.mediaType === 'video' ? meme.posterUrl : meme.imageUrl;
   return {
     title: `${meme.caption || 'Meme'} | MyPhoto MemeWall`,
     description: t('pages.meme.metaDescription', { caption: meme.caption }),
     openGraph: {
       title: meme.caption || 'MyPhoto Meme',
       description: t('pages.meme.ogDescription'),
-      images: meme.imageUrl ? [{ url: meme.imageUrl, width: 800, height: 800 }] : [],
+      images: ogImage ? [{ url: ogImage, width: 800, height: 800 }] : [],
       type: 'article',
     },
     twitter: {
       card: 'summary_large_image',
       title: meme.caption || 'MyPhoto Meme',
       description: t('pages.meme.twitterDescription'),
-      images: meme.imageUrl ? [meme.imageUrl] : [],
+      images: ogImage ? [ogImage] : [],
     },
   };
 }
@@ -127,6 +128,7 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
             {meme.mediaType === 'video' ? (
               <video
                 src={meme.imageUrl}
+                poster={meme.posterUrl || undefined}
                 controls
                 loop
                 playsInline
@@ -237,8 +239,8 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
           {isIos ? (
             <p style={{ fontSize: 14, color: '#E8E8EA', margin: 0 }}>{t('pages.meme.iosHint')}</p>
           ) : (
-            <a
-              href="/api/download/android"
+            <InstallAppButton
+              registerHref={`/register?ref=${isValidRef(ref) ? encodeURIComponent(ref) : `meme_${meme.id}`}`}
               style={{
                 display: 'inline-block',
                 alignSelf: 'center',
@@ -252,7 +254,7 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
               }}
             >
               {t('pages.meme.downloadAndroid')}
-            </a>
+            </InstallAppButton>
           )}
           {!isIos && (
             <p style={{ fontSize: 12, color: '#A3A7B0', margin: 0 }}>{t('pages.meme.downloadHint')}</p>

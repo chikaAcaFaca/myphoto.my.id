@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useT } from '@/i18n/client';
+import { InstallAppButton } from '@/components/install/android-install';
 
 /**
  * Post-login nudge for Android users browsing the site to install the native
@@ -40,9 +41,9 @@ export function AndroidAppBanner() {
         <span>
           <span className="font-semibold">{t('components.androidBanner.title')}</span>{' '}
           {t('components.androidBanner.body')}{' '}
-          <a href="/api/download/android" className="underline underline-offset-2">
+          <InstallAppButton className="underline underline-offset-2">
             {t('components.androidBanner.downloadApk')}
-          </a>{' '}
+          </InstallAppButton>{' '}
           ·{' '}
           <Link href="/download" className="underline underline-offset-2">
             {t('components.androidBanner.guide')}

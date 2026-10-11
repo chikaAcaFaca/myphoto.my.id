@@ -6,9 +6,11 @@ import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { withRef } from '@/lib/referral-link';
 import { useT } from '@/i18n/client';
+import { InstallAppButton } from '@/components/install/android-install';
 
 export interface FeedMeme {
   id: string;
+  posterUrl?: string | null;
   caption: string;
   topText: string;
   bottomText: string;
@@ -23,6 +25,7 @@ export interface FeedMeme {
 
 /** How many memes a visitor without an account sees before signing up. */
 const GUEST_LIMIT = 10;
+const GUEST_BAR = 72; // px, guest download bar at the bottom
 const PAGE_SIZE = 10;
 const FLAME = '#FF7A3D';
 const ON_FLAME = '#111214';
@@ -70,6 +73,9 @@ export function SharedMemeFeed({
   const loginHref = `/login?redirect=${encodeURIComponent(first ? `/meme/${first.id}` : '/meme-wall')}`;
   const gated = !app && !isLoading && !user && activeIndex >= GUEST_LIMIT;
   const slideHeight = app ? `calc(100dvh - ${TAB_BAR})` : '100dvh';
+  // Guests (people opening a shared link) get a clear download bar at the
+  // bottom; the caption and buttons move up above it.
+  const guestBar = !app && !isLoading && !user ? GUEST_BAR : 0;
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
@@ -223,9 +229,9 @@ export function SharedMemeFeed({
             </Link>
           )}
           {!app && !isIos && (
-            <a href="/api/download/android" style={{ ...pill, backgroundColor: FLAME, color: ON_FLAME }}>
+            <InstallAppButton registerHref={registerHref} style={{ ...pill, backgroundColor: FLAME, color: ON_FLAME }}>
               {t('pages.meme.feed.getApp')}
-            </a>
+            </InstallAppButton>
           )}
           {!user && !isLoading && (
             <Link href={loginHref} style={{ ...pill, backgroundColor: 'rgba(255,255,255,0.16)', color: '#fff' }}>
@@ -255,6 +261,8 @@ export function SharedMemeFeed({
                   <video
                     ref={(el) => { if (el) videos.current.set(m.id, el); else videos.current.delete(m.id); }}
                     src={m.imageUrl}
+                    poster={m.posterUrl || undefined}
+                    preload={i === activeIndex ? 'auto' : 'metadata'}
                     muted={muted}
                     loop
                     playsInline
@@ -283,7 +291,7 @@ export function SharedMemeFeed({
             ) : null}
 
             {/* Right rail */}
-            <div style={{ position: 'absolute', right: 10, bottom: app ? 90 : 120, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div style={{ position: 'absolute', right: 10, bottom: app ? 90 : 120 + guestBar, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
               <button aria-label={t('pages.meme.feed.like')} onClick={() => like(m)} style={railBtn}>
                 <svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill={liked[m.id] ? FLAME : 'none'} stroke={liked[m.id] ? FLAME : '#fff'} strokeWidth="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></svg>
                 <span style={railCount}>{m.likes}</span>
@@ -298,7 +306,7 @@ export function SharedMemeFeed({
             </div>
 
             {/* Author + caption */}
-            <div style={{ position: 'absolute', left: 14, right: 80, bottom: app ? 16 : 28, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+            <div style={{ position: 'absolute', left: 14, right: 80, bottom: app ? 16 : 28 + guestBar, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
               <Link href={`/user/${m.authorId}`} style={{ color: '#fff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>@{m.authorName}</Link>
               {m.caption ? <p style={{ margin: '6px 0 0', fontSize: 14, lineHeight: 1.35 }}>{m.caption}</p> : null}
             </div>
@@ -308,6 +316,27 @@ export function SharedMemeFeed({
           <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A3A7B0' }}>…</div>
         )}
       </div>
+
+      {/* Download bar for guests: 1 GB free + one clear install button */}
+      {guestBar > 0 && !gated && (
+        <div style={{
+          position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20, height: GUEST_BAR,
+          display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px',
+          backgroundColor: 'rgba(17,18,20,0.94)', borderTop: '1px solid #2C2F36',
+        }}>
+          <div style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.3 }}>
+            <strong style={{ color: FLAME, fontSize: 15 }}>{t('components.installGuide.freeBadge')}</strong>
+            <div style={{ color: '#D6D8DD' }}>{t('components.installGuide.barText')}</div>
+          </div>
+          {isIos ? (
+            <Link href={registerHref} style={{ ...pill, minHeight: 48, backgroundColor: FLAME, color: ON_FLAME, fontSize: 15, flexShrink: 0 }}>
+              {t('pages.meme.feed.gateRegister')}
+            </Link>
+          ) : (
+            <InstallAppButton registerHref={registerHref} style={{ ...pill, minHeight: 48, backgroundColor: FLAME, color: ON_FLAME, fontSize: 15, flexShrink: 0 }} />
+          )}
+        </div>
+      )}
 
       {/* Sign-up gate after GUEST_LIMIT memes */}
       {gated && (
@@ -323,9 +352,9 @@ export function SharedMemeFeed({
               {t('pages.meme.feed.gateRegister')}
             </Link>
             {!isIos && (
-              <a href="/api/download/android" style={{ ...pill, minHeight: 50, backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 16 }}>
+              <InstallAppButton registerHref={registerHref} style={{ ...pill, minHeight: 50, backgroundColor: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 16 }}>
                 {t('pages.meme.downloadAndroid')}
-              </a>
+              </InstallAppButton>
             )}
             <Link href={loginHref} style={{ color: '#A3A7B0', fontSize: 14, padding: 10 }}>{t('pages.meme.feed.gateLogin')}</Link>
           </div>

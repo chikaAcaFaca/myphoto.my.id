@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { memeMediaUrls } from '@/lib/meme-video';
 import { db } from '@/lib/firebase-admin';
 import { generateDownloadUrl, deleteObject } from '@/lib/s3';
 import { getOptionalUserId, verifyAuthWithRateLimit } from '@/lib/auth-utils';
@@ -21,10 +22,7 @@ export async function GET(
     }
 
     const data = doc.data()!;
-    let imageUrl = data.imageUrl || '';
-    if (data.s3Key && !imageUrl) {
-      try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
-    }
+    const { imageUrl, posterUrl } = await memeMediaUrls(data);
 
     const viewerId = await getOptionalUserId(request);
     let userReaction: 'like' | 'dislike' | null = null;
@@ -44,6 +42,7 @@ export async function GET(
       topText: data.topText || '',
       bottomText: data.bottomText || '',
       imageUrl,
+      posterUrl,
       mediaType: data.mediaType || 'image',
       authorName: data.authorName || 'Anonymous',
       authorId: data.authorId,
@@ -154,8 +153,8 @@ export async function DELETE(
     }
 
     // Best-effort: drop the media object first so we don't orphan storage.
-    if (data.s3Key) {
-      try { await deleteObject(data.s3Key); } catch (e) { console.error('Meme media delete failed:', e); }
+    for (const key of new Set([data.s3Key, data.optimizedKey, data.posterKey].filter(Boolean))) {
+      try { await deleteObject(key); } catch (e) { console.error('Meme media delete failed:', e); }
     }
 
     // NOTE: do NOT use db.recursiveDelete — `db` is a Proxy (firebase-admin.ts)

@@ -17,6 +17,7 @@
 import * as MediaLibrary from 'expo-media-library';
 import * as Network from 'expo-network';
 import * as SecureStore from 'expo-secure-store';
+import { waitWhileMediaBusy } from './media-busy';
 import {
   type SyncSettings,
   loadSyncSettings,
@@ -82,23 +83,35 @@ async function syncPhotosRound(
   if (pending.length === 0) return { uploaded: 0, remaining: 0 };
 
   const uploadedIds: string[] = [];
-  let i = 0;
-  for (const asset of pending) {
-    if (opts.shouldStop?.()) break;
-    opts.onProgress?.({ phase: 'photos', done: i, total: pending.length });
-    const ok = await backgroundUploadAsset(asset, token, apiUrl);
-    if (ok) uploadedIds.push(asset.id);
-    i++;
-  }
-
-  if (uploadedIds.length > 0) {
+  let unsaved: string[] = [];
+  // Save as we go (merged into the freshest state). Saving only at the end of
+  // the round meant a force stop forgot everything sent in that round, and
+  // the next start uploaded it all again.
+  const save = async () => {
+    if (unsaved.length === 0) return;
+    const ids = unsaved;
+    unsaved = [];
     const fresh = await loadSyncState();
     await saveSyncState({
       ...fresh,
-      uploadedAssets: [...fresh.uploadedAssets, ...uploadedIds],
+      uploadedAssets: Array.from(new Set([...fresh.uploadedAssets, ...ids])),
       lastSyncTime: Date.now(),
     });
+  };
+  let i = 0;
+  for (const asset of pending) {
+    await waitWhileMediaBusy(opts.shouldStop);
+    if (opts.shouldStop?.()) break;
+    opts.onProgress?.({ phase: 'photos', done: i, total: pending.length });
+    const ok = await backgroundUploadAsset(asset, token, apiUrl);
+    if (ok) {
+      uploadedIds.push(asset.id);
+      unsaved.push(asset.id);
+      if (unsaved.length >= 5) await save();
+    }
+    i++;
   }
+  await save();
   return { uploaded: uploadedIds.length, remaining: pending.length - uploadedIds.length };
 }
 
@@ -121,6 +134,7 @@ async function syncFilesRound(
   let uploaded = 0;
   let i = 0;
   for (const file of pending) {
+    await waitWhileMediaBusy(opts.shouldStop);
     if (opts.shouldStop?.()) break;
     opts.onProgress?.({ phase: 'files', done: i, total: pending.length });
     const res = await uploadFileToMySpace(file, token, apiUrl, folderIdCache);
@@ -160,6 +174,12 @@ export async function runSyncPass(opts: RunSyncOptions = {}): Promise<{
   if (!auth) return { photosUploaded, filesUploaded, stopped: true };
 
   for (let round = 0; round < maxRounds; round++) {
+    if (opts.shouldStop?.()) {
+      return { photosUploaded, filesUploaded, stopped: true };
+    }
+
+    // Don't even scan the library while the user is watching memes.
+    await waitWhileMediaBusy(opts.shouldStop);
     if (opts.shouldStop?.()) {
       return { photosUploaded, filesUploaded, stopped: true };
     }

@@ -4,6 +4,7 @@ import {
   RefreshControl, Dimensions, Share, ViewToken, Alert, TextInput,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { setMediaBusy } from '../src/lib/media-busy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
@@ -24,6 +25,8 @@ const ON_FLAME = '#111214';
 interface MemePost {
   id: string;
   imageUrl: string;
+  /** First frame of a video meme, shown until the video can play. */
+  posterUrl?: string | null;
   mediaType: 'image' | 'video' | 'gif';
   caption: string;
   topText: string;
@@ -101,7 +104,12 @@ export default function MemeWallScreen() {
   const [focused, setFocused] = useState(true);
   useFocusEffect(useCallback(() => {
     setFocused(true);
-    return () => setFocused(false);
+    // Backup waits between files while the user watches memes (smooth video).
+    setMediaBusy(true);
+    return () => {
+      setFocused(false);
+      setMediaBusy(false);
+    };
   }, []));
 
   useEffect(() => {
@@ -371,6 +379,9 @@ export default function MemeWallScreen() {
           source={{ uri: item.imageUrl }}
           style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.CONTAIN}
+          {...(item.posterUrl
+            ? { usePoster: true, posterSource: { uri: item.posterUrl }, posterStyle: { resizeMode: 'contain' as const } }
+            : {})}
           shouldPlay={focused && visibleId === item.id}
           isLooping
           isMuted={false}
@@ -381,7 +392,9 @@ export default function MemeWallScreen() {
           }}
         />
       ) : (
-        <Image source={{ uri: item.imageUrl }} style={StyleSheet.absoluteFill} contentFit="contain" transition={150} />
+        // cacheKey = meme id: the signed URL changes, the meme doesn't, so a
+        // meme seen once loads from disk on the next visit.
+        <Image source={{ uri: item.imageUrl, cacheKey: `meme-${item.id}` }} cachePolicy="memory-disk" style={StyleSheet.absoluteFill} contentFit="contain" transition={150} />
       )}
 
       {/* Video/gif memes aren't baked — overlay the meme text on top */}
