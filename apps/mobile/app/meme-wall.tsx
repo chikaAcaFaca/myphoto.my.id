@@ -112,6 +112,36 @@ export default function MemeWallScreen() {
     });
   }, [visibleId, focused]);
 
+  // "Za tebe" order: one seed per session keeps paging stable; `since` marks
+  // which memes count as already seen. Pull-to-refresh starts a new session.
+  const session = useRef({ seed: Math.random().toString(36).slice(2, 10), since: Date.now() });
+  const seenQueue = useRef<Set<string>>(new Set());
+
+  const flushSeen = useCallback(async () => {
+    const ids = [...seenQueue.current];
+    if (ids.length === 0) return;
+    seenQueue.current.clear();
+    try {
+      const token = await getToken();
+      if (!token) return;
+      await fetch(`${API_URL}/api/meme-wall/seen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ids }),
+      });
+    } catch {}
+  }, [getToken]);
+
+  useEffect(() => {
+    if (!visibleId || profileUserId) return;
+    seenQueue.current.add(visibleId);
+    if (seenQueue.current.size >= 10) flushSeen();
+  }, [visibleId, profileUserId, flushSeen]);
+
+  useEffect(() => {
+    if (!focused) flushSeen();
+  }, [focused, flushSeen]);
+
   const fetchMemes = useCallback(async (pageNum: number, append = false) => {
     try {
       const token = await getToken();
@@ -119,7 +149,7 @@ export default function MemeWallScreen() {
       // single load, no page pagination.
       const url = profileUserId
         ? `${API_URL}/api/users/${profileUserId}/memes?pageSize=60`
-        : `${API_URL}/api/meme-wall?page=${pageNum}&pageSize=20`;
+        : `${API_URL}/api/meme-wall?feed=foryou&seed=${session.current.seed}&since=${session.current.since}&page=${pageNum}&pageSize=20`;
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -127,7 +157,11 @@ export default function MemeWallScreen() {
         const data = await res.json();
         const list: MemePost[] = data.memes || data.items || [];
         setHasMore(profileUserId ? false : !!data.hasMore);
-        setMemes(prev => (append ? [...prev, ...list] : list));
+        setMemes(prev => {
+          if (!append) return list;
+          const known = new Set(prev.map(m => m.id));
+          return [...prev, ...list.filter(m => !known.has(m.id))];
+        });
         // Prime visibleId so the first video meme starts playing immediately —
         // onViewableItemsChanged doesn't always fire on first mount before
         // the user scrolls. In profile mode start on the tapped meme.
@@ -144,7 +178,13 @@ export default function MemeWallScreen() {
 
   useEffect(() => { fetchMemes(1); }, [fetchMemes]);
 
-  const onRefresh = () => { setRefreshing(true); setPage(1); fetchMemes(1); };
+  const onRefresh = () => {
+    flushSeen();
+    session.current = { seed: Math.random().toString(36).slice(2, 10), since: Date.now() };
+    setRefreshing(true);
+    setPage(1);
+    fetchMemes(1);
+  };
 
   const loadMore = () => {
     if (loadingMore || !hasMore || loading) return;

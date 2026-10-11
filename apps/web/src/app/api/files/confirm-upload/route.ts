@@ -87,6 +87,8 @@ async function maybeQualifyReferral(userId: string, emailVerified: boolean, ip: 
     // All reads first (Firestore requires reads before writes).
     const freshRef = await tx.get(refRef);
     if (freshRef.data()?.qualified) return false; // already granted by a concurrent call
+    // One referral per referee, ever — even if two pending records exist.
+    if ((await tx.get(userRef)).data()?.referralQualified) return false;
     const referrerRef = db.collection('users').doc(referrerId);
     const referrerSnap = await tx.get(referrerRef);
     const underCap = (referrerSnap.data()?.referralCount || 0) < MAX_REFERRALS;

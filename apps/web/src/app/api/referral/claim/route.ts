@@ -74,26 +74,32 @@ export async function POST(request: NextRequest) {
 
   // Create referral record — bonus is NOT applied yet.
   // Referee must upload 100MB to qualify (checked in upload confirmation API).
-  const batch = db.batch();
-
+  // In a transaction: two simultaneous claims (e.g. two tabs with different
+  // ?ref codes) must not credit two referrers.
+  const refereeRef = db.collection('users').doc(userId);
   const referralRef = db.collection('referrals').doc();
-  batch.set(referralRef, {
-    referrerUserId,
-    refereeUserId: userId,
-    refereeEmail: refereeData.email || '',
-    bonusBytes: REFERRAL_BONUS,
-    qualified: false, // becomes true after referee uploads 100MB
-    source: source || 'direct',       // 'share', 'direct', 'app', etc.
-    shareToken: shareToken || null,    // which shared content brought this user
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  const claimed = await db.runTransaction(async (tx) => {
+    if ((await tx.get(refereeRef)).data()?.referredBy) return false;
+    tx.set(referralRef, {
+      referrerUserId,
+      refereeUserId: userId,
+      refereeEmail: refereeData.email || '',
+      bonusBytes: REFERRAL_BONUS,
+      qualified: false, // becomes true after referee uploads 100MB
+      source: source || 'direct',       // 'share', 'direct', 'app', etc.
+      shareToken: shareToken || null,    // which shared content brought this user
+      createdAt: FieldValue.serverTimestamp(),
+    });
 
-  // Update referee: set referredBy (no storage bonus yet — must qualify first)
-  batch.update(db.collection('users').doc(userId), {
-    referredBy: referrerUserId,
+    // Update referee: set referredBy (no storage bonus yet — must qualify first)
+    tx.update(refereeRef, {
+      referredBy: referrerUserId,
+    });
+    return true;
   });
-
-  await batch.commit();
+  if (!claimed) {
+    return NextResponse.json({ error: 'Already referred' }, { status: 400 });
+  }
 
   await notify(referrerUserId, {
     type: 'referral_joined',

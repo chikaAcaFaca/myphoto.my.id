@@ -33,6 +33,12 @@ interface FamilyData {
   sharedStorageUsed: number;
 }
 
+interface FamilyInvite {
+  familyId: string;
+  familyName: string;
+  fromName: string;
+}
+
 interface SharedFile {
   id: string;
   name: string;
@@ -50,6 +56,7 @@ export default function FamilyScreen() {
   const [family, setFamily] = useState<FamilyData | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [sharedFiles, setSharedFiles] = useState<SharedFile[]>([]);
+  const [invites, setInvites] = useState<FamilyInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -66,6 +73,7 @@ export default function FamilyScreen() {
       setFamily(data.family);
       setMembers(data.members || []);
       setSharedFiles(data.sharedFiles || []);
+      setInvites(data.invites || []);
     } catch (e) {
       console.error('Error fetching family:', e);
     } finally {
@@ -120,7 +128,7 @@ export default function FamilyScreen() {
       });
       const data = await res.json();
       if (res.ok) {
-        Alert.alert(t('common.success'), t('family.memberAdded', { name: data.memberName }));
+        Alert.alert(t('common.success'), t('family.inviteSent', { email: inviteEmail.trim() }));
         setInviteEmail('');
         fetchFamily();
       } else {
@@ -160,6 +168,25 @@ export default function FamilyScreen() {
     );
   };
 
+  const answerInvite = async (invite: FamilyInvite, action: 'accept' | 'decline') => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/family`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, familyId: invite.familyId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert(t('common.error'), err.error || t('family.failed'));
+      }
+      fetchFamily();
+    } catch {
+      Alert.alert(t('common.error'), t('family.networkError'));
+    }
+  };
+
   const isAdmin = family?.adminId === appUser?.id;
 
   if (loading) {
@@ -182,6 +209,28 @@ export default function FamilyScreen() {
         renderItem={() => null}
         ListHeaderComponent={
           <>
+            {!family && invites.map((invite) => (
+              <View key={invite.familyId} style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.primary }]}>
+                <Text style={[styles.sectionLabel, { color: tc.textSecondary }]}>{t('family.invitesTitle')}</Text>
+                <Text style={[styles.familyName, { color: tc.text }]}>
+                  {t('family.inviteFrom', { name: invite.fromName, family: invite.familyName })}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                  <TouchableOpacity
+                    style={[styles.createBtn, { flex: 1, backgroundColor: tc.bgInput }]}
+                    onPress={() => answerInvite(invite, 'decline')}
+                  >
+                    <Text style={[styles.createBtnText, { color: tc.text }]}>{t('family.decline')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.createBtn, { flex: 1, backgroundColor: tc.primary }]}
+                    onPress={() => answerInvite(invite, 'accept')}
+                  >
+                    <Text style={styles.createBtnText}>{t('family.accept')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
             {!family ? (
               /* No family yet */
               <View style={[styles.card, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
