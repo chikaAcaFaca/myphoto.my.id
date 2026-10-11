@@ -113,7 +113,7 @@ export const components = {
     s2Title: 'Allow the install',
     s2Text: 'Android says it cannot install apps from this source. Tap Settings and turn on Allow from this source. This applies only to your browser, not to the whole phone.',
     s3Title: 'Install',
-    s3Text: 'Go back and tap Install. If Play Protect asks, tap More details, then Install anyway.',
+    s3Text: 'Go back and tap Install. If Play Protect asks, tap More details, then Install anyway. On Honor, Huawei and Xiaomi phones, first tick that you accept the risk, then Install.',
     s4Title: 'Open and sign up',
     s4Text: 'Open MyPhoto and tap Continue with Google. You get 1 GB free for photos, memes and files.',
     mockFile: 'MyPhoto-Android.apk',
