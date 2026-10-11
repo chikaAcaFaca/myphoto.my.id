@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Bricolage_Grotesque } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { I18nProvider } from '@/i18n/client';
@@ -7,7 +7,9 @@ import { getLocale } from '@/i18n/server';
 import { DICTIONARIES } from '@/i18n/dictionaries';
 import { RefCapture } from '@/components/referral/ref-capture';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const inter = Inter({ subsets: ['latin', 'latin-ext'], variable: '--font-inter' });
+// Headings, same face as the mobile app.
+const display = Bricolage_Grotesque({ subsets: ['latin', 'latin-ext'], weight: ['700', '800'], variable: '--font-display' });
 
 export const metadata: Metadata = {
   title: {
@@ -123,16 +125,19 @@ export default async function RootLayout({
     <html lang={locale} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#2563eb" />
+        <meta name="theme-color" content="#FAFAF8" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="MyPhoto" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${display.variable} font-sans antialiased`}>
         <I18nProvider locale={locale} messages={DICTIONARIES[locale]}>
           <Providers>
             <RefCapture />

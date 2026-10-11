@@ -29,6 +29,7 @@ import {
   Palette,
   Flame,
   RefreshCw,
+  MessageCircle,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore, useAuthStore } from '@/lib/stores';
@@ -99,6 +100,7 @@ const mainNav: NavEntry[] = [
 const creativeNav: NavEntry[] = [
   { name: 'components.sidebar.memeCreator', href: '/meme-creator', icon: Palette },
   { name: 'components.sidebar.memeWall', href: '/meme-wall', icon: Flame },
+  { name: 'pages.inbox.title', href: '/inbox', icon: MessageCircle },
 ];
 
 const secondaryNav: NavEntry[] = [

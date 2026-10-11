@@ -195,6 +195,18 @@ export default function UserProfilePage() {
                 {profile.isFollowing ? t('pages.user.unfollow') : t('pages.user.follow')}
               </button>
             )}
+            {!profile.isSelf && user && (
+              <Link
+                href={`/inbox/new?userId=${encodeURIComponent(id)}&name=${encodeURIComponent(profile.displayName || '')}`}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700,
+                  padding: '10px 24px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.5)',
+                  fontSize: 15, textDecoration: 'none',
+                }}
+              >
+                {t('pages.inbox.messages.message')}
+              </Link>
+            )}
           </div>
         </div>
       </div>
