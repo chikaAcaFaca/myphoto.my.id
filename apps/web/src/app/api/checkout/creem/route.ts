@@ -3,7 +3,8 @@ import { randomUUID } from 'crypto';
 import { STORAGE_TIERS, getTierPeriods, isBillingPeriod, type BillingPeriod } from '@myphoto/shared';
 import { auth } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { createCreemCheckout, getCreemProductId } from '@/lib/creem';
+import { getActiveSubscription } from '@/lib/billing';
+import { changeCreemSubscriptionProduct, createCreemCheckout, getCreemProductId } from '@/lib/creem';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,9 +42,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://myphotomy.space';
+
+  // Already subscribed: switch that subscription instead of opening a second
+  // checkout, which left two parallel subscriptions whose storage added up.
+  const current = await getActiveSubscription(userId);
+  if (current?.provider === 'creem' && current.creemSubscriptionId) {
+    if (current.tier.tier === tier.tier && current.period === period) {
+      return NextResponse.json({ error: 'You already have this plan', code: 'same-plan' }, { status: 409 });
+    }
+    try {
+      const upgrade = tier.storageBytes > current.tier.storageBytes;
+      await changeCreemSubscriptionProduct(
+        current.creemSubscriptionId,
+        productId,
+        upgrade ? 'proration-charge-immediately' : 'proration-none'
+      );
+      return NextResponse.json({ url: `${origin}/photos?subscribed=true`, changed: true });
+    } catch (error) {
+      console.error('Creem plan change from checkout failed:', error);
+      return NextResponse.json({ error: 'Could not change the plan' }, { status: 502 });
+    }
+  }
+
   try {
     const email = (await auth().getUser(userId)).email;
-    const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://myphotomy.space';
     const checkout = await createCreemCheckout({
       productId,
       userId,
