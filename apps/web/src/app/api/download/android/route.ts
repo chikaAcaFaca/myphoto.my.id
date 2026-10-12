@@ -1,5 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { generateDownloadUrl, objectExists } from '@/lib/s3';
+import { getClientIp } from '@/lib/auth-utils';
+import { recordPendingReferral } from '@/lib/referral';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +13,14 @@ const LINK_TTL = 60 * 60; // presigned link lifetime, seconds
 // served straight from Wasabi (free egress) instead of being streamed through
 // a Vercel function, which billed every byte as Vercel bandwidth. The stable
 // /api/download/android link (website, banners, in-app update check) is kept.
-export async function GET() {
+//
+// ?ref=CODE (added by the website's download buttons) is remembered for this
+// IP so the account created in the app is credited to whoever shared the
+// link; such responses must not be cached or later visitors are not recorded.
+export async function GET(request: NextRequest) {
+  const ref = request.nextUrl.searchParams.get('ref');
   try {
+    if (ref) await recordPendingReferral(getClientIp(request), ref);
     if (!(await objectExists(APK_KEY))) throw new Error('APK missing');
     const url = await generateDownloadUrl(APK_KEY, {
       expiresIn: LINK_TTL,
@@ -24,7 +32,7 @@ export async function GET() {
       headers: {
         // Cache the redirect well inside the link's lifetime so a cached
         // response never hands out an expired URL.
-        'Cache-Control': 'public, max-age=300, s-maxage=600',
+        'Cache-Control': ref ? 'private, no-store' : 'public, max-age=300, s-maxage=600',
       },
     });
   } catch (e: any) {

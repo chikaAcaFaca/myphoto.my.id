@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { getT } from '@/i18n/server';
+import { ApkDownloadLink } from '@/components/install/android-install';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getT();
@@ -82,12 +83,9 @@ export default async function DownloadPage() {
             <li>{t('marketing.download.android.f3')}</li>
             <li>{t('marketing.download.android.f4')}</li>
           </ul>
-          <a
-            href="/api/download/android"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-700"
-          >
+          <ApkDownloadLink className="mt-6 inline-flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-green-700">
             {t('marketing.download.android.button')}
-          </a>
+          </ApkDownloadLink>
           <p className="mt-2 text-xs text-gray-400">
             {t('marketing.download.android.requirements')}{' '}
             <span className="text-green-600">{t('marketing.download.android.playSoon')}</span>
