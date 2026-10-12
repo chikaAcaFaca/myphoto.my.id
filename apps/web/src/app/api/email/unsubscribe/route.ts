@@ -6,9 +6,9 @@ import { unsubscribeToken } from '@/lib/storage-nudge';
 export const dynamic = 'force-dynamic';
 
 /**
- * Unsubscribe from the "storage is filling up" emails. The link carries the
- * uid and an HMAC of it, so no login is needed and nobody can unsubscribe
- * someone else. GET = link in the email; POST = Gmail/Outlook one-click
+ * Unsubscribe from the "storage is filling up" and welcome-series emails.
+ * The link carries the uid and an HMAC of it, so no login is needed and
+ * nobody can unsubscribe someone else. GET = link in the email; POST = Gmail/Outlook one-click
  * (List-Unsubscribe-Post). Over-quota warnings before deletion still go out:
  * they protect the user's files.
  */
@@ -26,7 +26,7 @@ async function unsubscribe(request: NextRequest): Promise<boolean> {
 
 function page(ok: boolean) {
   const msg = ok
-    ? 'Odjavljen si sa mejlova o popunjenosti prostora. · You are unsubscribed from storage emails.'
+    ? 'Odjavljen si sa saveta i obaveštenja o prostoru. · You are unsubscribed from tips and storage emails.'
     : 'Link nije ispravan ili je istekao. · This link is invalid.';
   return new NextResponse(
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MyPhoto</title></head>` +
