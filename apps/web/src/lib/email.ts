@@ -35,7 +35,14 @@ export async function sendEmail(params: {
   try {
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
-      headers: { 'api-key': key, 'Content-Type': 'application/json', Accept: 'application/json' },
+      // Brevo sits behind Cloudflare, which rejects requests without a
+      // recognisable User-Agent (error 1010), as with Creem.
+      headers: {
+        'api-key': key,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'User-Agent': 'myphotomy.space/1.0',
+      },
       body: JSON.stringify({
         sender: parseSender(process.env.EMAIL_FROM || 'MyPhoto <noreply@myphotomy.space>'),
         to: [{ email: params.to }],
