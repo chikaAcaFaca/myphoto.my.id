@@ -6,6 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { processImageAI } from '@/lib/ai-processing';
 import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
+import { scheduleStorageNudge } from '@/lib/storage-nudge';
 
 // MIME types that should be cross-indexed in MyPhoto gallery
 const PHOTO_MIME_PREFIXES = ['image/', 'video/'];
@@ -425,6 +426,7 @@ export async function PATCH(request: NextRequest) {
     await db.collection('users').doc(userId).update({
       storageUsed: FieldValue.increment(size || 0),
     });
+    scheduleStorageNudge(userId);
 
     // If this file lives under any shared folder (direct or ancestor), bump
     // every viewer's quota by the same size — keeps the "shared content

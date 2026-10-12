@@ -11,6 +11,7 @@ import {
   MAX_FREE_STORAGE,
   MAX_MEME_UPLOAD_SIZE,
 } from '@myphoto/shared';
+import { scheduleStorageNudge } from '@/lib/storage-nudge';
 
 export const dynamic = 'force-dynamic';
 // Room for the background video conversion scheduled after a response.
@@ -307,6 +308,7 @@ export async function POST(request: NextRequest) {
       });
     }
     await batch.commit();
+    if (memeData.size) scheduleStorageNudge(userId);
 
     return NextResponse.json({
       id: memeId,
