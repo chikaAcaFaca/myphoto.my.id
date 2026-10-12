@@ -12,6 +12,7 @@ import {
 import { processImageAI } from '@/lib/ai-processing';
 import { recalculateStorageLimit } from '@/lib/storage-limit';
 import { notify } from '@/lib/inbox';
+import { scheduleStorageNudge } from '@/lib/storage-nudge';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -225,6 +226,7 @@ export async function POST(request: NextRequest) {
       storageUsed: FieldValue.increment(actualSize),
       totalUploadedBytes: FieldValue.increment(actualSize),
     });
+    scheduleStorageNudge(userId);
 
     // Referral qualification: once the referee crosses the upload threshold,
     // grant the referrer their one-time bonus. Best-effort — never block upload.

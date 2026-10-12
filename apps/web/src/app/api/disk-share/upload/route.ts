@@ -5,6 +5,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { generateFileId, getFileExtension, MAX_UPLOAD_SIZE } from '@myphoto/shared';
 import { applyDeltaToSharedAncestors } from '@/lib/shared-folder-quota';
 import { resolveDiskShareApiKey, enforceDiskApiKeyRateLimit } from '@/lib/disk-share-api-key';
+import { scheduleStorageNudge } from '@/lib/storage-nudge';
 
 export const dynamic = 'force-dynamic';
 
@@ -178,6 +179,7 @@ export async function PATCH(request: NextRequest) {
     await db.collection('users').doc(ownerId).update({
       storageUsed: FieldValue.increment(size || 0),
     });
+    scheduleStorageNudge(ownerId);
 
     // Fan out the upload's size to every viewer of any share that covers
     // this folder. By definition this share's viewers are charged, but

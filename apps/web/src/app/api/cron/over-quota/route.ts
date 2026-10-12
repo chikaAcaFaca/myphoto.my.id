@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { processOverQuotaUser } from '@/lib/over-quota';
 import { recalculateStorageLimit } from '@/lib/storage-limit';
+import { maybeSendStorageNudge } from '@/lib/storage-nudge';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -13,6 +14,8 @@ export const maxDuration = 300;
  *    90-day clock if the user is still over their free allowance.
  * 2. Every user in the over-quota period → send the due warning email, or
  *    delete the newest files over the limit once the grace period is over.
+ * 3. Storage emails (60/85/100 %) for users who crossed a level without a
+ *    new upload, e.g. accounts that were already full before this existed.
  *
  * Vercel Cron sends `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is
  * set on the project; without it the route refuses to run.
@@ -50,6 +53,13 @@ export async function GET(request: NextRequest) {
       console.error('over-quota cron: user failed', doc.id, e);
       summary.errors++;
     }
+  }
+
+  // The smallest limit is 1 GB, so nobody under 60 % of that can be due.
+  const filling = await db.collection('users').where('storageUsed', '>=', 0.6 * 1024 ** 3).get();
+  for (const doc of filling.docs) {
+    const outcome = await maybeSendStorageNudge(doc.id);
+    if (outcome !== 'skipped') summary[`nudge-${outcome}`] = (summary[`nudge-${outcome}`] || 0) + 1;
   }
 
   console.log('over-quota cron', summary);

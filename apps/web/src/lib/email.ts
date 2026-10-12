@@ -26,6 +26,8 @@ export async function sendEmail(params: {
   subject: string;
   html: string;
   text: string;
+  /** Extra headers, e.g. List-Unsubscribe for marketing mail. */
+  headers?: Record<string, string>;
 }): Promise<boolean> {
   const key = process.env.BREVO_API_KEY;
   if (!key) {
@@ -50,6 +52,7 @@ export async function sendEmail(params: {
         subject: params.subject,
         htmlContent: params.html,
         textContent: params.text,
+        ...(params.headers ? { headers: params.headers } : {}),
       }),
     });
     if (!res.ok) {
@@ -66,20 +69,44 @@ export async function sendEmail(params: {
 const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** Minimal branded layout: paragraphs plus one call-to-action button. */
-export function renderEmail(opts: { paragraphs: string[]; ctaLabel: string; ctaUrl: string }): {
+/**
+ * Minimal branded layout: paragraphs, optional list of choices (one link
+ * each), one call-to-action button, and an optional unsubscribe link.
+ */
+export function renderEmail(opts: {
+  paragraphs: string[];
+  ctaLabel: string;
+  ctaUrl: string;
+  choices?: Array<{ label: string; url: string }>;
+  unsubscribeUrl?: string;
+}): {
   html: string;
   text: string;
 } {
-  const body = opts.paragraphs.map((p) => `<p style="margin:0 0 14px">${escapeHtml(p)}</p>`).join('');
+  const choices = (opts.choices || [])
+    .map(
+      (c) =>
+        `<a href="${escapeHtml(c.url)}" style="display:block;margin:0 0 8px;padding:12px 14px;border:1px solid #cbd5e1;border-radius:8px;color:#0f172a;text-decoration:none;font-weight:bold">${escapeHtml(c.label)} &rarr;</a>`
+    )
+    .join('');
+  const body =
+    opts.paragraphs.map((p) => `<p style="margin:0 0 14px">${escapeHtml(p)}</p>`).join('') +
+    (choices ? `<div style="margin:18px 0 0">${choices}</div>` : '');
+  const unsub = opts.unsubscribeUrl
+    ? ` · <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color:#64748b">Odjava · Unsubscribe</a>`
+    : '';
   const html = `<!doctype html><html><body style="margin:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
 <div style="max-width:560px;margin:0 auto;padding:24px">
 <p style="font-size:20px;font-weight:bold;color:#0ea5e9;margin:0 0 18px">MyPhoto</p>
 <div style="background:#ffffff;border-radius:12px;padding:24px;font-size:15px;line-height:1.5">${body}
 <p style="margin:22px 0 0"><a href="${escapeHtml(opts.ctaUrl)}" style="background:#0ea5e9;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:bold">${escapeHtml(opts.ctaLabel)}</a></p>
 </div>
-<p style="font-size:12px;color:#64748b;margin:16px 0 0">MyPhoto · myphotomy.space · support@myphotomy.space</p>
+<p style="font-size:12px;color:#64748b;margin:16px 0 0">MyPhoto · myphotomy.space · support@myphotomy.space${unsub}</p>
 </div></body></html>`;
-  const text = `${opts.paragraphs.join('\n\n')}\n\n${opts.ctaLabel}: ${opts.ctaUrl}\n\n— MyPhoto · myphotomy.space`;
+  const choiceText = (opts.choices || []).map((c) => `- ${c.label}: ${c.url}`).join('\n');
+  const text =
+    `${opts.paragraphs.join('\n\n')}\n\n${choiceText ? `${choiceText}\n\n` : ''}` +
+    `${opts.ctaLabel}: ${opts.ctaUrl}\n\n— MyPhoto · myphotomy.space` +
+    (opts.unsubscribeUrl ? `\nOdjava / Unsubscribe: ${opts.unsubscribeUrl}` : '');
   return { html, text };
 }
