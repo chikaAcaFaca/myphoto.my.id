@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { getIdToken } from '@/lib/firebase';
+import { ContentQueue } from './content-queue';
 
 /**
  * Owner-only funnel (Serbian only: one reader). Data from /api/admin/funnel,
@@ -127,6 +128,8 @@ export default function AdminPage() {
           </table>
         </div>
       </section>
+
+      <ContentQueue />
 
       <section className="grid gap-6 md:grid-cols-2">
         <div>
