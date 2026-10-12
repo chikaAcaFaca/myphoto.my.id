@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/stores';
 import { useT } from '@/i18n/client';
 import { MemeFeed } from '@/components/meme-wall/meme-feed';
 import { SharedMemeFeed } from '@/components/meme-wall/shared-meme-feed';
+import { MemeChallengeBanner } from '@/components/meme-wall/challenge-banner';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { useIsMobile, useInboxPolling } from '@/lib/hooks';
 
@@ -42,6 +43,7 @@ export default function MemeWallPage() {
           <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 16, margin: 0 }}>
             {t('marketing.memeWall.subtitle')}
           </p>
+          <MemeChallengeBanner />
           <div style={{ marginTop: 16, display: 'flex', gap: 12, justifyContent: 'center' }}>
             {user ? (
               <button

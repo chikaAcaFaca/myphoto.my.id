@@ -4,6 +4,7 @@ import { processOverQuotaUser } from '@/lib/over-quota';
 import { recalculateStorageLimit } from '@/lib/storage-limit';
 import { maybeSendStorageNudge } from '@/lib/storage-nudge';
 import { sendOnboardingEmails } from '@/lib/onboarding-emails';
+import { expirePrizes, settleLastWeek } from '@/lib/meme-challenge';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -18,6 +19,7 @@ export const maxDuration = 300;
  * 3. Storage emails (60/85/100 %) for users who crossed a level without a
  *    new upload, e.g. accounts that were already full before this existed.
  * 4. Welcome emails on day 1, 3 and 7 after sign-up.
+ * 5. Meme of the week: settle last week's winner (once), expire old prizes.
  *
  * Vercel Cron sends `Authorization: Bearer $CRON_SECRET` when CRON_SECRET is
  * set on the project; without it the route refuses to run.
@@ -68,6 +70,14 @@ export async function GET(request: NextRequest) {
     Object.assign(summary, await sendOnboardingEmails());
   } catch (e) {
     console.error('over-quota cron: welcome emails failed', e);
+    summary.errors++;
+  }
+
+  summary[`challenge-${await settleLastWeek()}`] = 1;
+  try {
+    summary.prizesExpired = await expirePrizes();
+  } catch (e) {
+    console.error('over-quota cron: prize expiry failed', e);
     summary.errors++;
   }
 
