@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateDownloadUrl, objectExists } from '@/lib/s3';
 import { getClientIp } from '@/lib/auth-utils';
 import { recordPendingReferral } from '@/lib/referral';
+import { db } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +23,12 @@ export async function GET(request: NextRequest) {
   const ref = request.nextUrl.searchParams.get('ref');
   try {
     if (ref) await recordPendingReferral(getClientIp(request), ref);
+    // Daily download count for the admin funnel (cached redirects are not
+    // counted, so this is a lower bound). Never blocks the download.
+    db.collection('dailyStats')
+      .doc(new Date().toISOString().slice(0, 10))
+      .set({ apkDownloads: FieldValue.increment(1), ...(ref ? { apkDownloadsWithRef: FieldValue.increment(1) } : {}) }, { merge: true })
+      .catch(() => {});
     if (!(await objectExists(APK_KEY))) throw new Error('APK missing');
     const url = await generateDownloadUrl(APK_KEY, {
       expiresIn: LINK_TTL,
