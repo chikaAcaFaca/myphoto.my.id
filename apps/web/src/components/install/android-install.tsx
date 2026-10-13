@@ -26,10 +26,11 @@ const OPEN_APP_URL =
   'intent://meme-wall#Intent;scheme=myphoto;package=id.my.myphoto;' +
   'S.browser_fallback_url=https%3A%2F%2Fmyphotomy.space%2Fdownload;end';
 
-// Intro video per phone language (avatar explains the install). Empty = the
-// video block is hidden; set the URL once the video is uploaded.
+// Intro video per site language (avatar explains the install), served from
+// public/videos with a .jpg poster of the same name. Empty = the video block
+// is hidden.
 export const INSTALL_VIDEOS: Record<'sr' | 'en', string> = {
-  sr: '',
+  sr: '/videos/install-sr.mp4',
   en: '',
 };
 
@@ -165,6 +166,8 @@ export function InstallGuide({
             {video ? (
               <video
                 src={video}
+                poster={video.replace(/\.mp4$/, '.jpg')}
+                preload="metadata"
                 controls
                 autoPlay
                 playsInline
