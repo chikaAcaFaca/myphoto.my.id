@@ -37,7 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-const FAQS = ['whySwitch', 'cheaper', 'aiTraining', 'import', 'aiFeatures'] as const;
+const FAQS = ['whySwitch', 'cheaper', 'aiTraining', 'import'] as const;
 
 const COMPARISON_ROWS = [
   { key: 'privacy', winner: 'myphoto' },
@@ -46,8 +46,6 @@ const COMPARISON_ROWS = [
   { key: 'quality', winner: 'myphoto' },
   { key: 'pricePerGb', winner: 'myphoto' },
   { key: 'freePlan', winner: 'google' },
-  { key: 'aiSearch', winner: 'tie' },
-  { key: 'faces', winner: 'tie' },
   { key: 'family', winner: 'tie' },
   { key: 'adScanning', winner: 'myphoto' },
 ] as const;

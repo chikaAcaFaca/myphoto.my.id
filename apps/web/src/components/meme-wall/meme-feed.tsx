@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/stores';
 import { withRef } from '@/lib/referral-link';
 import { getIdToken } from '@/lib/firebase';
 import { useT } from '@/i18n/client';
+import { ReportMemeButton } from './report-meme-button';
 
 export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=id.my.myphoto';
 
@@ -585,6 +586,7 @@ export function MemeFeed({
                       >
                         🔗 {meme.shares}
                       </button>
+                      <ReportMemeButton memeId={meme.id} />
                     </div>
                   </div>
                 </div>

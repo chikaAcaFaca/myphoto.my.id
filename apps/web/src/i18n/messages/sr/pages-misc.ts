@@ -83,7 +83,7 @@ export const support: DeepStrings<typeof EnSupport> = {
     billing: 'Plaćanje',
     storage: 'Upload i storage',
     sharing: 'Deljenje',
-    ai: 'AI funkcije',
+    ai: 'AI i vaše slike',
     privacy: 'Privatnost i sigurnost',
   },
   faq: {
@@ -156,17 +156,9 @@ export const support: DeepStrings<typeof EnSupport> = {
       },
     },
     ai: {
-      smartSearch: {
-        q: 'Šta je Smart Search?',
-        a: 'Smart Search vam omogućava da pretražujete slike opisom — na primer "slike sa plaže" ili "zalazak sunca". AI analizira sadržaj vaših slika i pronalazi tačno ono što tražite.',
-      },
       training: {
         q: 'Da li koristite moje slike za AI trening?',
-        a: 'Ne, nikada. Vaše slike se koriste isključivo za AI funkcije koje vi aktivirate (pretraga, tagovanje, prepoznavanje lica). Ne delimo ih sa trećim stranama niti ih koristimo za trening modela.',
-      },
-      faces: {
-        q: 'Kako funkcioniše Face Recognition?',
-        a: 'AI automatski detektuje i grupiše lica na vašim slikama. Možete im dodeliti imena i lako pronaći sve slike određene osobe. Ova funkcija radi samo na vašim slikama i podaci ne napuštaju EU servere.',
+        a: 'Ne, nikada. Ne koristimo vaše slike za treniranje AI modela i ne delimo ih sa trećim stranama.',
       },
     },
     privacy: {
@@ -253,7 +245,7 @@ export const meme: DeepStrings<typeof EnMeme> = {
   featuresTitle: 'MyPhoto — više od memova',
   featBackup: 'Auto-backup slika sa telefona',
   featStorage: 'Cloud storage za fajlove (MySpace)',
-  featAi: 'AI pretraga i tagovanje',
+  featOriginal: 'Originalni kvalitet, bez kompresije',
   featMeme: 'Meme generator + MemeWall',
   featFamily: 'Family plan — deli sa porodicom',
   featPrivacy: 'EU serveri, GDPR, bez AI treninga',

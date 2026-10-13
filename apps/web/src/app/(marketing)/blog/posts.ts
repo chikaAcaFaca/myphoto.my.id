@@ -670,7 +670,7 @@ Cene MyPhoto paketa su bez PDV-a. Google One deli prostor sa Gmail-om i Drive-om
 
 ## AI funkcije
 
-Oba servisa nude AI pretragu, ali sa ključnom razlikom: Google koristi vaše slike za treniranje, MyPhoto ne.
+Google Photos nudi AI pretragu i grupisanje lica. MyPhoto nema AI pretragu — fokus je na privatnom backup-u u originalnom kvalitetu, a vaše slike se nikada ne koriste za treniranje AI modela.
 
 ## Zaključak
 
@@ -725,7 +725,7 @@ MyPhoto prices exclude VAT. Google One shares its storage with Gmail and Drive; 
 
 ## AI features
 
-Both services offer AI search, with one key difference: Google uses your photos for training, MyPhoto doesn't.
+Google Photos offers AI search and face grouping. MyPhoto doesn't offer AI search — it focuses on private backup in original quality, and your photos are never used to train AI models.
 
 ## The bottom line
 

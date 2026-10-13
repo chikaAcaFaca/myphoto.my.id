@@ -272,7 +272,7 @@ export default async function MemePage({ params, searchParams }: MemePageProps) 
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: '#94a3b8', fontSize: 14, lineHeight: 2 }}>
             <li>📸 {t('pages.meme.featBackup')}</li>
             <li>☁️ {t('pages.meme.featStorage')}</li>
-            <li>🤖 {t('pages.meme.featAi')}</li>
+            <li>🖼️ {t('pages.meme.featOriginal')}</li>
             <li>🎨 {t('pages.meme.featMeme')}</li>
             <li>👨‍👩‍👧‍👦 {t('pages.meme.featFamily')}</li>
             <li>🔒 {t('pages.meme.featPrivacy')}</li>

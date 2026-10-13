@@ -29,8 +29,8 @@ export const terms = {
   s3: {
     title: '3. Description of the service',
     intro: 'MyPhoto (myphotomy.space) is a cloud storage service for storing, organizing and sharing photos and videos. The Service includes the following features:',
-    i1: 'Storage of photos and videos in original quality with end-to-end encryption in transit',
-    i2: 'AI features: smart search, auto-tagging, face recognition (opt-in, with explicit consent)',
+    i1: 'Storage of photos and videos in original quality, encrypted in transit (HTTPS)',
+    i2: 'Meme and sticker creation, including background removal, and the public MemeWall',
     i3: 'Sharing photos and albums with other users via secure links',
     i4: 'Family sharing with up to 5 family members',
     i5: 'Export and download of all data in standard formats (GDPR portability)',

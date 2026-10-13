@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/stores';
 import { withRef } from '@/lib/referral-link';
 import { getIdToken } from '@/lib/firebase';
 import { useI18n } from '@/i18n/client';
+import { ReportMemeButton } from '@/components/meme-wall/report-meme-button';
 import type { MessageKey, TParams } from '@/i18n/translate';
 
 interface Comment {
@@ -260,6 +261,7 @@ export default function MemeSocial({
         >
           🔗 {shares}
         </button>
+        <ReportMemeButton memeId={memeId} color="#94a3b8" fontSize={16} style={{ marginLeft: 'auto' }} />
       </div>
 
       {/* Comments */}

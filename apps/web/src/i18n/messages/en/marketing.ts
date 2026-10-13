@@ -64,7 +64,7 @@ export const marketing = {
       word2: 'photos.',
       gradient1: 'Only',
       gradient2: 'yours.',
-      subtitle: 'Private cloud storage with AI features. No compression, no compromises.',
+      subtitle: 'Private cloud backup for your photos. No compression, no compromises.',
       proofStrong: 'Original quality',
       proofRest: '· EU servers · GDPR — your photos stay yours',
       ctaPrimary: 'Start free — 1 GB',
@@ -110,9 +110,9 @@ export const marketing = {
         title: 'GDPR Compliant',
         description: 'Data stays on EU servers. Your right to deletion is guaranteed.',
       },
-      ai: {
-        title: 'AI Search',
-        description: 'Search your photos in plain language. "Beach in Croatia" — the AI finds it.',
+      memes: {
+        title: 'Memes & Stickers',
+        description: 'Turn your photos into memes and stickers. Background removal runs right in your browser.',
       },
       family: {
         title: 'Family Sharing',
@@ -121,19 +121,6 @@ export const marketing = {
       sync: {
         title: 'Fast Sync',
         description: 'Upload and open your photos at lightning speed from any device.',
-      },
-    },
-    aiDemo: {
-      titleStart: 'Search your photos',
-      titleGradient: 'with words',
-      subtitle: 'AI search understands natural language — describe a photo and find it',
-      query: 'sunset over the sea',
-      cta: 'Try AI — free',
-      results: {
-        dubrovnik: 'Sunset — Dubrovnik',
-        zlatniRat: 'Sea — Zlatni Rat',
-        montenegro: 'Beach — Montenegro',
-        zadar: 'Dusk — Zadar',
       },
     },
     steps: {
@@ -145,8 +132,8 @@ export const marketing = {
         description: 'Drag in your photos or turn on auto-sync. Everything in original quality.',
       },
       organize: {
-        title: 'AI Organizes',
-        description: 'AI automatically tags, recognizes faces and sorts your photos.',
+        title: 'Organize in Albums',
+        description: 'Sort your photos into albums and open them from any device.',
       },
       share: {
         title: 'Share & Keep',
@@ -169,7 +156,7 @@ export const marketing = {
       tierFeatures: {
         backup: 'MyPhoto auto-backup for photos and videos',
         myspace: 'MySpace cloud storage for files',
-        ai: 'AI search, auto-tagging, face recognition',
+        removeBg: 'Background remover for memes and stickers',
       },
     },
     why: {
@@ -184,9 +171,9 @@ export const marketing = {
         title: 'Private by design',
         text: 'We never train AI on your photos. EU servers, GDPR compliance and data encryption.',
       },
-      ai: {
-        title: 'AI search',
-        text: 'Type “sunset over the sea” and find exactly those photos — no manual tagging.',
+      backup: {
+        title: 'Automatic backup',
+        text: 'The Android app backs up new photos and videos from your phone automatically, in original quality.',
       },
       sharing: {
         title: 'Sharing you control',
@@ -200,7 +187,7 @@ export const marketing = {
       compare: 'Compare plans',
     },
     footer: {
-      description: 'Private cloud storage for your photos and videos. No compression, with AI features and GDPR protection.',
+      description: 'Private cloud storage for your photos and videos. No compression, EU storage and GDPR protection.',
       product: 'Product',
       pricing: 'Pricing',
       register: 'Sign up',
@@ -440,7 +427,7 @@ export const marketing = {
         'Private photo storage with GDPR compliance, EU servers, and encryption. Your photos are never used for AI training.',
       ogAlt: 'MyPhoto - Private Photo Storage',
       jsonLdDescription:
-        'Private and secure photo storage with GDPR compliance, EU servers, and end-to-end encryption.',
+        'Private and secure photo storage with GDPR compliance, EU servers, and encrypted connections.',
       breadcrumb: 'Private Storage',
     },
     hero: {
@@ -568,8 +555,6 @@ export const marketing = {
       quality: { feature: 'Storage quality', myphoto: 'Original (no compression)', google: 'Compressed on the free plan' },
       pricePerGb: { feature: 'Price per GB', myphoto: '€0.017/GB', google: '€0.021/GB' },
       freePlan: { feature: 'Free plan', myphoto: '1 GB (up to 2.5 GB with referrals)', google: '15 GB (shared with Gmail)' },
-      aiSearch: { feature: 'AI search', myphoto: 'Yes (optional AI plan)', google: 'Yes (included)' },
-      faces: { feature: 'Face recognition', myphoto: 'Yes (optional AI plan)', google: 'Yes' },
       family: { feature: 'Family sharing', myphoto: 'Yes (up to 5 members)', google: 'Yes (up to 5 members)' },
       adScanning: { feature: 'Scanning for ads', myphoto: 'No', google: 'Yes' },
     },
@@ -589,10 +574,6 @@ export const marketing = {
       import: {
         q: 'Can I import my photos from Google Photos to MyPhoto?',
         a: 'Yes! You can export your photos from Google Takeout and upload them to MyPhoto. All photos are preserved in their original quality during the transfer process.',
-      },
-      aiFeatures: {
-        q: 'Does MyPhoto have AI features like Google Photos?',
-        a: 'Yes! MyPhoto offers AI-powered smart search, auto-tagging, and face recognition - all available as an optional AI plan addon. The difference is that your photos are never used to train these models.',
       },
     },
     final: {
@@ -664,7 +645,7 @@ export const marketing = {
       },
       cheaper: {
         q: 'Is MyPhoto cheaper than iCloud?',
-        a: 'MyPhoto offers €0.017/GB compared to iCloud at €0.020/GB. Plus, MyPhoto provides more flexible storage tiers from 150GB to 10TB, while iCloud jumps from 50GB to 200GB with fewer options.',
+        a: 'MyPhoto offers €0.017/GB compared to iCloud at €0.020/GB. Plus, MyPhoto provides more flexible storage tiers from 24 GB to 2 TB, while iCloud jumps from 50GB to 200GB with fewer options.',
       },
       transfer: {
         q: 'Can I transfer my photos from iCloud to MyPhoto?',

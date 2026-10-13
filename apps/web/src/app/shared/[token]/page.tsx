@@ -273,19 +273,19 @@ export default async function SharedPhotoPage({ params }: PageProps) {
               perMonth={t('pages.shared.link.perMonth')}
             />
             <PricingCard
-              name="Plus + AI"
-              price="€4.49"
-              storage="250 GB"
-              features={[t('pages.shared.link.featureSmartSearch'), t('pages.shared.link.featureFaceRecognition'), t('pages.shared.link.featureFamilySharing')]}
+              name="Starter"
+              price="€2.49"
+              storage="150 GB"
+              features={[t('pages.shared.link.featureAutoBackup'), t('pages.shared.link.featureOriginalQuality'), t('pages.shared.link.featureFamilySharing')]}
               perMonth={t('pages.shared.link.perMonth')}
               highlighted
               badge={t('pages.shared.link.mostPopular')}
             />
             <PricingCard
-              name="Pro+ + AI"
-              price="€17.99"
-              storage="1.25 TB"
-              features={[t('pages.shared.link.featureUnlimitedAi'), t('pages.shared.link.featurePremiumSupport'), t('pages.shared.link.featureApiAccess')]}
+              name="Plus"
+              price="€3.99"
+              storage="250 GB"
+              features={[t('pages.shared.link.featureOriginalQuality'), t('pages.shared.link.featureMemes'), t('pages.shared.link.featureApiAccess')]}
               perMonth={t('pages.shared.link.perMonth')}
             />
           </div>
