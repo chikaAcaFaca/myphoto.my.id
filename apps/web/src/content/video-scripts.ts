@@ -8,6 +8,11 @@
  *   to action. The recurring sign-off builds Čika Aca as the go-to person
  *   for photos, phones and storage.
  *
+ * `script` is Serbian Cyrillic written the way it is spoken: the TTS voice
+ * reads Latin Serbian with a foreign accent ("j" as "dž"), so foreign words
+ * are spelled phonetically (MyPhoto → Мај Фото, Gmail → Џимејл, cloud →
+ * клауд). Titles and captions stay in Latin for search.
+ *
  * Keep every claim true: prices are VAT-exclusive list prices from
  * packages/shared, features must exist in the app. New scripts: append with
  * a new unique id; never change the id of one that may be rendered/posted.
@@ -37,7 +42,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Google prostor je pun? Evo šta to znači',
     script:
-      'Stigla ti je poruka da je Google prostor pun? Nije sitnica. Gmail, Drive i Google slike dele petnaest gigabajta. Kad se napune, ne stižu ti mejlovi, a nove slike se nigde ne čuvaju. Ja sam Čika Aca, i pokazaću ti kako to da rešiš. Zaprati me, a slike sačuvaj u MyPhoto, prvi gigabajt je besplatan.',
+      'Стигла ти је порука да је Гугл простор пун? Није ситница. Џимејл, Драјв и Гугл слике деле петнаест гигабајта. Кад се напуне, не стижу ти мејлови, а нове слике се нигде не чувају. Ја сам Чика Аца, и показаћу ти како то да решиш. Запрати ме, а слике сачувај у Мај Фото, први гигабајт је бесплатан.',
     caption: `Google prostor pun? Evo šta se dešava. ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -45,7 +50,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Stiker od svoje slike za 10 sekundi',
     script:
-      'Najbolji stiker je onaj sa likom tvog druga. Otvoriš sliku u MyPhoto, pritisneš Napravi stiker, i pozadina nestane. Dodaš tekst, sačuvaš, pošalješ na Viber. Deset sekundi. Čika Aca kaže: probaj odmah. Link je u opisu, aplikacija je besplatna.',
+      'Најбољи стикер је онај са ликом твог друга. Отвориш слику у Мај Фото, притиснеш Направи стикер, и позадина нестане. Додаш текст, сачуваш, пошаљеш на Вајбер. Десет секунди. Чика Аца каже: пробај одмах. Линк је у опису, апликација је бесплатна.',
     caption: `Stiker od slike druga za 10 sekundi 😂 ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -53,7 +58,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Prodaješ telefon? Prvo uradi ovo sa slikama',
     script:
-      'Prodaješ telefon? Stani. Prvo proveri da su sve slike u cloudu. Drugo, sačuvaj i Viber i WhatsApp slike, one su u posebnim folderima. Tek onda resetuj telefon. Ja sam Čika Aca. Ako slike čuvaš u MyPhoto, na novom telefonu se samo prijaviš i sve je tu. Link je u opisu.',
+      'Продајеш телефон? Стани. Прво провери да су све слике у клауду. Друго, сачувај и Вајбер и Вотсап слике, оне су у посебним фолдерима. Тек онда ресетуј телефон. Ја сам Чика Аца. Ако слике чуваш у Мај Фото, на новом телефону се само пријавиш и све је ту. Линк је у опису.',
     caption: `3 stvari pre prodaje telefona 📱 ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -61,7 +66,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Oslobodi Google prostor za 2 minuta: Gmail trik',
     script:
-      'Evo najbržeg načina da oslobodiš Google prostor. U Gmail pretragu ukucaj: has, dve tačke, attachment, razmak, larger, dve tačke, deset M. Dobiješ sve velike priloge. Obriši ih i isprazni Otpad. Čika Aca ti preporučuje: slike drži odvojeno, u MyPhoto, pa ti se Gmail nikad više ne napuni.',
+      'Ево најбржег начина да ослободиш Гугл простор. У Џимејл претрагу укуцај: хез, две тачке, атачмент, размак, ларџер, две тачке, десет ем. Добијеш све велике прилоге. Обриши их и испразни Отпад. Чика Аца ти препоручује: слике држи одвојено, у Мај Фото, па ти се Џимејл никад више не напуни.',
     caption: `Gmail trik: has:attachment larger:10M 🧹 ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -69,7 +74,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Kako da mim zaista bude smešan',
     script:
-      'Tajna dobrog mima? Kratak tekst. Najviše osam reči. Gore postavka, dole poenta. I uzmi svoju sliku, poznata lica su uvek smešnija. Čika Aca te izaziva: napravi mim u MyPhoto i objavi ga na Meme Wall. Mim sa najviše lajkova te nedelje osvaja pet gigabajta.',
+      'Тајна доброг мима? Кратак текст. Највише осам речи. Горе поставка, доле поента. И узми своју слику, позната лица су увек смешнија. Чика Аца те изазива: направи мим у Мај Фото и објави га на Мим Вол. Мим са највише лајкова те недеље осваја пет гигабајта.',
     caption: `Pravilo dobrog mima: max 8 reči 😎 Mim nedelje osvaja 5 GB. ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -77,7 +82,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Telefon se razbio. Gde su slike?',
     script:
-      'Telefon ti je pao i ekran je crn. Gde su slike? Ako nisu bile u cloudu, jedino rešenje je servis, i to ne uvek. Zato Čika Aca kaže: backup se uključuje dok telefon radi. MyPhoto sam čuva svaku novu sliku. Uključi ga danas, link je u opisu.',
+      'Телефон ти је пао и екран је црн. Где су слике? Ако нису биле у клауду, једино решење је сервис, и то не увек. Зато Чика Аца каже: бекап се укључује док телефон ради. Мај Фото сам чува сваку нову слику. Укључи га данас, линк је у опису.',
     caption: `Ne čekaj da se telefon razbije 💔 ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -85,7 +90,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Google Photos: obriši snimke ekrana i mutne slike',
     script:
-      'U Google slikama postoji skriveno mesto koje oslobađa gigabajte. Biblioteka, pa Uslužni programi, pa Upravljanje prostorom. Tu su snimci ekrana, mutne slike i najveći video snimci. Pazi, dugme Oslobodi prostor briše slike sa telefona, ne iz clouda. Ja sam Čika Aca, zaprati me za još ovakvih trikova.',
+      'У Гугл сликама постоји скривено место које ослобађа гигабајте. Библиотека, па Услужни програми, па Управљање простором. Ту су снимци екрана, мутне слике и највећи видео снимци. Пази, дугме Ослободи простор брише слике са телефона, не из клауда. Ја сам Чика Аца, запрати ме за још оваквих трикова.',
     caption: `Skriveno mesto u Google Photos koje oslobađa gigabajte 👀 ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -93,7 +98,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Mim nedelje: najviše lajkova osvaja 5 GB',
     script:
-      'Svake nedelje na Meme Wall-u imamo temu. Napraviš mim, objaviš ga, i ako skupi najviše lajkova, dobijaš pet gigabajta na godinu dana. Bez prijave, bez sitnih slova. Čika Aca te čeka na Meme Wall-u. Preuzmi MyPhoto, link je u opisu.',
+      'Сваке недеље на Мим Волу имамо тему. Направиш мим, објавиш га, и ако скупи највише лајкова, добијаш пет гигабајта на годину дана. Без пријаве, без ситних слова. Чика Аца те чека на Мим Волу. Преузми Мај Фото, линк је у опису.',
     caption: `Mim nedelje 🏆 Najviše lajkova = 5 GB na godinu dana. ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -101,7 +106,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Zašto ti WhatsApp puni telefon',
     script:
-      'Znaš zašto ti je telefon pun? WhatsApp čuva svaku sliku iz svake grupe. Dobro jutro slike, mimovi, tuđa deca. Otvori podešavanja, Skladište i podaci, i isključi automatsko preuzimanje. Čika Aca savetuje: tvoje prave slike čuvaj u MyPhoto, a smeće ostavi u grupi.',
+      'Знаш зашто ти је телефон пун? Вотсап чува сваку слику из сваке групе. Добро јутро слике, мимови, туђа деца. Отвори подешавања, Складиште и подаци, и искључи аутоматско преузимање. Чика Аца саветује: твоје праве слике чувај у Мај Фото, а смеће остави у групи.',
     caption: `Ovo ti puni telefon 📵 ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -109,7 +114,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: '24 GB za slike za 4,99 evra godišnje',
     script:
-      'Koliko košta prostor za slike? Google One sto gigabajta je oko dvadeset evra godišnje, i deli se sa mejlom. Kome treba manje, MyPhoto daje dvadeset četiri gigabajta za četiri devedeset devet godišnje. Ja sam Čika Aca, i prvi gigabajt ti dajem besplatno. Link je u opisu.',
+      'Колико кошта простор за слике? Гугл Оне сто гигабајта је око двадесет евра годишње, и дели се са мејлом. Коме треба мање, Мај Фото даје двадесет четири гигабајта за четири деведесет девет годишње. Ја сам Чика Аца, и први гигабајт ти дајем бесплатно. Линк је у опису.',
     caption: `24 GB za €4,99 godišnje (bez PDV-a) 💶 ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -117,7 +122,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Napravi stiker od svog psa ili mačke',
     script:
-      'Tvoj pas ima izraz lica za svaku situaciju. Iskoristi to. Slikaj ga, otvori u MyPhoto, Napravi stiker, i pozadina nestaje. Imaš stiker za ponedeljak, za platu, za šefa. Čika Aca garantuje: ljubimac uvek pobedi u grupi. Probaj, link je u opisu.',
+      'Твој пас има израз лица за сваку ситуацију. Искористи то. Сликај га, отвори у Мај Фото, Направи стикер, и позадина нестаје. Имаш стикер за понедељак, за плату, за шефа. Чика Аца гарантује: љубимац увек победи у групи. Пробај, линк је у опису.',
     caption: `Pas kao stiker = najbolja reakcija u grupi 🐶 ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -125,7 +130,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Backup slika bez trošenja interneta',
     script:
-      'Plašiš se da će backup pojesti mobilni internet? Ne mora. U MyPhoto izabereš da se slike čuvaju samo preko WiFi-a. Kad dođeš kući, telefon sam pošalje sve nove slike i video. Ja sam Čika Aca, i to je backup bez brige. Uključi ga danas, link je u opisu.',
+      'Плашиш се да ће бекап појести мобилни интернет? Не мора. У Мај Фото изабереш да се слике чувају само преко вајфаја. Кад дођеш кући, телефон сам пошаље све нове слике и видео. Ја сам Чика Аца, и то је бекап без бриге. Укључи га данас, линк је у опису.',
     caption: `Backup samo preko WiFi-a 📶 ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -133,7 +138,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Google Drive: nađi najveće fajlove za 5 sekundi',
     script:
-      'Na Google Drive-u postoji lista svih fajlova po veličini. Otvori drive, tačka, google, tačka, com, kosa crta drive, kosa crta quota. Na vrhu su najveći, obično stari video snimci. Čika Aca ti kaže: obriši ih, a video čuvaj tamo gde ima mesta. Zaprati me za još trikova.',
+      'На Гугл Драјву постоји листа свих фајлова по величини. Отвори драјв, тачка, гугл, тачка, ком, коса црта драјв, коса црта квота. На врху су највећи, обично стари видео снимци. Чика Аца ти каже: обриши их, а видео чувај тамо где има места. Запрати ме за још трикова.',
     caption: `Najveći fajlovi na Drive-u: drive.google.com/drive/quota 🔎 ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -141,7 +146,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Stiker samo od teksta',
     script:
-      'Ne treba ti slika da napraviš stiker. U MyPhoto napraviš stiker samo od teksta. Ukucaš rečenicu koju tvoja ekipa stalno ponavlja, izabereš boju, i gotovo. Postane zvanični stiker grupe. Čika Aca predlaže: probaj sa rečenicom koju tvoj tata uvek kaže. Link je u opisu.',
+      'Не треба ти слика да направиш стикер. У Мај Фото направиш стикер само од текста. Укуцаш реченицу коју твоја екипа стално понавља, изабереш боју, и готово. Постане званични стикер групе. Чика Аца предлаже: пробај са реченицом коју твој тата увек каже. Линк је у опису.',
     caption: `Stiker od rečenice koju tvoj tata uvek kaže 😂 ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -149,7 +154,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Novi telefon: sve slike za minut',
     script:
-      'Kupio si novi telefon? Ne prebacuj slike kablom. Ako su u MyPhoto cloudu, instaliraš aplikaciju, prijaviš se istim Google nalogom, i sve slike su tu. Stari telefon prodaš bez brige. Ja sam Čika Aca. Pripremi se pre kupovine, link je u opisu.',
+      'Купио си нови телефон? Не пребацуј слике каблом. Ако су у Мај Фото клауду, инсталираш апликацију, пријавиш се истим Гугл налогом, и све слике су ту. Стари телефон продаш без бриге. Ја сам Чика Аца. Припреми се пре куповине, линк је у опису.',
     caption: `Novi telefon, stare slike za minut 📲 ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -157,7 +162,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Obrisao si, a prostor i dalje pun?',
     script:
-      'Obrisao si gomilu slika, a Google i dalje kaže da je pun? Zato što su u Otpadu. Obrisane slike tamo stoje šezdeset dana i troše prostor. Isprazni Otpad u slikama, Gmail-u i Drive-u. Čika Aca ovde. Zaprati me, svake nedelje novi trik za tvoj telefon.',
+      'Обрисао си гомилу слика, а Гугл и даље каже да је пун? Зато што су у Отпаду. Обрисане слике тамо стоје шездесет дана и троше простор. Испразни Отпад у сликама, Џимејлу и Драјву. Чика Аца овде. Запрати ме, сваке недеље нови трик за твој телефон.',
     caption: `Obrisao si, a i dalje je pun? Evo zašto 🗑️ ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -165,7 +170,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Podeli mim, dobij više prostora',
     script:
-      'Svaki mim koji podeliš iz MyPhoto nosi tvoj link. Kad neko preko njega napravi nalog i sačuva prvih sto megabajta, ti dobijaš dvesta pedeset megabajta više. Do dva i po gigabajta besplatno. Čika Aca kaže: što smešniji mim, to više prostora. Kreni, link je u opisu.',
+      'Сваки мим који поделиш из Мај Фото носи твој линк. Кад неко преко њега направи налог и сачува првих сто мегабајта, ти добијаш двеста педесет мегабајта више. До два и по гигабајта бесплатно. Чика Аца каже: што смешнији мим, то више простора. Крени, линк је у опису.',
     caption: `Smešniji mim = više prostora 😏 ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -173,7 +178,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Jedan video zauzima koliko 100 slika',
     script:
-      'Jedan minut videa u 4K zauzima preko trista megabajta. To je kao sto slika. Snimaš decu, utakmice, koncerte? Telefon se puni za par nedelja. Čika Aca savetuje: video drži u cloudu, a na telefonu samo ono što stalno gledaš. MyPhoto to radi sam, link je u opisu.',
+      'Један минут видеа у фор кеј заузима преко триста мегабајта. То је као сто слика. Снимаш децу, утакмице, концерте? Телефон се пуни за пар недеља. Чика Аца саветује: видео држи у клауду, а на телефону само оно што стално гледаш. Мај Фото то ради сам, линк је у опису.',
     caption: `1 minut 4K videa = 100 slika 🎥 ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -181,7 +186,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Ne stižu ti mejlovi? Proveri Google prostor',
     script:
-      'Neko ti je poslao mejl, a ti ga nemaš? Proveri Google prostor. Kad je pun, Gmail ne prima poruke, a pošiljalac dobije obaveštenje da je sanduče puno. Najčešći krivac su slike. Ja sam Čika Aca: prebaci slike u MyPhoto i Gmail ponovo radi. Link je u opisu.',
+      'Неко ти је послао мејл, а ти га немаш? Провери Гугл простор. Кад је пун, Џимејл не прима поруке, а пошиљалац добије обавештење да је сандуче пуно. Најчешћи кривац су слике. Ја сам Чика Аца: пребаци слике у Мај Фото и Џимејл поново ради. Линк је у опису.',
     caption: `Ne stižu ti mejlovi? Ovo je razlog 📧 ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -189,7 +194,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Mim za ponedeljak ujutru',
     script:
-      'Ponedeljak ujutru, svi u grupi ćute. Tvoj trenutak. Uzmi najgoru sliku sebe od jutros i napiši: ja u osam nula nula. Gotov mim za deset sekundi u MyPhoto. Čika Aca te izaziva: objavi ga na Meme Wall, možda je ova nedelja tvoja. Link je u opisu.',
+      'Понедељак ујутру, сви у групи ћуте. Твој тренутак. Узми најгору слику себе од јутрос и напиши: ја у осам нула нула. Готов мим за десет секунди у Мај Фото. Чика Аца те изазива: објави га на Мим Вол, можда је ова недеља твоја. Линк је у опису.',
     caption: `Ja u 08:00 ☕ ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -197,7 +202,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Jedan link za sve slike sa letovanja',
     script:
-      'Porodica ti traži slike sa letovanja jednu po jednu na Viberu? Napravi album u MyPhoto, ubaci najlepše slike i pošalji jedan link. Svako ih vidi i preuzme koje hoće, bez aplikacije i bez naloga. Čika Aca kaže: jedan link umesto pedeset poruka. Probaj, link je u opisu.',
+      'Породица ти тражи слике са летовања једну по једну на Вајберу? Направи албум у Мај Фото, убаци најлепше слике и пошаљи један линк. Свако их види и преузме које хоће, без апликације и без налога. Чика Аца каже: један линк уместо педесет порука. Пробај, линк је у опису.',
     caption: `Jedan link umesto 50 slika na Viberu 👨‍👩‍👧 ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -205,7 +210,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Gde se tačno čuvaju tvoje slike?',
     script:
-      'Znaš li gde se tačno čuvaju tvoje slike? Kod velikih servisa, negde u svetu. Kod MyPhoto, u Frankfurtu, u Evropskoj uniji, pod evropskim zakonima. Šifrovane su u prenosu i na serveru, i ne koristimo ih za reklame. Ja sam Čika Aca, i to ti garantujem. Link je u opisu.',
+      'Знаш ли где се тачно чувају твоје слике? Код великих сервиса, негде у свету. Код Мај Фото, у Франкфурту, у Европској унији, под европским законима. Шифроване су у преносу и на серверу, и не користимо их за рекламе. Ја сам Чика Аца, и то ти гарантујем. Линк је у опису.',
     caption: `Tvoje slike u Frankfurtu, u EU 🇪🇺 ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -213,7 +218,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Stikeri sa slave i rođendana',
     script:
-      'Posle svake slave imaš sto slika i bar pet savršenih izraza lica. Ne daj da propadnu. Napravi stikere od rodbine, uz njihovu dozvolu naravno, i porodična grupa nikad neće biti ista. Čika Aca kaže: MyPhoto, Napravi stiker, pošalji. Link je u opisu.',
+      'После сваке славе имаш сто слика и бар пет савршених израза лица. Не дај да пропадну. Направи стикере од родбине, уз њихову дозволу наравно, и породична група никад неће бити иста. Чика Аца каже: Мај Фото, Направи стикер, пошаљи. Линк је у опису.',
     caption: `Stikeri od rodbine (uz dozvolu 😅) ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -221,7 +226,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Da li ti cloud kvari kvalitet slika?',
     script:
-      'Neki servisi smanjuju kvalitet slika da bi uštedeli prostor. Na telefonu ne primetiš, ali na uveličanoj odštampanoj slici se vidi. MyPhoto čuva slike u originalu, onako kako ih je telefon napravio. Ja sam Čika Aca, i tvoje uspomene zaslužuju pun kvalitet. Link je u opisu.',
+      'Неки сервиси смањују квалитет слика да би уштедели простор. На телефону не приметиш, али на увеличаној одштампаној слици се види. Мај Фото чува слике у оригиналу, онако како их је телефон направио. Ја сам Чика Аца, и твоје успомене заслужују пун квалитет. Линк је у опису.',
     caption: `Original kvalitet, bez kompresije 🖼️ ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -229,7 +234,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Koliko prostora ti zaista treba?',
     script:
-      'Koliko prostora ti zaista treba? Slika sa telefona ima oko četiri megabajta. Hiljadu slika je četiri gigabajta. Godišnje napraviš dve do tri hiljade. Za većinu ljudi dvadeset četiri gigabajta traje godinama, a košta četiri devedeset devet godišnje. Čika Aca je izračunao umesto tebe. Link je u opisu.',
+      'Колико простора ти заиста треба? Слика са телефона има око четири мегабајта. Хиљаду слика је четири гигабајта. Годишње направиш две до три хиљаде. За већину људи двадесет четири гигабајта траје годинама, а кошта четири деведесет девет годишње. Чика Аца је израчунао уместо тебе. Линк је у опису.',
     caption: `1000 slika ≈ 4 GB. Koliko tebi treba? 🤔 ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -237,7 +242,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Mim kad šef kaže "samo nešto kratko"',
     script:
-      'Šef kaže: samo nešto kratko pre nego što odeš. Svi znamo šta to znači. Napravi mim: gore samo nešto kratko, dole slika sata u devet uveče. U MyPhoto upišeš tekst i gotovo. Čika Aca savetuje: pošalji kolegama, ali ne u grupu gde je šef. Link je u opisu.',
+      'Шеф каже: само нешто кратко пре него што одеш. Сви знамо шта то значи. Направи мим: горе само нешто кратко, доле слика сата у девет увече. У Мај Фото упишеш текст и готово. Чика Аца саветује: пошаљи колегама, али не у групу где је шеф. Линк је у опису.',
     caption: `"Samo nešto kratko" 🙃 ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -245,7 +250,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Roditelji: slike dece čuvajte na dva mesta',
     script:
-      'Roditelji, slike dece se ne mogu ponoviti. Prvi korak, prvi zub, prvi dan škole. Pravilo je jednostavno: svaka važna slika mora da postoji na dva mesta, na telefonu i u cloudu. Čika Aca vas moli: uključite automatski backup danas. MyPhoto, link je u opisu.',
+      'Родитељи, слике деце се не могу поновити. Први корак, први зуб, први дан школе. Правило је једноставно: свака важна слика мора да постоји на два места, на телефону и у клауду. Чика Аца вас моли: укључите аутоматски бекап данас. Мај Фото, линк је у опису.',
     caption: `Slike dece na dva mesta, uvek 👶 ${LINK} ${TAGS_SAVETI}`,
   },
   {
@@ -253,7 +258,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'google-pun',
     title: 'Besplatno do 2,5 GB uz preporuke',
     script:
-      'Ne želiš da plaćaš? Ne moraš. MyPhoto daje jedan gigabajt besplatno. Za svakog prijatelja koji se registruje preko tvog linka i sačuva prvih sto megabajta, dobijaš još dvesta pedeset. Do dva i po gigabajta, besplatno. Ja sam Čika Aca, i ovo je moj poklon. Link je u opisu.',
+      'Не желиш да плаћаш? Не мораш. Мај Фото даје један гигабајт бесплатно. За сваког пријатеља који се региструје преко твог линка и сачува првих сто мегабајта, добијаш још двеста педесет. До два и по гигабајта, бесплатно. Ја сам Чика Аца, и ово је мој поклон. Линк је у опису.',
     caption: `Do 2,5 GB besplatno uz preporuke 🎁 ${LINK} ${TAGS_GOOGLE}`,
   },
   {
@@ -261,7 +266,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'mim',
     title: 'Mim za utakmicu',
     script:
-      'Utakmica je, tvoj tim gubi, grupa je u šoku. Sad je vreme za mim. Uzmi sliku svog lica dok gledaš i napiši: kad sudija ne vidi ništa. Deset sekundi u MyPhoto. Čika Aca kaže: rezultat zaboravimo, mim ostaje. Napravi svoj, link je u opisu.',
+      'Утакмица је, твој тим губи, група је у шоку. Сад је време за мим. Узми слику свог лица док гледаш и напиши: кад судија не види ништа. Десет секунди у Мај Фото. Чика Аца каже: резултат заборавимо, мим остаје. Направи свој, линк је у опису.',
     caption: `Kad sudija ne vidi ništa ⚽ ${LINK} ${TAGS_MIM}`,
   },
   {
@@ -269,7 +274,7 @@ export const VIDEO_SCRIPTS: VideoScript[] = [
     series: 'saveti',
     title: 'Pravilo 3-2-1 za slike, jednostavno',
     script:
-      'Fotografi imaju pravilo tri dva jedan: tri kopije, na dva mesta, jedna van kuće. Tebi je dovoljno jednostavnije: slike na telefonu plus automatski u cloudu. A jednom godišnje preuzmi sve na računar. Ja sam Čika Aca, i ovo je pravilo koje te nikad neće izdati. MyPhoto, link je u opisu.',
+      'Фотографи имају правило три два један: три копије, на два места, једна ван куће. Теби је довољно једноставније: слике на телефону плус аутоматски у клауду. А једном годишње преузми све на рачунар. Ја сам Чика Аца, и ово је правило које те никад неће издати. Мај Фото, линк је у опису.',
     caption: `Pravilo 3-2-1, verzija za svakoga 🔐 ${LINK} ${TAGS_SAVETI}`,
   },
 ];
