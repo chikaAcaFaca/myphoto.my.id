@@ -309,8 +309,12 @@ export default function StickerMakerScreen() {
         {/* Preview */}
         <View style={styles.previewArea}>
           <View style={[styles.checkerboard, { backgroundColor: tc.bgInput, borderColor: tc.border }]}>
-            <View ref={stickerRef} collapsable={false}>
+            <View ref={stickerRef} collapsable={false} style={{ alignItems: 'center' }}>
               {renderStickerPreview()}
+              {/* Small brand under image stickers, so whoever receives one in
+                  Viber/WhatsApp knows where it was made (text stickers carry
+                  it inside the card). Readable on light and dark chats. */}
+              {imageUri && shape !== 'text' && <Text style={styles.imageStickerBrand}>myphotomy.space</Text>}
             </View>
           </View>
         </View>
@@ -432,6 +436,10 @@ const styles = StyleSheet.create({
   },
   textStickerContent: { fontSize: 24, ...fonts.extrabold, textAlign: 'center', color: '#16181D' },
   textStickerBrand: { fontSize: 10, ...fonts.medium, color: '#8A909B', marginTop: 12 },
+  imageStickerBrand: {
+    fontSize: 11, ...fonts.bold, color: '#FFFFFF', marginTop: 4,
+    textShadowColor: 'rgba(0,0,0,0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
+  },
   zoomHint: { fontSize: 12, textAlign: 'center', marginBottom: 8 },
   toolsCard: { width: width - 24, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: 16, marginTop: 8 },
   removeBgBtn: {

@@ -15,7 +15,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, auth } from '@/lib/firebase-admin';
 import { deleteUserAccount } from '@/lib/account-deletion';
-import { verifyAuthWithRateLimit, isRecentLogin } from '@/lib/auth-utils';
+import { verifyAuthWithRateLimit, isRecentLogin, getClientIp } from '@/lib/auth-utils';
+import { claimPendingReferral } from '@/lib/referral';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { FREE_STORAGE_LIMIT } from '@myphoto/shared';
 import { nanoid } from 'nanoid';
@@ -44,6 +45,7 @@ export async function GET(request: NextRequest) {
       // web client wrote one), so they got no 1GB and every upload 404'd.
       // Provision the same free-tier record the web client creates.
       const authUser = await auth().getUser(userId);
+      let created = true;
       await userRef.create({
         email: authUser.email || '',
         displayName: authUser.displayName || 'User',
@@ -68,7 +70,11 @@ export async function GET(request: NextRequest) {
       }).catch((e: any) => {
         // A concurrent request may have created it first — that's fine.
         if (e?.code !== 6 /* ALREADY_EXISTS */) throw e;
+        created = false;
       });
+      // A brand-new app account: credit whoever shared the link this phone
+      // downloaded the app from (see lib/referral.ts).
+      if (created) await claimPendingReferral(userId, getClientIp(request));
       userDoc = await userRef.get();
     }
     const data = userDoc.data()!;

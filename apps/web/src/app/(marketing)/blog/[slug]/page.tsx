@@ -91,7 +91,7 @@ function renderMarkdown(content: string) {
                 <tr key={ri} className="border-b border-gray-100 dark:border-gray-800">
                   {row.map((cell, ci) => (
                     <td key={ci} className="px-4 py-2 text-gray-700 dark:text-gray-300">
-                      {cell}
+                      {formatInline(cell)}
                     </td>
                   ))}
                 </tr>
@@ -131,7 +131,7 @@ function renderMarkdown(content: string) {
         if (boldMatch) {
           elements.push(
             <li key={i} className="ml-4 mb-1 text-gray-700 dark:text-gray-300">
-              <strong className="text-gray-900 dark:text-white">{boldMatch[1]}</strong>{boldMatch[2]}
+              <strong className="text-gray-900 dark:text-white">{boldMatch[1]}</strong>{formatInline(boldMatch[2])}
             </li>
           );
         }
@@ -171,20 +171,39 @@ function renderMarkdown(content: string) {
 }
 
 function formatInline(text: string): React.ReactNode {
-  // Bold
-  const parts = text.split(/\*\*(.+?)\*\*/g);
-  if (parts.length > 1) {
-    return parts.map((part, i) =>
-      i % 2 === 1 ? (
+  // **bold**, `code` and [label](url); everything else is plain text.
+  const parts = text.split(/(\*\*.+?\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return (
         <strong key={i} className="font-semibold text-gray-900 dark:text-white">
-          {part}
+          {part.slice(2, -2)}
         </strong>
+      );
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code key={i} className="rounded bg-gray-100 px-1 py-0.5 text-sm dark:bg-gray-800">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    const link = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+    if (link) {
+      const [, label, href] = link;
+      return href.startsWith('/') ? (
+        <Link key={i} href={href} className="font-semibold text-sky-600 underline-offset-2 hover:underline">
+          {label}
+        </Link>
       ) : (
-        part
-      )
-    );
-  }
-  return text;
+        <a key={i} href={href} className="font-semibold text-sky-600 underline-offset-2 hover:underline">
+          {label}
+        </a>
+      );
+    }
+    return part;
+  });
 }
 
 export default async function BlogPostPage({ params }: Props) {

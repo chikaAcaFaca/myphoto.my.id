@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n/client';
+import { getStoredRef, isValidRef, withRef } from '@/lib/referral-link';
 
 /**
  * "Download the app" for people who arrive from a shared meme or profile link.
@@ -13,6 +14,13 @@ import { useI18n } from '@/i18n/client';
  */
 
 const APK_URL = '/api/download/android';
+
+/** The APK link carrying the sharer's ?ref=, so the app signup is credited. */
+function apkUrl(): string {
+  if (typeof window === 'undefined') return APK_URL;
+  const fromUrl = new URLSearchParams(window.location.search).get('ref');
+  return withRef(APK_URL, isValidRef(fromUrl) ? fromUrl : getStoredRef());
+}
 // Opens the installed app; without it Chrome falls back to the download page.
 const OPEN_APP_URL =
   'intent://meme-wall#Intent;scheme=myphoto;package=id.my.myphoto;' +
@@ -33,6 +41,15 @@ const MUTED = '#A3A7B0';
 
 function isIosUa() {
   return typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+/** Plain APK download link (e.g. the /download page) that keeps the ?ref=. */
+export function ApkDownloadLink({ className, children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <a href={APK_URL} className={className} onClick={(e) => { e.currentTarget.href = apkUrl(); }}>
+      {children}
+    </a>
+  );
 }
 
 export function InstallAppButton({
@@ -62,6 +79,7 @@ export function InstallAppButton({
           const iosNow = isIosUa();
           setIos(iosNow);
           if (iosNow) e.preventDefault();
+          else e.currentTarget.href = apkUrl();
           setOpen(true);
         }}
       >
@@ -141,7 +159,7 @@ export function InstallGuide({
             <p style={{ margin: '6px 0 0', color: MUTED, fontSize: 15, lineHeight: 1.5 }}>{k('subtitle')}</p>
             <p style={{ margin: '12px 0 0', fontSize: 14, color: MUTED }}>
               {k('started')}{' '}
-              <a href={APK_URL} style={{ color: FLAME, fontWeight: 700 }}>{k('retry')}</a>
+              <a href={APK_URL} onClick={(e) => { e.currentTarget.href = apkUrl(); }} style={{ color: FLAME, fontWeight: 700 }}>{k('retry')}</a>
             </p>
 
             {video ? (

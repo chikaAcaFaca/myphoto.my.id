@@ -34,6 +34,9 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
   // Admin-granted storage — deliberate, unbounded, never clamped. Without this
   // a recalc would silently reset a manually-topped-up account to the formula.
   const manualBonus = userData.manualBonusBytes || 0;
+  // "Meme of the week" prize (lib/meme-challenge.ts): uncapped, until it expires.
+  const prizeUntil = userData.prizeBonusUntil?.toDate?.() as Date | undefined;
+  const prizeBonus = prizeUntil && prizeUntil.getTime() > Date.now() ? userData.prizeBonusBytes || 0 : 0;
 
   // Sum storage from all active subscriptions (stacking)
   const subsSnapshot = await db
@@ -62,7 +65,7 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
   const archiveActive = !!archiveUntil && archiveUntil.getTime() > Date.now();
   const archiveBytes = archiveActive ? Math.max(0, userData.archiveBytes || 0) : 0;
 
-  const totalStorage = Math.max(freeAllowance + manualBonus + subscriptionStorage, archiveBytes);
+  const totalStorage = Math.max(freeAllowance + manualBonus + prizeBonus + subscriptionStorage, archiveBytes);
 
   await db.collection('users').doc(userId).update({
     storageLimit: totalStorage,
@@ -74,7 +77,7 @@ export async function recalculateStorageLimit(userId: string): Promise<number> {
 
   console.log(
     `Recalculated storageLimit for ${userId}: ${totalStorage} ` +
-      `(referral:${referralBonus} meme:${memeBonus} manual:${manualBonus} subs:${subscriptionStorage} archive:${archiveBytes})`
+      `(referral:${referralBonus} meme:${memeBonus} manual:${manualBonus} prize:${prizeBonus} subs:${subscriptionStorage} archive:${archiveBytes})`
   );
 
   return totalStorage;
