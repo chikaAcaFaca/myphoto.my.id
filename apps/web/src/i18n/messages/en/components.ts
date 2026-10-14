@@ -380,7 +380,7 @@ export const components = {
     device: 'Device',
     location: 'Location',
     type: 'Type',
-    aiLabels: 'AI labels',
+    aiLabels: 'Tags',
     mySpaceLocation: 'Location in MySpace',
     openMySpaceFolder: 'Open folder in MySpace',
   },

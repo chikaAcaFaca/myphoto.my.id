@@ -1124,7 +1124,7 @@ function InfoContent({ file }: { file: FileMetadata }) {
         ))}
       </dl>
 
-      {/* AI labels */}
+      {/* Labels — only present when server-side tagging has run (not enabled in prod) */}
       {file.labels && file.labels.length > 0 && (
         <div>
           <h4 className="mb-2 text-xs text-white/40">{t('components.lightbox.aiLabels')}</h4>

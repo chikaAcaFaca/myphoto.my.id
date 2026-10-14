@@ -18,7 +18,7 @@ const onboarding: typeof en = {
   doneTitle: 'Sve je spremno!',
   doneDescription:
     'Vaš nalog je aktivan. Slike se automatski čuvaju u MyPhoto, a svi vaši fajlovi su dostupni u MySpace.',
-  summaryPhotos: 'Slike → MyPhoto (galerija, AI pretraga, albumi)',
+  summaryPhotos: 'Slike → MyPhoto (galerija, pretraga, albumi)',
   summaryFiles: 'Fajlovi → MySpace (folderi kao na računaru)',
   summarySync: 'Sve se sinhronizuje automatski',
   summaryAccess: 'Pristup sa web-a, telefona i računara',

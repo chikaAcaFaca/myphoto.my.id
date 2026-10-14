@@ -383,7 +383,7 @@ export const components: DeepStrings<typeof En> = {
     device: 'Uređaj',
     location: 'Lokacija',
     type: 'Tip',
-    aiLabels: 'AI oznake',
+    aiLabels: 'Oznake',
     mySpaceLocation: 'Lokacija na MySpace',
     openMySpaceFolder: 'Otvori folder u MySpace',
   },

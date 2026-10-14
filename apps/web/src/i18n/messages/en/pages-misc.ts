@@ -185,7 +185,7 @@ export const deleteAccount = {
   howEmailAfter: 'from the address registered on your account. We complete these requests within 30 days.',
   deletedTitle: 'What is deleted',
   deletedText:
-    'Immediately and permanently: all photos, videos and files (originals and thumbnails), albums, MySpace folders, memes and comments, share links, device registrations, AI tags and face groups, your profile and your login.',
+    'Immediately and permanently: all photos, videos and files (originals and thumbnails), albums, MySpace folders, memes and comments, share links, device registrations, photo tags and metadata, your profile and your login.',
   keptTitle: 'What is kept',
   keptText:
     'Payment and invoice records are held by our payment provider (merchant of record) for the period required by tax law. We keep an anonymous log entry (no name, email or content) that a deletion took place. Encrypted backups roll over and are fully purged within 30 days.',
