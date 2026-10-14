@@ -9,7 +9,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
   const { locale, setLocale } = useI18n();
   return (
     <div className={cn('inline-flex items-center gap-1 text-sm', className)}>
-      <Globe className="h-4 w-4 text-gray-400" aria-hidden />
+      <Globe className="hidden h-4 w-4 text-gray-400 sm:block" aria-hidden />
       {(['en', 'sr'] as const).map((l) => (
         <button
           key={l}
