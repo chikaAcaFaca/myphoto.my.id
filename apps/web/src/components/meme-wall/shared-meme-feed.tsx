@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { withRef } from '@/lib/referral-link';
 import { useT } from '@/i18n/client';
+import { ReportMemeButton } from './report-meme-button';
 import { InstallAppButton } from '@/components/install/android-install';
 
 export interface FeedMeme {
@@ -303,6 +304,7 @@ export function SharedMemeFeed({
               <button aria-label={t('pages.meme.feed.share')} onClick={() => share(m)} style={railBtn}>
                 <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></svg>
               </button>
+              <ReportMemeButton memeId={m.id} color="#fff" fontSize={22} style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }} />
             </div>
 
             {/* Author + caption */}

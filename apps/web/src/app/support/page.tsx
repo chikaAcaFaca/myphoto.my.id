@@ -23,7 +23,7 @@ const FAQ_CATEGORIES = [
   { id: 'billing', icon: <CreditCard className="h-5 w-5" />, questions: ['plans', 'cancel', 'periods', 'methods'] },
   { id: 'storage', icon: <Upload className="h-5 w-5" />, questions: ['formats', 'compression', 'full', 'export'] },
   { id: 'sharing', icon: <Share2 className="h-5 w-5" />, questions: ['share', 'family', 'control'] },
-  { id: 'ai', icon: <Brain className="h-5 w-5" />, questions: ['smartSearch', 'training', 'faces'] },
+  { id: 'ai', icon: <Brain className="h-5 w-5" />, questions: ['training'] },
   { id: 'privacy', icon: <Shield className="h-5 w-5" />, questions: ['location', 'gdpr', 'access'] },
 ] as const;
 

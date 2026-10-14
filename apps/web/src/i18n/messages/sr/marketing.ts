@@ -67,7 +67,7 @@ export const marketing: DeepStrings<typeof En> = {
       word2: 'slike.',
       gradient1: 'Samo',
       gradient2: 'vaše.',
-      subtitle: 'Privatni cloud storage sa AI funkcijama. Bez kompresije, bez kompromisa.',
+      subtitle: 'Privatni cloud backup za vaše slike. Bez kompresije, bez kompromisa.',
       proofStrong: 'Original kvalitet',
       proofRest: '· EU serveri · GDPR — tvoje slike ostaju samo tvoje',
       ctaPrimary: 'Započni besplatno — 1 GB',
@@ -113,9 +113,9 @@ export const marketing: DeepStrings<typeof En> = {
         title: 'GDPR Compliant',
         description: 'Podaci na EU serverima. Pravo na brisanje garantovano.',
       },
-      ai: {
-        title: 'AI Pretraga',
-        description: 'Pretražujte slike prirodnim jezikom. "Plaža u Hrvatskoj" — AI pronalazi.',
+      memes: {
+        title: 'Mimovi i stikeri',
+        description: 'Napravite mimove i stikere od svojih slika. Uklanjanje pozadine radi direktno u pretraživaču.',
       },
       family: {
         title: 'Family Sharing',
@@ -124,19 +124,6 @@ export const marketing: DeepStrings<typeof En> = {
       sync: {
         title: 'Brza Sinhronizacija',
         description: 'Upload i pristup slikama munjevitom brzinom sa bilo kog uređaja.',
-      },
-    },
-    aiDemo: {
-      titleStart: 'Pretražite slike',
-      titleGradient: 'rečima',
-      subtitle: 'AI pretraga razume prirodni jezik — opišite sliku i pronađite je',
-      query: 'zalazak sunca na moru',
-      cta: 'Probajte AI — besplatno',
-      results: {
-        dubrovnik: 'Zalazak sunca — Dubrovnik',
-        zlatniRat: 'More — Zlatni rat',
-        montenegro: 'Plaža — Crna Gora',
-        zadar: 'Sumrak — Zadar',
       },
     },
     steps: {
@@ -148,8 +135,8 @@ export const marketing: DeepStrings<typeof En> = {
         description: 'Prevucite slike ili koristite auto-sync. Sve u originalnom kvalitetu.',
       },
       organize: {
-        title: 'AI Organizuje',
-        description: 'AI automatski taguje, prepoznaje lica i kategorizuje vaše slike.',
+        title: 'Organizujte u albume',
+        description: 'Rasporedite slike u albume i otvorite ih sa bilo kog uređaja.',
       },
       share: {
         title: 'Delite & Čuvajte',
@@ -172,7 +159,7 @@ export const marketing: DeepStrings<typeof En> = {
       tierFeatures: {
         backup: 'MyPhoto auto-backup slika i videa',
         myspace: 'MySpace cloud storage za fajlove',
-        ai: 'AI pretraga, auto-tagging, face recognition',
+        removeBg: 'Uklanjanje pozadine za mimove i stikere',
       },
     },
     why: {
@@ -187,9 +174,9 @@ export const marketing: DeepStrings<typeof En> = {
         title: 'Privatno po dizajnu',
         text: 'Ne treniramo AI na tvojim slikama. EU serveri, GDPR usklađenost i enkripcija podataka.',
       },
-      ai: {
-        title: 'AI pretraga',
-        text: 'Ukucaj „zalazak sunca na moru" i pronađi tačno te slike — bez ručnog označavanja.',
+      backup: {
+        title: 'Automatski backup',
+        text: 'Android aplikacija sama čuva nove slike i video snimke sa telefona, u originalnom kvalitetu.',
       },
       sharing: {
         title: 'Deljenje sa kontrolom',
@@ -203,7 +190,7 @@ export const marketing: DeepStrings<typeof En> = {
       compare: 'Uporedi planove',
     },
     footer: {
-      description: 'Privatni cloud storage za vaše slike i video zapise. Bez kompresije, sa AI funkcijama i GDPR zaštitom.',
+      description: 'Privatni cloud storage za vaše slike i video zapise. Bez kompresije, uz čuvanje u EU i GDPR zaštitu.',
       product: 'Proizvod',
       pricing: 'Cene',
       register: 'Registracija',
@@ -443,7 +430,7 @@ export const marketing: DeepStrings<typeof En> = {
         'Privatni storage za slike sa GDPR usklađenošću, EU serverima i enkripcijom. Vaše slike se nikada ne koriste za AI trening.',
       ogAlt: 'MyPhoto — privatni storage za slike',
       jsonLdDescription:
-        'Privatan i siguran storage za slike sa GDPR usklađenošću, EU serverima i end-to-end enkripcijom.',
+        'Privatan i siguran storage za slike sa GDPR usklađenošću, EU serverima i šifrovanom vezom.',
       breadcrumb: 'Privatni storage',
     },
     hero: {
@@ -571,8 +558,6 @@ export const marketing: DeepStrings<typeof En> = {
       quality: { feature: 'Kvalitet čuvanja', myphoto: 'Original (bez kompresije)', google: 'Kompresovan u besplatnom planu' },
       pricePerGb: { feature: 'Cena po GB', myphoto: '€0.017/GB', google: '€0.021/GB' },
       freePlan: { feature: 'Besplatan plan', myphoto: '1 GB (do 2,5 GB uz preporuke)', google: '15 GB (deljen sa Gmail-om)' },
-      aiSearch: { feature: 'AI pretraga', myphoto: 'Da (opcioni AI plan)', google: 'Da (uključeno)' },
-      faces: { feature: 'Prepoznavanje lica', myphoto: 'Da (opcioni AI plan)', google: 'Da' },
       family: { feature: 'Family sharing', myphoto: 'Da (do 5 članova)', google: 'Da (do 5 članova)' },
       adScanning: { feature: 'Skeniranje za reklame', myphoto: 'Ne', google: 'Da' },
     },
@@ -592,10 +577,6 @@ export const marketing: DeepStrings<typeof En> = {
       import: {
         q: 'Mogu li da prebacim slike sa Google Photos-a na MyPhoto?',
         a: 'Da! Izvezite slike preko Google Takeout-a i otpremite ih na MyPhoto. Sve slike zadržavaju originalni kvalitet tokom prenosa.',
-      },
-      aiFeatures: {
-        q: 'Da li MyPhoto ima AI funkcije kao Google Photos?',
-        a: 'Da! MyPhoto nudi pametnu AI pretragu, automatsko tagovanje i prepoznavanje lica — sve kao opcioni AI dodatak. Razlika je u tome što se vaše slike nikada ne koriste za treniranje tih modela.',
       },
     },
     final: {
@@ -667,7 +648,7 @@ export const marketing: DeepStrings<typeof En> = {
       },
       cheaper: {
         q: 'Da li je MyPhoto jeftiniji od iCloud-a?',
-        a: 'MyPhoto nudi €0.017/GB u odnosu na iCloud sa €0.020/GB. Uz to, MyPhoto ima fleksibilnije planove od 150GB do 10TB, dok iCloud skače sa 50GB na 200GB uz manje opcija.',
+        a: 'MyPhoto nudi €0.017/GB u odnosu na iCloud sa €0.020/GB. Uz to, MyPhoto ima fleksibilnije planove od 24 GB do 2 TB, dok iCloud skače sa 50GB na 200GB uz manje opcija.',
       },
       transfer: {
         q: 'Mogu li da prebacim slike sa iCloud-a na MyPhoto?',

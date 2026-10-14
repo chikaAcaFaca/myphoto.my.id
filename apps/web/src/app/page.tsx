@@ -14,10 +14,9 @@ import {
   Server,
   Sparkles,
   Check,
-  Search,
   Users,
   Upload,
-  Brain,
+  FolderOpen,
   Share2,
   X,
   ArrowRight,
@@ -135,42 +134,6 @@ function MockGallery() {
           )}
         />
       ))}
-    </div>
-  );
-}
-
-// ── Typing animation for AI demo ──────────────────────────────────
-function TypingAnimation({ text, delay = 1 }: { text: string; delay?: number }) {
-  const [displayed, setDisplayed] = useState('');
-  const [started, setStarted] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true });
-
-  useEffect(() => {
-    if (isInView && !started) {
-      const timeout = setTimeout(() => setStarted(true), delay * 1000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isInView, delay, started]);
-
-  useEffect(() => {
-    if (!started) return;
-    let i = 0;
-    const interval = setInterval(() => {
-      i++;
-      setDisplayed(text.slice(0, i));
-      if (i >= text.length) clearInterval(interval);
-    }, 80);
-    return () => clearInterval(interval);
-  }, [started, text]);
-
-  return (
-    <div ref={ref} className="flex items-center gap-3 rounded-xl border-2 border-primary-200 bg-white px-5 py-4 text-lg shadow-lg dark:border-primary-800 dark:bg-gray-800">
-      <Search className="h-5 w-5 flex-shrink-0 text-primary-500" />
-      <span className="text-gray-800 dark:text-gray-200">
-        {displayed}
-        <span className="animate-pulse text-primary-500">|</span>
-      </span>
     </div>
   );
 }
@@ -396,7 +359,7 @@ export default function HomePage() {
             <div className="flex flex-wrap items-center justify-center gap-8">
               <div className="text-center">
                 <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
-                  <AnimatedCounter target={15} suffix="GB" />
+                  <AnimatedCounter target={1} suffix="GB" />
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{t('marketing.home.proof.freeLabel')}</p>
               </div>
@@ -518,46 +481,6 @@ export default function HomePage() {
               </StaggerItem>
             ))}
           </StaggerContainer>
-        </div>
-      </section>
-
-      {/* ───── 5. AI Demo (interactive) ───── */}
-      <section className="container mx-auto px-4 py-20">
-        <AnimatedSection>
-          <h2 className="mb-2 text-center text-3xl font-bold md:text-4xl">
-            {t('marketing.home.aiDemo.titleStart')} <span className="gradient-text">{t('marketing.home.aiDemo.titleGradient')}</span>
-          </h2>
-          <p className="mb-10 text-center text-gray-600 dark:text-gray-300">
-            {t('marketing.home.aiDemo.subtitle')}
-          </p>
-        </AnimatedSection>
-
-        <div className="mx-auto max-w-2xl">
-          <TypingAnimation text={t('marketing.home.aiDemo.query')} delay={0.5} />
-
-          <StaggerContainer className="mt-6 grid grid-cols-2 gap-4" staggerDelay={0.2}>
-            {AI_DEMO_RESULTS.map((r) => (
-              <StaggerItem key={r.key}>
-                <div className={cn('aspect-video rounded-xl bg-gradient-to-br p-4 flex items-end', r.gradient)}>
-                  <span className="rounded-full bg-black/30 px-3 py-1 text-xs font-medium text-white backdrop-blur">
-                    {t(`marketing.home.aiDemo.results.${r.key}`)}
-                  </span>
-                </div>
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
-
-          <AnimatedSection delay={0.6}>
-            <div className="mt-8 text-center">
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:shadow-xl"
-              >
-                <Sparkles className="h-5 w-5" />
-                {t('marketing.home.aiDemo.cta')}
-              </Link>
-            </div>
-          </AnimatedSection>
         </div>
       </section>
 
@@ -889,7 +812,7 @@ export default function HomePage() {
 // styling and raw figures stay here. 'partial' is translated at render time.
 
 // First three lines of ALL_FEATURES, as shown on the homepage pricing cards.
-const TIER_FEATURE_KEYS = ['backup', 'myspace', 'ai'] as const;
+const TIER_FEATURE_KEYS = ['backup', 'myspace', 'removeBg'] as const;
 
 const COMPARISON_ROWS: {
   key: 'original' | 'eu' | 'gdpr' | 'noAi' | 'starter' | 'pricePerGb' | 'family';
@@ -910,21 +833,14 @@ const FEATURES = [
   { icon: Cloud, key: 'cloud', gradient: 'from-sky-400 to-blue-500' },
   { icon: Image, key: 'original', gradient: 'from-orange-400 to-rose-500' },
   { icon: Shield, key: 'gdpr', gradient: 'from-emerald-400 to-teal-500' },
-  { icon: Brain, key: 'ai', gradient: 'from-purple-400 to-violet-500' },
+  { icon: Sparkles, key: 'memes', gradient: 'from-purple-400 to-violet-500' },
   { icon: Users, key: 'family', gradient: 'from-pink-400 to-fuchsia-500' },
   { icon: Zap, key: 'sync', gradient: 'from-amber-400 to-orange-500' },
 ] as const;
 
-const AI_DEMO_RESULTS = [
-  { key: 'dubrovnik', gradient: 'from-orange-400 to-rose-500' },
-  { key: 'zlatniRat', gradient: 'from-cyan-400 to-blue-500' },
-  { key: 'montenegro', gradient: 'from-amber-300 to-orange-400' },
-  { key: 'zadar', gradient: 'from-violet-400 to-purple-600' },
-] as const;
-
 const STEPS = [
   { number: 1, icon: Upload, key: 'upload' },
-  { number: 2, icon: Brain, key: 'organize' },
+  { number: 2, icon: FolderOpen, key: 'organize' },
   { number: 3, icon: Share2, key: 'share' },
 ] as const;
 
@@ -932,6 +848,6 @@ const STEPS = [
 const WHY_MYPHOTO = [
   { icon: Image, key: 'original' },
   { icon: Shield, key: 'private' },
-  { icon: Brain, key: 'ai' },
+  { icon: Upload, key: 'backup' },
   { icon: Share2, key: 'sharing' },
 ] as const;

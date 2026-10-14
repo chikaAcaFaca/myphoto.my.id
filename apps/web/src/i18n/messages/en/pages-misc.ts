@@ -72,7 +72,7 @@ export const support = {
     billing: 'Payments',
     storage: 'Upload & storage',
     sharing: 'Sharing',
-    ai: 'AI features',
+    ai: 'AI & your photos',
     privacy: 'Privacy & security',
   },
   faq: {
@@ -145,17 +145,9 @@ export const support = {
       },
     },
     ai: {
-      smartSearch: {
-        q: 'What is Smart Search?',
-        a: 'Smart Search lets you search photos by description — for example "beach photos" or "sunset". AI analyzes the content of your photos and finds exactly what you are looking for.',
-      },
       training: {
         q: 'Do you use my photos for AI training?',
-        a: 'No, never. Your photos are used only for the AI features you turn on (search, tagging, face recognition). We do not share them with third parties or use them to train models.',
-      },
-      faces: {
-        q: 'How does Face Recognition work?',
-        a: 'AI automatically detects and groups faces in your photos. You can name them and easily find all photos of a specific person. This feature works only on your photos and the data never leaves EU servers.',
+        a: 'No, never. We do not use your photos to train AI models, and we do not share them with third parties.',
       },
     },
     privacy: {
@@ -242,7 +234,7 @@ export const meme = {
   featuresTitle: 'MyPhoto — more than memes',
   featBackup: 'Automatic photo backup from your phone',
   featStorage: 'Cloud storage for files (MySpace)',
-  featAi: 'AI search and tagging',
+  featOriginal: 'Original quality, no compression',
   featMeme: 'Meme generator + MemeWall',
   featFamily: 'Family plan — share with your family',
   featPrivacy: 'EU servers, GDPR, no AI training',

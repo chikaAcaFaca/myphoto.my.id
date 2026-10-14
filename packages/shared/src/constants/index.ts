@@ -68,12 +68,11 @@ export const MICRO_TX_MONTHLY_ENABLED = false;
 export const ALL_FEATURES = [
   'MyPhoto auto-backup slika i videa',
   'MySpace cloud storage za fajlove',
-  'AI pretraga, auto-tagging, face recognition',
   'Remove Background',
   'Original quality — bez kompresije',
   'Deljenje albuma i foldera',
   'Desktop sync aplikacija',
-  'Web, Android & iOS pristup',
+  'Web i Android pristup',
   'EU serveri, GDPR zaštita',
   'Bez AI treninga na vašim slikama',
 ];
@@ -86,7 +85,7 @@ export const MYDISK_LITE_FEATURES = [
   'MySpace cloud storage za fajlove',
   'Deljenje albuma i foldera',
   'Desktop sync aplikacija',
-  'Web, Android & iOS pristup',
+  'Web i Android pristup',
   'EU serveri, GDPR zaštita',
 ];
 

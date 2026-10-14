@@ -31,8 +31,8 @@ export const terms: DeepStrings<typeof En> = {
   s3: {
     title: '3. Opis usluge',
     intro: 'MyPhoto (myphotomy.space) je cloud storage servis za čuvanje, organizovanje i deljenje fotografija i video zapisa. Servis obuhvata sledeće funkcionalnosti:',
-    i1: 'Čuvanje fotografija i videa u originalnom kvalitetu sa end-to-end enkripcijom u tranzitu',
-    i2: 'AI funkcije: smart search, auto-tagging, face recognition (opt-in, uz eksplicitnu saglasnost)',
+    i1: 'Čuvanje fotografija i videa u originalnom kvalitetu, šifrovano u prenosu (HTTPS)',
+    i2: 'Pravljenje mimova i stikera, uključujući uklanjanje pozadine, i javni MemeWall',
     i3: 'Deljenje slika i albuma sa drugim korisnicima putem sigurnih linkova',
     i4: 'Family sharing sa do 5 članova porodice',
     i5: 'Export i preuzimanje svih podataka u standardnim formatima (GDPR prenosivost)',

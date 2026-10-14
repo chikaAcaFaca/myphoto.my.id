@@ -98,7 +98,7 @@ const jsonLd = {
       description:
         'Private cloud photo storage with auto backup, original quality, EU servers, and GDPR protection. Google Photos alternative.',
       url: 'https://myphotomy.space',
-      featureList: 'Auto backup, Original quality, EU servers, GDPR compliance, AI search, Album sharing',
+      featureList: 'Auto backup, Original quality, EU servers, GDPR compliance, Album sharing, Meme and sticker maker',
     },
     {
       '@type': 'Organization',
