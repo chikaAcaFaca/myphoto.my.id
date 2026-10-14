@@ -224,20 +224,32 @@ export default function HomePage() {
       {/* ───── Header ───── */}
       <header className="container mx-auto px-4 py-6">
         <nav className="flex items-center justify-between">
+          {/* Narrow phones get the square icon; the wordmark needs ~145px more */}
+          <NextImage
+            src="/logo-icon.png"
+            alt="MyPhoto"
+            width={72}
+            height={72}
+            className="h-9 w-9 min-[400px]:hidden"
+            priority
+          />
           <NextImage
             src="/logo.png"
             alt="MyPhoto"
             width={240}
             height={72}
-            className="h-16 w-auto"
+            className="hidden h-10 w-auto min-[400px]:block sm:h-16"
             priority
           />
-          <div className="flex items-center gap-4">
+          {/* On phones the login link moves to the register page so the header fits 360px */}
+          <div className="flex items-center gap-2 sm:gap-4">
             <LanguageSwitcher />
-            <Link href="/login" className="btn-ghost">
-              {t('marketing.home.header.login')}
-            </Link>
-            <Link href="/register" className="btn-primary">
+            <span className="hidden sm:inline-flex">
+              <Link href="/login" className="btn-ghost">
+                {t('marketing.home.header.login')}
+              </Link>
+            </span>
+            <Link href="/register" className="btn-primary whitespace-nowrap">
               {t('marketing.home.header.startFree')}
             </Link>
           </div>

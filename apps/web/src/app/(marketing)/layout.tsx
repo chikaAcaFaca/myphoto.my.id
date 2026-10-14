@@ -20,8 +20,8 @@ export default async function MarketingLayout({
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
             <Cloud className="h-7 w-7 text-primary-500" />
-            <span className="text-lg font-bold text-gray-900 dark:text-white">
-              MyPhoto<span className="text-primary-500">my.space</span>
+            <span className="text-base font-bold text-gray-900 sm:text-lg dark:text-white">
+              MyPhoto<span className="hidden text-primary-500 min-[400px]:inline">my.space</span>
             </span>
           </Link>
 
@@ -52,23 +52,23 @@ export default async function MarketingLayout({
             </Link>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher />
             {isLoggedIn ? (
               <Link
                 href="/photos"
-                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                className="whitespace-nowrap rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 sm:px-4"
               >
                 {t('marketing.nav.openApp')}
               </Link>
             ) : (
               <>
-                <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                <Link href="/login" className="hidden text-sm font-medium text-gray-600 hover:text-gray-900 sm:inline dark:text-gray-400 dark:hover:text-white">
                   {t('marketing.nav.login')}
                 </Link>
                 <Link
                   href="/register"
-                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                  className="whitespace-nowrap rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 sm:px-4"
                 >
                   {t('marketing.nav.freeAccount')}
                 </Link>

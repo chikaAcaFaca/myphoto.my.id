@@ -218,7 +218,7 @@ export default function ContactPage() {
           <p className="text-sm text-gray-500">
             © {new Date().getFullYear()} MyPhoto. {t('pages.shell.rights')}
           </p>
-          <div className="flex gap-4 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">{t('pages.shell.privacy')}</Link>
             <Link href="/terms" className="hover:text-primary-500">{t('pages.shell.terms')}</Link>
             <Link href="/refund" className="hover:text-primary-500">{t('pages.shell.refund')}</Link>

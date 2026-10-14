@@ -729,7 +729,7 @@ export default async function PrivacyPage() {
           <p className="text-sm text-gray-500">
             {t('pages.privacy.footer.rights', { year: new Date().getFullYear() })}
           </p>
-          <div className="flex gap-4 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-500">
             <Link href="/privacy" className="hover:text-primary-500">{t('pages.privacy.footer.privacy')}</Link>
             <Link href="/terms" className="hover:text-primary-500">{t('pages.privacy.footer.terms')}</Link>
             <Link href="/refund" className="hover:text-primary-500">{t('pages.shell.refund')}</Link>
