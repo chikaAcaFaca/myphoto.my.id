@@ -7,6 +7,8 @@ export interface BlogPostContent {
   author: string;
   readingTime: string;
   tags: string[];
+  /** Optional vertical video shown under the title (.jpg poster of the same name). */
+  video?: string;
   content: string;
 }
 
@@ -35,6 +37,7 @@ export const blogPosts: BlogPost[] = [
       author: 'MyPhoto Tim',
       readingTime: '6 min',
       tags: ['Google prostor', 'Google Photos', 'Gmail', 'backup'],
+      video: '/videos/google-prostor-pun-sr.mp4',
       content: `
 ## Šta znači „Prostor na Google nalogu je pun"
 

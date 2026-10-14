@@ -694,6 +694,8 @@ export const marketing = {
       button: '⬇️ Download APK',
       requirements: 'Android 8.0+ · ~200 MB ·',
       playSoon: 'Coming soon to Google Play',
+      videoTitle: 'Video: how to install the app',
+      videoSubtitle: 'Two minutes, step by step, from download to your first backup.',
       howTo: 'How do I install the APK?',
       step1Before: 'Tap ',
       step1Strong: 'Download APK',
