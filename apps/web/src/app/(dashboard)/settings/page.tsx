@@ -675,22 +675,10 @@ export default function SettingsPage() {
 
               {activeSection === 'privacy' && (
                 <SettingsCard title={t('dashboard.settings.privacyTitle')}>
-                  <div className="space-y-1">
-                    <SettingsRow
-                      icon={Shield}
-                      label={t('dashboard.settings.faceRecognition')}
-                      description={t('dashboard.settings.faceRecognitionDesc')}
-                      value={
-                        <ToggleSwitch
-                          checked={settings?.faceRecognition ?? true}
-                          onChange={(v) => updateSetting('faceRecognition', v)}
-                          label={t('dashboard.settings.faceRecognition')}
-                        />
-                      }
-                    />
-                  </div>
-
-                  <div className="mt-6 space-y-2">
+                  {/* Face-recognition toggle hidden: face grouping needs the
+                      server-side AI worker, which is not enabled in production.
+                      The stored `faceRecognition` setting is left untouched. */}
+                  <div className="space-y-2">
                     <Link
                       href="/privacy"
                       className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"

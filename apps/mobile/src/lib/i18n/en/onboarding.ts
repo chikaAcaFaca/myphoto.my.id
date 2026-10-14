@@ -16,7 +16,7 @@ const onboarding = {
   doneTitle: "You're all set!",
   doneDescription:
     'Your account is active. Photos are backed up to MyPhoto automatically, and all your files are available in MySpace.',
-  summaryPhotos: 'Photos → MyPhoto (gallery, AI search, albums)',
+  summaryPhotos: 'Photos → MyPhoto (gallery, search, albums)',
   summaryFiles: 'Files → MySpace (folders, just like on your computer)',
   summarySync: 'Everything syncs automatically',
   summaryAccess: 'Access from the web, your phone and your computer',

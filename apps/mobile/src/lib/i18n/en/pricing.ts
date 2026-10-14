@@ -25,7 +25,7 @@ const pricing = {
   select: 'Choose {name}',
   allPlansInclude: 'All plans include',
   featureBackup: 'Photo and video auto-backup',
-  featureAiSearch: 'AI search and auto-tagging',
+  featureAiSearch: 'Albums and search',
   featureOriginal: 'Original quality, no compression',
   featureSharing: 'Album and folder sharing',
   featureMemes: 'Meme Creator and MemeWall',

@@ -196,7 +196,7 @@ export const deleteAccount: DeepStrings<typeof EnDeleteAccount> = {
   howEmailAfter: 'sa adrese registrovane na nalogu. Ovakve zahteve izvršavamo u roku od 30 dana.',
   deletedTitle: 'Šta se briše',
   deletedText:
-    'Odmah i trajno: sve fotografije, video snimci i fajlovi (originali i sličice), albumi, MySpace folderi, memovi i komentari, linkovi za deljenje, registracije uređaja, AI tagovi i grupe lica, vaš profil i vaši podaci za prijavu.',
+    'Odmah i trajno: sve fotografije, video snimci i fajlovi (originali i sličice), albumi, MySpace folderi, memovi i komentari, linkovi za deljenje, registracije uređaja, oznake i metapodaci slika, vaš profil i vaši podaci za prijavu.',
   keptTitle: 'Šta se zadržava',
   keptText:
     'Evidenciju plaćanja i račune čuva naš platni provajder (merchant of record) onoliko dugo koliko nalaže poreski zakon. Čuvamo anonimni zapis (bez imena, emaila i sadržaja) da je brisanje izvršeno. Šifrovane rezervne kopije se rotiraju i potpuno brišu u roku od 30 dana.',

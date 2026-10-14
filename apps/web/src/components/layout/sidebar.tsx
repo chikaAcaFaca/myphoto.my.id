@@ -12,7 +12,6 @@ import {
   Trash2,
   Archive,
   Clock,
-  Users,
   Settings,
   HelpCircle,
   ChevronLeft,
@@ -105,7 +104,8 @@ const creativeNav: NavEntry[] = [
 
 const secondaryNav: NavEntry[] = [
   { name: 'components.sidebar.search', href: '/search', icon: Search },
-  { name: 'components.sidebar.people', href: '/people', icon: Users },
+  // "People" (face grouping) hidden: it needs the server-side AI worker,
+  // which is not enabled in production.
   { name: 'components.sidebar.duplicates', href: '/duplicates', icon: Copy },
 ];
 

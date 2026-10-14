@@ -27,7 +27,7 @@ const pricing: typeof en = {
   select: 'Izaberi {name}',
   allPlansInclude: 'Svi planovi uključuju',
   featureBackup: 'Auto-backup slika i videa',
-  featureAiSearch: 'AI pretraga i auto-tagging',
+  featureAiSearch: 'Albumi i pretraga',
   featureOriginal: 'Original kvalitet, bez kompresije',
   featureSharing: 'Deljenje albuma i foldera',
   featureMemes: 'Meme Kreator i MemeWall',

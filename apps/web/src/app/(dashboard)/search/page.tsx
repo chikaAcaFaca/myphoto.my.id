@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, Filter, Image, Film, X, User, MapPin, Calendar, Sparkles, Mountain, Building2, Eye } from 'lucide-react';
+import { Search, Filter, Image, Film, X, User, MapPin, Calendar, Mountain, Building2, Eye } from 'lucide-react';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { getIdToken } from '@/lib/firebase';
 import type { FileMetadata } from '@myphoto/shared';
@@ -218,11 +218,11 @@ function SearchContent() {
           </p>
         )}
 
-        {/* Parsed query info — shows what the AI understood */}
+        {/* Parsed query info — shows which filters the query parser picked up */}
         {parsedInfo && query && !isSearching && (
           (parsedInfo.personNames.length > 0 || parsedInfo.locationTerms.length > 0 || parsedInfo.dateRange) && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <Filter className="h-3.5 w-3.5 text-gray-400" />
               <span className="text-xs text-gray-400">{t('dashboard.search.recognized')}</span>
               {parsedInfo.personNames.map((name) => (
                 <span key={name} className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2.5 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
@@ -298,7 +298,7 @@ function SearchContent() {
           <div className="mt-8 w-full max-w-md">
             <p className="mb-3 text-xs font-medium text-gray-400">{t('dashboard.search.tryExamples')}</p>
             <div className="grid gap-2">
-              {([1, 2, 3, 4, 5, 6, 7, 8] as const).map((n) => t(`dashboard.search.examples.ex${n}`)).map((example) => (
+              {([1, 2, 3, 4] as const).map((n) => t(`dashboard.search.examples.ex${n}`)).map((example) => (
                 <button
                   key={example}
                   onClick={() => {
