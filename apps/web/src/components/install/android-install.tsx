@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { INSTALL_VIDEOS } from '@/lib/install-videos';
 import { useI18n } from '@/i18n/client';
 import { getStoredRef, isValidRef, withRef } from '@/lib/referral-link';
 
@@ -25,14 +26,6 @@ function apkUrl(): string {
 const OPEN_APP_URL =
   'intent://meme-wall#Intent;scheme=myphoto;package=id.my.myphoto;' +
   'S.browser_fallback_url=https%3A%2F%2Fmyphotomy.space%2Fdownload;end';
-
-// Intro video per site language (avatar explains the install), served from
-// public/videos with a .jpg poster of the same name. Empty = the video block
-// is hidden.
-export const INSTALL_VIDEOS: Record<'sr' | 'en', string> = {
-  sr: '/videos/install-sr.mp4',
-  en: '',
-};
 
 const FLAME = '#FF7A3D';
 const ON_FLAME = '#16181D';

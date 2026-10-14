@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { getT } from '@/i18n/server';
+import { getLocale, getT } from '@/i18n/server';
+import { INSTALL_VIDEOS } from '@/lib/install-videos';
 import { ApkDownloadLink } from '@/components/install/android-install';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,6 +18,7 @@ const STORE_URL = '';
 
 export default async function DownloadPage() {
   const t = await getT();
+  const video = INSTALL_VIDEOS[await getLocale()] || '';
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
       <div className="text-center">
@@ -134,6 +136,22 @@ export default async function DownloadPage() {
           <p className="mt-2 text-xs text-gray-400">{t('marketing.download.web.note')}</p>
         </div>
       </div>
+
+      {/* Install video, linkable as /download#video */}
+      {video ? (
+        <section id="video" className="mt-20 scroll-mt-24 text-center">
+          <h2 className="text-2xl font-bold">{t('marketing.download.android.videoTitle')}</h2>
+          <p className="mt-2 text-gray-500">{t('marketing.download.android.videoSubtitle')}</p>
+          <video
+            src={video}
+            poster={video.replace(/\.mp4$/, '.jpg')}
+            preload="metadata"
+            controls
+            playsInline
+            className="mx-auto mt-6 aspect-[9/16] w-full max-w-sm rounded-2xl bg-black shadow-lg"
+          />
+        </section>
+      ) : null}
 
       {/* How sync works */}
       <div className="mt-20">

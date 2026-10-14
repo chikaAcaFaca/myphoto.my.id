@@ -294,6 +294,17 @@ export default async function BlogPostPage({ params }: Props) {
           </div>
         </header>
 
+        {post.video ? (
+          <video
+            src={post.video}
+            poster={post.video.replace(/\.mp4$/, '.jpg')}
+            preload="metadata"
+            controls
+            playsInline
+            className="mx-auto mb-10 aspect-[9/16] w-full max-w-sm rounded-2xl bg-black shadow-lg"
+          />
+        ) : null}
+
         {/* Content */}
         <div className="prose-custom">{renderMarkdown(post.content)}</div>
 

@@ -697,6 +697,8 @@ export const marketing: DeepStrings<typeof En> = {
       button: '⬇️ Preuzmi APK',
       requirements: 'Android 8.0+ · ~200 MB ·',
       playSoon: 'Uskoro na Google Play',
+      videoTitle: 'Video: kako se instalira aplikacija',
+      videoSubtitle: 'Dva minuta, korak po korak, od preuzimanja do prvog čuvanja slika.',
       howTo: 'Kako da instalirate APK?',
       step1Before: 'Tapnite ',
       step1Strong: 'Preuzmi APK',
