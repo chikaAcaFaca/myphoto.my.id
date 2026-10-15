@@ -186,6 +186,21 @@
       margin-top: 8px;
       display: none;
     }
+
+    /* Google Photos import */
+    .gp-step { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+    .gp-step h3 { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .gp-step p, .gp-step li { font-size: 12px; color: #4b5563; line-height: 1.5; }
+    .gp-step ol { padding-left: 18px; margin-bottom: 8px; }
+    .gp-row { display: flex; gap: 8px; }
+    .gp-row .btn { font-size: 12px; padding: 8px 10px; }
+    .gp-summary { font-size: 12px; line-height: 1.7; color: #374151; }
+    .gp-summary b { color: #1a1a2e; }
+    .gp-warn { background: #fffbeb; color: #92400e; border-radius: 6px; padding: 8px 10px; font-size: 12px; margin-top: 8px; }
+    .gp-ok { background: #f0fdf4; color: #166534; border-radius: 6px; padding: 8px 10px; font-size: 12px; margin-top: 8px; }
+    .progress { height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 8px 0 6px; }
+    .progress-bar { height: 100%; width: 0; background: #6366f1; transition: width 0.3s; }
+    .gp-current { font-size: 11px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   </style>
 </head>
 <body>
@@ -197,6 +212,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="status" onclick="switchTab('status')">Status</div>
     <div class="tab" data-tab="settings" onclick="switchTab('settings')">Podešavanja</div>
+    <div class="tab" data-tab="google" onclick="switchTab('google')">Google Photos</div>
     <div class="tab" data-tab="log" onclick="switchTab('log')">Aktivnost</div>
   </div>
 
@@ -303,6 +319,42 @@
       <button class="btn btn-danger" onclick="logout()" style="font-size:12px;padding:8px;">
         Odjavi se
       </button>
+    </div>
+  </div>
+
+  <!-- Google Photos import panel -->
+  <div id="panel-google" class="panel">
+    <div class="gp-step">
+      <h3>1. Preuzmi slike sa Google-a</h3>
+      <ol>
+        <li>Otvori Google Takeout (dugme ispod) — Google Photos je već izabran.</li>
+        <li>Izaberi „.zip" i veličinu <b>50 GB</b>, pa „Kreiraj izvoz".</li>
+        <li>Kad stigne mejl, preuzmi <b>sve</b> delove arhive.</li>
+      </ol>
+      <button class="btn btn-secondary" onclick="desktopApi.openLink('takeout')" style="font-size:12px;padding:8px;">Otvori Google Takeout ↗</button>
+    </div>
+
+    <div class="gp-step">
+      <h3>2. Izaberi preuzetu arhivu</h3>
+      <p style="margin-bottom:8px;">ZIP fajlove ne moraš da raspakuješ. Izaberi sve delove odjednom.</p>
+      <div class="gp-row">
+        <button class="btn btn-primary" onclick="gpPick('zip')">ZIP fajlovi</button>
+        <button class="btn btn-secondary" onclick="gpPick('folder')">Raspakovan folder</button>
+      </div>
+      <div id="gp-summary" class="gp-summary" style="display:none;margin-top:10px;"></div>
+      <div class="error-msg" id="gp-error"></div>
+    </div>
+
+    <div class="gp-step" id="gp-run" style="display:none;">
+      <h3>3. Prebaci na MyPhoto</h3>
+      <div class="progress"><div class="progress-bar" id="gp-bar"></div></div>
+      <div class="gp-summary" id="gp-progress-text">Spremno.</div>
+      <div class="gp-current" id="gp-current"></div>
+      <div class="gp-row" style="margin-top:8px;">
+        <button class="btn btn-primary" id="gp-start" onclick="gpStart()">Pokreni uvoz</button>
+        <button class="btn btn-secondary" id="gp-stop" onclick="desktopApi.takeoutStop()" style="display:none;">Pauziraj</button>
+      </div>
+      <div id="gp-message"></div>
     </div>
   </div>
 
@@ -443,6 +495,105 @@
       while (logContainer.children.length > 200) {
         logContainer.removeChild(logContainer.firstChild);
       }
+    });
+
+    // ---- Google Photos (Takeout) import ----
+    function fmtBytes(b) {
+      if (b >= 1024 ** 3) return (b / 1024 ** 3).toFixed(1).replace('.', ',') + ' GB';
+      if (b >= 1024 ** 2) return Math.round(b / 1024 ** 2) + ' MB';
+      return Math.max(1, Math.round(b / 1024)) + ' KB';
+    }
+    function gpEsc(t) {
+      const d = document.createElement('div');
+      d.textContent = t;
+      return d.innerHTML;
+    }
+    // Links in injected HTML call these; the main process only opens fixed URLs.
+    function gpLink(which) {
+      desktopApi.openLink(which);
+      return false;
+    }
+
+    async function gpPick(kind) {
+      const errorEl = document.getElementById('gp-error');
+      const summaryEl = document.getElementById('gp-summary');
+      errorEl.style.display = 'none';
+      const paths = await desktopApi.takeoutPick(kind);
+      if (!paths.length) return;
+      summaryEl.style.display = 'block';
+      summaryEl.textContent = 'Čitam arhivu… (za velike arhive može da potraje par minuta)';
+      document.getElementById('gp-run').style.display = 'none';
+
+      const res = await desktopApi.takeoutScan(paths);
+      if (res.error) {
+        summaryEl.style.display = 'none';
+        errorEl.textContent = res.error;
+        errorEl.style.display = 'block';
+        return;
+      }
+      const s = res.summary;
+      if (s.photos + s.videos === 0) {
+        summaryEl.innerHTML = '<div class="gp-warn">U izabranoj arhivi nema slika ni videa. Proveri da li si u Takeout-u izabrao Google Photos.</div>';
+        return;
+      }
+      let html = `<b>${s.photos}</b> slika i <b>${s.videos}</b> videa (${fmtBytes(s.totalBytes)})`;
+      if (s.albums.length) html += `<br>Albumi: ${gpEsc(s.albums.slice(0, 6).join(', '))}${s.albums.length > 6 ? '…' : ''}`;
+      if (s.duplicatesSkipped) html += `<br>Kopije iz albuma (ne šalju se dvaput): ${s.duplicatesSkipped}`;
+      if (s.alreadyImported) html += `<br>Već uvezeno ranije: ${s.alreadyImported}`;
+      if (s.withoutDate) html += `<br>Bez datuma: ${s.withoutDate} (idu u folder „Bez datuma")`;
+      if (s.tooLarge) html += `<br>Preskočeno (veće od 10 GB): ${s.tooLarge}`;
+      html += `<br>Za uvoz: <b>${s.pendingFiles}</b> fajlova, <b>${fmtBytes(s.pendingBytes)}</b>`;
+      if (s.storageLimit !== null) {
+        const free = Math.max(0, s.storageLimit - s.storageUsed);
+        html += `<br>Slobodno na nalogu: ${fmtBytes(free)}`;
+        if (s.pendingBytes > free) {
+          html += `<div class="gp-warn">Nemaš dovoljno mesta — fali ${fmtBytes(s.pendingBytes - free)}. ` +
+            `Uvoz će stati kad se prostor popuni. <a href="#" onclick="return gpLink('web')">Nadogradi plan</a> pa nastavi.</div>`;
+        }
+      }
+      if (s.pendingFiles === 0) html += '<div class="gp-ok">Sve iz ove arhive je već na MyPhoto.</div>';
+      summaryEl.innerHTML = html;
+      if (s.pendingFiles > 0) {
+        gpRender({ phase: 'idle', totalFiles: s.pendingFiles, totalBytes: s.pendingBytes, doneFiles: 0, doneBytes: 0, failedFiles: 0 });
+      }
+    }
+
+    async function gpStart() {
+      const res = await desktopApi.takeoutStart();
+      if (res && res.error) {
+        document.getElementById('gp-message').innerHTML = `<div class="gp-warn">${gpEsc(res.error)}</div>`;
+      }
+    }
+
+    function gpRender(p) {
+      if (!p) return;
+      const running = p.phase === 'uploading';
+      document.getElementById('gp-run').style.display = 'block';
+      const startBtn = document.getElementById('gp-start');
+      startBtn.style.display = running || p.phase === 'done' ? 'none' : 'flex';
+      startBtn.textContent = p.phase === 'stopped' || p.phase === 'error' ? 'Nastavi uvoz' : 'Pokreni uvoz';
+      document.getElementById('gp-stop').style.display = running ? 'flex' : 'none';
+      const pct = p.totalBytes > 0 ? Math.min(100, (p.doneBytes / p.totalBytes) * 100) : (p.phase === 'done' ? 100 : 0);
+      document.getElementById('gp-bar').style.width = pct.toFixed(1) + '%';
+      let text = `${p.doneFiles} / ${p.totalFiles} fajlova · ${fmtBytes(p.doneBytes)} / ${fmtBytes(p.totalBytes)}`;
+      if (p.failedFiles) text += ` · neuspešno: ${p.failedFiles}`;
+      document.getElementById('gp-progress-text').textContent = text;
+      document.getElementById('gp-current').textContent = running && p.currentFile ? 'Šaljem: ' + p.currentFile : '';
+      const msgEl = document.getElementById('gp-message');
+      if (p.phase === 'done' && !p.failedFiles) {
+        msgEl.innerHTML = '<div class="gp-ok"><b>Gotovo!</b> Slike su na MyPhoto, u folderu „Google Photos". ' +
+          'Prvo ih pogledaj na <a href="#" onclick="return gpLink(\'web\')">myphotomy.space</a>, ' +
+          'pa tek onda obriši sa <a href="#" onclick="return gpLink(\'google-photos\')">Google Photos</a> ' +
+          'i isprazni Otpad — tek tada Google oslobađa prostor.</div>';
+      } else if (p.message && !running) {
+        msgEl.innerHTML = `<div class="${p.phase === 'done' ? 'gp-ok' : 'gp-warn'}">${gpEsc(p.message)}</div>`;
+      } else {
+        msgEl.innerHTML = '';
+      }
+    }
+    desktopApi.onTakeoutProgress(gpRender);
+    desktopApi.takeoutProgress().then((p) => {
+      if (p && p.phase !== 'idle' && p.phase !== 'scanning') gpRender(p);
     });
 
     // Init

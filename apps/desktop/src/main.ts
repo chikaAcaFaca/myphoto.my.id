@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import Store from 'electron-store';
 import { SyncEngine } from './sync-engine';
+import { TakeoutImporter, TakeoutProgress } from './takeout-importer';
 
 const store = new Store({
   defaults: {
@@ -70,6 +71,8 @@ async function getValidToken(): Promise<string> {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let syncEngine: SyncEngine | null = null;
+let takeout: TakeoutImporter | null = null;
+let takeoutUid = '';
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -181,6 +184,7 @@ function updateTrayMenu(status: 'idle' | 'syncing' | 'error' | 'paused') {
       label: 'Izlaz',
       click: () => {
         syncEngine?.stop();
+        takeout?.dispose();
         mainWindow?.destroy();
         app.quit();
       },
@@ -314,6 +318,96 @@ ipcMain.handle('get-sync-stats', () => {
 
 ipcMain.handle('force-sync', () => {
   syncEngine?.forceSync();
+});
+
+// ---- Google Takeout import ----
+
+// Firebase ID tokens carry the uid in the JWT payload. Import progress is
+// kept per account so a different login never sees "already imported".
+function uidFromToken(token: string): string {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf-8'));
+    return String(payload.user_id || payload.sub || '');
+  } catch {
+    return '';
+  }
+}
+
+async function getTakeout(): Promise<TakeoutImporter> {
+  const uid = uidFromToken(await getValidToken());
+  if (!uid) throw new Error('Prijavite se na svoj MyPhoto nalog');
+  if (takeout && takeoutUid === uid) return takeout;
+  if (takeout?.isRunning()) throw new Error('Uvoz je već u toku');
+  takeout?.dispose();
+
+  // Progress fires per uploaded chunk; forward at most ~4×/s, but always
+  // pass phase changes through immediately.
+  let lastSent = 0;
+  let lastPhase = '';
+  takeoutUid = uid;
+  takeout = new TakeoutImporter({
+    serverUrl: store.get('serverUrl') as string,
+    getToken: getValidToken,
+    statePath: path.join(app.getPath('userData'), `takeout-import-${uid}.json`),
+    onProgress: (p: TakeoutProgress) => {
+      const now = Date.now();
+      if (p.phase === lastPhase && now - lastSent < 250) return;
+      lastSent = now;
+      lastPhase = p.phase;
+      mainWindow?.webContents.send('takeout-progress', p);
+    },
+    onLog: (msg) => mainWindow?.webContents.send('log', msg),
+  });
+  return takeout;
+}
+
+ipcMain.handle('takeout-pick', async (_event, kind: 'zip' | 'folder') => {
+  const result = await dialog.showOpenDialog(
+    kind === 'folder'
+      ? { properties: ['openDirectory'], title: 'Izaberite raspakovan Takeout folder' }
+      : {
+          properties: ['openFile', 'multiSelections'],
+          title: 'Izaberite Google Takeout ZIP fajlove (sve delove)',
+          filters: [{ name: 'Google Takeout', extensions: ['zip'] }],
+        }
+  );
+  return result.canceled ? [] : result.filePaths;
+});
+
+ipcMain.handle('takeout-scan', async (_event, paths: string[]) => {
+  try {
+    const importer = await getTakeout();
+    return { summary: await importer.scan(paths) };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('takeout-start', async () => {
+  try {
+    const importer = await getTakeout();
+    // Runs for minutes to hours — report through 'takeout-progress' events.
+    importer.start().catch((e) => console.error('Takeout import error:', e));
+    return { ok: true };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('takeout-stop', () => {
+  takeout?.stop();
+});
+
+ipcMain.handle('takeout-progress', () => takeout?.getProgress() || null);
+
+// Fixed destinations only — the renderer never hands us an arbitrary URL.
+ipcMain.handle('open-link', (_event, which: 'takeout' | 'google-photos' | 'web') => {
+  const urls: Record<string, string> = {
+    takeout: 'https://takeout.google.com/settings/takeout/custom/photos',
+    'google-photos': 'https://photos.google.com/',
+    web: store.get('serverUrl') as string,
+  };
+  if (urls[which]) shell.openExternal(urls[which]);
 });
 
 // App lifecycle.
