@@ -213,6 +213,8 @@ export const desktopAuth: DeepStrings<typeof EnDesktopAuth> = {
   connecting: 'Povezivanje sa MyPhoto aplikacijom…',
   done: 'Prijava uspešna! Možete zatvoriti ovu karticu i vratiti se u MyPhoto aplikaciju.',
   failed: 'Google prijava nije uspela.',
+  sessionSigningIn: 'Prijavljujem vas…',
+  sessionFailed: 'Prijava nije uspela. Zatvorite ovaj prozor i pokušajte ponovo iz aplikacije.',
 };
 
 export const meme: DeepStrings<typeof EnMeme> = {

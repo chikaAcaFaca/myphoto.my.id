@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, dialog, ipcMain, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, Tray, Menu, dialog, ipcMain, nativeImage, session, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as http from 'http';
@@ -92,8 +92,9 @@ function applyAutoStart(openAtLogin: boolean) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 480,
-    height: 620,
+    width: 460,
+    height: 700,
+    backgroundColor: '#FAFAF8',
     resizable: false,
     maximizable: false,
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
@@ -173,6 +174,10 @@ function updateTrayMenu(status: 'idle' | 'syncing' | 'error' | 'paused') {
       },
     },
     {
+      label: 'Mimovi',
+      click: () => { void openWebPage('meme-wall'); },
+    },
+    {
       label: 'Otvori myphotomy.space',
       click: () => shell.openExternal(store.get('serverUrl') as string),
     },
@@ -235,7 +240,10 @@ async function initSyncEngine() {
     apiToken,
     getToken: getValidToken,
     serverUrl,
-    onStatus: (status) => updateTrayMenu(status),
+    onStatus: (status) => {
+      updateTrayMenu(status);
+      mainWindow?.webContents.send('sync-status', status);
+    },
     onNotification: (title, message) => {
       if (store.get('showNotifications')) {
         mainWindow?.webContents.send('notification', { title, message });
@@ -255,6 +263,14 @@ async function initSyncEngine() {
   if (store.get('syncEnabled')) {
     syncEngine.start();
   }
+}
+
+// (Re)start syncing after a sign-in — with a folder already chosen there is
+// no settings save to do it, so the app would sit idle until restarted.
+function restartSyncEngine() {
+  syncEngine?.stop();
+  syncEngine = null;
+  initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
 }
 
 // IPC handlers for renderer
@@ -285,8 +301,7 @@ ipcMain.handle('save-config', (_event, config: Record<string, unknown>) => {
   }
 
   // Restart sync engine with new config
-  syncEngine?.stop();
-  initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
+  restartSyncEngine();
 
   // Auto-start on boot
   applyAutoStart((config.startOnBoot as boolean) || false);
@@ -319,6 +334,7 @@ ipcMain.handle('login', async (_event, email: string, password: string) => {
     store.set('apiToken', data.token);
     store.set('refreshToken', data.refreshToken || '');
     store.set('tokenExpiresAt', Date.now() + (data.expiresIn || 3600) * 1000);
+    restartSyncEngine();
     return { success: true, token: data.token };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Connection failed' };
@@ -379,6 +395,7 @@ ipcMain.handle('google-login', async () => {
           store.set('apiToken', data.idToken);
           store.set('refreshToken', data.refreshToken || '');
           store.set('tokenExpiresAt', Date.now() + (data.expiresIn || 3600) * 1000);
+          restartSyncEngine();
 
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end('<html><body style="font-family:system-ui,sans-serif;text-align:center;padding-top:48px;color:#374151">Prijava uspešna. Možete zatvoriti ovaj prozor i vratiti se u MyPhoto aplikaciju.</body></html>');
@@ -413,6 +430,133 @@ ipcMain.handle('force-sync', () => {
 
 ipcMain.handle('resolve-pending-deletes', (_event, approve: boolean) => {
   return syncEngine?.resolvePendingDeletes(approve === true);
+});
+
+// ---- Built-in web window (MemeWall, meme creator, MySpace, plans) ----
+
+// Fixed destinations only — the renderer never hands us a URL.
+const WEB_PAGES: Record<string, string> = {
+  'meme-wall': '/meme-wall',
+  'meme-creator': '/meme-creator',
+  myspace: '/myspace',
+  photos: '/photos',
+  pricing: '/pricing',
+};
+let webWindow: BrowserWindow | null = null;
+
+/**
+ * Open a myphotomy.space page in the app's own window, signed into the same
+ * account as the desktop app: we trade our ID token for a Firebase custom
+ * token and hand it to /desktop-session in the URL fragment. If that fails
+ * the page simply opens and the user can sign in there.
+ */
+async function openWebPage(page: string): Promise<void> {
+  const target = WEB_PAGES[page];
+  if (!target) return;
+  const serverUrl = store.get('serverUrl') as string;
+  const origin = new URL(serverUrl).origin;
+
+  let url = `${serverUrl}${target}`;
+  try {
+    const token = await getValidToken();
+    if (token) {
+      const res = await fetch(`${serverUrl}/api/auth/custom-token`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { customToken } = (await res.json()) as { customToken: string };
+        url = `${serverUrl}/desktop-session#t=${encodeURIComponent(customToken)}&next=${encodeURIComponent(target)}`;
+      }
+    }
+  } catch (e) {
+    console.error('Web sign-in handoff failed:', e);
+  }
+
+  if (!webWindow || webWindow.isDestroyed()) {
+    webWindow = new BrowserWindow({
+      width: 1180,
+      height: 820,
+      minWidth: 420,
+      minHeight: 600,
+      title: 'MyPhoto',
+      icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+      autoHideMenuBar: true,
+      backgroundColor: '#FAFAF8',
+      webPreferences: {
+        // Its own persistent session: the web login survives restarts and
+        // never mixes with the app's own renderer.
+        partition: 'persist:myphoto-web',
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+    const isOurs = (u: string) => {
+      try { return new URL(u).origin === origin; } catch { return false; }
+    };
+    // Our site stays in the window; everything else opens in the real browser.
+    webWindow.webContents.setWindowOpenHandler(({ url: u }) => {
+      if (isOurs(u)) {
+        webWindow?.loadURL(u);
+      } else if (/^https?:/.test(u)) {
+        shell.openExternal(u);
+      }
+      return { action: 'deny' };
+    });
+    webWindow.webContents.on('will-navigate', (e, u) => {
+      if (!isOurs(u)) {
+        e.preventDefault();
+        if (/^https?:/.test(u)) shell.openExternal(u);
+      }
+    });
+    webWindow.on('closed', () => { webWindow = null; });
+  }
+  await webWindow.loadURL(url);
+  webWindow.show();
+  webWindow.focus();
+}
+
+ipcMain.handle('open-web', (_event, page: string) => openWebPage(page));
+
+ipcMain.handle('get-account', async () => {
+  const token = await getValidToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${store.get('serverUrl')}/api/users/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const d = (await res.json()) as { email?: string; displayName?: string; storageUsed?: number; storageLimit?: number };
+    return {
+      email: d.email || '',
+      displayName: d.displayName || '',
+      storageUsed: d.storageUsed || 0,
+      storageLimit: d.storageLimit || 0,
+    };
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('open-sync-folder', () => {
+  const folder = store.get('syncFolder') as string;
+  if (folder && fs.existsSync(folder)) shell.openPath(folder);
+});
+
+// Sign out completely: clearing only apiToken left the refresh token behind,
+// so the next getValidToken() silently signed the user straight back in.
+ipcMain.handle('logout', async () => {
+  syncEngine?.stop();
+  syncEngine = null;
+  takeout?.dispose();
+  takeout = null;
+  store.set('apiToken', '');
+  store.set('refreshToken', '');
+  store.set('tokenExpiresAt', 0);
+  if (webWindow && !webWindow.isDestroyed()) webWindow.close();
+  await session.fromPartition('persist:myphoto-web').clearStorageData();
+  updateTrayMenu('paused');
 });
 
 // ---- Google Takeout import ----

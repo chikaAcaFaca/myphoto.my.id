@@ -9,6 +9,12 @@ contextBridge.exposeInMainWorld('api', {
   // Auth
   login: (email: string, password: string) => ipcRenderer.invoke('login', email, password),
   googleLogin: () => ipcRenderer.invoke('google-login'),
+  logout: () => ipcRenderer.invoke('logout'),
+  getAccount: () => ipcRenderer.invoke('get-account'),
+
+  // App windows / folders
+  openWeb: (page: 'meme-wall' | 'meme-creator' | 'myspace' | 'photos' | 'pricing') => ipcRenderer.invoke('open-web', page),
+  openSyncFolder: () => ipcRenderer.invoke('open-sync-folder'),
 
   // Sync
   getSyncStats: () => ipcRenderer.invoke('get-sync-stats'),

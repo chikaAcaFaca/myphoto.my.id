@@ -202,6 +202,8 @@ export const desktopAuth = {
   connecting: 'Connecting to the MyPhoto app…',
   done: 'Signed in! You can close this tab and return to the MyPhoto app.',
   failed: 'Google sign-in failed.',
+  sessionSigningIn: 'Signing you in…',
+  sessionFailed: 'Could not sign you in. Close this window and try again from the app.',
 } as const;
 
 export const meme = {
