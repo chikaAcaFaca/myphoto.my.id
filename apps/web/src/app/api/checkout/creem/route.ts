@@ -1,0 +1,83 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
+import { STORAGE_TIERS, getTierPeriods, isBillingPeriod, type BillingPeriod } from '@myphoto/shared';
+import { auth } from '@/lib/firebase-admin';
+import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
+import { getActiveSubscription } from '@/lib/billing';
+import { changeCreemSubscriptionProduct, createCreemCheckout, getCreemProductId } from '@/lib/creem';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * POST /api/checkout/creem  { tier, period } → { url }
+ *
+ * The checkout session is created server-side so the API key never reaches
+ * the browser and the buyer's Firebase uid rides along in `metadata` — the
+ * webhook then credits exactly this account, whatever email they type.
+ */
+export async function POST(request: NextRequest) {
+  const authResult = await verifyAuthWithRateLimit(request, 'api');
+  if (!authResult.success) return authResult.response;
+  const { userId } = authResult;
+
+  const body = await request.json().catch(() => ({}));
+  const tierNum = Number(body?.tier);
+  if (!isBillingPeriod(body?.period)) {
+    return NextResponse.json({ error: 'Unknown billing period' }, { status: 400 });
+  }
+  const period: BillingPeriod = body.period;
+
+  const tier = STORAGE_TIERS.find((t) => t.tier === tierNum);
+  if (!tier || tier.tier === 0) {
+    return NextResponse.json({ error: 'Unknown plan' }, { status: 400 });
+  }
+  if (!getTierPeriods(tier).includes(period)) {
+    return NextResponse.json({ error: `Plan "${tier.name}" is not sold with ${period} billing` }, { status: 400 });
+  }
+  const productId = getCreemProductId(tier, period);
+  if (!productId) {
+    return NextResponse.json(
+      { error: `Plan "${tier.name}" is not available for ${period} billing yet`, code: 'not-configured' },
+      { status: 409 }
+    );
+  }
+
+  const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://myphotomy.space';
+
+  // Already subscribed: switch that subscription instead of opening a second
+  // checkout, which left two parallel subscriptions whose storage added up.
+  const current = await getActiveSubscription(userId);
+  if (current?.provider === 'creem' && current.creemSubscriptionId) {
+    if (current.tier.tier === tier.tier && current.period === period) {
+      return NextResponse.json({ error: 'You already have this plan', code: 'same-plan' }, { status: 409 });
+    }
+    try {
+      const upgrade = tier.storageBytes > current.tier.storageBytes;
+      await changeCreemSubscriptionProduct(
+        current.creemSubscriptionId,
+        productId,
+        upgrade ? 'proration-charge-immediately' : 'proration-none'
+      );
+      return NextResponse.json({ url: `${origin}/photos?subscribed=true`, changed: true });
+    } catch (error) {
+      console.error('Creem plan change from checkout failed:', error);
+      return NextResponse.json({ error: 'Could not change the plan' }, { status: 502 });
+    }
+  }
+
+  try {
+    const email = (await auth().getUser(userId)).email;
+    const checkout = await createCreemCheckout({
+      productId,
+      userId,
+      email,
+      requestId: `${userId}:${randomUUID()}`,
+      successUrl: `${origin}/photos?subscribed=true`,
+      metadata: { tier: tier.tier, period },
+    });
+    return NextResponse.json({ url: checkout.checkout_url });
+  } catch (error) {
+    console.error('Creem checkout error:', error);
+    return NextResponse.json({ error: 'Could not start checkout' }, { status: 502 });
+  }
+}

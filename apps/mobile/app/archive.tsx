@@ -6,10 +6,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { setViewerPhotos } from '@/lib/photo-list-store';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
+import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -19,6 +23,8 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 export default function ArchiveScreen() {
   const { colors: tc } = useTheme();
+  const authHeaders = useAuthHeaders();
+  const { t } = useT();
   const { getToken } = useAuth();
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,15 +54,21 @@ export default function ArchiveScreen() {
 
   const renderItem = ({ item }: { item: FileMetadata }) => (
     <TouchableOpacity
-      style={styles.cell}
+      style={[styles.cell, { backgroundColor: tc.bgInput }]}
       activeOpacity={0.8}
-      onPress={() => router.push({
-        pathname: '/photo-viewer',
-        params: { id: item.id, name: item.name, type: item.type, isArchived: '1', isFavorite: item.isFavorite ? '1' : '0' },
-      })}
+      onPress={() => {
+        setViewerPhotos(files.map((f) => ({
+          id: f.id, name: f.name, type: f.type, isArchived: '1',
+          isFavorite: f.isFavorite ? '1' : '0',
+        })));
+        router.push({
+          pathname: '/photo-viewer',
+          params: { id: item.id, name: item.name, type: item.type, isArchived: '1', isFavorite: item.isFavorite ? '1' : '0' },
+        });
+      }}
     >
       <Image
-        source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=small` }}
+        source={pickThumb(item as any, 'small', authHeaders)}
         style={styles.cellImage}
         resizeMode="cover"
       />
@@ -65,30 +77,22 @@ export default function ArchiveScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Arhiva</Text>
-          <View style={{ width: 32 }} />
-        </View>
-      </View>
+      <StackHeader title={t('archive.title')} />
 
-      <View style={styles.notice}>
-        <Ionicons name="eye-off-outline" size={16} color={colors.textMuted} />
-        <Text style={styles.noticeText}>Arhivirane slike su skrivene iz glavne galerije</Text>
+      <View style={[styles.notice, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+        <Ionicons name="eye-off-outline" size={16} color={tc.textSecondary} />
+        <Text style={[styles.noticeText, { color: tc.textSecondary }]}>{t('archive.notice')}</Text>
       </View>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : files.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="archive-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Arhiva je prazna</Text>
-          <Text style={styles.emptySubtext}>Arhivirajte slike da ih sakrijete iz galerije</Text>
+          <Ionicons name="archive-outline" size={64} color={tc.textMuted} />
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('archive.empty')}</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textSecondary }]}>{t('archive.emptyHint')}</Text>
         </View>
       ) : (
         <FlatList
@@ -98,7 +102,7 @@ export default function ArchiveScreen() {
           numColumns={COL}
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} />}
         />
       )}
     </SafeAreaView>
@@ -107,16 +111,12 @@ export default function ArchiveScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   notice: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginHorizontal: 12, marginTop: 10, marginBottom: 4,
-    backgroundColor: '#f0f9ff', borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: radius.lg, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1,
   },
-  noticeText: { fontSize: 11, color: colors.textSecondary, ...fonts.medium },
+  noticeText: { flex: 1, fontSize: 12, ...fonts.medium },
   row: { gap: GAP, paddingHorizontal: 1 },
   cell: { width: CELL, height: CELL, marginBottom: GAP, backgroundColor: colors.bgInput, borderRadius: 2 },
   cellImage: { width: '100%', height: '100%', borderRadius: 2 },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/i18n/client';
 
 /**
  * Post-login nudge for Windows users browsing the site to install the desktop
@@ -11,6 +12,7 @@ import { useEffect, useState } from 'react';
  */
 export function WindowsAppBanner() {
   const [show, setShow] = useState(false);
+  const t = useT();
 
   useEffect(() => {
     const ua = navigator.userAgent || '';
@@ -34,16 +36,16 @@ export function WindowsAppBanner() {
       <div className="flex items-center gap-2 text-sm">
         <span className="text-base">💻</span>
         <span>
-          <span className="font-semibold">Instaliraj desktop aplikaciju</span> za
-          sinhronizaciju fajlova sa računarom.{' '}
+          <span className="font-semibold">{t('components.windowsBanner.title')}</span>{' '}
+          {t('components.windowsBanner.body')}{' '}
           <a href="/api/download/desktop" className="underline underline-offset-2">
-            Preuzmi za Windows
+            {t('components.windowsBanner.download')}
           </a>
         </span>
       </div>
       <button
         onClick={dismiss}
-        aria-label="Zatvori"
+        aria-label={t('components.common.close')}
         className="shrink-0 rounded-md px-2 py-1 text-white/90 hover:bg-white/15"
       >
         ✕

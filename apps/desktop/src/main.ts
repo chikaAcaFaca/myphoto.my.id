@@ -1,6 +1,8 @@
 import { app, BrowserWindow, Tray, Menu, dialog, ipcMain, nativeImage, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as http from 'http';
+import { randomBytes } from 'crypto';
 import Store from 'electron-store';
 import { SyncEngine } from './sync-engine';
 import { TakeoutImporter, TakeoutProgress } from './takeout-importer';
@@ -70,9 +72,23 @@ async function getValidToken(): Promise<string> {
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
+
 let syncEngine: SyncEngine | null = null;
 let takeout: TakeoutImporter | null = null;
 let takeoutUid = '';
+
+// Register (or clear) the Windows auto-start login item. In a packaged build
+// process.execPath is the app's own exe, so the bare form is correct. In dev
+// (`electron .`) it's the bare electron.exe — registering THAT alone makes
+// Windows launch Electron's built-in "welcome" app at boot (a stray "Electron"
+// window), so we must also hand it the resolved app path.
+function applyAutoStart(openAtLogin: boolean) {
+  app.setLoginItemSettings(
+    process.defaultApp
+      ? { openAtLogin, path: process.execPath, args: [path.resolve(process.argv[1])] }
+      : { openAtLogin }
+  );
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -272,17 +288,8 @@ ipcMain.handle('save-config', (_event, config: Record<string, unknown>) => {
   syncEngine?.stop();
   initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
 
-  // Auto-start on boot. In a packaged build process.execPath is the app's own
-  // exe, so the bare form is correct. In dev (`electron .`) process.execPath is
-  // the bare electron.exe — registering THAT alone makes Windows launch
-  // Electron's built-in "welcome" app at boot (the stray "Electron" window), so
-  // we must also hand it the app path.
-  const openAtLogin = (config.startOnBoot as boolean) || false;
-  app.setLoginItemSettings(
-    process.defaultApp
-      ? { openAtLogin, path: process.execPath, args: [path.resolve(process.argv[1])] }
-      : { openAtLogin }
-  );
+  // Auto-start on boot
+  applyAutoStart((config.startOnBoot as boolean) || false);
 
   return true;
 });
@@ -316,6 +323,84 @@ ipcMain.handle('login', async (_event, email: string, password: string) => {
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Connection failed' };
   }
+});
+
+// Google sign-in for users who don't know their password. We can't run the
+// Firebase web SDK inside the main process, so we reuse the website's Google
+// sign-in: spin up a one-shot loopback HTTP server, open the system browser at
+// /desktop-auth?port=&state=, and the page POSTs the Firebase tokens back to us.
+// The `state` nonce prevents any other local process from injecting tokens.
+ipcMain.handle('google-login', async () => {
+  const serverUrl = store.get('serverUrl') as string;
+  const state = randomBytes(16).toString('hex');
+
+  return new Promise<{ success: boolean; token?: string; error?: string }>((resolve) => {
+    let settled = false;
+    const server = http.createServer();
+
+    const finish = (result: { success: boolean; token?: string; error?: string }) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { server.close(); } catch { /* already closing */ }
+      resolve(result);
+    };
+
+    // Give the user 5 minutes to complete the browser flow, then give up.
+    const timer = setTimeout(() => finish({ success: false, error: 'Vreme za prijavu je isteklo' }), 5 * 60 * 1000);
+
+    server.on('request', (req, res) => {
+      const url = new URL(req.url || '', 'http://127.0.0.1');
+
+      // Allow the cross-origin POST from the https website to this loopback.
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+      if (url.pathname !== '/callback') { res.writeHead(404); res.end(); return; }
+      if (url.searchParams.get('state') !== state) {
+        res.writeHead(403); res.end('bad state');
+        return;
+      }
+
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+        if (body.length > 100_000) req.destroy(); // refuse oversized payloads
+      });
+      req.on('end', () => {
+        try {
+          const data = JSON.parse(body || '{}') as { idToken?: string; refreshToken?: string; expiresIn?: number };
+          if (!data.idToken) {
+            res.writeHead(400); res.end('no token');
+            finish({ success: false, error: 'Token nije primljen' });
+            return;
+          }
+          store.set('apiToken', data.idToken);
+          store.set('refreshToken', data.refreshToken || '');
+          store.set('tokenExpiresAt', Date.now() + (data.expiresIn || 3600) * 1000);
+
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end('<html><body style="font-family:system-ui,sans-serif;text-align:center;padding-top:48px;color:#374151">Prijava uspešna. Možete zatvoriti ovaj prozor i vratiti se u MyPhoto aplikaciju.</body></html>');
+
+          if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
+          finish({ success: true, token: data.idToken });
+        } catch {
+          res.writeHead(400); res.end('bad body');
+          finish({ success: false, error: 'Neispravan odgovor prijave' });
+        }
+      });
+    });
+
+    server.on('error', (e) => finish({ success: false, error: e.message }));
+
+    // Bind to a random free port on loopback only, then open the browser.
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+      shell.openExternal(`${serverUrl}/desktop-auth?port=${port}&state=${state}`);
+    });
+  });
 });
 
 ipcMain.handle('get-sync-stats', () => {
@@ -440,6 +525,10 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     createWindow();
     createTray();
+    // Apply the start-with-Windows preference on every launch so the default
+    // (startOnBoot: true) actually registers the login item — previously this
+    // only ran when settings were saved, so a fresh install never auto-started.
+    applyAutoStart(store.get('startOnBoot') as boolean);
     initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
   });
 }

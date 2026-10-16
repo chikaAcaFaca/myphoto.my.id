@@ -2,20 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initAdmin, db, auth } from '@/lib/firebase-admin';
 import { s3Client, BUCKET_NAME, getBucketCors } from '@/lib/s3';
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { isOperator } from '@/lib/operator-guard';
 
 export const dynamic = 'force-dynamic';
 
-// SECURITY: this route exposes admin powers (list every user, change anyone's
-// storageLimit, read infra status). It was completely unauthenticated. Gate it
-// behind a shared secret: callers must send `x-debug-secret` matching the
-// DEBUG_SECRET env var. Secure-by-default — if DEBUG_SECRET isn't set, every
-// request is denied, so the route is closed until an operator opts in.
-function debugAuthorized(request: NextRequest): boolean {
-  const secret = process.env.DEBUG_SECRET;
-  if (!secret) return false;
-  const provided = request.headers.get('x-debug-secret') || '';
-  return provided.length > 0 && provided === secret;
-}
+// SECURITY: operator-only (list every user, change anyone's storageLimit,
+// read infra status). See lib/operator-guard.ts.
+const debugAuthorized = isOperator;
 
 const FORBIDDEN = NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -143,39 +136,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'normalizeAllStorage') {
-      const { FREE_STORAGE_LIMIT, BACKUP_BONUS } = await import('@myphoto/shared');
+      // Use the single source of truth so this includes desktop + meme-referral
+      // + manual (admin-granted) bonuses. The old inline formula here omitted
+      // them and would have wiped manual grants / meme bonuses for every user.
+      const { recalculateStorageLimit } = await import('@/lib/storage-limit');
       const snapshot = await db.collection('users').get();
       const results: Array<{ id: string; email?: string; oldLimit: number; newLimit: number }> = [];
 
       for (const userDoc of snapshot.docs) {
         const data = userDoc.data();
         const oldLimit = data.storageLimit || 0;
-
-        // Calculate correct storage: 1GB base + 4GB if backup claimed + referral bonus + subscriptions
-        const backupBonus = data.backupBonusClaimed ? BACKUP_BONUS : 0;
-        const referralBonus = data.referralBonusBytes || 0;
-
-        // Get active subscriptions for this user
-        let subscriptionStorage = 0;
-        const subsSnapshot = await db
-          .collection('subscriptions')
-          .where('userId', '==', userDoc.id)
-          .where('status', '==', 'active')
-          .get();
-        for (const subDoc of subsSnapshot.docs) {
-          subscriptionStorage += subDoc.data().storageAmount || 0;
-        }
-
-        const newLimit = FREE_STORAGE_LIMIT + backupBonus + referralBonus + subscriptionStorage;
-
+        const newLimit = await recalculateStorageLimit(userDoc.id);
         if (oldLimit !== newLimit) {
-          await db.collection('users').doc(userDoc.id).update({ storageLimit: newLimit });
-          results.push({
-            id: userDoc.id,
-            email: data.email,
-            oldLimit,
-            newLimit,
-          });
+          results.push({ id: userDoc.id, email: data.email, oldLimit, newLimit });
         }
       }
 

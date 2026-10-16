@@ -10,6 +10,8 @@ import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
+import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
 
 const { width } = Dimensions.get('window');
 const COL = 3;
@@ -17,7 +19,7 @@ const GAP = 2;
 const CELL = (width - GAP * (COL + 1)) / COL;
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
-function daysRemaining(trashedAt: string): number {
+function daysRemaining(trashedAt: string | Date): number {
   const trashed = new Date(trashedAt).getTime();
   const now = Date.now();
   const diff = 30 - Math.floor((now - trashed) / (1000 * 60 * 60 * 24));
@@ -26,6 +28,7 @@ function daysRemaining(trashedAt: string): number {
 
 export default function TrashScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { getToken } = useAuth();
   const [files, setFiles] = useState<FileMetadata[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,12 +59,12 @@ export default function TrashScreen() {
   const handleEmptyTrash = () => {
     if (files.length === 0) return;
     Alert.alert(
-      'Isprazni korpu?',
-      `Svi fajlovi (${files.length}) ce biti trajno obrisani. Ova akcija je nepovratna.`,
+      t('trash.emptyConfirmTitle'),
+      t('trash.emptyConfirmMessage', { count: files.length }),
       [
-        { text: 'Otkazi', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Isprazni', style: 'destructive', onPress: async () => {
+          text: t('trash.emptyAction'), style: 'destructive', onPress: async () => {
             try {
               const token = await getToken();
               await fetch(`${API_URL}/api/files/empty-trash`, {
@@ -70,7 +73,7 @@ export default function TrashScreen() {
               });
               setFiles([]);
             } catch (e) {
-              Alert.alert('Greska', 'Nije moguce isprazniti korpu.');
+              Alert.alert(t('common.error'), t('trash.emptyFailed'));
             }
           },
         },
@@ -80,7 +83,7 @@ export default function TrashScreen() {
 
   const renderItem = ({ item }: { item: FileMetadata }) => (
     <TouchableOpacity
-      style={styles.cell}
+      style={[styles.cell, { backgroundColor: tc.bgInput }]}
       activeOpacity={0.8}
       onPress={() => router.push({
         pathname: '/photo-viewer',
@@ -94,7 +97,7 @@ export default function TrashScreen() {
       />
       {item.trashedAt && (
         <View style={styles.daysBadge}>
-          <Text style={styles.daysText}>{daysRemaining(item.trashedAt)}d</Text>
+          <Text style={styles.daysText}>{t('trash.daysLeft', { days: daysRemaining(item.trashedAt) })}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -102,32 +105,33 @@ export default function TrashScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+      <StackHeader
+        title={t('trash.title')}
+        actions={
+          <TouchableOpacity
+            onPress={handleEmptyTrash}
+            accessibilityRole="button"
+            style={[styles.emptyBtn, { backgroundColor: tc.bgInput }]}
+          >
+            <Text style={[styles.emptyBtnText, { color: tc.error }]}>{t('trash.emptyAction')}</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Korpa</Text>
-          <TouchableOpacity onPress={handleEmptyTrash}>
-            <Text style={styles.emptyBtn}>Isprazni</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
 
-      <View style={styles.notice}>
-        <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} />
-        <Text style={styles.noticeText}>Fajlovi se automatski brisu nakon 30 dana</Text>
+      <View style={[styles.notice, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
+        <Ionicons name="information-circle-outline" size={16} color={tc.textSecondary} />
+        <Text style={[styles.noticeText, { color: tc.textSecondary }]}>{t('trash.notice')}</Text>
       </View>
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : files.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="trash-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.emptyText}>Korpa je prazna</Text>
-          <Text style={styles.emptySubtext}>Obrisani fajlovi ce se pojaviti ovde</Text>
+          <Ionicons name="trash-outline" size={64} color={tc.textMuted} />
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('trash.empty')}</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textSecondary }]}>{t('trash.emptyHint')}</Text>
         </View>
       ) : (
         <FlatList
@@ -137,7 +141,7 @@ export default function TrashScreen() {
           numColumns={COL}
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} />}
         />
       )}
     </SafeAreaView>
@@ -146,17 +150,14 @@ export default function TrashScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
-  emptyBtn: { fontSize: 13, ...fonts.semibold, color: 'rgba(255,255,255,0.8)' },
+  emptyBtn: { height: 44, borderRadius: 22, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  emptyBtnText: { fontSize: 14, ...fonts.semibold },
   notice: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginHorizontal: 12, marginTop: 10, marginBottom: 4,
-    backgroundColor: '#fef9c3', borderRadius: radius.md, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: radius.lg, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1,
   },
-  noticeText: { fontSize: 11, color: colors.textSecondary, ...fonts.medium },
+  noticeText: { flex: 1, fontSize: 12, ...fonts.medium },
   row: { gap: GAP, paddingHorizontal: 1 },
   cell: { width: CELL, height: CELL, marginBottom: GAP, backgroundColor: colors.bgInput, borderRadius: 2 },
   cellImage: { width: '100%', height: '100%', borderRadius: 2 },

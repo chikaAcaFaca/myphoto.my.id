@@ -7,6 +7,7 @@ import { useFiles, useBulkDeleteFiles } from '@/lib/hooks';
 import { useFilesStore, useUIStore } from '@/lib/stores';
 import { PhotoGrid } from '@/components/gallery/photo-grid';
 import { SelectionBar } from '@/components/gallery/selection-bar';
+import { useT } from '@/i18n/client';
 
 export default function ArchivePage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useFiles({
@@ -16,6 +17,7 @@ export default function ArchivePage() {
   const { selectedFiles, deselectAll } = useFilesStore();
   const { addNotification } = useUIStore();
   const { mutate: bulkDelete } = useBulkDeleteFiles();
+  const t = useT();
 
   const files = data?.pages.flatMap((page) => page.files) ?? [];
 
@@ -25,8 +27,8 @@ export default function ArchivePage() {
       onSuccess: () => {
         addNotification({
           type: 'success',
-          title: 'Premesteno u korpu',
-          message: `${ids.length} fajlova premesteno u korpu`,
+          title: t('dashboard.shared.movedToTrash'),
+          message: t('dashboard.shared.movedToTrashMsg', { count: ids.length }),
         });
         deselectAll();
       },
@@ -64,9 +66,9 @@ export default function ArchivePage() {
     >
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Arhiva</h1>
+        <h1 className="text-2xl font-bold">{t('dashboard.archive.title')}</h1>
         <p className="text-sm text-gray-500">
-          {files.length} arhiviran{files.length === 1 ? '' : 'ih'} fajlov{files.length === 1 ? '' : 'a'}
+          {t(files.length === 1 ? 'dashboard.archive.countOne' : 'dashboard.archive.countMany', { count: files.length })}
         </p>
       </div>
 
@@ -80,7 +82,7 @@ export default function ArchivePage() {
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
           ) : (
             <button onClick={() => fetchNextPage()} className="btn-secondary">
-              Učitaj još
+              {t('dashboard.shared.loadMore')}
             </button>
           )}
         </div>
@@ -97,17 +99,16 @@ export default function ArchivePage() {
           <div className="mb-6 rounded-full bg-gray-100 p-6 dark:bg-gray-800">
             <Archive className="h-12 w-12 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold">Arhiva je prazna</h2>
+          <h2 className="text-xl font-semibold">{t('dashboard.archive.emptyTitle')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Arhivirane slike i video zapisi se čuvaju ovde. Koristite arhivu da sklonite
-            fajlove iz glavnog prikaza bez brisanja.
+            {t('dashboard.archive.emptyText')}
           </p>
         </motion.div>
       )}
       <SelectionBar
         actions={[
           {
-            label: 'Obrisi',
+            label: t('dashboard.shared.delete'),
             icon: <Trash2 className="h-4 w-4" />,
             onClick: handleBulkDelete,
             variant: 'danger',

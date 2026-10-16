@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { db } from '@/lib/firebase-admin';
-import { BACKUP_BONUS } from '@myphoto/shared';
-import { FieldValue } from 'firebase-admin/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,16 +38,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Auto-backup must be enabled' }, { status: 400 });
   }
 
-  const newStorageLimit = (userData.storageLimit || 0) + BACKUP_BONUS;
-
-  await userRef.update({
-    backupBonusClaimed: true,
-    storageLimit: FieldValue.increment(BACKUP_BONUS),
-  });
+  // The app/backup bonus is retired (free = 1GB + referrals). The flag is
+  // still recorded so older app builds that call this stop retrying, but no
+  // storage is granted.
+  await userRef.update({ backupBonusClaimed: true });
 
   return NextResponse.json({
     success: true,
-    bonusBytes: BACKUP_BONUS,
-    newStorageLimit,
+    bonusBytes: 0,
+    newStorageLimit: userData.storageLimit || 0,
   });
 }

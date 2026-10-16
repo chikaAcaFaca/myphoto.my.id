@@ -8,6 +8,8 @@ import { useUIStore } from '@/lib/stores';
 import { useCreateAlbum, useAddFilesToAlbum, useUpdateAlbum, useFiles, useUploadFile } from '@/lib/hooks';
 import { ALL_SUPPORTED_TYPES, MAX_UPLOAD_SIZE, formatBytes } from '@myphoto/shared';
 import type { FileMetadata } from '@myphoto/shared';
+import { useI18n } from '@/i18n/client';
+import { pluralForm } from '@/components/i18n-static';
 
 export function CreateAlbumModal() {
   const { isCreateAlbumModalOpen, closeCreateAlbumModal, addNotification } = useUIStore();
@@ -16,6 +18,8 @@ export function CreateAlbumModal() {
   const { mutateAsync: updateAlbum } = useUpdateAlbum();
   const { mutateAsync: uploadFile } = useUploadFile();
   const { data: filesData, isLoading: isLoadingFiles } = useFiles();
+  const { t, locale } = useI18n();
+  const fileCountLabel = (n: number) => t(`components.common.fileCount.${pluralForm(n, locale)}`, { count: n });
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -118,15 +122,15 @@ export function CreateAlbumModal() {
       const totalCount = allFileIds.length;
       addNotification({
         type: 'success',
-        title: 'Album kreiran',
-        message: `"${name}" sa ${totalCount} ${totalCount === 1 ? 'fajlom' : 'fajlova'}`,
+        title: t('components.createAlbum.createdTitle'),
+        message: t('components.createAlbum.createdMessage', { album: name, files: fileCountLabel(totalCount) }),
       });
 
       handleClose();
     } catch (error: any) {
       addNotification({
         type: 'error',
-        title: 'Greška pri kreiranju albuma',
+        title: t('components.createAlbum.createError'),
         message: error.message,
       });
     } finally {
@@ -161,9 +165,10 @@ export function CreateAlbumModal() {
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-            <h2 className="text-lg font-semibold">Kreiraj album</h2>
+            <h2 className="text-lg font-semibold">{t('components.createAlbum.title')}</h2>
             <button
               onClick={handleClose}
+              aria-label={t('components.common.close')}
               className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
@@ -175,7 +180,7 @@ export function CreateAlbumModal() {
             <div className="flex-1 space-y-4 overflow-y-auto p-6">
               <div>
                 <label htmlFor="album-name" className="mb-1 block text-sm font-medium">
-                  Ime albuma
+                  {t('components.createAlbum.nameLabel')}
                 </label>
                 <input
                   id="album-name"
@@ -183,7 +188,7 @@ export function CreateAlbumModal() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="input"
-                  placeholder="Letovanje 2024"
+                  placeholder={t('components.createAlbum.namePlaceholder')}
                   required
                   autoFocus
                 />
@@ -191,14 +196,14 @@ export function CreateAlbumModal() {
 
               <div>
                 <label htmlFor="album-description" className="mb-1 block text-sm font-medium">
-                  Opis (opciono)
+                  {t('components.createAlbum.descriptionLabel')}
                 </label>
                 <textarea
                   id="album-description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="input min-h-[80px] resize-none"
-                  placeholder="Kolekcija slika sa putovanja..."
+                  placeholder={t('components.createAlbum.descriptionPlaceholder')}
                   rows={2}
                 />
               </div>
@@ -216,7 +221,7 @@ export function CreateAlbumModal() {
                     }`}
                   >
                     <Upload className="mr-1.5 inline h-4 w-4" />
-                    Upload novih slika
+                    {t('components.createAlbum.tabUpload')}
                   </button>
                   <button
                     type="button"
@@ -228,7 +233,7 @@ export function CreateAlbumModal() {
                     }`}
                   >
                     <ImageIcon className="mr-1.5 inline h-4 w-4" />
-                    Iz galerije {selectedFileIds.size > 0 && `(${selectedFileIds.size})`}
+                    {t('components.createAlbum.tabExisting')} {selectedFileIds.size > 0 && `(${selectedFileIds.size})`}
                   </button>
                 </div>
 
@@ -246,10 +251,10 @@ export function CreateAlbumModal() {
                       <input {...getInputProps()} />
                       <Upload className="mx-auto mb-2 h-8 w-8 text-gray-400" />
                       {isDragActive ? (
-                        <p className="text-sky-600">Pustite fajlove ovde...</p>
+                        <p className="text-sky-600">{t('components.createAlbum.dropHere')}</p>
                       ) : (
                         <p className="text-sm text-gray-600 dark:text-gray-300">
-                          Prevucite slike ovde ili <span className="text-sky-500">izaberite</span>
+                          {t('components.createAlbum.dragOr')} <span className="text-sky-500">{t('components.createAlbum.browse')}</span>
                         </p>
                       )}
                     </div>
@@ -268,6 +273,7 @@ export function CreateAlbumModal() {
                             <button
                               type="button"
                               onClick={() => removeNewFile(index)}
+                              aria-label={t('components.common.remove')}
                               className="flex-shrink-0 rounded p-0.5 text-gray-400 hover:text-red-500"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -275,7 +281,7 @@ export function CreateAlbumModal() {
                           </div>
                         ))}
                         <p className="mt-1 text-xs text-gray-500">
-                          {newFiles.length} novih fajlova za upload
+                          {t('components.createAlbum.newFilesToUpload', { files: fileCountLabel(newFiles.length) })}
                         </p>
                       </div>
                     )}
@@ -287,8 +293,8 @@ export function CreateAlbumModal() {
                   <div>
                     <div className="mb-2 flex items-center justify-between">
                       <label className="block text-sm font-medium">
-                        Izaberi slike {selectedFileIds.size > 0 && (
-                          <span className="text-sky-600">({selectedFileIds.size} izabrano)</span>
+                        {t('components.createAlbum.selectPhotos')} {selectedFileIds.size > 0 && (
+                          <span className="text-sky-600">({t('components.createAlbum.selectedCount', { count: selectedFileIds.size })})</span>
                         )}
                       </label>
                       {selectedFileIds.size > 0 && (
@@ -297,7 +303,7 @@ export function CreateAlbumModal() {
                           onClick={() => setSelectedFileIds(new Set())}
                           className="text-xs text-gray-500 hover:text-gray-700"
                         >
-                          Poništi izbor
+                          {t('components.createAlbum.clearSelection')}
                         </button>
                       )}
                     </div>
@@ -315,7 +321,7 @@ export function CreateAlbumModal() {
                       <div className="rounded-lg border-2 border-dashed border-gray-200 p-6 text-center dark:border-gray-700">
                         <ImageIcon className="mx-auto h-8 w-8 text-gray-400" />
                         <p className="mt-2 text-sm text-gray-500">
-                          Nemate uploadovanih slika. Koristite tab "Upload novih slika".
+                          {t('components.createAlbum.noPhotos')}
                         </p>
                       </div>
                     ) : (
@@ -380,7 +386,7 @@ export function CreateAlbumModal() {
             {/* Footer */}
             <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4 dark:border-gray-700">
               <span className="text-sm text-gray-500">
-                {totalSelected > 0 && `${totalSelected} fajlova ukupno`}
+                {totalSelected > 0 && t('components.createAlbum.totalFiles', { files: fileCountLabel(totalSelected) })}
               </span>
               <div className="flex items-center gap-3">
                 <button
@@ -388,7 +394,7 @@ export function CreateAlbumModal() {
                   onClick={handleClose}
                   className="btn-secondary"
                 >
-                  Otkaži
+                  {t('components.common.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -398,12 +404,12 @@ export function CreateAlbumModal() {
                   {isPending ? (
                     <>
                       <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      {newFiles.length > 0 ? 'Upload i kreiranje...' : 'Kreiranje...'}
+                      {newFiles.length > 0 ? t('components.createAlbum.uploadingAndCreating') : t('components.createAlbum.creating')}
                     </>
                   ) : (
                     <>
                       <FolderPlus className="mr-2 h-4 w-4" />
-                      Kreiraj album
+                      {t('components.createAlbum.submit')}
                       {totalSelected > 0 && ` (${totalSelected})`}
                     </>
                   )}

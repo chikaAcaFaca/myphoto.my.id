@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, FolderPlus, Plus, Check } from 'lucide-react';
 import { useAlbums, useCreateAlbum, useAddFilesToAlbum, useUpdateAlbum } from '@/lib/hooks/use-albums';
 import { useUIStore } from '@/lib/stores';
+import { useI18n } from '@/i18n/client';
+import { pluralForm } from '@/components/i18n-static';
 
 interface AddToAlbumModalProps {
   open: boolean;
@@ -19,6 +21,8 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
   const { mutateAsync: addFilesToAlbum } = useAddFilesToAlbum();
   const { mutateAsync: updateAlbum } = useUpdateAlbum();
   const { addNotification } = useUIStore();
+  const { t, locale } = useI18n();
+  const fileCountLabel = (n: number) => t(`components.common.fileCount.${pluralForm(n, locale)}`, { count: n });
 
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState('');
@@ -31,12 +35,12 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
       await addFilesToAlbum({ albumId, fileIds });
       addNotification({
         type: 'success',
-        title: 'Dodato u album',
-        message: `${fileIds.length} fajlova dodato u "${albumName}"`,
+        title: t('components.addToAlbum.addedTitle'),
+        message: t('components.addToAlbum.addedMessage', { files: fileCountLabel(fileIds.length), album: albumName }),
       });
       onSuccess();
     } catch (error: any) {
-      addNotification({ type: 'error', title: 'Greška', message: error.message });
+      addNotification({ type: 'error', title: t('components.common.error'), message: error.message });
     } finally {
       setIsSubmitting(false);
     }
@@ -53,14 +57,14 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
       await updateAlbum({ albumId: album.id, updates: { coverFileId: fileIds[0] } });
       addNotification({
         type: 'success',
-        title: 'Album kreiran',
-        message: `"${newAlbumName.trim()}" sa ${fileIds.length} fajlova`,
+        title: t('components.addToAlbum.createdTitle'),
+        message: t('components.addToAlbum.createdMessage', { album: newAlbumName.trim(), files: fileCountLabel(fileIds.length) }),
       });
       setNewAlbumName('');
       setIsCreatingNew(false);
       onSuccess();
     } catch (error: any) {
-      addNotification({ type: 'error', title: 'Greška', message: error.message });
+      addNotification({ type: 'error', title: t('components.common.error'), message: error.message });
     } finally {
       setIsSubmitting(false);
     }
@@ -94,9 +98,9 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
             <h2 className="text-lg font-semibold">
-              Dodaj u album ({fileIds.length} {fileIds.length === 1 ? 'fajl' : 'fajlova'})
+              {t('components.addToAlbum.title', { files: fileCountLabel(fileIds.length) })}
             </h2>
-            <button onClick={handleClose} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+            <button onClick={handleClose} aria-label={t('components.common.close')} className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -111,13 +115,14 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
                   className="input flex-1"
-                  placeholder="Ime novog albuma"
+                  placeholder={t('components.addToAlbum.newAlbumName')}
+                  aria-label={t('components.addToAlbum.newAlbumName')}
                   autoFocus
                 />
-                <button type="submit" disabled={!newAlbumName.trim() || isSubmitting} className="btn-primary">
+                <button type="submit" disabled={!newAlbumName.trim() || isSubmitting} aria-label={t('components.common.save')} className="btn-primary">
                   <Check className="h-4 w-4" />
                 </button>
-                <button type="button" onClick={() => setIsCreatingNew(false)} className="btn-secondary">
+                <button type="button" onClick={() => setIsCreatingNew(false)} aria-label={t('components.common.cancel')} className="btn-secondary">
                   <X className="h-4 w-4" />
                 </button>
               </form>
@@ -127,7 +132,7 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
                 className="mb-4 flex w-full items-center gap-3 rounded-lg border-2 border-dashed border-gray-300 p-3 text-sm text-gray-600 hover:border-primary-400 hover:text-primary-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-primary-500"
               >
                 <Plus className="h-5 w-5" />
-                Kreiraj novi album
+                {t('components.addToAlbum.createNew')}
               </button>
             )}
 
@@ -139,7 +144,7 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
                 ))}
               </div>
             ) : !albums || albums.length === 0 ? (
-              <p className="text-center text-sm text-gray-500">Nemate albume. Kreirajte novi!</p>
+              <p className="text-center text-sm text-gray-500">{t('components.addToAlbum.noAlbums')}</p>
             ) : (
               <div className="space-y-1">
                 {albums.map((album) => (
@@ -166,7 +171,7 @@ export function AddToAlbumModal({ open, onClose, fileIds, onSuccess }: AddToAlbu
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="truncate text-sm font-medium">{album.name}</p>
-                      <p className="text-xs text-gray-500">{album.fileCount || 0} fajlova</p>
+                      <p className="text-xs text-gray-500">{fileCountLabel(album.fileCount || 0)}</p>
                     </div>
                   </button>
                 ))}

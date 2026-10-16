@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { tStatic } from '@/components/i18n-static';
 import { useAuthStore } from '../stores';
 import { formatBytes, formatStoragePercentage } from '@myphoto/shared';
 
@@ -12,19 +13,24 @@ export function useStorage() {
   return useQuery({
     queryKey: ['storage', user?.id],
     queryFn: async () => {
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       const userRef = doc(db, 'users', user.id);
       const userSnap = await getDoc(userRef);
 
       if (!userSnap.exists()) {
-        throw new Error('User not found');
+        throw new Error(tStatic('components.errors.userNotFound'));
       }
 
       const userData = userSnap.data();
       const used = userData.storageUsed || 0;
       const limit = userData.storageLimit || 0;
       const ratio = limit > 0 ? used / limit : 0;
+      // Set by the server when a subscription/archive ended with the user
+      // still over their free allowance (see lib/over-quota.ts).
+      const overQuotaDeleteAt: Date | null = userData.overQuotaSince
+        ? (userData.overQuotaDeleteAt?.toDate?.() ?? null)
+        : null;
 
       return {
         used,
@@ -38,6 +44,8 @@ export function useStorage() {
         isAt80: ratio >= 0.8 && ratio < 0.95,
         isAt95: ratio >= 0.95 && ratio < 1.0,
         isAtLimit: used >= limit,
+        overQuotaDeleteAt,
+        archiveUntil: (userData.archiveUntil?.toDate?.() as Date | undefined) ?? null,
       };
     },
     enabled: !!user,

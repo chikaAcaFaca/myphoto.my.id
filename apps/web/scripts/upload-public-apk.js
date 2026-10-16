@@ -96,7 +96,7 @@ function putFileViaHttps(uploadUrl, absPath, size) {
   );
   console.log(`Uploading ${(stat.size / 1048576).toFixed(1)} MB ...`);
   const code = await putFileViaHttps(url, abs, stat.size);
-  console.log(`OK (HTTP ${code}) — fetch via /api/download/android`);
+  console.log(`OK (HTTP ${code}) — /api/download/android now redirects to it on Wasabi`);
 })().catch((e) => {
   console.error('FAILED:', e.message);
   process.exit(2);

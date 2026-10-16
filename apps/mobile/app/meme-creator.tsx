@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions,
   Alert, ActivityIndicator, Share, Platform, ScrollView, KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Video, ResizeMode } from 'expo-av';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,20 +13,36 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { captureRef } from 'react-native-view-shot';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts, memeFlame } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
+import { HeaderIconButton } from '@/components/ScreenHeader';
 import { useTheme } from '@/lib/theme-context';
 import { checkMemeLimit, getMemeUsageStats } from '@/lib/meme-limits';
 import { moderateCaption } from '@/lib/ai-captions';
 import { saveToMySpace } from '@/lib/myspace-upload';
+import { ZoomPanView } from '@/components/ZoomPanView';
+import { useT, type TKey } from '@/lib/i18n';
+import { withRef } from '@/lib/referral-link';
+import { resolveThumbUrl } from '@/lib/auth-image';
 
 const { width, height } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
+/** Ink on the flame orange: white fails 4.5:1 for small text, this passes. */
+const ON_FLAME = '#111214';
 
-const MEME_TEMPLATES = [
-  { id: 'classic', label: 'Klasicni', topPos: 0.03, bottomPos: 0.78 },
-  { id: 'top-only', label: 'Gore', topPos: 0.05, bottomPos: null },
-  { id: 'bottom-only', label: 'Dole', topPos: null, bottomPos: 0.75 },
-  { id: 'center', label: 'Centar', topPos: 0.40, bottomPos: null },
+const MEME_TEMPLATES: { id: string; labelKey: TKey; topPos: number | null; bottomPos: number | null }[] = [
+  { id: 'classic', labelKey: 'meme.creator.layoutClassic', topPos: 0.03, bottomPos: 0.78 },
+  { id: 'top-only', labelKey: 'meme.creator.layoutTop', topPos: 0.05, bottomPos: null },
+  { id: 'bottom-only', labelKey: 'meme.creator.layoutBottom', topPos: null, bottomPos: 0.75 },
+  { id: 'center', labelKey: 'meme.creator.layoutCenter', topPos: 0.40, bottomPos: null },
+];
+
+// Meme frame orientation — lets landscape media (esp. video) use a wide frame
+// instead of being cropped into the default portrait box.
+const MEME_ASPECTS: { id: string; labelKey: TKey; ratio: number }[] = [
+  { id: 'portrait', labelKey: 'meme.creator.aspectPortrait', ratio: 4 / 5 },
+  { id: 'square', labelKey: 'meme.creator.aspectSquare', ratio: 1 },
+  { id: 'landscape', labelKey: 'meme.creator.aspectLandscape', ratio: 16 / 9 },
 ];
 
 const FONT_SIZES = [
@@ -37,8 +54,13 @@ const FONT_SIZES = [
 
 export default function MemeCreatorScreen() {
   const { colors: tc } = useTheme();
-  const { id, name, uri: sourceUri, isUploaded } = useLocalSearchParams<{
-    id?: string; name?: string; uri?: string; isUploaded?: string;
+  const { t } = useT();
+  const { id, name, uri: sourceUri, isUploaded, type, remixOfId, remixOfAuthor } = useLocalSearchParams<{
+    id?: string; name?: string; uri?: string; isUploaded?: string; type?: string;
+    // Set by the meme-wall Remix button. We forward remixOfId to the publish
+    // POST so the server can snapshot the original author for the attribution
+    // badge — original author stays credited, only the comment changes.
+    remixOfId?: string; remixOfAuthor?: string;
   }>();
   const { user, appUser, getToken } = useAuth();
 
@@ -47,22 +69,29 @@ export default function MemeCreatorScreen() {
   // version always hit /api/thumbnail/{deviceId} which 404s for
   // photos that haven't been backed up yet, so the meme creator
   // landed empty and forced the user to pick from album again.
-  const [mediaUri, setMediaUri] = useState<string | null>(
-    sourceUri || (id && isUploaded === '1' ? `${API_URL}/api/thumbnail/${id}?size=large` : null)
-  );
-  const [mediaType, setMediaType] = useState<'image' | 'video' | 'gif'>('image');
+  const [mediaUri, setMediaUri] = useState<string | null>(sourceUri || null);
+  // A backed-up photo: fetch a short-lived direct URL (no web session cookie
+  // in the app, so the plain /api/thumbnail URL would not load).
+  useEffect(() => {
+    if (sourceUri || !id || isUploaded !== '1') return;
+    let alive = true;
+    getToken().then((token) => resolveThumbUrl(id, 'large', token)).then((url) => {
+      if (alive && url) setMediaUri((prev) => prev ?? url);
+    }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, sourceUri, isUploaded]);
+  const [mediaType, setMediaType] = useState<'image' | 'video' | 'gif'>(type === 'video' ? 'video' : 'image');
   const [topText, setTopText] = useState('');
   const [bottomText, setBottomText] = useState('');
   const [template, setTemplate] = useState(MEME_TEMPLATES[0]);
+  const [memeAspect, setMemeAspect] = useState(MEME_ASPECTS[0]);
   const [fontSize, setFontSize] = useState(FONT_SIZES[1]);
   const [saving, setSaving] = useState(false);
   const [savingSpace, setSavingSpace] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [memeStats, setMemeStats] = useState<{ daily: number; maxDaily: number; monthly: number; maxMonthly: number } | null>(null);
-  const [imageZoom, setImageZoom] = useState(1);
-  const [imageOffsetX, setImageOffsetX] = useState(0);
-  const [imageOffsetY, setImageOffsetY] = useState(0);
   const videoRef = useRef<Video>(null);
   // The meme preview frame (image + text + watermark). We snapshot this with
   // react-native-view-shot so the published/saved image has the text baked in
@@ -114,9 +143,9 @@ export default function MemeCreatorScreen() {
     // Manual meme limit check (Free users can't create)
     const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
     if (!limitCheck.allowed) {
-      Alert.alert('Nadogradite plan', limitCheck.reason, [
-        { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
+      Alert.alert(t('meme.upgradeTitle'), limitCheck.reason, [
+        { text: t('common.ok') },
+        { text: t('common.viewPlans'), onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -128,11 +157,11 @@ export default function MemeCreatorScreen() {
       if (modResult.flagged) {
         const proceed = await new Promise<boolean>((resolve) => {
           Alert.alert(
-            '⚠️ Upozorenje o sadržaju',
-            `Ovaj sadržaj može kršiti Uslove korišćenja.\n\nRazlog: ${modResult.reason}\n\nObjavljivanjem preuzimate POTPUNU odgovornost za sve pravne posledice, uključujući krivičnu ili prekršajnu. Nastaviti?`,
+            `⚠️ ${t('meme.creator.contentWarningTitle')}`,
+            t('meme.creator.contentWarningMessage', { reason: modResult.reason }),
             [
-              { text: 'Odustani', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Objavi na svoju odgovornost', style: 'destructive', onPress: () => resolve(true) },
+              { text: t('meme.creator.giveUp'), style: 'cancel', onPress: () => resolve(false) },
+              { text: t('meme.creator.publishAtOwnRisk'), style: 'destructive', onPress: () => resolve(true) },
             ]
           );
         });
@@ -146,22 +175,22 @@ export default function MemeCreatorScreen() {
         ? `${API_URL}/api/stream/${id}`
         : mediaUri;
       await Share.share({
-        message: `${topText ? topText + '\n' : ''}${bottomText ? bottomText + '\n' : ''}\n@${user?.displayName || 'user'} • myphotomy.space`,
+        message: `${topText ? topText + '\n' : ''}${bottomText ? bottomText + '\n' : ''}\n@${user?.displayName || t('common.user')} • myphotomy.space`,
         url: shareUrl,
       });
     } catch (e) {
       console.log('Share error:', e);
     }
-  }, [mediaUri, topText, bottomText, id, appUser?.storageLimit]);
+  }, [mediaUri, topText, bottomText, id, appUser?.storageLimit, t]);
 
   const handleSave = useCallback(async () => {
     if (!mediaUri) return;
 
     const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
     if (!limitCheck.allowed) {
-      Alert.alert('Nadogradite plan', limitCheck.reason, [
-        { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
+      Alert.alert(t('meme.upgradeTitle'), limitCheck.reason, [
+        { text: t('common.ok') },
+        { text: t('common.viewPlans'), onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -171,7 +200,7 @@ export default function MemeCreatorScreen() {
       const perms = mediaType === 'video' ? ['video'] : ['photo'];
       const { status } = await MediaLibrary.requestPermissionsAsync(false, perms as any);
       if (status !== 'granted') {
-        Alert.alert('Dozvola', 'Dozvolite pristup galeriji.');
+        Alert.alert(t('common.permission'), t('meme.creator.allowGallery'));
         return;
       }
 
@@ -194,13 +223,13 @@ export default function MemeCreatorScreen() {
       }
 
       await MediaLibrary.saveToLibraryAsync(saveUri);
-      Alert.alert('Sacuvano!', 'Meme je sacuvan u galeriju. Podeli ga sa prijateljima!');
+      Alert.alert(t('meme.creator.savedTitle'), t('meme.creator.savedToGallery'));
     } catch (e) {
-      Alert.alert('Greska', 'Cuvanje nije uspelo.');
+      Alert.alert(t('common.error'), t('meme.creator.saveFailed'));
     } finally {
       setSaving(false);
     }
-  }, [mediaUri, mediaType, id, getToken, captureMeme]);
+  }, [mediaUri, mediaType, id, getToken, captureMeme, t]);
 
   // Save the meme into the user's MySpace cloud (personal space). Image memes
   // save the baked snapshot (text + watermark); video keeps the source.
@@ -210,7 +239,7 @@ export default function MemeCreatorScreen() {
     try {
       const token = await getToken();
       if (!token) {
-        Alert.alert('Prijava', 'Prijavi se da bi sačuvao u svoj prostor.');
+        Alert.alert(t('meme.signInTitle'), t('meme.creator.signInToSave'));
         return;
       }
       const isVideo = mediaType === 'video';
@@ -222,27 +251,37 @@ export default function MemeCreatorScreen() {
         token,
       });
       Alert.alert(
-        ok ? 'Sačuvano' : 'Greška',
-        ok ? 'Meme je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo.',
+        ok ? t('common.saved') : t('common.error'),
+        ok ? t('meme.creator.savedToSpace', { folder: 'MyPhoto Kreacije' }) : t('meme.creator.saveToSpaceFailed'),
       );
     } finally {
       setSavingSpace(false);
     }
-  }, [mediaUri, mediaType, getToken, captureMeme]);
+  }, [mediaUri, mediaType, getToken, captureMeme, t]);
+
+  // Synchronous in-flight flag so a rapid second tap can't start a second
+  // publish before the `publishing` state re-renders (root cause of duplicates).
+  const publishingRef = useRef(false);
 
   const handlePublish = useCallback(async () => {
     if (!mediaUri) return;
+    // setPublishing(true) only lands after the await-heavy limit/moderation
+    // checks below, so a double-tap used to mint two meme docs. Block re-entry
+    // immediately here.
+    if (publishingRef.current) return;
     const captionText = [topText, bottomText].filter(Boolean).join(' ');
     if (!captionText.trim()) {
-      Alert.alert('Dodaj tekst', 'Meme mora imati tekst pre objave na MemeWall.');
+      Alert.alert(t('meme.creator.addTextTitle'), t('meme.creator.addTextMessage'));
       return;
     }
 
+    publishingRef.current = true;
     const limitCheck = await checkMemeLimit(appUser?.storageLimit || 0, false);
     if (!limitCheck.allowed) {
-      Alert.alert('Nadogradite plan', limitCheck.reason, [
-        { text: 'OK' },
-        { text: 'Pogledaj planove', onPress: () => router.push('/pricing') },
+      publishingRef.current = false;
+      Alert.alert(t('meme.upgradeTitle'), limitCheck.reason, [
+        { text: t('common.ok') },
+        { text: t('common.viewPlans'), onPress: () => router.push('/pricing') },
       ]);
       return;
     }
@@ -252,20 +291,65 @@ export default function MemeCreatorScreen() {
     if (modResult.flagged) {
       const proceed = await new Promise<boolean>((resolve) => {
         Alert.alert(
-          'Upozorenje o sadrzaju',
-          `Ovaj sadrzaj moze krsiti Uslove koriscenja.\n\nRazlog: ${modResult.reason}\n\nObjavljivanjem preuzimate POTPUNU odgovornost za sve pravne posledice, ukljucujuci krivicnu ili prekrsajnu. Nastaviti?`,
+          t('meme.creator.contentWarningTitle'),
+          t('meme.creator.contentWarningMessage', { reason: modResult.reason }),
           [
-            { text: 'Odustani', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Objavi na svoju odgovornost', style: 'destructive', onPress: () => resolve(true) },
+            { text: t('meme.creator.giveUp'), style: 'cancel', onPress: () => resolve(false) },
+            { text: t('meme.creator.publishAtOwnRisk'), style: 'destructive', onPress: () => resolve(true) },
           ]
         );
       });
-      if (!proceed) return;
+      if (!proceed) { publishingRef.current = false; return; }
     }
 
     setPublishing(true);
+    // Prepared before the POST: the server needs the exact byte size to pin
+    // the presigned URL and charge it against the user's storage quota.
+    let uploadSource: string | null = null;
+    let tmpPathToCleanup: string | null = null;
     try {
       const token = await getToken();
+
+      // Three URI shapes show up here:
+      //   - file:// or absolute path → upload directly
+      //   - http(s):// → download to cache then upload
+      //   - content:// (Android MediaLibrary device photos) → resolve
+      //     to file:// via MediaLibrary first, otherwise the upload
+      //     silently no-ops and the published meme has no image.
+      // For image memes, bake the text into a JPG snapshot first — this
+      // matches the web canvas output AND yields a file:// URI. Video/gif
+      // memes upload the original media (captureMeme returns null for them);
+      // text is overlaid at display time on the wall.
+      const uploadMime =
+        mediaType === 'video' ? 'video/mp4' : mediaType === 'gif' ? 'image/gif' : 'image/jpeg';
+      let uploadSize = 0;
+      try {
+        const baked = await captureMeme();
+        let src = baked || mediaUri;
+        tmpPathToCleanup = baked;
+        if (src.startsWith('content://') && id) {
+          const info = await MediaLibrary.getAssetInfoAsync(id);
+          if (info?.localUri) src = info.localUri;
+        }
+        if (src.startsWith('http')) {
+          const tmpPath = `${FileSystem.cacheDirectory}meme_upload_${Date.now()}.jpg`;
+          const dl = await FileSystem.downloadAsync(src, tmpPath);
+          src = dl.uri;
+          tmpPathToCleanup = tmpPath;
+        }
+        if (src.startsWith('file://') || src.startsWith('/')) {
+          const info = await FileSystem.getInfoAsync(src);
+          if (info.exists && typeof info.size === 'number' && info.size > 0) {
+            uploadSource = src;
+            uploadSize = info.size;
+          }
+        } else {
+          console.warn('Meme upload skipped — unsupported URI scheme:', src);
+        }
+      } catch (prepErr) {
+        console.warn('Meme media prepare failed:', prepErr);
+      }
+
       const res = await fetch(`${API_URL}/api/meme-wall`, {
         method: 'POST',
         headers: {
@@ -280,128 +364,92 @@ export default function MemeCreatorScreen() {
           bottomText,
           template: template.id,
           fontSize: fontSize.size,
-          imageData: !!mediaUri,
+          imageData: !!uploadSource,
+          ...(uploadSource ? { size: uploadSize } : {}),
+          ...(remixOfId ? { remixOfId } : {}),
         }),
       });
       if (res.ok) {
         const responseData = await res.json();
 
-        // Upload the meme image to S3 if we got an upload URL. Three
-        // URI shapes show up here:
-        //   - file:// or absolute path → upload directly
-        //   - http(s):// → download to cache then upload
-        //   - content:// (Android MediaLibrary device photos) → resolve
-        //     to file:// via MediaLibrary first, otherwise the upload
-        //     silently no-ops and the published meme has no image.
-        if (responseData.uploadUrl && mediaUri) {
+        if (responseData.uploadUrl && uploadSource) {
           try {
-            // For image memes, bake the text into a JPG snapshot first — this
-            // matches the web canvas output AND yields a file:// URI that
-            // uploads reliably (device content:// URIs were being skipped,
-            // leaving published memes with no image). Video/gif memes upload the
-            // original media (captureMeme returns null for them); text is
-            // overlaid at display time on the wall.
-            const baked = await captureMeme();
-            const uploadMime =
-              mediaType === 'video' ? 'video/mp4' : mediaType === 'gif' ? 'image/gif' : 'image/jpeg';
-
-            let uploadSource = baked || mediaUri;
-            let tmpPathToCleanup: string | null = baked;
-
-            if (uploadSource.startsWith('content://')) {
-              if (id) {
-                const info = await MediaLibrary.getAssetInfoAsync(id);
-                if (info?.localUri) uploadSource = info.localUri;
-              }
-            }
-
-            if (uploadSource.startsWith('http')) {
-              const tmpPath = `${FileSystem.cacheDirectory}meme_upload_${Date.now()}.jpg`;
-              const dl = await FileSystem.downloadAsync(uploadSource, tmpPath);
-              uploadSource = dl.uri;
-              tmpPathToCleanup = tmpPath;
-            }
-
-            if (uploadSource.startsWith('file://') || uploadSource.startsWith('/')) {
-              await FileSystem.uploadAsync(responseData.uploadUrl, uploadSource, {
-                httpMethod: 'PUT',
-                headers: { 'Content-Type': uploadMime },
-                uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-              });
-            } else {
-              console.warn('Meme upload skipped — unsupported URI scheme:', uploadSource);
-            }
-
-            if (tmpPathToCleanup) {
-              await FileSystem.deleteAsync(tmpPathToCleanup, { idempotent: true });
-            }
+            await FileSystem.uploadAsync(responseData.uploadUrl, uploadSource, {
+              httpMethod: 'PUT',
+              headers: { 'Content-Type': uploadMime },
+              uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+            });
           } catch (uploadErr) {
             console.warn('Meme image upload failed:', uploadErr);
           }
         }
 
-        const shareUrl = `${API_URL}${responseData.shareUrl || '/meme-wall'}`;
-        Alert.alert('Objavljeno!', 'Tvoj meme je sada na MemeWall-u!', [
-          { text: 'Pogledaj', onPress: () => router.push('/meme-wall') },
+        const shareUrl = withRef(`${API_URL}${responseData.shareUrl || '/meme-wall'}`, appUser?.referralCode);
+        Alert.alert(t('meme.creator.publishedTitle'), t('meme.creator.publishedMessage'), [
+          { text: t('meme.creator.view'), onPress: () => router.push('/meme-wall') },
           {
-            text: 'Podeli',
+            text: t('common.share'),
             onPress: () => {
               Share.share({
-                message: `${captionText}\n\nNapravljeno u MyPhoto 📸\n${shareUrl}`,
+                message: `${captionText}\n\n${t('meme.madeWith')}\n${shareUrl}`,
               });
             },
           },
-          { text: 'OK' },
+          { text: t('common.ok') },
         ]);
       } else {
         const errData = await res.json().catch(() => null);
-        Alert.alert('Greska', errData?.error || 'Objavljivanje nije uspelo. Pokusajte ponovo.');
+        Alert.alert(t('common.error'), errData?.error || t('meme.creator.publishFailedRetry'));
       }
     } catch (e) {
-      Alert.alert('Greska', 'Objavljivanje nije uspelo.');
+      Alert.alert(t('common.error'), t('meme.creator.publishFailed'));
     } finally {
+      if (tmpPathToCleanup) {
+        FileSystem.deleteAsync(tmpPathToCleanup, { idempotent: true }).catch(() => {});
+      }
       setPublishing(false);
+      publishingRef.current = false;
     }
-  }, [mediaUri, topText, bottomText, template, fontSize, mediaType, id, appUser?.storageLimit, getToken, captureMeme]);
+  }, [mediaUri, topText, bottomText, template, fontSize, mediaType, id, appUser?.storageLimit, getToken, captureMeme, t]);
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.container, { backgroundColor: tc.bg }]}>
-        {/* Top bar */}
-        <View style={[styles.topBar, { backgroundColor: tc.primary }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Meme Kreator</Text>
-          <View style={{ flexDirection: 'row', gap: 4 }}>
-            <TouchableOpacity onPress={handleShare} style={styles.topBtn}>
-              <Ionicons name="share-outline" size={20} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSaveToSpace} style={styles.topBtn} disabled={savingSpace}>
-              {savingSpace ? <ActivityIndicator size="small" color="#fff" /> : (
-                <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+      <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['top']}>
+        <StackHeader
+          title={remixOfId ? t('meme.creator.remixTitle', { name: remixOfAuthor || '...' }) : t('meme.creator.title')}
+          actions={
+            <>
+              <HeaderIconButton icon="share-outline" label={t('common.share')} onPress={handleShare} />
+              {savingSpace ? (
+                <View style={[styles.headerBusy, { backgroundColor: tc.bgInput }]}>
+                  <ActivityIndicator size="small" color={tc.text} />
+                </View>
+              ) : (
+                <HeaderIconButton icon="cloud-upload-outline" label={t('meme.saveToMySpace')} onPress={handleSaveToSpace} />
               )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSave} style={styles.topBtn} disabled={saving}>
-              {saving ? <ActivityIndicator size="small" color="#fff" /> : (
-                <Ionicons name="download-outline" size={20} color="#fff" />
+              {saving ? (
+                <View style={[styles.headerBusy, { backgroundColor: tc.bgInput }]}>
+                  <ActivityIndicator size="small" color={tc.text} />
+                </View>
+              ) : (
+                <HeaderIconButton icon="download-outline" label={t('common.save')} onPress={handleSave} />
               )}
-            </TouchableOpacity>
-          </View>
-        </View>
+            </>
+          }
+        />
 
         <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
           {/* AI usage indicator */}
           {memeStats && (
-            <View style={[styles.usageBanner, { backgroundColor: tc.bgCard }]}>
-              <Ionicons name="sparkles" size={14} color={tc.primary} />
-              <Text style={[styles.usageText, { color: tc.textMuted }]}>
+            <View style={[styles.usageBanner, { backgroundColor: tc.bgInput }]}>
+              <Ionicons name="sparkles" size={14} color={memeFlame} />
+              <Text style={[styles.usageText, { color: tc.textSecondary }]}>
                 {appUser && appUser.storageLimit > 1073741824
-                  ? `AI: ${memeStats.daily}/${memeStats.maxDaily} danas · Rucno: neograniceno`
-                  : 'Nadogradite plan za kreiranje memova'}
+                  ? t('meme.creator.usage', { used: memeStats.daily, max: memeStats.maxDaily })
+                  : t('meme.creator.upgradeToCreate')}
               </Text>
             </View>
           )}
@@ -410,18 +458,18 @@ export default function MemeCreatorScreen() {
           {!mediaUri && (
             <View style={styles.mediaTypePicker}>
               <TouchableOpacity
-                style={[styles.mediaTypeBtn, { backgroundColor: '#3b82f6' }]}
+                style={[styles.mediaTypeBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
                 onPress={() => pickMedia('image')}
               >
-                <Ionicons name="image-outline" size={24} color="#fff" />
-                <Text style={styles.mediaTypeText}>Slika / GIF</Text>
+                <Ionicons name="image-outline" size={24} color={memeFlame} />
+                <Text style={[styles.mediaTypeText, { color: tc.text }]}>{t('meme.creator.imageGif')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.mediaTypeBtn, { backgroundColor: '#8b5cf6' }]}
+                style={[styles.mediaTypeBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
                 onPress={() => pickMedia('video')}
               >
-                <Ionicons name="videocam-outline" size={24} color="#fff" />
-                <Text style={styles.mediaTypeText}>Video</Text>
+                <Ionicons name="videocam-outline" size={24} color={memeFlame} />
+                <Text style={[styles.mediaTypeText, { color: tc.text }]}>{t('meme.creator.video')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -429,17 +477,21 @@ export default function MemeCreatorScreen() {
           {/* Media preview with text overlay */}
           <View style={styles.previewContainer}>
             {mediaUri ? (
-              <View ref={memeFrameRef} collapsable={false} style={styles.memeFrame}>
+              <View ref={memeFrameRef} collapsable={false} style={[styles.memeFrame, { aspectRatio: memeAspect.ratio }]}>
                 {mediaType === 'video' ? (
-                  <TouchableOpacity activeOpacity={0.9} onPress={() => setIsPlaying(!isPlaying)}>
+                  <TouchableOpacity activeOpacity={0.9} style={StyleSheet.absoluteFill} onPress={() => setIsPlaying(!isPlaying)}>
                     <Video
                       ref={videoRef}
                       source={{ uri: mediaUri }}
                       style={styles.memeImage}
-                      resizeMode={ResizeMode.COVER}
+                      resizeMode={ResizeMode.CONTAIN}
                       shouldPlay={isPlaying}
                       isLooping
                       isMuted={false}
+                      // shouldPlay alone wasn't enough on some Androids — the
+                      // player painted the first frame and stalled. playAsync
+                      // in onLoad makes auto-start deterministic.
+                      onLoad={() => { if (isPlaying) videoRef.current?.playAsync().catch(() => {}); }}
                     />
                     {!isPlaying && (
                       <View style={styles.playOverlay}>
@@ -448,17 +500,15 @@ export default function MemeCreatorScreen() {
                     )}
                   </TouchableOpacity>
                 ) : (
-                  <Image
-                    source={{ uri: mediaUri }}
-                    style={[styles.memeImage, {
-                      transform: [
-                        { scale: imageZoom },
-                        { translateX: imageOffsetX },
-                        { translateY: imageOffsetY },
-                      ],
-                    }]}
-                    contentFit="cover"
-                  />
+                  // Pinch-zoom + drag to position the image; contentFit "contain"
+                  // so nothing is force-cropped (zoom in to fill if you want).
+                  <ZoomPanView style={StyleSheet.absoluteFillObject}>
+                    <Image
+                      source={{ uri: mediaUri }}
+                      style={styles.memeImage}
+                      contentFit="contain"
+                    />
+                  </ZoomPanView>
                 )}
                 {/* Top text */}
                 {template.topPos !== null && topText ? (
@@ -486,7 +536,7 @@ export default function MemeCreatorScreen() {
                 {mediaType !== 'image' && (
                   <View style={styles.mediaTypeBadge}>
                     <Ionicons name={mediaType === 'video' ? 'videocam' : 'infinite'} size={12} color="#fff" />
-                    <Text style={styles.mediaTypeBadgeText}>{mediaType === 'video' ? 'VIDEO' : 'GIF'}</Text>
+                    <Text style={styles.mediaTypeBadgeText}>{mediaType === 'video' ? t('meme.creator.videoBadge') : 'GIF'}</Text>
                   </View>
                 )}
                 {/* Watermark - always visible branding */}
@@ -498,12 +548,12 @@ export default function MemeCreatorScreen() {
           </View>
 
           {/* Controls */}
-          <View style={[styles.controls, { backgroundColor: tc.bgCard }]}>
+          <View style={[styles.controls, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
             {/* Text inputs */}
             <View style={styles.inputRow}>
               <TextInput
                 style={[styles.input, { backgroundColor: tc.bgInput, color: tc.text, borderColor: tc.border }]}
-                placeholder="Tekst gore..."
+                placeholder={t('meme.creator.topPlaceholder')}
                 placeholderTextColor={tc.textMuted}
                 value={topText}
                 onChangeText={setTopText}
@@ -513,7 +563,7 @@ export default function MemeCreatorScreen() {
             <View style={styles.inputRow}>
               <TextInput
                 style={[styles.input, { backgroundColor: tc.bgInput, color: tc.text, borderColor: tc.border }]}
-                placeholder="Tekst dole..."
+                placeholder={t('meme.creator.bottomPlaceholder')}
                 placeholderTextColor={tc.textMuted}
                 value={bottomText}
                 onChangeText={setBottomText}
@@ -521,73 +571,53 @@ export default function MemeCreatorScreen() {
               />
             </View>
 
-            {/* Template selector */}
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>RASPORED</Text>
+            {/* Orientation / aspect selector */}
+            <Text style={[styles.controlLabel, { color: tc.textSecondary }]}>{t('meme.creator.orientation')}</Text>
             <View style={styles.optionRow}>
-              {MEME_TEMPLATES.map((t) => (
+              {MEME_ASPECTS.map((a) => (
                 <TouchableOpacity
-                  key={t.id}
-                  style={[styles.optionBtn, template.id === t.id && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
-                  onPress={() => setTemplate(t)}
+                  key={a.id}
+                  style={[styles.optionBtn, { borderColor: tc.border }, memeAspect.id === a.id && styles.optionBtnActive]}
+                  onPress={() => setMemeAspect(a)}
                 >
-                  <Text style={[styles.optionText, template.id === t.id && { color: tc.primary }]}>{t.label}</Text>
+                  <Text style={[styles.optionText, { color: tc.textSecondary }, memeAspect.id === a.id && styles.optionTextActive]}>{t(a.labelKey)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Template selector */}
+            <Text style={[styles.controlLabel, { color: tc.textSecondary }]}>{t('meme.creator.layout')}</Text>
+            <View style={styles.optionRow}>
+              {MEME_TEMPLATES.map((tpl) => (
+                <TouchableOpacity
+                  key={tpl.id}
+                  style={[styles.optionBtn, { borderColor: tc.border }, template.id === tpl.id && styles.optionBtnActive]}
+                  onPress={() => setTemplate(tpl)}
+                >
+                  <Text style={[styles.optionText, { color: tc.textSecondary }, template.id === tpl.id && styles.optionTextActive]}>{t(tpl.labelKey)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             {/* Font size selector */}
-            <Text style={[styles.controlLabel, { color: tc.textMuted }]}>VELICINA TEKSTA</Text>
+            <Text style={[styles.controlLabel, { color: tc.textSecondary }]}>{t('meme.creator.textSize')}</Text>
             <View style={styles.optionRow}>
               {FONT_SIZES.map((f) => (
                 <TouchableOpacity
                   key={f.label}
-                  style={[styles.optionBtn, fontSize.label === f.label && { backgroundColor: tc.primary + '20', borderColor: tc.primary }]}
+                  style={[styles.optionBtn, { borderColor: tc.border }, fontSize.label === f.label && styles.optionBtnActive]}
                   onPress={() => setFontSize(f)}
                 >
-                  <Text style={[styles.optionText, fontSize.label === f.label && { color: tc.primary }]}>{f.label}</Text>
+                  <Text style={[styles.optionText, { color: tc.textSecondary }, fontSize.label === f.label && styles.optionTextActive]}>{f.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* Image zoom & pan */}
+            {/* Image positioning is now via gestures on the preview above. */}
             {mediaUri && mediaType === 'image' && (
-              <>
-                <Text style={[styles.controlLabel, { color: tc.textMuted }]}>SLIKA ZOOM I POZICIJA</Text>
-                <View style={styles.zoomControls}>
-                  <TouchableOpacity
-                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
-                    onPress={() => setImageZoom(Math.max(0.5, imageZoom - 0.1))}
-                  >
-                    <Ionicons name="remove" size={18} color={tc.text} />
-                  </TouchableOpacity>
-                  <Text style={[styles.zoomLabel, { color: tc.textMuted }]}>{Math.round(imageZoom * 100)}%</Text>
-                  <TouchableOpacity
-                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
-                    onPress={() => setImageZoom(Math.min(3, imageZoom + 0.1))}
-                  >
-                    <Ionicons name="add" size={18} color={tc.text} />
-                  </TouchableOpacity>
-                  <View style={{ width: 16 }} />
-                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetX(imageOffsetX - 10)}>
-                    <Ionicons name="arrow-back" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetY(imageOffsetY - 10)}>
-                    <Ionicons name="arrow-up" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetY(imageOffsetY + 10)}>
-                    <Ionicons name="arrow-down" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]} onPress={() => setImageOffsetX(imageOffsetX + 10)}>
-                    <Ionicons name="arrow-forward" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.zoomBtn, { backgroundColor: tc.bgInput }]}
-                    onPress={() => { setImageZoom(1); setImageOffsetX(0); setImageOffsetY(0); }}
-                  >
-                    <Ionicons name="refresh" size={16} color={tc.text} />
-                  </TouchableOpacity>
-                </View>
-              </>
+              <Text style={[styles.controlLabel, { color: tc.textSecondary, textAlign: 'center', marginTop: 6 }]}>
+                {t('meme.creator.gestureHint')}
+              </Text>
             )}
 
             {/* Publish to MemeWall */}
@@ -598,12 +628,12 @@ export default function MemeCreatorScreen() {
                 disabled={publishing}
               >
                 {publishing ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={ON_FLAME} />
                 ) : (
-                  <Ionicons name="globe-outline" size={18} color="#fff" />
+                  <Ionicons name="globe-outline" size={18} color={ON_FLAME} />
                 )}
                 <Text style={styles.publishText}>
-                  {publishing ? 'Objavljujem...' : 'Objavi na MemeWall'}
+                  {publishing ? t('meme.creator.publishing') : t('meme.creator.publish')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -611,35 +641,35 @@ export default function MemeCreatorScreen() {
             {/* Share on social media */}
             {mediaUri && (topText || bottomText) && (
               <TouchableOpacity
-                style={[styles.publishBtn, { backgroundColor: '#3b82f6', marginTop: 8 }]}
+                style={[styles.publishBtn, { backgroundColor: tc.bgInput, marginTop: 8 }]}
                 onPress={async () => {
                   try {
                     const caption = [topText, bottomText].filter(Boolean).join(' ');
                     await Share.share({
-                      message: `${caption}\n\nNapravljeno u MyPhoto 📸\nhttps://myphotomy.space`,
+                      message: `${caption}\n\n${t('meme.madeWith')}\nhttps://myphotomy.space`,
                       url: mediaUri.startsWith('file') ? mediaUri : undefined,
                     });
                   } catch {}
                 }}
               >
-                <Ionicons name="share-social" size={18} color="#fff" />
-                <Text style={styles.publishText}>Podeli na mrežama</Text>
+                <Ionicons name="share-social" size={18} color={tc.text} />
+                <Text style={[styles.publishText, { color: tc.text }]}>{t('meme.creator.shareSocial')}</Text>
               </TouchableOpacity>
             )}
 
             {/* Save the meme into the user's personal MySpace cloud */}
             {mediaUri && (
               <TouchableOpacity
-                style={[styles.publishBtn, { backgroundColor: tc.primary, marginTop: 8 }]}
+                style={[styles.publishBtn, { backgroundColor: tc.bgInput, marginTop: 8 }]}
                 onPress={handleSaveToSpace}
                 disabled={savingSpace}
               >
                 {savingSpace ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={tc.primary} />
                 ) : (
-                  <Ionicons name="cloud-upload-outline" size={18} color="#fff" />
+                  <Ionicons name="cloud-upload-outline" size={18} color={tc.primary} />
                 )}
-                <Text style={styles.publishText}>Sačuvaj u moj prostor</Text>
+                <Text style={[styles.publishText, { color: tc.text }]}>{t('meme.saveToMySpace')}</Text>
               </TouchableOpacity>
             )}
 
@@ -647,30 +677,25 @@ export default function MemeCreatorScreen() {
             {mediaUri && (
               <View style={styles.changeRow}>
                 <TouchableOpacity style={styles.changeBtn} onPress={() => pickMedia('image')}>
-                  <Ionicons name="image-outline" size={16} color={tc.primary} />
-                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>Slika/GIF</Text>
+                  <Ionicons name="image-outline" size={16} color={tc.text} />
+                  <Text style={[styles.changeBtnText, { color: tc.text }]}>{t('meme.creator.imageGif')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.changeBtn} onPress={() => pickMedia('video')}>
-                  <Ionicons name="videocam-outline" size={16} color={tc.primary} />
-                  <Text style={[styles.changeBtnText, { color: tc.primary }]}>Video</Text>
+                  <Ionicons name="videocam-outline" size={16} color={tc.text} />
+                  <Text style={[styles.changeBtnText, { color: tc.text }]}>{t('meme.creator.video')}</Text>
                 </TouchableOpacity>
               </View>
             )}
           </View>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 10, paddingTop: Platform.OS === 'ios' ? 50 : 8,
-  },
-  topBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
+  headerBusy: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   previewContainer: { alignItems: 'center', paddingVertical: 12 },
   memeFrame: { width: width - 24, aspectRatio: 3 / 4, borderRadius: radius.md, overflow: 'hidden', position: 'relative' },
   memeImage: { width: '100%', height: '100%' },
@@ -686,29 +711,27 @@ const styles = StyleSheet.create({
     textShadowColor: '#000', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3,
     letterSpacing: 0.5,
   },
-  pickImage: {
-    width: width - 24, aspectRatio: 1, borderRadius: radius.lg,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
-  },
-  pickText: { fontSize: 14, ...fonts.medium, marginTop: 8 },
   controls: {
-    borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 40,
+    borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: 16, paddingBottom: 40,
+    borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0,
   },
   inputRow: { marginBottom: 10 },
   input: {
     borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10,
-    fontSize: 14,
+    minHeight: 48, fontSize: 15,
   },
-  controlLabel: { fontSize: 10, ...fonts.bold, letterSpacing: 1, marginTop: 8, marginBottom: 6 },
-  optionRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  controlLabel: { fontSize: 12, ...fonts.semibold, letterSpacing: 0.3, marginTop: 8, marginBottom: 6 },
+  optionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   optionBtn: {
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
-    paddingHorizontal: 14, paddingVertical: 7,
+    borderWidth: 1, borderRadius: radius.full,
+    paddingHorizontal: 16, minHeight: 44, justifyContent: 'center',
   },
-  optionText: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary },
+  optionBtnActive: { backgroundColor: memeFlame, borderColor: memeFlame },
+  optionText: { fontSize: 13, ...fonts.semibold },
+  optionTextActive: { color: ON_FLAME },
   changeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 12, paddingVertical: 10,
+    marginTop: 12, minHeight: 44, paddingVertical: 10,
   },
   changeBtnText: { fontSize: 13, ...fonts.semibold },
   // Media type picker
@@ -718,9 +741,9 @@ const styles = StyleSheet.create({
   },
   mediaTypeBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: radius.md, paddingVertical: 16,
+    borderRadius: radius.lg, borderWidth: 1, paddingVertical: 18,
   },
-  mediaTypeText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  mediaTypeText: { fontSize: 15, ...fonts.bold },
   changeRow: { flexDirection: 'row', gap: 16, justifyContent: 'center', marginTop: 12 },
   // Video overlay
   playOverlay: {
@@ -734,17 +757,14 @@ const styles = StyleSheet.create({
   mediaTypeBadgeText: { color: '#fff', fontSize: 10, ...fonts.bold },
   usageBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    paddingVertical: 6, paddingHorizontal: 12, marginHorizontal: 12, marginTop: 4,
-    borderRadius: 8,
+    paddingVertical: 8, paddingHorizontal: 12, marginHorizontal: 12, marginTop: 4,
+    borderRadius: radius.full,
   },
-  usageText: { fontSize: 11, ...fonts.medium },
-  zoomControls: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
-  zoomBtn: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  zoomLabel: { fontSize: 12, ...fonts.bold, width: 40, textAlign: 'center' },
+  usageText: { fontSize: 12, ...fonts.medium },
   publishBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#f97316', borderRadius: radius.md, paddingVertical: 14,
+    backgroundColor: memeFlame, borderRadius: radius.full, minHeight: 50, paddingVertical: 14,
     marginTop: 16,
   },
-  publishText: { color: '#fff', fontSize: 14, ...fonts.bold },
+  publishText: { color: ON_FLAME, fontSize: 15, ...fonts.bold },
 });

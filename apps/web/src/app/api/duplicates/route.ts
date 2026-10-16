@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { thumbUrls } from '@/lib/thumb-urls';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { findDuplicates } from '@/lib/ai/duplicate-detection';
@@ -124,6 +125,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Thumbnails as presigned URLs (no per-image /api/thumbnail call).
+    await Promise.all(
+      enrichedGroups.flatMap((g: any) => (g.files || []).map(async (f: any) => {
+        Object.assign(f, await thumbUrls({ thumbnailKey: f.thumbnailKey }));
+      }))
+    );
     return NextResponse.json({ duplicates: enrichedGroups });
   } catch (error) {
     console.error('Duplicates API error:', error);

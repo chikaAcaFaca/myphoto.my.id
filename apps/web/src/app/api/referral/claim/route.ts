@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FieldValue } from 'firebase-admin/firestore';
-import { initAdmin, db } from '@/lib/firebase-admin';
+import { initAdmin } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
-import { REFERRAL_BONUS, MAX_REFERRALS } from '@myphoto/shared';
+import { REFERRAL_BONUS } from '@myphoto/shared';
+import { claimReferral } from '@/lib/referral';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,68 +26,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing referralCode' }, { status: 400 });
   }
 
-  // Find referrer by referral code
-  const referrerQuery = await db
-    .collection('users')
-    .where('referralCode', '==', referralCode)
-    .limit(1)
-    .get();
-
-  if (referrerQuery.empty) {
-    return NextResponse.json({ error: 'Invalid referral code' }, { status: 404 });
+  const result = await claimReferral(userId, referralCode, source || 'direct', shareToken);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-
-  const referrerDoc = referrerQuery.docs[0];
-  const referrerData = referrerDoc.data();
-  const referrerUserId = referrerDoc.id;
-
-  // Cannot refer yourself
-  if (referrerUserId === userId) {
-    return NextResponse.json({ error: 'Cannot refer yourself' }, { status: 400 });
-  }
-
-  // Check if referee already has a referrer
-  const refereeDoc = await db.collection('users').doc(userId).get();
-  if (!refereeDoc.exists) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
-  }
-  const refereeData = refereeDoc.data()!;
-
-  if (refereeData.referredBy) {
-    return NextResponse.json({ error: 'Already referred' }, { status: 400 });
-  }
-
-  // Check referrer hasn't hit the max
-  if ((referrerData.referralCount || 0) >= MAX_REFERRALS) {
-    return NextResponse.json({ error: 'Referrer has reached maximum referrals' }, { status: 400 });
-  }
-
-  // Create referral record — bonus is NOT applied yet.
-  // Referee must upload 100MB to qualify (checked in upload confirmation API).
-  const batch = db.batch();
-
-  const referralRef = db.collection('referrals').doc();
-  batch.set(referralRef, {
-    referrerUserId,
-    refereeUserId: userId,
-    refereeEmail: refereeData.email || '',
-    bonusBytes: REFERRAL_BONUS,
-    qualified: false, // becomes true after referee uploads 100MB
-    source: source || 'direct',       // 'share', 'direct', 'app', etc.
-    shareToken: shareToken || null,    // which shared content brought this user
-    createdAt: FieldValue.serverTimestamp(),
-  });
-
-  // Update referee: set referredBy (no storage bonus yet — must qualify first)
-  batch.update(db.collection('users').doc(userId), {
-    referredBy: referrerUserId,
-  });
-
-  await batch.commit();
 
   return NextResponse.json({
     success: true,
     bonusBytes: REFERRAL_BONUS,
-    message: 'Referral registrovan. Bonus se aktivira nakon što uploadujete 100MB sadržaja.',
+    message: 'Preporuka je zabeležena. Prijatelj koji vas je pozvao dobija 250 MB kada uploadujete prvih 100 MB.',
   });
 }

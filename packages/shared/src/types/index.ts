@@ -27,6 +27,11 @@ export interface User {
   referredBy?: string;
   referralCount: number;
   referralBonusBytes: number;
+  memeReferralBonus?: number;
+  // Admin-granted storage (support comps, manual top-ups). Deliberate and
+  // unbounded; recalculateStorageLimit always adds it so a recalc never wipes
+  // a manual grant. Back-filled for existing users by backfill-manual-bonus.js.
+  manualBonusBytes?: number;
   backupBonusClaimed?: boolean;
   desktopBonusClaimed?: boolean;
   // Track referral qualification (must upload 100MB to qualify referrer for bonus)
@@ -240,6 +245,14 @@ export interface Subscription {
   billingPeriod?: BillingPeriod;
   currentPeriodEnd: Date;
   paddleCustomerId: string;
+  /** Which processor owns this subscription. Absent on legacy Paddle docs. */
+  provider?: 'paddle' | 'freemius' | 'creem';
+  /** Freemius identifiers — set when provider === 'freemius'. */
+  freemiusLicenseId?: string;
+  freemiusSubscriptionId?: string;
+  /** Creem identifiers — set when provider === 'creem'. */
+  creemSubscriptionId?: string;
+  creemCustomerId?: string;
   createdAt: Date;
 }
 
@@ -301,8 +314,9 @@ export interface AIProcessingResult {
   qualityScore: number;
 }
 
-// Billing Period Types — only monthly and yearly
-export type BillingPeriod = 'monthly' | 'yearly';
+// Billing Period Types. Small tiers are only sold in longer periods so the
+// payment provider's fixed per-charge fee stays under ~10% (see TIER periods).
+export type BillingPeriod = 'monthly' | 'quarterly' | 'semiannual' | 'yearly';
 
 // Storage Tier Types
 export interface StorageTier {
@@ -310,10 +324,26 @@ export interface StorageTier {
   name: string;
   storageBytes: number;
   storageDisplay: string;
+  /** Reference monthly rate — also used for savings maths on tiers that are
+   *  not sold monthly. 0 for MyDisk Lite (no monthly equivalent). */
   priceMonthly: number;
+  priceQuarterly?: number;
+  priceSemiannual?: number;
   priceYearly: number;
+  /** Billing periods this tier is actually sold in (see getTierPeriods). */
+  periods: BillingPeriod[];
   paddleMonthlyId: string;
   paddleYearlyId: string;
+  /** Freemius plan ID — one plan serves both monthly & yearly; the billing
+   *  cycle is selected at checkout time via `billing_cycle`. Empty until the
+   *  plan is created in the Freemius dashboard. */
+  freemiusPlanId?: string;
+  /** Creem product IDs (prod_…) — Creem models each billing period as its
+   *  own recurring product. Empty until created in the Creem dashboard. */
+  creemMonthlyProductId?: string;
+  creemQuarterlyProductId?: string;
+  creemSemiannualProductId?: string;
+  creemYearlyProductId?: string;
   features: string[];
   isPopular?: boolean;
   memesPerDay: number;

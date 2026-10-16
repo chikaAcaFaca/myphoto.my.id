@@ -1,12 +1,19 @@
 import { Metadata } from 'next';
+import { memeMediaUrls } from '@/lib/meme-video';
 import Link from 'next/link';
 import { db } from '@/lib/firebase-admin';
 import { generateDownloadUrl } from '@/lib/s3';
 import { initAdmin } from '@/lib/firebase-admin';
 import MemeSocial from './meme-social';
+import { SharedMemeFeed } from '@/components/meme-wall/shared-meme-feed';
+import { getT } from '@/i18n/server';
+import { isValidRef } from '@/lib/referral-link';
+import { headers } from 'next/headers';
+import { InstallAppButton } from '@/components/install/android-install';
 
 interface MemePageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ ref?: string; view?: string }>;
 }
 
 async function getMeme(id: string) {
@@ -14,10 +21,7 @@ async function getMeme(id: string) {
   const doc = await db.collection('memes').doc(id).get();
   if (!doc.exists) return null;
   const data = doc.data()!;
-  let imageUrl = '';
-  if (data.s3Key) {
-    try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
-  }
+  const { imageUrl, posterUrl } = await memeMediaUrls(data);
   return {
     id: doc.id,
     caption: data.caption || '',
@@ -25,6 +29,7 @@ async function getMeme(id: string) {
     bottomText: data.bottomText || '',
     mediaType: (data.mediaType || 'image') as 'image' | 'video' | 'gif',
     imageUrl,
+    posterUrl,
     authorName: data.authorName || 'Anonymous',
     authorId: data.authorId || '',
     likes: data.likes || 0,
@@ -38,38 +43,69 @@ async function getMeme(id: string) {
 export async function generateMetadata({ params }: MemePageProps): Promise<Metadata> {
   const { id } = await params;
   const meme = await getMeme(id);
-  if (!meme) return { title: 'Meme not found' };
+  const t = await getT();
+  if (!meme) return { title: t('pages.meme.notFoundTitle') };
+  const ogImage = meme.mediaType === 'video' ? meme.posterUrl : meme.imageUrl;
   return {
     title: `${meme.caption || 'Meme'} | MyPhoto MemeWall`,
-    description: `${meme.caption} — Napravljeno u MyPhoto. Napravi i ti svoj meme besplatno!`,
+    description: t('pages.meme.metaDescription', { caption: meme.caption }),
     openGraph: {
       title: meme.caption || 'MyPhoto Meme',
-      description: 'Napravi i ti svoj meme besplatno u MyPhoto!',
-      images: meme.imageUrl ? [{ url: meme.imageUrl, width: 800, height: 800 }] : [],
+      description: t('pages.meme.ogDescription'),
+      images: ogImage ? [{ url: ogImage, width: 800, height: 800 }] : [],
       type: 'article',
     },
     twitter: {
       card: 'summary_large_image',
       title: meme.caption || 'MyPhoto Meme',
-      description: 'Napravi i ti svoj meme besplatno!',
-      images: meme.imageUrl ? [meme.imageUrl] : [],
+      description: t('pages.meme.twitterDescription'),
+      images: ogImage ? [ogImage] : [],
     },
   };
 }
 
-export default async function MemePage({ params }: MemePageProps) {
+export default async function MemePage({ params, searchParams }: MemePageProps) {
   const { id } = await params;
+  // Shared with ?ref=CODE: credit whoever shared the link, not the meme author.
+  const { ref, view } = await searchParams;
+  const ua = (await headers()).get('user-agent') || '';
+  const isIos = /iPhone|iPad|iPod/i.test(ua);
   const meme = await getMeme(id);
+  const t = await getT();
 
   if (!meme) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui' }}>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: 48 }}>404</h1>
-          <p>Meme nije pronadjen</p>
-          <a href="/" style={{ color: '#0ea5e9' }}>Idi na MyPhoto</a>
+          <p>{t('pages.meme.notFound')}</p>
+          <a href="/" style={{ color: '#0ea5e9' }}>{t('pages.meme.goHome')}</a>
         </div>
       </div>
+    );
+  }
+
+  // Default: the swipe-up Meme Wall feed starting at this meme (what people
+  // opening a shared link expect). ?view=detail keeps the single-meme page
+  // with comments.
+  if (view !== 'detail') {
+    return (
+      <SharedMemeFeed
+        first={{
+          id: meme.id,
+          caption: meme.caption,
+          topText: meme.topText,
+          bottomText: meme.bottomText,
+          imageUrl: meme.imageUrl,
+          mediaType: meme.mediaType,
+          authorName: meme.authorName,
+          authorId: meme.authorId,
+          likes: meme.likes,
+          commentCount: meme.commentCount,
+        }}
+        refCode={isValidRef(ref) ? ref : null}
+        isIos={isIos}
+      />
     );
   }
 
@@ -92,6 +128,7 @@ export default async function MemePage({ params }: MemePageProps) {
             {meme.mediaType === 'video' ? (
               <video
                 src={meme.imageUrl}
+                poster={meme.posterUrl || undefined}
                 controls
                 loop
                 playsInline
@@ -162,13 +199,13 @@ export default async function MemePage({ params }: MemePageProps) {
           marginBottom: 24,
         }}>
           <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, color: '#fff' }}>
-            Napravi i ti svoj meme!
+            {t('pages.meme.ctaTitle')}
           </h2>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 16 }}>
-            Besplatna registracija. Napravi meme, podeli na MemeWall-u, osvoji lajkove!
+            {t('pages.meme.ctaText')}
           </p>
           <a
-            href={`/register?ref=meme_${meme.id}`}
+            href={`/register?ref=${isValidRef(ref) ? encodeURIComponent(ref) : `meme_${meme.id}`}`}
             style={{
               display: 'inline-block',
               backgroundColor: '#fff',
@@ -180,8 +217,48 @@ export default async function MemePage({ params }: MemePageProps) {
               fontSize: 16,
             }}
           >
-            Registruj se besplatno
+            {t('pages.meme.ctaButton')}
           </a>
+        </div>
+
+        {/* Get the Android app: people arrive here from a link shared on
+            WhatsApp/Viber, usually on a phone. iPhone gets the web app hint. */}
+        <div style={{
+          backgroundColor: '#111214',
+          border: '1px solid #2C2F36',
+          borderRadius: 16,
+          padding: 20,
+          marginBottom: 24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          textAlign: 'center',
+        }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#fff' }}>{t('pages.meme.appTitle')}</h3>
+          <p style={{ fontSize: 14, color: '#A3A7B0', margin: 0 }}>{t('pages.meme.appText')}</p>
+          {isIos ? (
+            <p style={{ fontSize: 14, color: '#E8E8EA', margin: 0 }}>{t('pages.meme.iosHint')}</p>
+          ) : (
+            <InstallAppButton
+              registerHref={`/register?ref=${isValidRef(ref) ? encodeURIComponent(ref) : `meme_${meme.id}`}`}
+              style={{
+                display: 'inline-block',
+                alignSelf: 'center',
+                backgroundColor: '#FF7A3D',
+                color: '#111214',
+                fontWeight: 700,
+                padding: '14px 28px',
+                borderRadius: 999,
+                textDecoration: 'none',
+                fontSize: 16,
+              }}
+            >
+              {t('pages.meme.downloadAndroid')}
+            </InstallAppButton>
+          )}
+          {!isIos && (
+            <p style={{ fontSize: 12, color: '#A3A7B0', margin: 0 }}>{t('pages.meme.downloadHint')}</p>
+          )}
         </div>
 
         {/* App features */}
@@ -191,20 +268,20 @@ export default async function MemePage({ params }: MemePageProps) {
           padding: 20,
           marginBottom: 24,
         }}>
-          <h3 style={{ fontSize: 16, marginBottom: 12 }}>MyPhoto — vise od memova</h3>
+          <h3 style={{ fontSize: 16, marginBottom: 12 }}>{t('pages.meme.featuresTitle')}</h3>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: '#94a3b8', fontSize: 14, lineHeight: 2 }}>
-            <li>📸 Auto-backup slika sa telefona</li>
-            <li>☁️ Cloud storage za fajlove (MySpace)</li>
-            <li>🤖 AI pretraga i tagovanje</li>
-            <li>🎨 Meme generator + MemeWall</li>
-            <li>👨‍👩‍👧‍👦 Family plan — deli sa porodicom</li>
-            <li>🔒 EU serveri, GDPR, bez AI treninga</li>
+            <li>📸 {t('pages.meme.featBackup')}</li>
+            <li>☁️ {t('pages.meme.featStorage')}</li>
+            <li>🖼️ {t('pages.meme.featOriginal')}</li>
+            <li>🎨 {t('pages.meme.featMeme')}</li>
+            <li>👨‍👩‍👧‍👦 {t('pages.meme.featFamily')}</li>
+            <li>🔒 {t('pages.meme.featPrivacy')}</li>
           </ul>
         </div>
 
         {/* Footer */}
         <div style={{ textAlign: 'center', color: '#475569', fontSize: 12, paddingBottom: 40 }}>
-          <a href="/" style={{ color: '#0ea5e9' }}>myphotomy.space</a> · NASRM Kapetan Bogdan Studio
+          <a href="/" style={{ color: '#0ea5e9' }}>myphotomy.space</a> · NKNET CONSULTING DOO
         </div>
       </div>
     </div>

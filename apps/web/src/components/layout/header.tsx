@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Search,
@@ -17,7 +18,10 @@ import {
 } from 'lucide-react';
 import { useAuthStore, useUIStore, useFilesStore } from '@/lib/stores';
 import { usePWA } from '@/lib/hooks/use-pwa';
+import { useInboxBadge } from '@/lib/hooks/use-inbox';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/client';
+import { LanguageSwitcher } from './language-switcher';
 
 export function Header() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -28,6 +32,8 @@ export function Header() {
   const { selectedFiles, deselectAll } = useFilesStore();
   const { isInstallable, isInstalled, isIOS, installApp } = usePWA();
   const router = useRouter();
+  const unread = useInboxBadge((s) => s.activity + s.messages);
+  const t = useT();
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -73,11 +79,12 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-canvas-light px-4 dark:bg-canvas-dark lg:h-16 lg:border-b lg:border-gray-200 lg:bg-white lg:dark:border-gray-700 lg:dark:bg-gray-800">
       {/* Left side */}
       <div className="flex items-center gap-4">
         <button
           onClick={toggleSidebar}
+          aria-label={t('components.header.menu')}
           className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -88,16 +95,22 @@ export function Header() {
           <div className="flex items-center gap-4">
             <button
               onClick={deselectAll}
+              aria-label={t('components.header.clearSelection')}
               className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <X className="h-5 w-5" />
             </button>
             <span className="text-sm font-medium">
-              {selectedFiles.size} izabrano
+              {t('components.header.selectedCount', { count: selectedFiles.size })}
             </span>
           </div>
         ) : (
-          /* Search */
+          <>
+          {/* Phones: the app's wordmark; search lives under Slike */}
+          <Link href="/meme-wall" className="font-display text-[24px] font-extrabold tracking-tight text-ink dark:text-white md:hidden">
+            MyPhoto
+          </Link>
+          {/* Search */}
           <form onSubmit={handleSearch} className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
@@ -107,7 +120,7 @@ export function Header() {
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
-              placeholder="Pretraži slike..."
+              placeholder={t('components.header.searchPlaceholder')}
               className={cn(
                 'w-64 rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-4 text-sm transition-all focus:w-96 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-gray-600 dark:bg-gray-700 dark:focus:bg-gray-600',
                 isSearchFocused && 'w-96'
@@ -119,6 +132,7 @@ export function Header() {
               </kbd>
             )}
           </form>
+          </>
         )}
       </div>
 
@@ -127,6 +141,7 @@ export function Header() {
         {/* Mobile search button — hidden, bottom nav handles search */}
         <button
           onClick={openSearch}
+          aria-label={t('components.header.search')}
           className="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
         >
           <Search className="h-5 w-5" />
@@ -138,10 +153,11 @@ export function Header() {
           className="btn-primary hidden sm:flex"
         >
           <Upload className="mr-2 h-4 w-4" />
-          Upload
+          {t('components.header.upload')}
         </button>
         <button
           onClick={openUploadModal}
+          aria-label={t('components.header.upload')}
           className="hidden rounded-lg bg-primary-500 p-2 text-white hover:bg-primary-600"
         >
           <Upload className="h-5 w-5" />
@@ -159,30 +175,39 @@ export function Header() {
               }
             }}
             className="hidden items-center gap-1.5 rounded-lg border border-primary-200 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95 dark:border-primary-800 dark:bg-primary-900/20 dark:text-primary-400 sm:flex"
-            title="Instaliraj aplikaciju"
+            title={t('components.header.installApp')}
           >
             <Download className="h-3.5 w-3.5" />
-            Instaliraj
+            {t('components.header.install')}
           </button>
         )}
+
+        <div className="hidden lg:block">
+          <LanguageSwitcher />
+        </div>
 
         {/* Dark mode toggle */}
         <button
           onClick={toggleDarkMode}
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
-          title={isDarkMode ? 'Svetli režim' : 'Tamni režim'}
+          className="hidden rounded-lg p-2 lg:inline-flex text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+          title={isDarkMode ? t('components.header.lightMode') : t('components.header.darkMode')}
         >
           {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </button>
 
         {/* Notifications */}
-        <button className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
+        {/* Inbox (phones use the tab bar) */}
+        <Link href="/inbox" aria-label={t('components.header.notifications')} className="relative hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 lg:inline-flex">
           <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
-        </button>
+          {unread > 0 && (
+            <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E5484D] px-1 text-[10px] font-bold text-white">
+              {unread > 99 ? '99+' : unread}
+            </span>
+          )}
+        </Link>
 
         {/* User menu */}
-        <div className="relative" ref={userMenuRef}>
+        <div className="relative hidden lg:block" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 rounded-lg p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -215,7 +240,7 @@ export function Header() {
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <Settings className="h-4 w-4" />
-                  Podešavanja
+                  {t('components.header.settings')}
                 </button>
                 <button
                   onClick={() => {
@@ -225,7 +250,7 @@ export function Header() {
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <User className="h-4 w-4" />
-                  Nalog
+                  {t('components.header.account')}
                 </button>
               </div>
               <div className="border-t border-gray-100 py-1 dark:border-gray-700">
@@ -234,7 +259,7 @@ export function Header() {
                   className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                 >
                   <LogOut className="h-4 w-4" />
-                  Odjavi se
+                  {t('components.header.signOut')}
                 </button>
               </div>
             </div>

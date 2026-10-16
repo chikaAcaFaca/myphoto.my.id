@@ -5,6 +5,7 @@
  */
 import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
+import { t } from './i18n';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
@@ -54,7 +55,7 @@ export async function downloadToDevice(
     // Get presigned download URL
     const downloadUrl = await getDownloadUrl(file.s3Key, token);
     if (!downloadUrl) {
-      return { success: false, error: 'Could not get download URL' };
+      return { success: false, error: t('libs.cloudDownload.noDownloadUrl') };
     }
 
     // Download to a temp location first
@@ -76,7 +77,7 @@ export async function downloadToDevice(
 
     const result = await downloadResumable.downloadAsync();
     if (!result || result.status !== 200) {
-      return { success: false, error: 'Download failed' };
+      return { success: false, error: t('libs.cloudDownload.downloadFailed') };
     }
 
     // For images and videos, save to camera roll

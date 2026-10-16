@@ -3,6 +3,14 @@
     {
       "path": "/api/health",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/over-quota",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/content",
+      "schedule": "0 7 * * *"
     }
   ]
 }

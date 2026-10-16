@@ -1,16 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator,
   RefreshControl, Image, Dimensions,
+  type ViewToken,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { setViewerPhotos } from '@/lib/photo-list-store';
 import * as MediaLibrary from 'expo-media-library';
 import { useAuth } from '@/lib/auth-context';
 import { colors, radius, fonts } from '@/lib/theme';
 import { useTheme } from '@/lib/theme-context';
 import type { FileMetadata } from '@myphoto/shared';
+import { useT } from '@/lib/i18n';
+import { StackHeader } from '@/components/StackHeader';
+import { useAuthHeaders, pickThumb } from '@/lib/auth-image';
 
 const { width } = Dimensions.get('window');
 const COL = 2;
@@ -35,12 +41,58 @@ function formatDuration(seconds?: number): string {
 
 export default function VideosScreen() {
   const { colors: tc } = useTheme();
+  const authHeaders = useAuthHeaders();
+  const { t } = useT();
   const { getToken } = useAuth();
   const [cloudVideos, setCloudVideos] = useState<FileMetadata[]>([]);
   const [deviceVideos, setDeviceVideos] = useState<DeviceVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'device' | 'cloud'>('cloud');
+
+  // Auto-play the currently-visible video in the grid (muted, looped).
+  // Only ONE plays at a time — its presigned playback URL is fetched on
+  // demand and cached for 30 min so a quick scroll doesn't hammer the API.
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+  const urlCacheRef = useRef<Map<string, { url: string; expiry: number }>>(new Map());
+  // Only one tile auto-plays at a time, so a single ref suffices.
+  const previewVideoRef = useRef<Video>(null);
+
+  useEffect(() => {
+    if (!activeVideoId) { setActiveVideoUrl(null); return; }
+    // /api/files now ships a presigned `playbackUrl` for every video in the
+    // list response, so the common case needs NO extra network call. We only
+    // fall back to the per-video download-url endpoint if it's missing (an
+    // older cached list, say). This is the main Vercel-invocation saver.
+    const fromList = (cloudVideos.find((v) => v.id === activeVideoId) as any)?.playbackUrl as string | undefined;
+    if (fromList) { setActiveVideoUrl(fromList); return; }
+    let cancelled = false;
+    (async () => {
+      const cached = urlCacheRef.current.get(activeVideoId);
+      if (cached && cached.expiry > Date.now()) { setActiveVideoUrl(cached.url); return; }
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const r = await fetch(`${API_URL}/api/files/${activeVideoId}/download-url`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) return;
+        const { downloadUrl } = await r.json();
+        if (cancelled) return;
+        urlCacheRef.current.set(activeVideoId, { url: downloadUrl, expiry: Date.now() + 30 * 60 * 1000 });
+        setActiveVideoUrl(downloadUrl);
+      } catch { /* silent — the tile falls back to its thumbnail */ }
+    })();
+    return () => { cancelled = true; };
+  }, [activeVideoId, getToken, cloudVideos]);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    // Pick the top-most fully-viewable tile as the active player.
+    const first = viewableItems.find((v) => v.isViewable);
+    setActiveVideoId(((first?.item as FileMetadata | undefined)?.id) || null);
+  }).current;
 
   const fetchCloudVideos = useCallback(async () => {
     try {
@@ -94,35 +146,60 @@ export default function VideosScreen() {
 
   const renderVideo = ({ item }: { item: FileMetadata }) => (
     <TouchableOpacity
-      style={[styles.videoCard, { backgroundColor: tc.bgCard }]}
+      style={[styles.videoCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}
       activeOpacity={0.7}
       delayPressIn={100}
-      onPress={() => router.push({
-        pathname: '/photo-viewer',
-        params: {
-          id: item.id,
-          name: item.name,
-          type: 'video',
-          isFavorite: item.isFavorite ? '1' : '0',
-          isArchived: item.isArchived ? '1' : '0',
-        },
-      })}
+      onPress={() => {
+        setViewerPhotos(displayVideos.map((f) => ({
+          id: f.id, name: f.name, type: f.type || 'video',
+          isFavorite: f.isFavorite ? '1' : '0',
+          isArchived: f.isArchived ? '1' : '0',
+        })));
+        router.push({
+          pathname: '/photo-viewer',
+          params: {
+            id: item.id,
+            name: item.name,
+            type: 'video',
+            isFavorite: item.isFavorite ? '1' : '0',
+            isArchived: item.isArchived ? '1' : '0',
+          },
+        });
+      }}
     >
-      <View style={styles.videoThumb}>
-        {item.thumbnailKey ? (
+      <View style={[styles.videoThumb, { backgroundColor: tc.bgInput }]}>
+        {item.id === activeVideoId && activeVideoUrl ? (
+          <Video
+            ref={previewVideoRef}
+            source={{ uri: activeVideoUrl }}
+            style={styles.thumbImage}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            isMuted
+            isLooping
+            useNativeControls={false}
+            // Force playback once AV reports ready — some Android devices
+            // stall on the first frame even with shouldPlay set.
+            onLoad={() => { previewVideoRef.current?.playAsync().catch(() => {}); }}
+          />
+        ) : item.thumbnailKey ? (
           <Image
-            source={{ uri: `${API_URL}/api/thumbnail/${item.id}?size=medium` }}
+            source={pickThumb(item as any, 'medium', authHeaders)}
             style={styles.thumbImage}
             resizeMode="cover"
           />
         ) : (
-          <View style={[styles.thumbImage, { backgroundColor: colors.bgInput, alignItems: 'center', justifyContent: 'center' }]}>
-            <Ionicons name="videocam" size={28} color={colors.textMuted} />
+          <View style={[styles.thumbImage, { backgroundColor: tc.bgInput, alignItems: 'center', justifyContent: 'center' }]}>
+            <Ionicons name="videocam" size={28} color={tc.textMuted} />
           </View>
         )}
-        <View style={styles.playBtn}>
-          <Ionicons name="play" size={18} color={colors.primary} />
-        </View>
+        {/* Hide the Play overlay on the auto-playing tile so the preview
+            reads as live video; show it on every other tile as before. */}
+        {item.id !== activeVideoId && (
+          <View style={styles.playBtn}>
+            <Ionicons name="play" size={18} color="#16181D" />
+          </View>
+        )}
         <View style={styles.durationBadge}>
           <Text style={styles.durationText}>{formatDuration(item.duration)}</Text>
         </View>
@@ -135,20 +212,18 @@ export default function VideosScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: tc.bg }]} edges={['top']}>
-      <View style={[styles.headerBg, { backgroundColor: tc.primary }]}>
-        <Text style={styles.headerTitle}>Video</Text>
-      </View>
+      <StackHeader title={t('videos.title')} />
 
       {/* Filter toggle */}
-      <View style={styles.toggleContainer}>
+      <View style={[styles.toggleContainer, { backgroundColor: tc.bgInput }]}>
         {(['all', 'device', 'cloud'] as const).map(f => (
           <TouchableOpacity
             key={f}
-            style={[styles.toggleTab, filter === f && [styles.toggleTabActive, { backgroundColor: tc.bgCard }]]}
+            style={[styles.toggleTab, filter === f && { backgroundColor: tc.bgCard }]}
             onPress={() => setFilter(f)}
           >
-            <Text style={[styles.toggleText, filter === f && styles.toggleTextActive]}>
-              {f === 'all' ? 'Svi' : f === 'device' ? 'Device' : 'Cloud'}
+            <Text style={[styles.toggleText, { color: filter === f ? tc.text : tc.textSecondary }]}>
+              {f === 'all' ? t('videos.filterAll') : f === 'device' ? t('videos.filterDevice') : t('videos.filterCloud')}
             </Text>
           </TouchableOpacity>
         ))}
@@ -156,13 +231,13 @@ export default function VideosScreen() {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tc.primary} />
         </View>
       ) : displayVideos.length === 0 ? (
         <View style={styles.center}>
-          <Ionicons name="videocam-outline" size={64} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: tc.text }]}>Nema videa</Text>
-          <Text style={[styles.emptySubtext, { color: tc.textMuted }]}>Vasi video snimci ce se pojaviti ovde</Text>
+          <Ionicons name="videocam-outline" size={64} color={tc.textMuted} />
+          <Text style={[styles.emptyText, { color: tc.text }]}>{t('videos.empty')}</Text>
+          <Text style={[styles.emptySubtext, { color: tc.textSecondary }]}>{t('videos.emptyHint')}</Text>
         </View>
       ) : (
         <FlatList
@@ -172,7 +247,9 @@ export default function VideosScreen() {
           numColumns={COL}
           columnWrapperStyle={styles.row}
           contentContainerStyle={{ padding: 12, paddingBottom: 80 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={tc.primary} />}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
         />
       )}
     </SafeAreaView>
@@ -181,29 +258,23 @@ export default function VideosScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  headerBg: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 14, paddingTop: 8 },
-  headerTitle: { fontSize: 22, ...fonts.extrabold, color: '#fff' },
   toggleContainer: {
-    flexDirection: 'row', marginHorizontal: 12, marginVertical: 10,
-    backgroundColor: colors.bgInput, borderRadius: radius.md, padding: 3,
+    flexDirection: 'row', marginHorizontal: 12, marginTop: 2, marginBottom: 10,
+    borderRadius: 22, padding: 3,
   },
-  toggleTab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 10 },
-  toggleTabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-  toggleText: { fontSize: 12, ...fonts.semibold, color: colors.textSecondary },
-  toggleTextActive: { color: colors.primary },
+  toggleTab: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 40, borderRadius: 20 },
+  toggleText: { fontSize: 13, ...fonts.semibold },
   row: { gap: GAP },
   videoCard: {
     width: CARD_W, borderRadius: radius.lg, overflow: 'hidden',
-    backgroundColor: '#fff', marginBottom: GAP,
-    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
+    marginBottom: GAP, borderWidth: 1,
   },
-  videoThumb: { width: '100%', height: 110, position: 'relative', backgroundColor: colors.bgInput },
+  videoThumb: { width: '100%', height: 110, position: 'relative' },
   thumbImage: { width: '100%', height: '100%' },
   playBtn: {
     position: 'absolute', top: '50%', left: '50%', marginTop: -18, marginLeft: -18,
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 8, elevation: 4,
   },
   durationBadge: {
     position: 'absolute', bottom: 6, right: 6,

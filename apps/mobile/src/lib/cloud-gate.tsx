@@ -14,12 +14,13 @@
  * gently funnels users toward a larger plan. Mount <CloudGateProvider> once and
  * call useCloudGate().ensureOnCloud(...) from any tool before processing.
  */
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import { Modal, View, Text, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { Modal, View, Text, ActivityIndicator, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from './auth-context';
 import { useSync } from './sync-context';
 import { colors, radius, fonts } from './theme';
+import { t as translate, useT } from './i18n';
 
 export interface CloudGateParams {
   /** MediaLibrary asset id of a device photo. Omit for images with no cloud
@@ -42,6 +43,8 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
   const { appUser } = useAuth();
   const { uploadSingleAsset } = useSync();
   const [uploading, setUploading] = useState(false);
+  const cancelRef = useRef<(() => void) | null>(null);
+  const { t } = useT();
 
   const ensureOnCloud = useCallback(
     async ({ assetId, isUploaded }: CloudGateParams): Promise<boolean> => {
@@ -58,19 +61,19 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
       if (storageFull) {
         return new Promise<boolean>((resolve) => {
           Alert.alert(
-            'Prostor je popunjen',
-            'Da bismo obradili sliku, prvo je bezbedno čuvamo u tvom cloud-u — ali ' +
-              'tvoj prostor je pun. Nadogradi plan da zaštitiš i obrađuješ slike.',
+            translate('cloudGate.fullTitle'),
+            translate('cloudGate.fullBody'),
             [
-              { text: 'Ne sada', style: 'cancel', onPress: () => resolve(false) },
+              { text: translate('cloudGate.notNow'), style: 'cancel', onPress: () => resolve(false) },
               {
-                text: 'Pogledaj planove',
+                text: translate('cloudGate.viewPlans'),
                 onPress: () => {
                   resolve(false);
                   router.push('/pricing');
                 },
               },
             ],
+            { cancelable: true, onDismiss: () => resolve(false) },
           );
         });
       }
@@ -79,13 +82,13 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
       // photo up now and proceed.
       const confirmed = await new Promise<boolean>((resolve) => {
         Alert.alert(
-          'Zaštitimo original',
-          'Da bismo obradili sliku, prvo bezbedno čuvamo originalnu sliku u tvoj ' +
-            'cloud — tako je original zaštićen pre obrade.',
+          translate('cloudGate.protectTitle'),
+          translate('cloudGate.protectBody'),
           [
-            { text: 'Otkaži', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Sačuvaj i obradi', onPress: () => resolve(true) },
+            { text: translate('cloudGate.cancel'), style: 'cancel', onPress: () => resolve(false) },
+            { text: translate('cloudGate.saveAndProcess'), onPress: () => resolve(true) },
           ],
+          { cancelable: true, onDismiss: () => resolve(false) },
         );
       });
       if (!confirmed) return false;
@@ -93,14 +96,23 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
       setUploading(true);
       let ok = false;
       try {
-        ok = await uploadSingleAsset(assetId);
+        // Never longer than SAVE_DEADLINE_MS, and the user can cancel: this
+        // overlay used to wait forever on a dead connection (force-stop only).
+        ok = await Promise.race([
+          uploadSingleAsset(assetId).catch(() => false),
+          new Promise<boolean>((resolve) => {
+            cancelRef.current = () => resolve(false);
+            setTimeout(() => resolve(false), SAVE_DEADLINE_MS);
+          }),
+        ]);
       } finally {
+        cancelRef.current = null;
         setUploading(false);
       }
       if (!ok) {
         Alert.alert(
-          'Nije uspelo',
-          'Slika nije mogla da se sačuva u cloud. Proveri internet i pokušaj ponovo.',
+          translate('cloudGate.failedTitle'),
+          translate('cloudGate.failedBody'),
         );
         return false;
       }
@@ -112,14 +124,26 @@ export function CloudGateProvider({ children }: { children: ReactNode }) {
   return (
     <CloudGateContext.Provider value={{ ensureOnCloud }}>
       {children}
-      <Modal visible={uploading} transparent animationType="fade">
+      <Modal
+        visible={uploading}
+        transparent
+        animationType="fade"
+        onRequestClose={() => cancelRef.current?.()}
+      >
         <View style={styles.overlay}>
           <View style={styles.card}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.title}>Čuvamo tvoju sliku…</Text>
+            <Text style={styles.title}>{t('cloudGate.savingTitle')}</Text>
             <Text style={styles.subtitle}>
-              Bezbedno je smeštamo u tvoj cloud pre obrade.
+              {t('cloudGate.savingSubtitle')}
             </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => cancelRef.current?.()}
+              style={styles.cancelBtn}
+            >
+              <Text style={styles.cancelText}>{t('cloudGate.cancel')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -133,7 +157,12 @@ export function useCloudGate(): CloudGateContextType {
   return ctx;
 }
 
+// Longest we keep the user waiting on a one-off "save to cloud".
+const SAVE_DEADLINE_MS = 120_000;
+
 const styles = StyleSheet.create({
+  cancelBtn: { marginTop: 16, minHeight: 44, paddingHorizontal: 24, justifyContent: 'center', alignItems: 'center' },
+  cancelText: { color: colors.primary, fontSize: 15, fontWeight: '700' },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',

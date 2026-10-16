@@ -7,6 +7,7 @@ import { Copy, Trash2, Check, X, Play, Image as ImageIcon, Eye } from 'lucide-re
 import { useAuthStore, useUIStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
+import { useI18n, useT } from '@/i18n/client';
 
 interface DuplicateFile {
   id: string;
@@ -29,6 +30,7 @@ export default function DuplicatesPage() {
   const { addNotification } = useUIStore();
   const queryClient = useQueryClient();
   const [expandedGroup, setExpandedGroup] = useState<number | null>(null);
+  const { t, intlLocale } = useI18n();
 
   const { data, isLoading } = useQuery({
     queryKey: ['duplicates', user?.id],
@@ -69,8 +71,8 @@ export default function DuplicatesPage() {
     }
     addNotification({
       type: 'success',
-      title: 'Duplikati obrisani',
-      message: `${toDelete.length} fajlova premesteno u korpu`,
+      title: t('dashboard.duplicates.deleted'),
+      message: t('dashboard.shared.movedToTrashMsg', { count: toDelete.length }),
     });
   };
 
@@ -83,7 +85,7 @@ export default function DuplicatesPage() {
   };
 
   const formatDate = (date: Date | string) => {
-    return new Date(date).toLocaleDateString('sr-Latn', {
+    return new Date(date).toLocaleDateString(intlLocale, {
       year: 'numeric', month: 'short', day: 'numeric',
     });
   };
@@ -96,10 +98,10 @@ export default function DuplicatesPage() {
 
   const matchLabel = (type: string) => {
     switch (type) {
-      case 'visual': return 'Vizuelno slični';
-      case 'size': return 'Ista veličina';
-      case 'name': return 'Sličan naziv';
-      default: return 'Duplikat';
+      case 'visual': return t('dashboard.duplicates.matchVisual');
+      case 'size': return t('dashboard.duplicates.matchSize');
+      case 'name': return t('dashboard.duplicates.matchName');
+      default: return t('dashboard.duplicates.matchDefault');
     }
   };
 
@@ -117,11 +119,11 @@ export default function DuplicatesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Duplikati</h1>
+        <h1 className="text-2xl font-bold">{t('dashboard.duplicates.title')}</h1>
         <p className="text-gray-500">
           {duplicates.length === 0
-            ? 'Nema duplikata u vašoj galeriji'
-            : `Pronađeno ${duplicates.length} grupa sličnih fajlova`}
+            ? t('dashboard.duplicates.noneInGallery')
+            : t('dashboard.duplicates.foundGroups', { count: duplicates.length })}
         </p>
       </div>
 
@@ -130,9 +132,9 @@ export default function DuplicatesPage() {
           <div className="mb-6 rounded-full bg-green-50 p-6 dark:bg-green-900/20">
             <Check className="h-12 w-12 text-green-500" />
           </div>
-          <h2 className="text-xl font-semibold">Nema duplikata</h2>
+          <h2 className="text-xl font-semibold">{t('dashboard.duplicates.emptyTitle')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Vaša galerija je čista! Nismo pronašli duplikate ili slične fajlove.
+            {t('dashboard.duplicates.emptyText')}
           </p>
         </div>
       ) : (
@@ -158,7 +160,7 @@ export default function DuplicatesPage() {
                       {matchLabel(group.matchType)}
                     </span>
                     <span className="text-sm text-gray-500">
-                      {Math.round(group.similarity)}% sličnost &middot; {group.files.length} fajla
+                      {t('dashboard.duplicates.similarity', { percent: Math.round(group.similarity) })} &middot; {t('dashboard.duplicates.groupFiles', { count: group.files.length })}
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -170,14 +172,14 @@ export default function DuplicatesPage() {
                       }}
                       className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
                     >
-                      Zadrži sve
+                      {t('dashboard.duplicates.keepAll')}
                     </button>
                     <button
                       onClick={() => handleDeleteDuplicates(group)}
                       className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600"
                     >
                       <Trash2 className="mr-1 inline h-3 w-3" />
-                      Obriši duplikate
+                      {t('dashboard.duplicates.deleteDuplicates')}
                     </button>
                   </div>
                 </div>
@@ -211,9 +213,9 @@ export default function DuplicatesPage() {
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
           <div className="flex items-center justify-between">
             <div>
-              <div className="font-medium">Moguća ušteda</div>
+              <div className="font-medium">{t('dashboard.duplicates.savings')}</div>
               <div className="text-sm text-gray-500">
-                {duplicates.reduce((sum, g) => sum + g.files.length - 1, 0)} duplikata pronađeno
+                {t('dashboard.duplicates.foundCount', { count: duplicates.reduce((sum, g) => sum + g.files.length - 1, 0) })}
               </div>
             </div>
             <div className="text-right">
@@ -225,7 +227,7 @@ export default function DuplicatesPage() {
                   )
                 )}
               </div>
-              <div className="text-sm text-gray-500">može se osloboditi</div>
+              <div className="text-sm text-gray-500">{t('dashboard.duplicates.canBeFreed')}</div>
             </div>
           </div>
         </div>
@@ -252,6 +254,7 @@ function DuplicateCard({
   formatDuration: (n: number) => string;
 }) {
   const [imgError, setImgError] = useState(false);
+  const t = useT();
   const isVideo = file.type === 'video';
 
   return (
@@ -285,7 +288,7 @@ function DuplicateCard({
         {/* Badge */}
         {isOriginal && (
           <div className="absolute left-2 top-2 rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
-            ORIGINAL
+            {t('dashboard.duplicates.original')}
           </div>
         )}
 
@@ -303,14 +306,14 @@ function DuplicateCard({
             <button
               onClick={(e) => { e.stopPropagation(); onDismiss(); }}
               className="rounded-full bg-white p-2 text-gray-700 shadow hover:bg-gray-100"
-              title="Zadrži"
+              title={t('dashboard.duplicates.keep')}
             >
               <Check className="h-4 w-4" />
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
               className="rounded-full bg-red-500 p-2 text-white shadow hover:bg-red-600"
-              title="Obriši"
+              title={t('dashboard.shared.delete')}
             >
               <Trash2 className="h-4 w-4" />
             </button>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { signInWithGoogle, auth } from '@/lib/firebase';
+import { useT } from '@/i18n/client';
 
 /**
  * Desktop Google sign-in bridge.
@@ -18,6 +19,7 @@ import { signInWithGoogle, auth } from '@/lib/firebase';
 export default function DesktopAuthPage() {
   const [status, setStatus] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const t = useT();
 
   async function start() {
     const params = new URLSearchParams(window.location.search);
@@ -25,18 +27,18 @@ export default function DesktopAuthPage() {
     const state = params.get('state');
     if (!port || !state) {
       setStatus('error');
-      setMessage('Neispravan link (nedostaje port ili state). Pokušajte ponovo iz aplikacije.');
+      setMessage(t('pages.desktopAuth.badLink'));
       return;
     }
 
     try {
       setStatus('busy');
-      setMessage('Prijavljivanje preko Google naloga…');
+      setMessage(t('pages.desktopAuth.signingIn'));
       const user = await signInWithGoogle();
       const idToken = await user.getIdToken();
       const refreshToken = user.refreshToken || auth.currentUser?.refreshToken || '';
 
-      setMessage('Povezivanje sa MyPhoto aplikacijom…');
+      setMessage(t('pages.desktopAuth.connecting'));
       await fetch(`http://127.0.0.1:${port}/callback?state=${encodeURIComponent(state)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -45,10 +47,10 @@ export default function DesktopAuthPage() {
       });
 
       setStatus('done');
-      setMessage('Prijava uspešna! Možete zatvoriti ovu karticu i vratiti se u MyPhoto aplikaciju.');
+      setMessage(t('pages.desktopAuth.done'));
     } catch (e) {
       setStatus('error');
-      setMessage(e instanceof Error ? e.message : 'Google prijava nije uspela.');
+      setMessage(e instanceof Error ? e.message : t('pages.desktopAuth.failed'));
     }
   }
 
@@ -78,7 +80,7 @@ export default function DesktopAuthPage() {
       >
         <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>MyPhoto Desktop</h1>
         <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>
-          Prijavite se preko Google naloga da povežete desktop aplikaciju.
+          {t('pages.desktopAuth.subtitle')}
         </p>
 
         {status !== 'done' && (
@@ -96,7 +98,7 @@ export default function DesktopAuthPage() {
               cursor: status === 'busy' ? 'default' : 'pointer',
             }}
           >
-            {status === 'busy' ? 'Sačekajte…' : 'Nastavi sa Google'}
+            {status === 'busy' ? t('pages.desktopAuth.wait') : t('pages.desktopAuth.continue')}
           </button>
         )}
 

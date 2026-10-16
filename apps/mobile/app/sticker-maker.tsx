@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Dimensions,
-  Alert, ActivityIndicator, Platform, ScrollView, TextInput,
+  Alert, ActivityIndicator, ScrollView, TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as MediaLibrary from 'expo-media-library';
@@ -15,8 +16,12 @@ import { removeBackground, NoSubjectError } from '@/lib/remove-bg';
 import { useCloudGate } from '@/lib/cloud-gate';
 import { saveToMySpace } from '@/lib/myspace-upload';
 import { useAuth } from '@/lib/auth-context';
-import { colors, radius, fonts } from '@/lib/theme';
+import { radius, fonts } from '@/lib/theme';
+import { StackHeader } from '@/components/StackHeader';
+import { HeaderIconButton } from '@/components/ScreenHeader';
 import { useTheme } from '@/lib/theme-context';
+import { ZoomPanView } from '@/components/ZoomPanView';
+import { useT, type TKey } from '@/lib/i18n';
 
 const { width } = Dimensions.get('window');
 const STICKER_SIZE = width - 80;
@@ -24,12 +29,12 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://myphotomy.space';
 
 type StickerShape = 'circle' | 'rounded' | 'star' | 'heart' | 'text';
 
-const SHAPES: { key: StickerShape; label: string; icon: string }[] = [
-  { key: 'circle', label: 'Krug', icon: 'ellipse-outline' },
-  { key: 'rounded', label: 'Zaobljeno', icon: 'square-outline' },
-  { key: 'star', label: 'Zvezda', icon: 'star-outline' },
-  { key: 'heart', label: 'Srce', icon: 'heart-outline' },
-  { key: 'text', label: 'Tekst', icon: 'text-outline' },
+const SHAPES: { key: StickerShape; labelKey: TKey; icon: string }[] = [
+  { key: 'circle', labelKey: 'sticker.shapeCircle', icon: 'ellipse-outline' },
+  { key: 'rounded', labelKey: 'sticker.shapeRounded', icon: 'square-outline' },
+  { key: 'star', labelKey: 'sticker.shapeStar', icon: 'star-outline' },
+  { key: 'heart', labelKey: 'sticker.shapeHeart', icon: 'heart-outline' },
+  { key: 'text', labelKey: 'sticker.shapeText', icon: 'text-outline' },
 ];
 
 const BORDER_COLORS = ['#ffffff', '#000000', '#ef4444', '#f97316', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -40,6 +45,7 @@ const HEART_PATH = 'M50,90 C25,65 0,50 0,30 C0,13 13,0 30,0 C40,0 48,5 50,15 C52
 
 export default function StickerMakerScreen() {
   const { colors: tc } = useTheme();
+  const { t } = useT();
   const { id, name, uri: sourceUri } = useLocalSearchParams<{ id?: string; name?: string; uri?: string }>();
   const { ensureOnCloud } = useCloudGate();
   const { getToken } = useAuth();
@@ -114,14 +120,14 @@ export default function StickerMakerScreen() {
       setBgRemoved(true);
     } catch (e) {
       if (e instanceof NoSubjectError) {
-        Alert.alert('Nema subjekta', 'Nije pronađen jasan subjekt na slici. Pokušaj sa drugom slikom.');
+        Alert.alert(t('sticker.noSubjectTitle'), t('sticker.noSubjectMessage'));
       } else {
-        Alert.alert('Greska', 'Uklanjanje pozadine nije uspelo.');
+        Alert.alert(t('common.error'), t('sticker.removeBgFailed'));
       }
     } finally {
       setRemovingBg(false);
     }
-  }, [imageUri, id, ensureOnCloud]);
+  }, [imageUri, id, ensureOnCloud, t]);
 
   const handleSave = useCallback(async () => {
     if (!imageUri && shape !== 'text') return;
@@ -129,7 +135,7 @@ export default function StickerMakerScreen() {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (status !== 'granted') {
-        Alert.alert('Dozvola', 'Dozvolite pristup galeriji.');
+        Alert.alert(t('common.permission'), t('sticker.allowGallery'));
         return;
       }
       // Save the actual styled sticker (shape + border, transparent around it),
@@ -140,15 +146,33 @@ export default function StickerMakerScreen() {
         saveUri = dl.uri;
       }
       if (saveUri) {
-        await MediaLibrary.saveToLibraryAsync(saveUri);
+        // Drop the sticker into a dedicated "MyPhoto Stickers" album so the
+        // user can find it in the Viber / WhatsApp / Telegram image picker
+        // instead of scrolling through every photo on the device.
+        const asset = await MediaLibrary.createAssetAsync(saveUri);
+        try {
+          const album = await MediaLibrary.getAlbumAsync('MyPhoto Stickers');
+          if (album) {
+            await MediaLibrary.addAssetsToAlbumAsync([asset], album.id, false);
+          } else {
+            await MediaLibrary.createAlbumAsync('MyPhoto Stickers', asset, false);
+          }
+        } catch (e) {
+          // Album step is best-effort — if it fails the asset is still in
+          // the device gallery, just not under our named album.
+          console.warn('Album organize failed:', e);
+        }
       }
-      Alert.alert('Sacuvano!', 'Stiker je sacuvan. Mozete ga koristiti u Viberu i drugim aplikacijama!');
+      Alert.alert(
+        t('sticker.savedTitle'),
+        t('sticker.savedToDevice', { album: 'MyPhoto Stickers' }),
+      );
     } catch (e) {
-      Alert.alert('Greska', 'Cuvanje nije uspelo.');
+      Alert.alert(t('common.error'), t('sticker.saveFailed'));
     } finally {
       setSaving(false);
     }
-  }, [imageUri, shape, captureSticker]);
+  }, [imageUri, shape, captureSticker, t]);
 
   // Save the styled sticker into the user's MySpace cloud (personal space).
   const handleSaveToSpace = useCallback(async () => {
@@ -156,12 +180,12 @@ export default function StickerMakerScreen() {
     try {
       const token = await getToken();
       if (!token) {
-        Alert.alert('Prijava', 'Prijavi se da bi sačuvao u svoj prostor.');
+        Alert.alert(t('sticker.signInTitle'), t('sticker.signInToSave'));
         return;
       }
       const captured = (await captureSticker()) || imageUri;
       if (!captured) {
-        Alert.alert('Greška', 'Nema slike za čuvanje.');
+        Alert.alert(t('common.error'), t('sticker.nothingToSave'));
         return;
       }
       const ok = await saveToMySpace({
@@ -169,22 +193,28 @@ export default function StickerMakerScreen() {
         filename: `stiker-${Date.now()}.png`,
         mimeType: 'image/png',
         token,
+        folderName: 'Stikeri',
+        isSticker: true,
       });
-      Alert.alert(
-        ok ? 'Sačuvano' : 'Greška',
-        ok ? 'Stiker je u tvom prostoru (folder „MyPhoto Kreacije").' : 'Čuvanje u prostor nije uspelo.',
-      );
+      if (ok) {
+        Alert.alert(
+          t('common.saved'),
+          t('sticker.savedToSpace', { album: 'Stikeri' }),
+        );
+      } else {
+        Alert.alert(t('common.error'), t('sticker.saveToSpaceFailed'));
+      }
     } finally {
       setSavingSpace(false);
     }
-  }, [captureSticker, imageUri, getToken]);
+  }, [captureSticker, imageUri, getToken, t]);
 
   const renderStickerPreview = () => {
     if (shape === 'text') {
       return (
         <View style={[styles.textSticker, { borderColor }]}>
           <Text style={styles.textStickerContent}>
-            {stickerText || 'Tvoj tekst ovde'}
+            {stickerText || t('sticker.textPlaceholderPreview')}
           </Text>
           <Text style={styles.textStickerBrand}>myphotomy.space</Text>
         </View>
@@ -193,9 +223,9 @@ export default function StickerMakerScreen() {
 
     if (!imageUri) {
       return (
-        <TouchableOpacity style={[styles.pickBtn, { backgroundColor: tc.bgCard }]} onPress={pickImage}>
+        <TouchableOpacity style={[styles.pickBtn, { backgroundColor: tc.bgCard, borderColor: tc.border }]} onPress={pickImage}>
           <Ionicons name="image-outline" size={48} color={tc.textMuted} />
-          <Text style={[styles.pickText, { color: tc.textMuted }]}>Izaberi sliku</Text>
+          <Text style={[styles.pickText, { color: tc.textSecondary }]}>{t('sticker.pickImage')}</Text>
         </TouchableOpacity>
       );
     }
@@ -206,95 +236,107 @@ export default function StickerMakerScreen() {
       const br = shape === 'circle' ? s / 2 : 30;
       return (
         <View style={[styles.stickerFrame, { borderRadius: br, borderColor, borderWidth: 4 }]}>
-          <Image
-            source={{ uri: imageUri }}
-            style={[styles.stickerImage, { borderRadius: br - 4, transform: [{ scale: zoom }] }]}
-            contentFit="cover"
-          />
+          {/* Pinch-to-zoom + drag the subject inside the clipped frame. The
+              frame's overflow:hidden clips the image to the chosen shape. */}
+          <ZoomPanView style={StyleSheet.absoluteFillObject} panAtBaseScale>
+            <Image
+              source={{ uri: imageUri }}
+              style={[styles.stickerImage, { borderRadius: br - 4 }]}
+              contentFit="cover"
+            />
+          </ZoomPanView>
         </View>
       );
     }
 
-    // Star and Heart use SVG clip path
+    // Star and Heart use SVG clip path. We wrap the whole SVG in ZoomPanView
+    // so pinch/pan works here too — the outline scales with the image as a
+    // side-effect, but pinch is what the user actually asked for and the
+    // outline only ever looks "bigger", not wrong.
     const clipId = shape === 'star' ? 'starClip' : 'heartClip';
     const pathD = shape === 'star' ? STAR_PATH : HEART_PATH;
 
     return (
-      <View style={{ width: s, height: s }}>
-        <Svg width={s} height={s} viewBox="0 0 100 100">
-          <Defs>
-            <ClipPath id={clipId}>
-              <Path d={pathD} />
-            </ClipPath>
-          </Defs>
-          <SvgImage
-            href={imageUri}
-            x={((1 - zoom) / 2) * 100}
-            y={((1 - zoom) / 2) * 100}
-            width={100 * zoom}
-            height={100 * zoom}
-            clipPath={`url(#${clipId})`}
-            preserveAspectRatio="xMidYMid slice"
-          />
-          <Path d={pathD} stroke={borderColor} strokeWidth="3" fill="none" />
-        </Svg>
+      <View style={{ width: s, height: s, overflow: 'hidden' }}>
+        <ZoomPanView style={StyleSheet.absoluteFillObject} panAtBaseScale>
+          <Svg width={s} height={s} viewBox="0 0 100 100">
+            <Defs>
+              <ClipPath id={clipId}>
+                <Path d={pathD} />
+              </ClipPath>
+            </Defs>
+            <SvgImage
+              href={imageUri}
+              x={0}
+              y={0}
+              width={100}
+              height={100}
+              clipPath={`url(#${clipId})`}
+              preserveAspectRatio="xMidYMid slice"
+            />
+            <Path d={pathD} stroke={borderColor} strokeWidth="3" fill="none" />
+          </Svg>
+        </ZoomPanView>
       </View>
     );
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: tc.bg }]}>
-      <View style={[styles.topBar, { backgroundColor: '#ec4899' }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.topBtn}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Stiker Kreator</Text>
-        <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity onPress={handleSaveToSpace} disabled={savingSpace} style={styles.topBtn}>
-            {savingSpace ? <ActivityIndicator size="small" color="#fff" /> : (
-              <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+    <SafeAreaView style={[styles.container, { backgroundColor: tc.bg }]} edges={['top']}>
+      <StackHeader
+        title={t('sticker.title')}
+        actions={
+          <>
+            {savingSpace ? (
+              <View style={[styles.headerBusy, { backgroundColor: tc.bgInput }]}>
+                <ActivityIndicator size="small" color={tc.text} />
+              </View>
+            ) : (
+              <HeaderIconButton icon="cloud-upload-outline" label={t('sticker.saveToMySpace')} onPress={handleSaveToSpace} />
             )}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleSave} disabled={saving} style={styles.topBtn}>
-            {saving ? <ActivityIndicator size="small" color="#fff" /> : (
-              <Ionicons name="download-outline" size={20} color="#fff" />
+            {saving ? (
+              <View style={[styles.headerBusy, { backgroundColor: tc.bgInput }]}>
+                <ActivityIndicator size="small" color={tc.text} />
+              </View>
+            ) : (
+              <HeaderIconButton icon="download-outline" label={t('common.save')} onPress={handleSave} />
             )}
-          </TouchableOpacity>
-        </View>
-      </View>
+          </>
+        }
+      />
 
       <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 60 }}>
         {/* Preview */}
         <View style={styles.previewArea}>
-          <View style={styles.checkerboard}>
-            <View ref={stickerRef} collapsable={false}>
+          <View style={[styles.checkerboard, { backgroundColor: tc.bgInput, borderColor: tc.border }]}>
+            <View ref={stickerRef} collapsable={false} style={{ alignItems: 'center' }}>
               {renderStickerPreview()}
+              {/* Small brand under image stickers, so whoever receives one in
+                  Viber/WhatsApp knows where it was made (text stickers carry
+                  it inside the card). Readable on light and dark chats. */}
+              {imageUri && shape !== 'text' && <Text style={styles.imageStickerBrand}>myphotomy.space</Text>}
             </View>
           </View>
         </View>
 
-        {/* Zoom control */}
+        {/* All shapes (circle/rounded/star/heart) use pinch-to-zoom + drag via
+            ZoomPanView now. The +/- buttons are gone — they were strictly worse
+            and confused the user about which gesture was authoritative. */}
         {imageUri && shape !== 'text' && (
-          <View style={styles.zoomRow}>
-            <TouchableOpacity onPress={() => setZoom(Math.max(0.5, zoom - 0.1))} style={styles.zoomBtn}>
-              <Ionicons name="remove" size={20} color={tc.text} />
-            </TouchableOpacity>
-            <Text style={[styles.zoomText, { color: tc.textMuted }]}>{Math.round(zoom * 100)}%</Text>
-            <TouchableOpacity onPress={() => setZoom(Math.min(2, zoom + 0.1))} style={styles.zoomBtn}>
-              <Ionicons name="add" size={20} color={tc.text} />
-            </TouchableOpacity>
-          </View>
+          <Text style={[styles.zoomHint, { color: tc.textSecondary }]}>
+            {t('sticker.gestureHint')}
+          </Text>
         )}
 
         {/* Tools */}
-        <View style={[styles.toolsCard, { backgroundColor: tc.bgCard }]}>
+        <View style={[styles.toolsCard, { backgroundColor: tc.bgCard, borderColor: tc.border }]}>
           {/* Remove BG */}
           {imageUri && !bgRemoved && shape !== 'text' && (
-            <TouchableOpacity style={[styles.removeBgBtn, { backgroundColor: '#ec4899' }]} onPress={handleRemoveBg} disabled={removingBg}>
-              {removingBg ? <ActivityIndicator size="small" color="#fff" /> : (
-                <Ionicons name="cut-outline" size={16} color="#fff" />
+            <TouchableOpacity style={[styles.removeBgBtn, { backgroundColor: tc.bgInput }]} onPress={handleRemoveBg} disabled={removingBg}>
+              {removingBg ? <ActivityIndicator size="small" color={tc.text} /> : (
+                <Ionicons name="cut-outline" size={16} color={tc.text} />
               )}
-              <Text style={styles.removeBgText}>Ukloni pozadinu</Text>
+              <Text style={[styles.removeBgText, { color: tc.text }]}>{t('sticker.removeBg')}</Text>
             </TouchableOpacity>
           )}
 
@@ -310,7 +352,7 @@ export default function StickerMakerScreen() {
               ) : (
                 <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
               )}
-              <Text style={styles.removeBgText}>Sačuvaj u moj prostor</Text>
+              <Text style={styles.removeBgText}>{t('sticker.saveToMySpace')}</Text>
             </TouchableOpacity>
           )}
 
@@ -318,7 +360,7 @@ export default function StickerMakerScreen() {
           {shape === 'text' && (
             <TextInput
               style={[styles.textInput, { backgroundColor: tc.bgInput, color: tc.text, borderColor: tc.border }]}
-              placeholder="Ukucaj tekst za stiker..."
+              placeholder={t('sticker.textInputPlaceholder')}
               placeholderTextColor={tc.textMuted}
               value={stickerText}
               onChangeText={setStickerText}
@@ -328,28 +370,30 @@ export default function StickerMakerScreen() {
           )}
 
           {/* Shape */}
-          <Text style={[styles.label, { color: tc.textMuted }]}>OBLIK</Text>
+          <Text style={[styles.label, { color: tc.textSecondary }]}>{t('sticker.shape')}</Text>
           <View style={styles.optionRow}>
             {SHAPES.map((s) => (
               <TouchableOpacity
                 key={s.key}
-                style={[styles.shapeBtn, shape === s.key && { backgroundColor: '#ec4899' + '20', borderColor: '#ec4899' }]}
+                style={[styles.shapeBtn, { borderColor: tc.border }, shape === s.key && { backgroundColor: tc.primaryLight, borderColor: tc.primary }]}
                 onPress={() => setShape(s.key)}
               >
-                <Ionicons name={s.icon as any} size={20} color={shape === s.key ? '#ec4899' : tc.textMuted} />
-                <Text style={[styles.shapeBtnText, shape === s.key && { color: '#ec4899' }]}>{s.label}</Text>
+                <Ionicons name={s.icon as any} size={20} color={shape === s.key ? tc.primary : tc.textSecondary} />
+                <Text style={[styles.shapeBtnText, { color: tc.textSecondary }, shape === s.key && { color: tc.primary }]}>{t(s.labelKey)}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* Border color */}
-          <Text style={[styles.label, { color: tc.textMuted }]}>BOJA OKVIRA</Text>
+          <Text style={[styles.label, { color: tc.textSecondary }]}>{t('sticker.borderColor')}</Text>
           <View style={styles.colorRow}>
             {BORDER_COLORS.map((c) => (
               <TouchableOpacity
                 key={c}
-                style={[styles.colorCircle, { backgroundColor: c }, borderColor === c && styles.colorSelected]}
+                style={[styles.colorCircle, { backgroundColor: c, borderColor: tc.border }, borderColor === c && [styles.colorSelected, { borderColor: tc.text }]]}
                 onPress={() => setBorderColor(c)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: borderColor === c }}
               />
             ))}
           </View>
@@ -357,37 +401,32 @@ export default function StickerMakerScreen() {
           {/* Change image */}
           {shape !== 'text' && (
             <TouchableOpacity style={styles.changeBtn} onPress={pickImage}>
-              <Ionicons name="swap-horizontal" size={16} color={tc.primary} />
-              <Text style={[styles.changeBtnText, { color: tc.primary }]}>
-                {imageUri ? 'Promeni sliku' : 'Izaberi sliku'}
+              <Ionicons name="swap-horizontal" size={16} color={tc.text} />
+              <Text style={[styles.changeBtnText, { color: tc.text }]}>
+                {imageUri ? t('sticker.changeImage') : t('sticker.pickImage')}
               </Text>
             </TouchableOpacity>
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 10, paddingTop: Platform.OS === 'ios' ? 50 : 8,
-  },
-  topBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 18, ...fonts.extrabold, color: '#fff' },
-  previewArea: { paddingVertical: 20 },
+  headerBusy: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  previewArea: { paddingTop: 8, paddingBottom: 20 },
   checkerboard: {
     width: STICKER_SIZE + 16, height: STICKER_SIZE + 16,
-    backgroundColor: '#e5e7eb', borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#d1d5db',
+    borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1,
   },
   stickerFrame: { width: STICKER_SIZE, height: STICKER_SIZE, overflow: 'hidden' },
   stickerImage: { width: '100%', height: '100%' },
   pickBtn: {
     width: STICKER_SIZE, height: STICKER_SIZE, borderRadius: 20,
-    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderStyle: 'dashed',
   },
   pickText: { fontSize: 14, ...fonts.medium, marginTop: 8 },
   textSticker: {
@@ -395,39 +434,36 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 4,
     backgroundColor: '#fff', padding: 20,
   },
-  textStickerContent: { fontSize: 24, ...fonts.extrabold, textAlign: 'center', color: '#1e293b' },
-  textStickerBrand: { fontSize: 10, ...fonts.medium, color: '#94a3b8', marginTop: 12 },
-  zoomRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 8,
+  textStickerContent: { fontSize: 24, ...fonts.extrabold, textAlign: 'center', color: '#16181D' },
+  textStickerBrand: { fontSize: 10, ...fonts.medium, color: '#8A909B', marginTop: 12 },
+  imageStickerBrand: {
+    fontSize: 11, ...fonts.bold, color: '#FFFFFF', marginTop: 4,
+    textShadowColor: 'rgba(0,0,0,0.75)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
-  zoomBtn: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: '#f1f5f9',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  zoomText: { fontSize: 14, ...fonts.bold, width: 50, textAlign: 'center' },
-  toolsCard: { width: width - 24, borderRadius: radius.lg, padding: 16, marginTop: 8 },
+  zoomHint: { fontSize: 12, textAlign: 'center', marginBottom: 8 },
+  toolsCard: { width: width - 24, borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, padding: 16, marginTop: 8 },
   removeBgBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: radius.md, paddingVertical: 12, marginBottom: 12,
+    borderRadius: radius.full, minHeight: 48, paddingVertical: 12, marginBottom: 10,
   },
-  removeBgText: { color: '#fff', fontSize: 13, ...fonts.bold },
+  removeBgText: { color: '#fff', fontSize: 15, ...fonts.bold },
   textInput: {
     borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12,
     fontSize: 16, marginBottom: 12, minHeight: 60, textAlignVertical: 'top',
   },
-  label: { fontSize: 10, ...fonts.bold, letterSpacing: 1, marginTop: 8, marginBottom: 6 },
+  label: { fontSize: 12, ...fonts.semibold, letterSpacing: 0.3, marginTop: 8, marginBottom: 6 },
   optionRow: { flexDirection: 'row', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
   shapeBtn: {
-    alignItems: 'center', gap: 4, borderWidth: 1, borderColor: colors.border,
-    borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 8,
+    alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1,
+    borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8, minWidth: 56, minHeight: 56,
   },
-  shapeBtnText: { fontSize: 9, ...fonts.medium, color: colors.textSecondary },
-  colorRow: { flexDirection: 'row', gap: 10, marginBottom: 8, flexWrap: 'wrap' },
-  colorCircle: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: '#d1d5db' },
-  colorSelected: { borderWidth: 3, borderColor: '#1e293b' },
+  shapeBtnText: { fontSize: 11, ...fonts.medium },
+  colorRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
+  colorCircle: { width: 36, height: 36, borderRadius: 18, borderWidth: 1 },
+  colorSelected: { borderWidth: 3 },
   changeBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    marginTop: 12, paddingVertical: 10,
+    marginTop: 12, minHeight: 44, paddingVertical: 10,
   },
   changeBtnText: { fontSize: 13, ...fonts.semibold },
 });

@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getIdToken } from '../firebase';
+import { tStatic } from '@/components/i18n-static';
 import { useAuthStore } from '../stores';
 
 export interface ReferralStats {
@@ -12,7 +13,7 @@ export interface ReferralStats {
   bonusFormatted: string;
   maxBonusFormatted: string;
   referralLink: string;
-  referrals: { email: string; date: string }[];
+  referrals: { email: string; date: string; qualified: boolean }[];
 }
 
 export function useReferralStats() {
@@ -22,11 +23,11 @@ export function useReferralStats() {
     queryKey: ['referral-stats'],
     queryFn: async () => {
       const token = await getIdToken();
-      if (!token) throw new Error('Not authenticated');
+      if (!token) throw new Error(tStatic('components.errors.notAuthenticated'));
       const res = await fetch('/api/referral/stats', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error('Failed to fetch referral stats');
+      if (!res.ok) throw new Error(tStatic('components.errors.referralStatsFailed'));
       return res.json();
     },
     enabled: !!user,

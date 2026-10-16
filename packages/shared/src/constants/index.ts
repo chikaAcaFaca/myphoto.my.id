@@ -1,4 +1,4 @@
-import type { StorageTier } from '../types';
+import type { BillingPeriod, StorageTier } from '../types';
 
 // Currency
 export const CURRENCY_SYMBOL = '€';
@@ -12,42 +12,67 @@ export const BYTES_PER_TB = BYTES_PER_GB * 1024;
 // Free tier: 1GB on registration
 export const FREE_STORAGE_LIMIT = 1 * BYTES_PER_GB;
 
-// Bonus: +1GB for installing Android/iOS app + enabling auto-backup
-export const APP_INSTALL_BONUS = 1 * BYTES_PER_GB;
+// Install bonuses are retired: the free plan is 1GB + referrals only. Kept at
+// zero rather than deleted so old call sites compile and grant nothing.
+export const APP_INSTALL_BONUS = 0;
+export const DESKTOP_INSTALL_BONUS = 0;
 
-// Bonus: +512MB for installing Desktop app + enabling sync
-export const DESKTOP_INSTALL_BONUS = 512 * BYTES_PER_MB;
-
-// Referral constants
-export const REFERRAL_BONUS = 512 * BYTES_PER_MB;        // +512MB per referral
-export const MAX_REFERRAL_BONUS = 7.5 * BYTES_PER_GB;      // max 7.5GB bonus (15 referrals × 512MB)
-export const MAX_REFERRALS = 15;                           // max 15 friends
+// Referrals: the REFERRER gets +250MB for every friend who signs up with their
+// link and uploads REFERRAL_QUALIFICATION_BYTES. The new user starts at the
+// plain 1GB. 6 referrals x 250MB = 1.5GB, which lands exactly on the 2.5GB
+// free ceiling below.
+export const REFERRAL_BONUS = 250 * BYTES_PER_MB;
+export const MAX_REFERRALS = 6;
+export const MAX_REFERRAL_BONUS = REFERRAL_BONUS * MAX_REFERRALS; // 1.5GB
 export const REFERRAL_QUALIFICATION_BYTES = 100 * BYTES_PER_MB; // referee must upload 100MB to qualify
 export const MAX_FAMILY_MEMBERS_REFERRAL = 6;
 
-// Max free storage: 1GB (reg) + 1GB (app) + 512MB (desktop) + 7.5GB (15 referrals) = ~10GB
-// But realistically without all referrals: 1GB + 1GB + 512MB + 512MB = 3GB (enough for MySpace free)
-export const MAX_FREE_STORAGE = 10 * BYTES_PER_GB;
+// Meme-wall referral: retired, grants nothing (main referral covers it).
+export const MEME_REFERRAL_BONUS = 0;
+export const MAX_MEME_REFERRAL_BONUS = 0;
+export const MEME_QUALIFICATION_UPLOAD_BYTES = 500 * BYTES_PER_MB; // referee must upload 500MB
+export const MEME_QUALIFICATION_REFERRALS = 5;                     // referee must refer 5 friends
+
+// Hard ceiling on everything a user can get without paying:
+// 1GB registration + up to 6 x 250MB referrals. Enforced in
+// recalculateStorageLimit(); admin-granted storage and paid subscriptions
+// stack on top of it and are deliberately NOT capped.
+export const MAX_FREE_STORAGE = 2.5 * BYTES_PER_GB;
 
 // Legacy — keep for backward compatibility during migration
 export const BACKUP_BONUS = APP_INSTALL_BONUS;
 
-// Billing Periods — monthly and yearly only
+// Largest single meme upload (video memes included). Memes also count against
+// the author's storageLimit like any other file.
+export const MAX_MEME_UPLOAD_SIZE = 100 * BYTES_PER_MB;
+
+// Billing Periods. Discount is vs. paying the reference monthly rate.
 export const BILLING_PERIODS = {
-  monthly: { months: 1,  multiplier: 1,  discount: 0,     label: 'Mesečno',  labelShort: '1 mes' },
-  yearly:  { months: 12, multiplier: 10, discount: 16.67, label: 'Godišnje', labelShort: '12 mes' },
+  monthly:    { months: 1,  label: 'Mesečno',     labelShort: '1 mes' },
+  quarterly:  { months: 3,  label: 'Tromesečno',  labelShort: '3 mes' },
+  semiannual: { months: 6,  label: 'Polugodišnje', labelShort: '6 mes' },
+  yearly:     { months: 12, label: 'Godišnje',    labelShort: '12 mes' },
 } as const;
+
+export const BILLING_PERIOD_ORDER: BillingPeriod[] = ['monthly', 'quarterly', 'semiannual', 'yearly'];
+const ALL_PERIODS: BillingPeriod[] = BILLING_PERIOD_ORDER;
+
+// The merchant of record charges ~3.9% + $0.40 per payment, so a €0.69–€2.49
+// charge loses 18–55% to fees. Small tiers are therefore sold only in periods
+// whose single charge is >= ~€5 (fee <= ~10%). Flip this to true if the
+// provider grants a flat <=10% rate for micro-transactions: every paid tier
+// then also offers monthly billing.
+export const MICRO_TX_MONTHLY_ENABLED = false;
 
 // All features included in every tier (including Free)
 export const ALL_FEATURES = [
   'MyPhoto auto-backup slika i videa',
   'MySpace cloud storage za fajlove',
-  'AI pretraga, auto-tagging, face recognition',
   'Remove Background',
   'Original quality — bez kompresije',
   'Deljenje albuma i foldera',
   'Desktop sync aplikacija',
-  'Web, Android & iOS pristup',
+  'Web i Android pristup',
   'EU serveri, GDPR zaštita',
   'Bez AI treninga na vašim slikama',
 ];
@@ -60,10 +85,13 @@ export const MYDISK_LITE_FEATURES = [
   'MySpace cloud storage za fajlove',
   'Deljenje albuma i foldera',
   'Desktop sync aplikacija',
-  'Web, Android & iOS pristup',
+  'Web i Android pristup',
   'EU serveri, GDPR zaštita',
 ];
 
+// Creem product IDs below are TEST-mode products (test-api.creem.io), created
+// 2026-10-09; prices are VAT-exclusive (tax_mode exclusive). After the live
+// account is approved, recreate them in live mode and replace these IDs.
 // Storage Tiers. Most tiers bundle the full feature set and just scale
 // storage; MyDisk Lite (tier 1) is the exception — it's storage-only, no
 // MyPhoto auto-backup, sold yearly-only as an entry "cloud disk" SKU.
@@ -75,8 +103,14 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageDisplay: '1 GB',
     priceMonthly: 0,
     priceYearly: 0,
+    periods: [],
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemQuarterlyProductId: '',
+    creemSemiannualProductId: '',
+    creemYearlyProductId: '',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 2,
@@ -88,9 +122,15 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 24 * BYTES_PER_GB,
     storageDisplay: '24 GB',
     priceMonthly: 0,
-    priceYearly: 3.99,
+    priceYearly: 4.99,
+    periods: ['yearly'],
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemQuarterlyProductId: '',
+    creemSemiannualProductId: '',
+    creemYearlyProductId: 'prod_6qnQ1XMg43k5iSJzoaFcaU',
     features: MYDISK_LITE_FEATURES,
     hasPhotoBackup: false,
     yearlyOnly: true,
@@ -103,9 +143,16 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 32 * BYTES_PER_GB,
     storageDisplay: '32 GB',
     priceMonthly: 0.69,
+    priceSemiannual: 4.99,
     priceYearly: 6.90,
+    periods: ['semiannual', 'yearly'],
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemQuarterlyProductId: '',
+    creemSemiannualProductId: 'prod_2vmJrbhQ4ur8MjhRuKviue',
+    creemYearlyProductId: 'prod_1CwiMzAb2Q9EXoe0iAPBWC',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 5,
@@ -117,9 +164,16 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 64 * BYTES_PER_GB,
     storageDisplay: '64 GB',
     priceMonthly: 0.99,
-    priceYearly: 9.90,
+    priceSemiannual: 5.94,
+    priceYearly: 9.99,
+    periods: ['semiannual', 'yearly'],
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemQuarterlyProductId: '',
+    creemSemiannualProductId: 'prod_1syAU829g4AJrYnsWr68bi',
+    creemYearlyProductId: 'prod_yIXun0dlfYYRZUcYpUJge',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 8,
@@ -131,9 +185,17 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 150 * BYTES_PER_GB,
     storageDisplay: '150 GB',
     priceMonthly: 2.49,
+    priceQuarterly: 7.47,
+    priceSemiannual: 14.94,
     priceYearly: 24.90,
+    periods: ['quarterly', 'semiannual', 'yearly'],
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemQuarterlyProductId: 'prod_3cfY1L1vFMGB8mjLlmsIp3',
+    creemSemiannualProductId: 'prod_3Ke0I380xX5MZ5ic84jKTA',
+    creemYearlyProductId: 'prod_1ZdAw2Cwn8MufHbsj7zU20',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     isPopular: true,
@@ -146,9 +208,17 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 250 * BYTES_PER_GB,
     storageDisplay: '250 GB',
     priceMonthly: 3.99,
+    priceQuarterly: 11.97,
+    priceSemiannual: 23.94,
     priceYearly: 39.90,
+    periods: ['quarterly', 'semiannual', 'yearly'],
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: '',
+    creemQuarterlyProductId: 'prod_1KFfi7vw8KJtStaUC5O4Dg',
+    creemSemiannualProductId: 'prod_3pc8xRygoUYqjIdliZkZWc',
+    creemYearlyProductId: 'prod_GpMfRiUYjkrAN5dvZeKaV',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 14,
@@ -160,9 +230,17 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 500 * BYTES_PER_GB,
     storageDisplay: '500 GB',
     priceMonthly: 7.49,
+    priceQuarterly: 22.47,
+    priceSemiannual: 44.94,
     priceYearly: 74.90,
+    periods: ALL_PERIODS,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: 'prod_31ouAPipuZzAckYFgAKjpE',
+    creemQuarterlyProductId: 'prod_2AT485K60ougP8t5cj3WOo',
+    creemSemiannualProductId: 'prod_66wgUMdTiHfM5V6md1jxk8',
+    creemYearlyProductId: 'prod_uERFZjob7jbddEcA3mPxl',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 17,
@@ -174,9 +252,17 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 750 * BYTES_PER_GB,
     storageDisplay: '750 GB',
     priceMonthly: 10.99,
+    priceQuarterly: 32.97,
+    priceSemiannual: 65.94,
     priceYearly: 109.90,
+    periods: ALL_PERIODS,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: 'prod_2BfBuehHKTly9njONaKWwK',
+    creemQuarterlyProductId: 'prod_4kpu5n9E32H2snwTgs8cZ9',
+    creemSemiannualProductId: 'prod_30BHY6PEn5F3qL59lSPBDe',
+    creemYearlyProductId: 'prod_45axCEcfM6yFYlWTloJRVF',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 22,
@@ -188,9 +274,17 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 1 * BYTES_PER_TB,
     storageDisplay: '1 TB',
     priceMonthly: 14.49,
+    priceQuarterly: 43.47,
+    priceSemiannual: 86.94,
     priceYearly: 144.90,
+    periods: ALL_PERIODS,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: 'prod_7cYcaFn677Vww7TYUmtc42',
+    creemQuarterlyProductId: 'prod_33nkQra0v8PM3E22xZMIXf',
+    creemSemiannualProductId: 'prod_6ZSjadP8wwC6gyGRYkcyEm',
+    creemYearlyProductId: 'prod_ZK0sDU2eXVPy3uUJZZ1GS',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 28,
@@ -202,15 +296,147 @@ export const STORAGE_TIERS: StorageTier[] = [
     storageBytes: 2 * BYTES_PER_TB,
     storageDisplay: '2 TB',
     priceMonthly: 24.99,
+    priceQuarterly: 74.97,
+    priceSemiannual: 149.94,
     priceYearly: 249.90,
+    periods: ALL_PERIODS,
     paddleMonthlyId: '',
     paddleYearlyId: '',
+    freemiusPlanId: '',
+    creemMonthlyProductId: 'prod_xjec3Dh9OPkM0qiUxLXfA',
+    creemQuarterlyProductId: 'prod_3Kf2jNQdHI7jIe5NrwRj5K',
+    creemSemiannualProductId: 'prod_5bM6pI9A7e9PIXTp53Hde',
+    creemYearlyProductId: 'prod_2mSm1AUEutTv906xoZ6hgZ',
     features: ALL_FEATURES,
     hasPhotoBackup: true,
     memesPerDay: 40,
     memesPerMonth: 1200,
   },
 ];
+
+/** Periods a tier is sold in, in BILLING_PERIOD_ORDER. Empty for Free. */
+export function getTierPeriods(tier: StorageTier): BillingPeriod[] {
+  if (tier.tier === 0) return [];
+  if (MICRO_TX_MONTHLY_ENABLED && tier.priceMonthly > 0 && !tier.periods.includes('monthly')) {
+    return ['monthly', ...tier.periods];
+  }
+  return tier.periods;
+}
+
+/** The wanted period if the tier sells it, else the shortest longer period it
+ *  sells, else its longest period. Lets one page-wide toggle drive every card. */
+export function resolveTierPeriod(tier: StorageTier, wanted: BillingPeriod): BillingPeriod {
+  const periods = getTierPeriods(tier);
+  if (periods.includes(wanted)) return wanted;
+  const wantedMonths = BILLING_PERIODS[wanted].months;
+  return periods.find((p) => BILLING_PERIODS[p].months > wantedMonths) ?? periods[periods.length - 1] ?? 'yearly';
+}
+
+/** Total charged for one billing period. */
+export function getTierPrice(tier: StorageTier, period: BillingPeriod): number {
+  switch (period) {
+    case 'monthly': return tier.priceMonthly;
+    case 'quarterly': return tier.priceQuarterly ?? Math.round(tier.priceMonthly * 3 * 100) / 100;
+    case 'semiannual': return tier.priceSemiannual ?? Math.round(tier.priceMonthly * 6 * 100) / 100;
+    case 'yearly': return tier.priceYearly;
+  }
+}
+
+/** Per-month equivalent of a period's price. */
+export function getTierMonthlyEquivalent(tier: StorageTier, period: BillingPeriod): number {
+  return getTierPrice(tier, period) / BILLING_PERIODS[period].months;
+}
+
+/** Savings vs. the reference monthly rate, in whole percent (0 if none). */
+export function getTierSavingsPercent(tier: StorageTier, period: BillingPeriod): number {
+  if (tier.priceMonthly <= 0) return 0;
+  return Math.max(0, Math.round((1 - getTierMonthlyEquivalent(tier, period) / tier.priceMonthly) * 100));
+}
+
+export function getTierCreemProductId(tier: StorageTier, period: BillingPeriod): string {
+  switch (period) {
+    case 'monthly': return tier.creemMonthlyProductId || '';
+    case 'quarterly': return tier.creemQuarterlyProductId || '';
+    case 'semiannual': return tier.creemSemiannualProductId || '';
+    case 'yearly': return tier.creemYearlyProductId || '';
+  }
+}
+
+/** Reverse lookup used by the payment webhook. */
+export function findTierByCreemProductId(
+  productId: string
+): { tier: StorageTier; period: BillingPeriod } | null {
+  if (!productId) return null;
+  for (const tier of STORAGE_TIERS) {
+    for (const period of BILLING_PERIOD_ORDER) {
+      if (getTierCreemProductId(tier, period) === productId) return { tier, period };
+    }
+  }
+  return null;
+}
+
+export function isBillingPeriod(value: unknown): value is BillingPeriod {
+  return typeof value === 'string' && (BILLING_PERIOD_ORDER as string[]).includes(value);
+}
+
+// ── Over-quota lifecycle ────────────────────────────────────────────────
+// When a subscription ends and the user's files exceed their free allowance
+// (1GB + earned referrals), the account goes read-only. After the grace
+// period the newest files over the allowance are deleted. 90 days also
+// matches Wasabi's 90-day minimum storage charge, so keeping the files that
+// long costs nothing extra.
+export const OVER_QUOTA_GRACE_DAYS = 90;
+/** Days after going over quota on which a warning email is sent. */
+export const OVER_QUOTA_NOTICE_DAYS = [0, 30, 60, 83, 89] as const;
+/** Deletion never runs unless a warning went out at least this long before. */
+export const OVER_QUOTA_MIN_NOTICE_DAYS = 7;
+
+// ── Archive (keep-only) one-time purchase ───────────────────────────────
+// Lets an ex-subscriber keep files over the free allowance read-only for N
+// months. Price = storage cost x margin, covering the payment fee, and is
+// only offered when cheaper than the smallest plan that fits the files.
+export const STORAGE_COST_EUR_PER_GB_MONTH = 0.0074; // Wasabi ~$8/TB/month
+export const ARCHIVE_MARGIN_MULTIPLIER = 3;
+export const ARCHIVE_MONTH_OPTIONS = [1, 3, 6, 12] as const;
+export const ARCHIVE_MIN_PRICE_EUR = 4.99;
+export const PAYMENT_FEE_PERCENT = 0.039;
+export const PAYMENT_FEE_FIXED_EUR = 0.35; // $0.40
+
+/** Round a price up to the next x.49 / x.99. */
+function roundUpToPricePoint(eur: number): number {
+  const whole = Math.floor(eur);
+  if (eur <= whole + 0.49) return whole + 0.49;
+  if (eur <= whole + 0.99) return whole + 0.99;
+  return whole + 1.49;
+}
+
+/** Archive price for keeping `bytes` for `months`: what we must charge so the
+ *  net after the payment fee is >= ARCHIVE_MARGIN_MULTIPLIER x storage cost. */
+export function getArchivePrice(bytes: number, months: number): number {
+  const cost = (bytes / BYTES_PER_GB) * STORAGE_COST_EUR_PER_GB_MONTH * months;
+  const gross = (cost * ARCHIVE_MARGIN_MULTIPLIER + PAYMENT_FEE_FIXED_EUR) / (1 - PAYMENT_FEE_PERCENT);
+  return Math.max(ARCHIVE_MIN_PRICE_EUR, roundUpToPricePoint(gross));
+}
+
+export type ArchiveOffer =
+  | { kind: 'archive'; months: number; price: number }
+  | { kind: 'plan'; months: number; price: number; tier: StorageTier; period: BillingPeriod };
+
+/** For each duration: the archive, or a real plan if that is no dearer. */
+export function getArchiveOffers(bytes: number): ArchiveOffer[] {
+  const plan = STORAGE_TIERS.find((t) => t.tier > 0 && t.storageBytes >= bytes) ?? null;
+  return ARCHIVE_MONTH_OPTIONS.map((months) => {
+    const price = getArchivePrice(bytes, months);
+    if (plan) {
+      const period = getTierPeriods(plan).find((p) => BILLING_PERIODS[p].months === months);
+      if (period) {
+        const planPrice = getTierPrice(plan, period);
+        if (planPrice <= price) return { kind: 'plan', months, price: planPrice, tier: plan, period };
+      }
+    }
+    return { kind: 'archive', months, price };
+  });
+}
 
 // Upload Constants
 export const MAX_UPLOAD_SIZE = 10 * BYTES_PER_GB; // 10GB max file size

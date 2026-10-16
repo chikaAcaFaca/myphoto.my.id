@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { memeMediaUrls } from '@/lib/meme-video';
 import { db } from '@/lib/firebase-admin';
 import { getOptionalUserId } from '@/lib/auth-utils';
 import { generateDownloadUrl } from '@/lib/s3';
@@ -46,15 +47,22 @@ export async function GET(
     const memes = await Promise.all(
       docs.map(async (doc) => {
         const data = doc.data();
-        let imageUrl = data.imageUrl || '';
-        if (data.s3Key && !imageUrl) {
-          try { imageUrl = await generateDownloadUrl(data.s3Key); } catch {}
-        }
+        const { imageUrl, posterUrl } = await memeMediaUrls(data);
+        // Per-viewer reaction/favorite/repost state so the profile feed-viewer
+        // can render the same right-rail as the main wall.
         let userReaction: 'like' | 'dislike' | null = null;
+        let userFavorited = false;
+        let userReposted = false;
         if (viewerId) {
           try {
-            const r = await doc.ref.collection('reactions').doc(viewerId).get();
+            const [r, f, rp] = await Promise.all([
+              doc.ref.collection('reactions').doc(viewerId).get(),
+              doc.ref.collection('favorites').doc(viewerId).get(),
+              doc.ref.collection('reposts').doc(viewerId).get(),
+            ]);
             if (r.exists) userReaction = r.data()!.type;
+            userFavorited = f.exists;
+            userReposted = rp.exists;
           } catch {}
         }
         return {
@@ -63,17 +71,23 @@ export async function GET(
           topText: data.topText || '',
           bottomText: data.bottomText || '',
           imageUrl,
+          posterUrl,
           mediaType: data.mediaType || 'image',
           authorName: data.authorName || 'Anonymous',
           authorId: data.authorId,
           likes: data.likes || 0,
           dislikes: data.dislikes || 0,
           shares: data.shares || 0,
+          favorites: data.favorites || 0,
+          reposts: data.reposts || 0,
           views: data.views || 0,
           commentCount: data.commentCount || 0,
           template: data.template || 'classic',
+          remixOf: data.remixOf || null,
           createdAt: data.createdAt?.toDate?.()?.toISOString() || null,
           userReaction,
+          userFavorited,
+          userReposted,
         };
       })
     );

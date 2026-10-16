@@ -11,18 +11,21 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-          950: '#082f49',
+          50: '#eef3ff',
+          100: '#e0e8ff',
+          200: '#c4d3ff',
+          300: '#9bb3ff',
+          400: '#6a8bf7',
+          500: '#2453e6',
+          600: '#1d44c4',
+          700: '#1a389e',
+          800: '#1a327f',
+          900: '#1b2e66',
+          950: '#121c3f',
         },
+        flame: '#ff7a3d',
+        ink: '#16181d',
+        canvas: { light: '#fafaf8', dark: '#111214' },
         background: {
           light: '#ffffff',
           dark: '#1a1a1a',
@@ -34,6 +37,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'var(--font-inter)', 'system-ui', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',

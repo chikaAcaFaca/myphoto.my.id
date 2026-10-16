@@ -1,0 +1,56 @@
+// Shared, frequently reused UI words. Screen-specific text lives in its own
+// namespace file next to this one.
+const common = {
+  ok: 'OK',
+  cancel: 'Cancel',
+  close: 'Close',
+  save: 'Save',
+  saved: 'Saved',
+  delete: 'Delete',
+  remove: 'Remove',
+  share: 'Share',
+  edit: 'Edit',
+  retry: 'Try again',
+  back: 'Back',
+  next: 'Next',
+  skip: 'Skip',
+  done: 'Done',
+  yes: 'Yes',
+  no: 'No',
+  notNow: 'Not now',
+  continue: 'Continue',
+  loading: 'Loading...',
+  error: 'Error',
+  success: 'Success',
+  permission: 'Permission',
+  permissionRequired: 'Permission required',
+  viewPlans: 'View plans',
+  upgradePlan: 'Upgrade plan',
+  openMySpace: 'Open MySpace',
+  comingSoon: 'Coming soon',
+  unknownError: 'Something went wrong. Please try again.',
+  noInternet: 'No internet connection.',
+  user: 'User',
+  photos: {
+    one: '{count} photo',
+    few: '{count} photos',
+    other: '{count} photos',
+  },
+  videos: {
+    one: '{count} video',
+    few: '{count} videos',
+    other: '{count} videos',
+  },
+  items: {
+    one: '{count} item',
+    few: '{count} items',
+    other: '{count} items',
+  },
+  files: {
+    one: '{count} file',
+    few: '{count} files',
+    other: '{count} files',
+  },
+};
+
+export default common;

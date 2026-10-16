@@ -1,0 +1,112 @@
+/**
+ * Transactional email via Brevo's REST API — plain fetch, no SDK, so
+ * nothing new lands in node_modules (Dropbox locks it on install).
+ *
+ * Env:
+ *   BREVO_API_KEY  xkeysib-…  (brevo.com → SMTP & API → API keys; first add
+ *                  and authenticate myphotomy.space under Senders & Domains)
+ *   EMAIL_FROM     optional, defaults to "MyPhoto <noreply@myphotomy.space>"
+ *
+ * Returns false (never throws) when email is not configured or the send
+ * fails, so callers can decide whether a missing email must block an action.
+ */
+
+export function emailIsConfigured(): boolean {
+  return !!process.env.BREVO_API_KEY;
+}
+
+/** "Name <addr@x>" or "addr@x" → Brevo sender object. */
+function parseSender(from: string): { name?: string; email: string } {
+  const m = from.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  return m ? { name: m[1] || undefined, email: m[2] } : { email: from.trim() };
+}
+
+export async function sendEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  /** Extra headers, e.g. List-Unsubscribe for marketing mail. */
+  headers?: Record<string, string>;
+}): Promise<boolean> {
+  const key = process.env.BREVO_API_KEY;
+  if (!key) {
+    console.warn('sendEmail skipped: BREVO_API_KEY is not set', params.subject);
+    return false;
+  }
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      // Brevo sits behind Cloudflare, which rejects requests without a
+      // recognisable User-Agent (error 1010), as with Creem.
+      headers: {
+        'api-key': key,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'User-Agent': 'myphotomy.space/1.0',
+      },
+      body: JSON.stringify({
+        sender: parseSender(process.env.EMAIL_FROM || 'MyPhoto <noreply@myphotomy.space>'),
+        to: [{ email: params.to }],
+        replyTo: { email: 'support@myphotomy.space' },
+        subject: params.subject,
+        htmlContent: params.html,
+        textContent: params.text,
+        ...(params.headers ? { headers: params.headers } : {}),
+      }),
+    });
+    if (!res.ok) {
+      console.error('sendEmail failed', res.status, await res.text().catch(() => ''));
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('sendEmail error', e);
+    return false;
+  }
+}
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * Minimal branded layout: paragraphs, optional list of choices (one link
+ * each), one call-to-action button, and an optional unsubscribe link.
+ */
+export function renderEmail(opts: {
+  paragraphs: string[];
+  ctaLabel: string;
+  ctaUrl: string;
+  choices?: Array<{ label: string; url: string }>;
+  unsubscribeUrl?: string;
+}): {
+  html: string;
+  text: string;
+} {
+  const choices = (opts.choices || [])
+    .map(
+      (c) =>
+        `<a href="${escapeHtml(c.url)}" style="display:block;margin:0 0 8px;padding:12px 14px;border:1px solid #cbd5e1;border-radius:8px;color:#0f172a;text-decoration:none;font-weight:bold">${escapeHtml(c.label)} &rarr;</a>`
+    )
+    .join('');
+  const body =
+    opts.paragraphs.map((p) => `<p style="margin:0 0 14px">${escapeHtml(p)}</p>`).join('') +
+    (choices ? `<div style="margin:18px 0 0">${choices}</div>` : '');
+  const unsub = opts.unsubscribeUrl
+    ? ` · <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color:#64748b">Odjava · Unsubscribe</a>`
+    : '';
+  const html = `<!doctype html><html><body style="margin:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
+<div style="max-width:560px;margin:0 auto;padding:24px">
+<p style="font-size:20px;font-weight:bold;color:#0ea5e9;margin:0 0 18px">MyPhoto</p>
+<div style="background:#ffffff;border-radius:12px;padding:24px;font-size:15px;line-height:1.5">${body}
+<p style="margin:22px 0 0"><a href="${escapeHtml(opts.ctaUrl)}" style="background:#0ea5e9;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:bold">${escapeHtml(opts.ctaLabel)}</a></p>
+</div>
+<p style="font-size:12px;color:#64748b;margin:16px 0 0">MyPhoto · myphotomy.space · support@myphotomy.space${unsub}</p>
+</div></body></html>`;
+  const choiceText = (opts.choices || []).map((c) => `- ${c.label}: ${c.url}`).join('\n');
+  const text =
+    `${opts.paragraphs.join('\n\n')}\n\n${choiceText ? `${choiceText}\n\n` : ''}` +
+    `${opts.ctaLabel}: ${opts.ctaUrl}\n\n— MyPhoto · myphotomy.space` +
+    (opts.unsubscribeUrl ? `\nOdjava / Unsubscribe: ${opts.unsubscribeUrl}` : '');
+  return { html, text };
+}

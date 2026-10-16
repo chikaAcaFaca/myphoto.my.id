@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { thumbUrls } from '@/lib/thumb-urls';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
 import { parseNaturalLanguageQuery, type ParsedSearch } from '@/lib/ai/nl-search-parser';
@@ -164,17 +165,18 @@ export async function POST(request: NextRequest) {
     const paginatedFiles = matchingFiles.slice(startIndex, endIndex);
 
     // Convert to response format
-    const files = paginatedFiles.map((doc) => {
+    const files = await Promise.all(paginatedFiles.map(async (doc) => {
       const data = doc.data();
       return {
         id: doc.id,
         ...data,
+        ...(await thumbUrls(data)),
         createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
         updatedAt: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
         takenAt: data.takenAt?.toDate?.()?.toISOString(),
         trashedAt: data.trashedAt?.toDate?.()?.toISOString(),
       };
-    });
+    }));
 
     return NextResponse.json({
       items: files,

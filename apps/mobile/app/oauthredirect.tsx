@@ -16,10 +16,12 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import { useTheme } from '@/lib/theme-context';
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function OAuthRedirect() {
+  const { colors: tc } = useTheme();
   useEffect(() => {
     // Belt-and-braces: complete the auth session again on mount in
     // case the module-level call ran before the URL arrived.
@@ -30,5 +32,5 @@ export default function OAuthRedirect() {
     router.replace('/');
   }, []);
 
-  return <View style={{ flex: 1, backgroundColor: '#000' }} />;
+  return <View style={{ flex: 1, backgroundColor: tc.bg }} />;
 }

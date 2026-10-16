@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '../firebase';
+import { tStatic } from '@/components/i18n-static';
 import {
   collection,
   query,
@@ -37,7 +38,7 @@ export function useAlbums() {
   return useQuery({
     queryKey: ['albums', user?.id],
     queryFn: async () => {
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       const q = query(
         collection(db, 'albums'),
@@ -66,7 +67,7 @@ export function useAlbum(albumId: string) {
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
-        throw new Error('Album not found');
+        throw new Error(tStatic('components.errors.albumNotFound'));
       }
 
       return docToAlbum(docSnap);
@@ -81,7 +82,7 @@ export function useCreateAlbum() {
 
   return useMutation({
     mutationFn: async ({ name, description }: { name: string; description?: string }) => {
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       const albumData: Record<string, any> = {
         userId: user.id,
@@ -151,7 +152,7 @@ export function useDeleteAlbum() {
 
   return useMutation({
     mutationFn: async (albumId: string) => {
-      if (!user) throw new Error('Not authenticated');
+      if (!user) throw new Error(tStatic('components.errors.notAuthenticated'));
 
       // First, remove album from all files that contain it
       // userId filter is required by Firestore security rules

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User } from '@myphoto/shared';
+import { tStatic } from '@/components/i18n-static';
 import { User as FirebaseUser } from 'firebase/auth';
 import {
   signInWithGoogle,
@@ -66,7 +67,7 @@ export const useAuthStore = create<AuthState>()(
               user: null,
               isLoading: false,
               isInitialized: true,
-              error: error instanceof Error ? error.message : 'Failed to initialize auth',
+              error: error instanceof Error ? error.message : tStatic('components.errors.authInitFailed'),
             });
           }
         });
@@ -82,7 +83,7 @@ export const useAuthStore = create<AuthState>()(
           set({ firebaseUser, user: userDoc, isLoading: false });
         } catch (error) {
           set({
-            error: error instanceof Error ? error.message : 'Failed to sign in with Google',
+            error: error instanceof Error ? error.message : tStatic('components.errors.googleSignInFailed'),
             isLoading: false,
           });
           throw error;
@@ -97,7 +98,7 @@ export const useAuthStore = create<AuthState>()(
           set({ firebaseUser, user: userDoc, isLoading: false });
         } catch (error) {
           set({
-            error: error instanceof Error ? error.message : 'Failed to sign in',
+            error: error instanceof Error ? error.message : tStatic('components.errors.signInFailed'),
             isLoading: false,
           });
           throw error;
@@ -112,7 +113,7 @@ export const useAuthStore = create<AuthState>()(
           set({ firebaseUser, user: userDoc, isLoading: false });
         } catch (error) {
           set({
-            error: error instanceof Error ? error.message : 'Failed to create account',
+            error: error instanceof Error ? error.message : tStatic('components.errors.createAccountFailed'),
             isLoading: false,
           });
           throw error;
@@ -126,7 +127,7 @@ export const useAuthStore = create<AuthState>()(
           set({ firebaseUser: null, user: null, isLoading: false });
         } catch (error) {
           set({
-            error: error instanceof Error ? error.message : 'Failed to sign out',
+            error: error instanceof Error ? error.message : tStatic('components.errors.signOutFailed'),
             isLoading: false,
           });
           throw error;
@@ -140,7 +141,7 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false });
         } catch (error) {
           set({
-            error: error instanceof Error ? error.message : 'Failed to send reset email',
+            error: error instanceof Error ? error.message : tStatic('components.errors.resetEmailFailed'),
             isLoading: false,
           });
           throw error;

@@ -44,7 +44,11 @@
         "android.permission.ACCESS_MEDIA_LOCATION",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
         "android.permission.READ_MEDIA_AUDIO",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK"
       ]
     },
     "web": {
@@ -54,6 +58,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#2453E6"
+        }
+      ],
       [
         "expo-media-library",
         {
@@ -79,7 +89,8 @@
           }
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "./plugins/withForegroundServiceType"
     ],
     "experiments": {
       "typedRoutes": true
@@ -90,7 +101,8 @@
       },
       "eas": {
         "projectId": "39901b89-3e19-43af-ba14-95a9ad6eee43"
-      }
+      },
+      "appBuild": "2026-10-11.5"
     },
     "runtimeVersion": "1.0.0",
     "updates": {

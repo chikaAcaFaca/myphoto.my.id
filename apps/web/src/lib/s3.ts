@@ -5,6 +5,7 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
   CopyObjectCommand,
+  ListObjectsV2Command,
   PutBucketCorsCommand,
   GetBucketCorsCommand,
 } from '@aws-sdk/client-s3';
@@ -48,16 +49,37 @@ export async function generateUploadUrl(
   return { url, expiresAt };
 }
 
-export async function generateDownloadUrl(key: string): Promise<string> {
+export async function generateDownloadUrl(
+  key: string,
+  opts: { expiresIn?: number; filename?: string; contentType?: string; stable?: boolean } = {}
+): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
+    ...(opts.filename
+      ? { ResponseContentDisposition: `attachment; filename="${opts.filename}"` }
+      : {}),
+    ...(opts.contentType ? { ResponseContentType: opts.contentType } : {}),
+    ...(opts.stable ? { ResponseCacheControl: 'public, max-age=86400, immutable' } : {}),
   });
 
+  if (opts.stable) {
+    // Same URL for a whole day: signed as of the start of the current
+    // 24 h window, valid 48 h. A fresh signature per request made every
+    // phone and browser download the same meme again on each visit.
+    const windowStart = Math.floor(Date.now() / STABLE_WINDOW_MS) * STABLE_WINDOW_MS;
+    return getSignedUrl(s3Client, command, {
+      signingDate: new Date(windowStart),
+      expiresIn: (2 * STABLE_WINDOW_MS) / 1000,
+    });
+  }
+
   return getSignedUrl(s3Client, command, {
-    expiresIn: PRESIGNED_URL_EXPIRY,
+    expiresIn: opts.expiresIn ?? PRESIGNED_URL_EXPIRY,
   });
 }
+
+const STABLE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function deleteObject(key: string): Promise<void> {
   const command = new DeleteObjectCommand({
@@ -79,6 +101,30 @@ export async function copyObject(sourceKey: string, destinationKey: string): Pro
 
 export async function deleteObjects(keys: string[]): Promise<void> {
   await Promise.all(keys.map((key) => deleteObject(key)));
+}
+
+/**
+ * Delete every object under `prefix`. Pages through ListObjectsV2 and deletes
+ * one key at a time (bounded concurrency) — DeleteObjects needs a Content-MD5
+ * header that the checksum opt-out above stops the SDK from sending, and
+ * Wasabi rejects the request without it. Returns the number of keys removed.
+ */
+export async function deletePrefix(prefix: string): Promise<number> {
+  if (!prefix || prefix === '/') throw new Error('Refusing to delete an empty prefix');
+  let deleted = 0;
+  let token: string | undefined;
+  do {
+    const page = await s3Client.send(
+      new ListObjectsV2Command({ Bucket: BUCKET_NAME, Prefix: prefix, ContinuationToken: token })
+    );
+    const keys = (page.Contents || []).map((o) => o.Key!).filter(Boolean);
+    for (let i = 0; i < keys.length; i += 20) {
+      await Promise.all(keys.slice(i, i + 20).map((key) => deleteObject(key)));
+    }
+    deleted += keys.length;
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return deleted;
 }
 
 export async function objectExists(key: string): Promise<boolean> {

@@ -9,6 +9,8 @@ import { formatDate, formatBytes } from '@myphoto/shared';
 import { useFilesStore, useUIStore } from '@/lib/stores';
 import { useGetDownloadUrl, useUpdateFile, useDeleteFile, useIsMobile } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
+import { useI18n, useT } from '@/i18n/client';
+import type { MessageKey, TParams } from '@/i18n/translate';
 
 interface PhotoGridProps {
   files: FileMetadata[];
@@ -29,6 +31,7 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
   const { selectedFiles, toggleFileSelection, selectFile, deselectFile, isSelectionMode, setSelectionMode } = useFilesStore();
   const { openLightbox } = useUIStore();
   const isMobile = useIsMobile();
+  const { t, intlLocale } = useI18n();
 
   // Drag-to-select state (desktop)
   const gridRef = useRef<HTMLDivElement>(null);
@@ -238,15 +241,15 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
         <div className="mb-4 rounded-full bg-gray-100 p-4 dark:bg-gray-800">
           <Image
             src="/empty-photos.svg"
-            alt="No photos"
+            alt={t('components.photoGrid.emptyAlt')}
             width={120}
             height={120}
             className="opacity-50"
           />
         </div>
-        <h3 className="text-lg font-medium">No photos yet</h3>
+        <h3 className="text-lg font-medium">{t('components.photoGrid.emptyTitle')}</h3>
         <p className="mt-1 text-sm text-gray-500">
-          Upload your first photos to get started
+          {t('components.photoGrid.emptyBody')}
         </p>
       </div>
     );
@@ -265,7 +268,7 @@ export function PhotoGrid({ files, isLoading }: PhotoGridProps) {
       {Object.entries(groupedFiles).map(([date, dateFiles]) => (
         <div key={date}>
           <h3 className="mb-3 text-sm font-medium text-gray-500 dark:text-gray-400">
-            {formatDateHeader(date)}
+            {formatDateHeader(date, t, intlLocale)}
           </h3>
           <div className="columns-3 gap-2 lg:!columns-auto lg:grid lg:grid-cols-5 xl:grid-cols-6 lg:gap-2">
             <AnimatePresence mode="popLayout">
@@ -324,6 +327,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
   const { mutate: updateFile } = useUpdateFile();
   const { mutate: deleteFile } = useDeleteFile();
   const { addNotification } = useUIStore();
+  const t = useT();
   const localThumbnails = useFilesStore((s) => s.localThumbnails);
   const removeLocalThumbnail = useFilesStore((s) => s.removeLocalThumbnail);
   const serverImgRef = useRef<HTMLImageElement | null>(null);
@@ -443,8 +447,8 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
       onError: () => {
         addNotification({
           type: 'error',
-          title: 'Download failed',
-          message: 'Could not download the file',
+          title: t('components.photoGrid.downloadFailed'),
+          message: t('components.photoGrid.downloadFailedBody'),
         });
       },
     });
@@ -458,7 +462,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
         onSuccess: () => {
           addNotification({
             type: 'success',
-            title: file.isFavorite ? 'Removed from favorites' : 'Added to favorites',
+            title: file.isFavorite ? t('components.photoGrid.removedFromFavorites') : t('components.photoGrid.addedToFavorites'),
           });
         },
       }
@@ -470,8 +474,8 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
       onSuccess: () => {
         addNotification({
           type: 'success',
-          title: 'Moved to trash',
-          message: 'File will be permanently deleted in 30 days',
+          title: t('components.photoGrid.movedToTrash'),
+          message: t('components.photoGrid.movedToTrashBody'),
         });
       },
     });
@@ -604,6 +608,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent">
           <div className="absolute bottom-2 right-2 flex gap-1">
             <button
+              aria-label={t('components.photoGrid.favorite')}
               onClick={(e) => {
                 e.stopPropagation();
                 handleToggleFavorite();
@@ -617,6 +622,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
             </button>
             <div className="relative">
               <button
+                aria-label={t('components.photoGrid.moreOptions')}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowMenu(!showMenu);
@@ -638,7 +644,7 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                   >
                     <Download className="h-4 w-4" />
-                    Download
+                    {t('components.photoGrid.download')}
                   </button>
                   <button
                     onClick={() => {
@@ -648,14 +654,14 @@ function PhotoCard({ file, isSelected, isSelectionMode, onSelect, onClick, onTou
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                   >
                     <Share2 className="h-4 w-4" />
-                    Share
+                    {t('components.photoGrid.share')}
                   </button>
                   <button
                     onClick={handleDelete}
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                   >
                     <Trash2 className="h-4 w-4" />
-                    Delete
+                    {t('components.photoGrid.delete')}
                   </button>
                 </div>
               )}
@@ -682,20 +688,24 @@ function groupByDate(files: FileMetadata[]): Record<string, FileMetadata[]> {
   return groups;
 }
 
-function formatDateHeader(dateString: string): string {
+function formatDateHeader(
+  dateString: string,
+  t: (key: MessageKey, params?: TParams) => string,
+  intlLocale: string
+): string {
   const date = new Date(dateString);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
   if (dateString === today.toISOString().split('T')[0]) {
-    return 'Today';
+    return t('components.photoGrid.today');
   }
   if (dateString === yesterday.toISOString().split('T')[0]) {
-    return 'Yesterday';
+    return t('components.photoGrid.yesterday');
   }
 
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString(intlLocale, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',

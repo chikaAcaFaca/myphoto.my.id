@@ -5,10 +5,12 @@ import { FolderPlus, Plus, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAlbums } from '@/lib/hooks';
 import { useUIStore } from '@/lib/stores';
 import Link from 'next/link';
+import { useT } from '@/i18n/client';
 
 export default function AlbumsPage() {
   const { data: albums, isLoading, error, refetch } = useAlbums();
   const { openCreateAlbumModal } = useUIStore();
+  const t = useT();
 
   if (error) {
     console.error('[AlbumsPage] Error loading albums:', error);
@@ -21,18 +23,18 @@ export default function AlbumsPage() {
         <div className="mb-6 rounded-full bg-red-100 p-6 dark:bg-red-900/20">
           <AlertCircle className="h-12 w-12 text-red-500" />
         </div>
-        <h2 className="text-xl font-semibold">Greška pri učitavanju albuma</h2>
+        <h2 className="text-xl font-semibold">{t('dashboard.albums.loadError')}</h2>
         <p className="mt-2 max-w-md text-gray-500">
           {error instanceof Error && error.message.includes('index')
-            ? 'Firestore indeks nije konfigurisan. Kontaktirajte administratora.'
-            : 'Došlo je do greške. Pokušajte ponovo.'}
+            ? t('dashboard.albums.indexError')
+            : t('dashboard.shared.genericError')}
         </p>
         <button
           onClick={() => refetch()}
           className="btn-primary mt-6"
         >
           <RefreshCw className="mr-2 h-4 w-4" />
-          Pokušaj ponovo
+          {t('dashboard.shared.retry')}
         </button>
       </motion.div>
     );
@@ -62,14 +64,14 @@ export default function AlbumsPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Albumi</h1>
+          <h1 className="text-2xl font-bold">{t('dashboard.albums.title')}</h1>
           <p className="text-sm text-gray-500">
-            {albums?.length || 0} {albums?.length === 1 ? 'album' : 'albuma'}
+            {t(albums?.length === 1 ? 'dashboard.albums.countOne' : 'dashboard.albums.countMany', { count: albums?.length || 0 })}
           </p>
         </div>
         <button onClick={openCreateAlbumModal} className="btn-primary">
           <Plus className="mr-2 h-4 w-4" />
-          Novi album
+          {t('dashboard.albums.newAlbum')}
         </button>
       </div>
 
@@ -100,7 +102,7 @@ export default function AlbumsPage() {
                 </div>
                 <h3 className="mt-2 font-medium">{album.name}</h3>
                 <p className="text-sm text-gray-500">
-                  {album.fileCount} {album.fileCount === 1 ? 'fajl' : 'fajlova'}
+                  {t(album.fileCount === 1 ? 'dashboard.shared.fileOne' : 'dashboard.shared.fileMany', { count: album.fileCount })}
                 </p>
               </Link>
             </motion.div>
@@ -116,13 +118,13 @@ export default function AlbumsPage() {
           <div className="mb-6 rounded-full bg-gray-100 p-6 dark:bg-gray-800">
             <FolderPlus className="h-12 w-12 text-gray-400" />
           </div>
-          <h2 className="text-xl font-semibold">Nema albuma</h2>
+          <h2 className="text-xl font-semibold">{t('dashboard.albums.emptyTitle')}</h2>
           <p className="mt-2 max-w-md text-gray-500">
-            Kreirajte svoj prvi album da organizujete slike i video zapise
+            {t('dashboard.albums.emptyText')}
           </p>
           <button onClick={openCreateAlbumModal} className="btn-primary mt-6">
             <Plus className="mr-2 h-4 w-4" />
-            Kreiraj album
+            {t('dashboard.albums.createAlbum')}
           </button>
         </motion.div>
       )}

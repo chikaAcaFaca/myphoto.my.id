@@ -1,3 +1,4 @@
+import { isOperator, operatorForbidden } from '@/lib/operator-guard';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-admin';
 import { verifyAuthWithRateLimit } from '@/lib/auth-utils';
@@ -6,6 +7,7 @@ export const dynamic = 'force-dynamic';
 
 // GET: Read user data
 export async function GET(request: NextRequest) {
+  if (!isOperator(request)) return operatorForbidden();
   try {
     const authResult = await verifyAuthWithRateLimit(request, 'api');
     if (!authResult.success) {
@@ -27,6 +29,7 @@ export async function GET(request: NextRequest) {
 
 // PATCH: Update user data (e.g., storageLimit)
 export async function PATCH(request: NextRequest) {
+  if (!isOperator(request)) return operatorForbidden();
   try {
     const authResult = await verifyAuthWithRateLimit(request, 'api');
     if (!authResult.success) {

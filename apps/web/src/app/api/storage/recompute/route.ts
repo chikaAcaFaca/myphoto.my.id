@@ -37,17 +37,29 @@ async function sumNonTrashed(collection: 'files' | 'diskFiles', userId: string):
   return total;
 }
 
+// Published memes count against the author's quota too (see POST /api/meme-wall).
+async function sumMemes(userId: string): Promise<number> {
+  let total = 0;
+  const snap = await db.collection('memes').where('authorId', '==', userId).get();
+  for (const doc of snap.docs) {
+    const size = doc.data().size;
+    if (typeof size === 'number' && size > 0) total += size;
+  }
+  return total;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authResult = await verifyAuthWithRateLimit(request, 'api');
     if (!authResult.success) return authResult.response;
     const { userId } = authResult;
 
-    const [filesBytes, diskBytes] = await Promise.all([
+    const [filesBytes, diskBytes, memeBytes] = await Promise.all([
       sumNonTrashed('files', userId),
       sumNonTrashed('diskFiles', userId),
+      sumMemes(userId),
     ]);
-    const recomputed = filesBytes + diskBytes;
+    const recomputed = filesBytes + diskBytes + memeBytes;
 
     const userRef = db.collection('users').doc(userId);
     const before = (await userRef.get()).data()?.storageUsed || 0;

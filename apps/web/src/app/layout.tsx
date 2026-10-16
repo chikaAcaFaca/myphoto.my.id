@@ -1,9 +1,15 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Bricolage_Grotesque } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import { I18nProvider } from '@/i18n/client';
+import { getLocale } from '@/i18n/server';
+import { DICTIONARIES } from '@/i18n/dictionaries';
+import { RefCapture } from '@/components/referral/ref-capture';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const inter = Inter({ subsets: ['latin', 'latin-ext'], variable: '--font-inter' });
+// Headings, same face as the mobile app.
+const display = Bricolage_Grotesque({ subsets: ['latin', 'latin-ext'], weight: ['700', '800'], variable: '--font-display' });
 
 export const metadata: Metadata = {
   title: {
@@ -11,7 +17,7 @@ export const metadata: Metadata = {
     template: '%s | MyPhoto',
   },
   description:
-    'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. Up to 15GB free.',
+    'Free private photo storage with auto backup. Store photos in original quality on EU servers with GDPR protection. Google Photos alternative with no AI training on your data. Start free with 1GB — up to 2.5GB by inviting friends.',
   keywords: [
     'google photos alternative',
     'photo backup app',
@@ -34,7 +40,7 @@ export const metadata: Metadata = {
     siteName: 'MyPhoto',
     title: 'MyPhoto — Private Cloud Photo Storage & Backup',
     description:
-      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. Up to 15GB free.',
+      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. No AI training on your photos. Start free with 1GB — up to 2.5GB by inviting friends.',
     images: [
       {
         url: 'https://myphotomy.space/og-image.png',
@@ -48,14 +54,14 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'MyPhoto — Private Cloud Photo Storage & Backup',
     description:
-      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. Up to 15GB free.',
+      'Free private photo storage with auto backup. Original quality, EU servers, GDPR protection. Start free with 1GB — up to 2.5GB by inviting friends.',
     images: ['https://myphotomy.space/og-image.png'],
   },
   alternates: {
     canonical: 'https://myphotomy.space',
     languages: {
-      'sr': 'https://myphotomy.space',
-      'en': 'https://myphotomy.space',
+      'sr-RS': 'https://myphotomy.space',
+      'x-default': 'https://myphotomy.space',
     },
   },
   verification: {
@@ -76,7 +82,7 @@ const jsonLd = {
           '@type': 'Offer',
           price: '0',
           priceCurrency: 'USD',
-          description: 'Up to 15GB free storage with auto backup',
+          description: '1GB free storage with auto backup (up to 2.5GB by inviting friends)',
         },
         {
           '@type': 'Offer',
@@ -92,12 +98,7 @@ const jsonLd = {
       description:
         'Private cloud photo storage with auto backup, original quality, EU servers, and GDPR protection. Google Photos alternative.',
       url: 'https://myphotomy.space',
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.8',
-        ratingCount: '1200',
-      },
-      featureList: 'Auto backup, Original quality, EU servers, GDPR compliance, AI search, Album sharing',
+      featureList: 'Auto backup, Original quality, EU servers, GDPR compliance, Album sharing, Meme and sticker maker',
     },
     {
       '@type': 'Organization',
@@ -114,26 +115,35 @@ const jsonLd = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: any;
 }) {
+  const locale = await getLocale();
   return (
-    <html lang="sr" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#2563eb" />
+        <meta name="theme-color" content="#FAFAF8" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="MyPhoto" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
-        <Providers>{children}</Providers>
+      <body className={`${inter.variable} ${display.variable} font-sans antialiased`}>
+        <I18nProvider locale={locale} messages={DICTIONARIES[locale]}>
+          <Providers>
+            <RefCapture />
+            {children}
+          </Providers>
+        </I18nProvider>
       </body>
     </html>
   );

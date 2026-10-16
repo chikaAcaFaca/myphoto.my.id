@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores';
 import { getIdToken } from '@/lib/firebase';
+import { useT } from '@/i18n/client';
+import { InstallAppButton } from '@/components/install/android-install';
 
 interface Profile {
   id: string;
@@ -29,6 +31,7 @@ export default function UserProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuthStore();
   const router = useRouter();
+  const t = useT();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [memes, setMemes] = useState<Meme[]>([]);
@@ -133,7 +136,7 @@ export default function UserProfilePage() {
   if (loading) {
     return (
       <div style={wrapStyle}>
-        <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>Učitavanje profila...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>{t('pages.user.loading')}</div>
       </div>
     );
   }
@@ -143,8 +146,8 @@ export default function UserProfilePage() {
       <div style={{ ...wrapStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: 48, margin: 0 }}>404</h1>
-          <p>Korisnik nije pronađen</p>
-          <Link href="/meme-wall" style={{ color: '#f97316' }}>Idi na MemeWall</Link>
+          <p>{t('pages.user.notFound')}</p>
+          <Link href="/meme-wall" style={{ color: '#f97316' }}>{t('pages.user.goMemeWall')}</Link>
         </div>
       </div>
     );
@@ -173,9 +176,9 @@ export default function UserProfilePage() {
             <div style={{ flex: 1, minWidth: 160 }}>
               <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0 }}>{profile.displayName}</h1>
               <div style={{ display: 'flex', gap: 16, marginTop: 6, fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>
-                <span><strong>{profile.memeCount}</strong> memova</span>
-                <span><strong>{profile.followerCount}</strong> pratilaca</span>
-                <span><strong>{profile.followingCount}</strong> prati</span>
+                <span><strong>{profile.memeCount}</strong> {t('pages.user.memes')}</span>
+                <span><strong>{profile.followerCount}</strong> {t('pages.user.followers')}</span>
+                <span><strong>{profile.followingCount}</strong> {t('pages.user.following')}</span>
               </div>
             </div>
             {!profile.isSelf && (
@@ -190,22 +193,52 @@ export default function UserProfilePage() {
                   cursor: following ? 'wait' : 'pointer', fontSize: 15,
                 }}
               >
-                {profile.isFollowing ? 'Otprati' : 'Zaprati'}
+                {profile.isFollowing ? t('pages.user.unfollow') : t('pages.user.follow')}
               </button>
+            )}
+            {!profile.isSelf && user && (
+              <Link
+                href={`/inbox/new?userId=${encodeURIComponent(id)}&name=${encodeURIComponent(profile.displayName || '')}`}
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700,
+                  padding: '10px 24px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.5)',
+                  fontSize: 15, textDecoration: 'none',
+                }}
+              >
+                {t('pages.inbox.messages.message')}
+              </Link>
             )}
           </div>
         </div>
       </div>
 
+      {/* Visitors from a shared profile link: 1 GB free + install the app */}
+      {!user && (
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px 0' }}>
+          <div style={{
+            backgroundColor: '#111214', border: '1px solid #2C2F36', borderRadius: 16, padding: 20,
+            display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'center',
+          }}>
+            <strong style={{ color: '#FF7A3D', fontSize: 20 }}>{t('components.installGuide.freeBadge')}</strong>
+            <p style={{ margin: 0, color: '#D6D8DD', fontSize: 15 }}>{t('components.installGuide.barText')}</p>
+            <InstallAppButton style={{
+              alignSelf: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              minHeight: 50, padding: '0 28px', borderRadius: 999, backgroundColor: '#FF7A3D', color: '#111214',
+              fontWeight: 800, fontSize: 16, textDecoration: 'none',
+            }} />
+          </div>
+        </div>
+      )}
+
       {/* Public memes grid */}
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>
-        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Javni memovi</h2>
+        <h2 style={{ fontSize: 18, marginBottom: 16 }}>{t('pages.user.publicMemes')}</h2>
         {memesLoading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Učitavanje memova...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>{t('pages.user.memesLoading')}</div>
         ) : memes.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
             <div style={{ fontSize: 48, marginBottom: 8 }}>🎨</div>
-            <p>Ovaj korisnik još nije objavio nijedan meme.</p>
+            <p>{t('pages.user.noMemes')}</p>
           </div>
         ) : (
           <div style={{
@@ -247,7 +280,7 @@ export default function UserProfilePage() {
 
       {/* Footer */}
       <div style={{ textAlign: 'center', color: '#475569', fontSize: 12, padding: '24px 16px 40px' }}>
-        <Link href="/" style={{ color: '#f97316' }}>myphotomy.space</Link> · NASRM Kapetan Bogdan Studio
+        <Link href="/" style={{ color: '#f97316' }}>myphotomy.space</Link> · NKNET CONSULTING DOO
       </div>
     </div>
   );
