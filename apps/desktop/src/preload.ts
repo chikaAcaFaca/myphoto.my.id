@@ -12,6 +12,10 @@ contextBridge.exposeInMainWorld('api', {
   // Sync
   getSyncStats: () => ipcRenderer.invoke('get-sync-stats'),
   forceSync: () => ipcRenderer.invoke('force-sync'),
+  resolvePendingDeletes: (approve: boolean) => ipcRenderer.invoke('resolve-pending-deletes', approve),
+  onPendingDeletes: (callback: (pending: unknown) => void) => {
+    ipcRenderer.on('pending-deletes', (_event, pending) => callback(pending));
+  },
 
   // Google Takeout import
   takeoutPick: (kind: 'zip' | 'folder') => ipcRenderer.invoke('takeout-pick', kind),

@@ -228,6 +228,12 @@ async function initSyncEngine() {
     onLog: (msg) => {
       mainWindow?.webContents.send('log', msg);
     },
+    // Cloud-side deletes land in the Windows Recycle Bin, never a hard delete.
+    trashLocal: (absPath) => shell.trashItem(absPath),
+    onPendingDeletes: (pending) => {
+      mainWindow?.webContents.send('pending-deletes', pending);
+      if (pending) mainWindow?.show();
+    },
   });
 
   if (store.get('syncEnabled')) {
@@ -318,6 +324,10 @@ ipcMain.handle('get-sync-stats', () => {
 
 ipcMain.handle('force-sync', () => {
   syncEngine?.forceSync();
+});
+
+ipcMain.handle('resolve-pending-deletes', (_event, approve: boolean) => {
+  return syncEngine?.resolvePendingDeletes(approve === true);
 });
 
 // ---- Google Takeout import ----
