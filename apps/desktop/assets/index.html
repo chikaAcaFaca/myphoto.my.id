@@ -3,318 +3,418 @@
 <head>
   <meta charset="UTF-8">
   <title>MyPhoto Sync</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg: #FAFAF8;
+      --card: #FFFFFF;
+      --ink: #16181D;
+      --muted: #5E6470;
+      --faint: #9AA0AB;
+      --line: #E7E7E2;
+      --blue: #2453E6;
+      --blue-dark: #1B41BA;
+      --blue-soft: #EAF0FE;
+      --green: #1F8A4C;
+      --green-soft: #E7F5EC;
+      --amber: #A15C07;
+      --amber-soft: #FFF5E5;
+      --red: #C2342B;
+      --red-soft: #FDECEA;
+      --meme-bg: #111214;
+      --flame: #FF7A3D;
+      --radius: 14px;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f8f9fa;
-      color: #1a1a2e;
-      overflow: hidden;
-    }
-
-    .header {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: white;
-      padding: 24px 20px;
-      text-align: center;
-    }
-    .header h1 { font-size: 20px; font-weight: 700; }
-    .header p { font-size: 12px; opacity: 0.8; margin-top: 4px; }
-
-    .tabs {
+      font-family: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 13px;
       display: flex;
-      border-bottom: 1px solid #e5e7eb;
-      background: white;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+    h1, h2, h3, .display { font-family: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif; }
+    button { font-family: inherit; }
+    a { color: var(--blue); text-decoration: none; cursor: pointer; }
+    a:hover { text-decoration: underline; }
+    .hidden { display: none !important; }
+
+    /* ---- Header ---- */
+    .header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px 12px;
+      background: var(--card);
+    }
+    .logo {
+      width: 32px; height: 32px; border-radius: 9px; background: var(--blue);
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    .header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.2px; }
+    .pill {
+      margin-left: auto;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 999px;
+      font-size: 12px; font-weight: 600;
+      background: var(--green-soft); color: var(--green);
+      white-space: nowrap;
+    }
+    .pill svg { width: 14px; height: 14px; }
+    .pill.syncing { background: var(--blue-soft); color: var(--blue); }
+    .pill.syncing svg { animation: spin 1.2s linear infinite; }
+    .pill.paused { background: #F0F0EC; color: var(--muted); }
+    .pill.error { background: var(--amber-soft); color: var(--amber); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Tabs ---- */
+    .tabs {
+      display: flex; gap: 4px;
+      padding: 0 12px;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
     }
     .tab {
-      flex: 1;
-      padding: 10px;
-      text-align: center;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      color: #6b7280;
-      transition: all 0.2s;
+      flex: 1; padding: 10px 4px 11px; text-align: center;
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
     }
-    .tab.active { color: #6366f1; border-bottom-color: #6366f1; }
-    .tab:hover { color: #4f46e5; }
+    .tab:hover { color: var(--ink); }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 
-    .panel { display: none; padding: 20px; overflow-y: auto; max-height: 420px; }
+    main { flex: 1; overflow-y: auto; padding: 16px 16px 20px; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-thumb { background: #D7D8D2; border-radius: 4px; border: 2px solid var(--bg); }
+    ::-webkit-scrollbar-track { background: transparent; }
+    .panel { display: none; }
     .panel.active { display: block; }
 
-    /* Login panel */
-    .login-form { max-width: 320px; margin: 0 auto; }
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-    .form-group input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
-      transition: border 0.2s;
+    /* ---- Cards & controls ---- */
+    .card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px;
     }
-    .form-group input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+    .card h2 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .card p, .muted { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+    .row { display: flex; align-items: center; gap: 10px; }
+    .stack { display: flex; flex-direction: column; gap: 8px; }
+    .btns { display: flex; gap: 8px; margin-top: 12px; }
+    .btns .btn { flex: 1; }
 
     .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      width: 100%;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 14px; border-radius: 10px; border: 1px solid transparent;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background .15s, border-color .15s, opacity .15s;
     }
-    .btn-primary { background: #6366f1; color: white; }
-    .btn-primary:hover { background: #4f46e5; }
-    .btn-secondary { background: white; color: #374151; border: 1px solid #d1d5db; }
-    .btn-secondary:hover { background: #f3f4f6; }
-    .btn-danger { background: #ef4444; color: white; }
-    .btn-danger:hover { background: #dc2626; }
+    .btn:disabled { opacity: .55; cursor: default; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--blue-dark); }
+    .btn-secondary { background: var(--card); color: var(--ink); border-color: var(--line); }
+    .btn-secondary:hover:not(:disabled) { background: #F4F4F0; }
+    .btn-ghost { background: transparent; color: var(--muted); padding: 8px 10px; }
+    .btn-ghost:hover { color: var(--ink); }
+    .btn-danger-text { background: transparent; color: var(--red); border-color: var(--line); }
+    .btn-block { width: 100%; }
 
-    /* Settings */
-    .setting-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 0;
-      border-bottom: 1px solid #f3f4f6;
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+    .field input {
+      width: 100%; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px;
+      font: inherit; font-size: 14px; background: var(--card); color: var(--ink); outline: none;
     }
-    .setting-label { font-size: 13px; font-weight: 500; }
-    .setting-desc { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+    .field input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
 
-    .folder-path {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    .folder-path input {
-      flex: 1;
-      padding: 8px 10px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      font-size: 12px;
-      background: #f9fafb;
-    }
-    .folder-path button { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+    .msg { border-radius: 10px; padding: 9px 12px; font-size: 12.5px; line-height: 1.5; margin-top: 10px; }
+    .msg.error { background: var(--red-soft); color: var(--red); }
+    .msg.warn { background: var(--amber-soft); color: var(--amber); }
+    .msg.ok { background: var(--green-soft); color: var(--green); }
 
-    /* Toggle switch */
-    .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    /* ---- Login ---- */
+    #view-login { flex: 1; overflow-y: auto; padding: 28px 28px 24px; }
+    #view-login .intro { text-align: center; margin-bottom: 22px; }
+    #view-login .intro .logo { width: 52px; height: 52px; border-radius: 14px; margin: 0 auto 14px; }
+    #view-login h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .divider { display: flex; align-items: center; gap: 10px; color: var(--faint); font-size: 12px; margin: 14px 0; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+    /* ---- Home ---- */
+    .folder-icon {
+      width: 40px; height: 40px; border-radius: 10px; background: var(--blue-soft);
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    .folder-name { font-size: 15px; font-weight: 700; }
+    .folder-path { font-size: 11.5px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+    .stat .value { font-family: 'Bricolage Grotesque', 'Segoe UI', sans-serif; font-size: 22px; font-weight: 700; }
+    .stat .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .bar { height: 8px; background: #EFEFEA; border-radius: 4px; overflow: hidden; margin: 10px 0 6px; }
+    .bar > div { height: 100%; width: 0; background: var(--blue); border-radius: 4px; transition: width .3s; }
+    .bar.high > div { background: var(--flame); }
+    .space-line { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+
+    .pending { border-color: #F3D19B; background: var(--amber-soft); }
+    .pending h2 { color: var(--amber); }
+    .pending ul { margin: 6px 0 0 18px; color: var(--muted); font-size: 12px; }
+
+    /* ---- Memes ---- */
+    .meme-hero {
+      background: var(--meme-bg); color: #fff; border-radius: var(--radius);
+      padding: 20px 18px; margin-bottom: 12px; position: relative; overflow: hidden;
+    }
+    .meme-hero h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .meme-hero p { color: #B9BCC4; font-size: 13px; line-height: 1.5; max-width: 300px; }
+    .meme-hero .flame { color: var(--flame); }
+    .meme-hero .btn { margin-top: 14px; background: var(--flame); color: #16181D; }
+    .meme-hero .btn:hover { background: #FF9160; }
+    .meme-hero .glow {
+      position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,122,61,.35), transparent 70%);
+    }
+
+    /* ---- Google Photos ---- */
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--blue-soft); color: var(--blue);
+      display: inline-grid; place-items: center; font-size: 12px; font-weight: 700; margin-right: 8px; flex-shrink: 0;
+    }
+    .gp-list { margin: 8px 0 0 18px; color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+    .gp-summary { font-size: 12.5px; line-height: 1.75; color: var(--ink); margin-top: 10px; }
+    .gp-current { font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; }
+
+    /* ---- Settings ---- */
+    .setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .setting:last-child { border-bottom: none; }
+    .setting .t { font-weight: 600; font-size: 13px; }
+    .setting .d { color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .toggle { position: relative; width: 40px; height: 24px; flex-shrink: 0; }
     .toggle input { opacity: 0; width: 0; height: 0; }
-    .toggle-slider {
-      position: absolute; inset: 0;
-      background: #d1d5db; border-radius: 12px;
-      cursor: pointer; transition: 0.3s;
-    }
-    .toggle-slider::before {
-      content: '';
-      position: absolute; left: 2px; top: 2px;
-      width: 20px; height: 20px;
-      background: white; border-radius: 50%;
-      transition: 0.3s;
-    }
-    .toggle input:checked + .toggle-slider { background: #6366f1; }
-    .toggle input:checked + .toggle-slider::before { transform: translateX(20px); }
+    .toggle span { position: absolute; inset: 0; background: #D7D8D2; border-radius: 12px; cursor: pointer; transition: .2s; }
+    .toggle span::before { content: ''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+    .toggle input:checked + span { background: var(--blue); }
+    .toggle input:checked + span::before { transform: translateX(16px); }
+    .path-box { display: flex; gap: 8px; margin-top: 8px; }
+    .path-box input { flex: 1; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; font: inherit; font-size: 12px; background: #F6F6F2; color: var(--muted); min-width: 0; }
 
-    /* Activity log */
+    details.log summary { cursor: pointer; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 4px 0; }
     .log-container {
-      background: #1a1a2e;
-      color: #a5b4fc;
-      border-radius: 8px;
-      padding: 12px;
-      font-family: 'Cascadia Code', 'Fira Code', monospace;
-      font-size: 11px;
-      height: 340px;
-      overflow-y: auto;
-      line-height: 1.6;
+      background: #16181D; color: #C7CEDB; border-radius: 10px; padding: 10px 12px; margin-top: 8px;
+      font-family: 'Cascadia Code', Consolas, monospace; font-size: 11px; line-height: 1.6;
+      height: 220px; overflow-y: auto; user-select: text;
     }
-    .log-entry { padding: 1px 0; }
-    .log-entry.error { color: #fca5a5; }
-    .log-entry.success { color: #86efac; }
+    .log-entry.error { color: #FF9C94; }
+    .log-entry.success { color: #8FE0A8; }
 
-    /* Stats */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
+    .toast {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(20px);
+      background: var(--ink); color: #fff; padding: 9px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 600;
+      opacity: 0; transition: .2s; pointer-events: none;
     }
-    .stat-card {
-      background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      padding: 14px;
-      text-align: center;
-    }
-    .stat-value { font-size: 24px; font-weight: 700; color: #6366f1; }
-    .stat-label { font-size: 11px; color: #9ca3af; margin-top: 2px; }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    .status-badge.connected { background: #dcfce7; color: #16a34a; }
-    .status-badge.disconnected { background: #fee2e2; color: #dc2626; }
-
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-    .status-dot.green { background: #16a34a; }
-    .status-dot.red { background: #dc2626; }
-
-    .error-msg {
-      background: #fef2f2;
-      color: #dc2626;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      margin-top: 8px;
-      display: none;
-    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>☁️ MyPhoto Sync</h1>
-    <p>Automatska sinhronizacija fajlova</p>
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 18h10.5a4.5 4.5 0 0 0 .4-8.98A6 6 0 0 0 6.2 10.1 4 4 0 0 0 7 18z"/></symbol>
+      <symbol id="i-cloud-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 18h10.5a4.5 4.5 0 0 0 .4-8.98A6 6 0 0 0 6.2 10.1 4 4 0 0 0 7 18z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9.5 13 2 2 3.5-3.5"/></symbol>
+      <symbol id="i-sync" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 0 0-14.3-4.9L4 8m0-4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16m0 4v-4h-4"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M9 6v12M15 6v12"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- Signed-out view -->
+  <div id="view-login" class="hidden">
+    <div class="intro">
+      <div class="logo"><svg width="28" height="28" style="color:#fff"><use href="#i-cloud-check"/></svg></div>
+      <h2>Dobro došli u MyPhoto</h2>
+      <p class="muted">Folder na računaru, uvek sačuvan u oblaku —<br>i na telefonu, i na webu.</p>
+    </div>
+    <div class="field">
+      <label for="login-email">Email</label>
+      <input type="email" id="login-email" placeholder="vas@email.com" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="login-password">Lozinka</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-primary btn-block" id="login-btn" onclick="login()">Prijavi se</button>
+    <div class="divider">ili</div>
+    <button class="btn btn-secondary btn-block" id="google-login-btn" onclick="googleLogin()">Nastavi sa Google nalogom</button>
+    <div class="msg error hidden" id="login-error"></div>
+    <p class="muted" style="text-align:center;margin-top:18px;">Nemate nalog? <a onclick="desktopApi.openLink('web')">Napravite ga besplatno</a></p>
   </div>
 
-  <div class="tabs">
-    <div class="tab active" data-tab="status" onclick="switchTab('status')">Status</div>
-    <div class="tab" data-tab="settings" onclick="switchTab('settings')">Podešavanja</div>
-    <div class="tab" data-tab="log" onclick="switchTab('log')">Aktivnost</div>
-  </div>
+  <!-- Signed-in view -->
+  <div id="view-app" class="hidden" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+    <div class="header">
+      <div class="logo"><svg width="20" height="20" style="color:#fff"><use href="#i-cloud-check"/></svg></div>
+      <h1>MyPhoto</h1>
+      <span class="pill" id="status-pill"><svg><use href="#i-cloud-check"/></svg><span>Sve je sačuvano</span></span>
+    </div>
+    <nav class="tabs">
+      <div class="tab active" data-tab="home" onclick="switchTab('home')">Početna</div>
+      <div class="tab" data-tab="memes" onclick="switchTab('memes')">Mimovi</div>
+      <div class="tab" data-tab="google" onclick="switchTab('google')">Google Photos</div>
+      <div class="tab" data-tab="settings" onclick="switchTab('settings')">Podešavanja</div>
+    </nav>
 
-  <!-- Status panel -->
-  <div id="panel-status" class="panel active">
-    <div id="login-section">
-      <div class="login-form">
-        <p style="text-align:center;margin-bottom:16px;font-size:13px;color:#6b7280;">
-          Prijavite se na svoj MyPhoto nalog
-        </p>
-        <div class="form-group">
-          <label>Email</label>
-          <input type="email" id="login-email" placeholder="vas@email.com">
+    <main>
+      <!-- Home -->
+      <section id="panel-home" class="panel active">
+        <div class="card pending hidden" id="pending-card">
+          <h2 id="pending-title"></h2>
+          <p id="pending-text"></p>
+          <ul id="pending-sample"></ul>
+          <div class="btns">
+            <button class="btn btn-secondary" onclick="resolvePending(false)" id="pending-no"></button>
+            <button class="btn btn-primary" onclick="resolvePending(true)" id="pending-yes"></button>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Lozinka</label>
-          <input type="password" id="login-password" placeholder="••••••••">
+
+        <div class="card hidden" id="setup-card">
+          <h2>Izaberite folder</h2>
+          <p>Sve što stavite u ovaj folder čuva se u oblaku i stiže na telefon. Promene sa telefona i weba stižu nazad u folder.</p>
+          <div class="btns"><button class="btn btn-primary" onclick="chooseFolderAndSave()">Izaberi folder</button></div>
         </div>
-        <div class="error-msg" id="login-error"></div>
-        <button class="btn btn-primary" onclick="login()" id="login-btn">Prijavi se</button>
-        <div style="text-align:center;margin:14px 0 10px;font-size:12px;color:#9ca3af;">— ili —</div>
-        <button class="btn btn-secondary" onclick="googleLogin()" id="google-login-btn">Nastavi sa Google</button>
-        <p style="text-align:center;margin-top:8px;font-size:11px;color:#9ca3af;">Za one koji ne znaju lozinku</p>
-      </div>
-    </div>
 
-    <div id="status-section" style="display:none;">
-      <div style="text-align:center;margin-bottom:16px;">
-        <span class="status-badge connected" id="conn-badge">
-          <span class="status-dot green"></span>
-          Povezano
-        </span>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-value" id="stat-watched">0</div>
-          <div class="stat-label">Praćenih fajlova</div>
+        <div class="card" id="folder-card">
+          <div class="row">
+            <div class="folder-icon"><svg width="22" height="22" style="color:var(--blue)"><use href="#i-folder"/></svg></div>
+            <div style="min-width:0">
+              <div class="folder-name" id="folder-name">—</div>
+              <div class="folder-path" id="folder-path"></div>
+            </div>
+          </div>
+          <div class="btns">
+            <button class="btn btn-secondary" onclick="desktopApi.openSyncFolder()">Otvori folder</button>
+            <button class="btn btn-secondary" onclick="desktopApi.openWeb('myspace')">Pogledaj na webu</button>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value" id="stat-synced">0</div>
-          <div class="stat-label">Sinhronizovano</div>
+
+        <div class="stats">
+          <div class="stat"><div class="value" id="stat-synced">0</div><div class="label">fajlova u oblaku</div></div>
+          <div class="stat"><div class="value" id="stat-last">—</div><div class="label">poslednja provera</div></div>
         </div>
-      </div>
 
-      <div style="text-align:center;margin-bottom:16px;">
-        <p style="font-size:12px;color:#9ca3af;" id="last-sync-text">Poslednja sinhronizacija: —</p>
-      </div>
+        <div class="card" id="space-card">
+          <div class="row" style="justify-content:space-between">
+            <h2 style="margin:0">Prostor</h2>
+            <a onclick="desktopApi.openWeb('pricing')" id="space-upgrade">Povećaj prostor</a>
+          </div>
+          <div class="bar" id="space-bar"><div></div></div>
+          <div class="space-line"><span id="space-used">—</span><span id="space-free"></span></div>
+        </div>
 
-      <button class="btn btn-secondary" onclick="forceSync()" style="margin-bottom:8px;">
-        🔄 Potpuna sinhronizacija
-      </button>
-      <button class="btn btn-secondary" onclick="openFolder()">
-        📁 Otvori sync folder
-      </button>
-    </div>
+        <button class="btn btn-ghost btn-block" onclick="forceSync()">Proveri sve fajlove sada</button>
+      </section>
+
+      <!-- Memes -->
+      <section id="panel-memes" class="panel">
+        <div class="meme-hero">
+          <div class="glow"></div>
+          <h2>Meme <span class="flame">Wall</span></h2>
+          <p>Najsmešniji mimovi zajednice. Lajkujte, komentarišite, sačuvajte sebi.</p>
+          <button class="btn" onclick="openWeb('meme-wall', this)">Otvori Meme Wall</button>
+        </div>
+        <div class="card">
+          <h2>Napravi mim</h2>
+          <p>Uzmite sliku sa računara ili iz svoje galerije, dodajte tekst i podelite na Meme Wall-u.</p>
+          <div class="btns"><button class="btn btn-primary" onclick="openWeb('meme-creator', this)">Napravi mim</button></div>
+        </div>
+        <p class="muted" style="text-align:center">Otvara se u posebnom prozoru — već ste prijavljeni.</p>
+      </section>
+
+      <!-- Google Photos -->
+      <section id="panel-google" class="panel">
+        <div class="card">
+          <h2>Oslobodite Google nalog</h2>
+          <p>Prebacite slike iz Google Photos na MyPhoto, pa ih obrišite sa Google-a. Google se vraća na besplatnih 15 GB, a vaše slike ostaju sačuvane ovde — sa pravim datumima.</p>
+        </div>
+        <div class="card">
+          <div class="row"><span class="step-num">1</span><h2 style="margin:0">Preuzmite slike sa Google-a</h2></div>
+          <ol class="gp-list">
+            <li>Otvorite Google Takeout — Google Photos je već izabran.</li>
+            <li>Izaberite „.zip" i veličinu <b>50 GB</b>, pa „Kreiraj izvoz".</li>
+            <li>Kad stigne mejl, preuzmite <b>sve</b> delove arhive.</li>
+          </ol>
+          <div class="btns"><button class="btn btn-secondary" onclick="desktopApi.openLink('takeout')">Otvori Google Takeout ↗</button></div>
+        </div>
+        <div class="card">
+          <div class="row"><span class="step-num">2</span><h2 style="margin:0">Izaberite preuzetu arhivu</h2></div>
+          <p style="margin-top:6px">ZIP fajlove ne morate da raspakujete. Izaberite sve delove odjednom.</p>
+          <div class="btns">
+            <button class="btn btn-primary" onclick="gpPick('zip')">ZIP fajlovi</button>
+            <button class="btn btn-secondary" onclick="gpPick('folder')">Raspakovan folder</button>
+          </div>
+          <div id="gp-summary" class="gp-summary hidden"></div>
+          <div class="msg error hidden" id="gp-error"></div>
+        </div>
+        <div class="card hidden" id="gp-run">
+          <div class="row"><span class="step-num">3</span><h2 style="margin:0">Prebacite na MyPhoto</h2></div>
+          <div class="bar"><div id="gp-bar"></div></div>
+          <div class="space-line"><span id="gp-progress-text">Spremno.</span></div>
+          <div class="gp-current" id="gp-current"></div>
+          <div class="btns">
+            <button class="btn btn-primary" id="gp-start" onclick="gpStart()">Pokreni uvoz</button>
+            <button class="btn btn-secondary hidden" id="gp-stop" onclick="desktopApi.takeoutStop()">Pauziraj</button>
+          </div>
+          <div id="gp-message"></div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section id="panel-settings" class="panel">
+        <div class="card">
+          <h2>Folder</h2>
+          <div class="path-box">
+            <input type="text" id="sync-folder" readonly placeholder="Nije izabran">
+            <button class="btn btn-secondary" onclick="selectFolder()">Promeni</button>
+          </div>
+          <p style="margin-top:8px">U oblaku se čuva u folderu istog imena.</p>
+        </div>
+        <div class="card" style="padding-top:4px;padding-bottom:4px">
+          <div class="setting">
+            <div><div class="t">Automatska sinhronizacija</div><div class="d">Promene idu u oba smera, odmah</div></div>
+            <label class="toggle"><input type="checkbox" id="sync-enabled"><span></span></label>
+          </div>
+          <div class="setting">
+            <div><div class="t">Pokreni sa Windows-om</div><div class="d">Radi u pozadini, kao Dropbox</div></div>
+            <label class="toggle"><input type="checkbox" id="start-on-boot"><span></span></label>
+          </div>
+          <div class="setting">
+            <div><div class="t">Obaveštenja</div><div class="d">Javi kad nešto zahteva pažnju</div></div>
+            <label class="toggle"><input type="checkbox" id="show-notifications"><span></span></label>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="saveSettings()">Sačuvaj</button>
+
+        <div class="card" style="margin-top:12px">
+          <div class="row" style="justify-content:space-between">
+            <div style="min-width:0">
+              <div class="t" style="font-weight:600">Nalog</div>
+              <div class="muted" id="account-email" style="overflow:hidden;text-overflow:ellipsis">—</div>
+            </div>
+            <button class="btn btn-danger-text" onclick="logout()">Odjavi se</button>
+          </div>
+        </div>
+
+        <details class="log">
+          <summary>Detalji rada (za podršku)</summary>
+          <div class="log-container" id="log-container"><div class="log-entry">Čekanje na pokretanje…</div></div>
+        </details>
+      </section>
+    </main>
   </div>
 
-  <!-- Settings panel -->
-  <div id="panel-settings" class="panel">
-    <div class="form-group">
-      <label>Folder za sinhronizaciju</label>
-      <div class="folder-path">
-        <input type="text" id="sync-folder" readonly placeholder="Izaberite folder...">
-        <button class="btn btn-secondary" onclick="selectFolder()" style="width:auto;">Izaberi</button>
-      </div>
-    </div>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Automatska sinhronizacija</div>
-        <div class="setting-desc">Prati promene i šalje fajlove automatski</div>
-      </div>
-      <label class="toggle">
-        <input type="checkbox" id="sync-enabled" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Pokreni sa Windowsom</div>
-        <div class="setting-desc">Automatski pokreni pri pokretanju računara</div>
-      </div>
-      <label class="toggle">
-        <input type="checkbox" id="start-on-boot" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">Obaveštenja</div>
-        <div class="setting-desc">Prikaži obaveštenja o sinhronizaciji</div>
-      </div>
-      <label class="toggle">
-        <input type="checkbox" id="show-notifications" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div style="margin-top:20px;">
-      <button class="btn btn-primary" onclick="saveSettings()">Sačuvaj podešavanja</button>
-    </div>
-
-    <div style="margin-top:12px;">
-      <button class="btn btn-danger" onclick="logout()" style="font-size:12px;padding:8px;">
-        Odjavi se
-      </button>
-    </div>
-  </div>
-
-  <!-- Log panel -->
-  <div id="panel-log" class="panel">
-    <div class="log-container" id="log-container">
-      <div class="log-entry">Čekanje na pokretanje...</div>
-    </div>
-  </div>
+  <div class="toast" id="toast"></div>
 
   <script>
     // The renderer's local handle to the contextBridge-exposed object.
@@ -324,159 +424,313 @@
     // explodes with "Identifier 'api' has already been declared",
     // taking every onclick handler down with it.
     const desktopApi = window.api;
+    const $ = (id) => document.getElementById(id);
+    const show = (el, on) => (typeof el === 'string' ? $(el) : el).classList.toggle('hidden', !on);
 
-    // Tab switching
+    let config = {};
+    let syncStatus = 'idle';
+
+    function toast(text) {
+      const t = $('toast');
+      t.textContent = text;
+      t.classList.add('show');
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function fmtBytes(b) {
+      if (b >= 1024 ** 3) return (b / 1024 ** 3).toFixed(1).replace('.', ',') + ' GB';
+      if (b >= 1024 ** 2) return Math.round(b / 1024 ** 2) + ' MB';
+      return Math.max(1, Math.round(b / 1024)) + ' KB';
+    }
+    function esc(t) {
+      const d = document.createElement('div');
+      d.textContent = t;
+      return d.innerHTML;
+    }
+
     function switchTab(tab) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-      document.getElementById(`panel-${tab}`).classList.add('active');
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === tab));
+      document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + tab));
+      if (tab === 'home') refreshAccount();
     }
 
-    // Load config on start
-    async function loadConfig() {
-      const config = await desktopApi.getConfig();
-
-      document.getElementById('sync-folder').value = config.syncFolder || '';
-      document.getElementById('sync-enabled').checked = config.syncEnabled;
-      document.getElementById('start-on-boot').checked = config.startOnBoot;
-      document.getElementById('show-notifications').checked = config.showNotifications;
-
-      if (config.apiToken) {
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('status-section').style.display = 'block';
+    // ---- Views ----
+    function showApp(signedIn) {
+      show('view-login', !signedIn);
+      show('view-app', signedIn);
+      if (signedIn) {
+        renderFolder();
         updateStats();
+        refreshAccount();
       }
     }
 
-    // Login
+    async function loadConfig() {
+      config = await desktopApi.getConfig();
+      $('sync-folder').value = config.syncFolder || '';
+      $('sync-enabled').checked = !!config.syncEnabled;
+      $('start-on-boot').checked = !!config.startOnBoot;
+      $('show-notifications').checked = !!config.showNotifications;
+      if (!config.syncEnabled) setStatus('paused');
+      showApp(!!config.apiToken);
+    }
+
+    function renderFolder() {
+      const folder = config.syncFolder || '';
+      show('setup-card', !folder);
+      show('folder-card', !!folder);
+      $('folder-name').textContent = folder ? folder.split(/[\\/]/).filter(Boolean).pop() : '—';
+      $('folder-path').textContent = folder;
+    }
+
+    function setStatus(status) {
+      syncStatus = status;
+      const pill = $('status-pill');
+      const map = {
+        idle: ['', 'i-cloud-check', 'Sve je sačuvano'],
+        syncing: ['syncing', 'i-sync', 'Sinhronizujem…'],
+        paused: ['paused', 'i-pause', 'Pauzirano'],
+        error: ['error', 'i-alert', 'Proverite'],
+      };
+      const [cls, icon, text] = map[status] || map.idle;
+      pill.className = 'pill ' + cls;
+      pill.innerHTML = `<svg><use href="#${icon}"/></svg><span>${text}</span>`;
+      pill.title = status === 'error' ? 'Neki fajlovi nisu poslati — pokušavam ponovo. Detalji su u Podešavanjima.' : '';
+    }
+
+    // ---- Auth ----
+    function loginError(text) {
+      $('login-error').textContent = text;
+      show('login-error', !!text);
+    }
+
+    async function afterLogin() {
+      config = await desktopApi.getConfig();
+      showApp(true);
+      if (!config.syncFolder) chooseFolderAndSave();
+    }
+
     async function login() {
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-      const errorEl = document.getElementById('login-error');
-      const btnEl = document.getElementById('login-btn');
-
-      if (!email || !password) {
-        errorEl.textContent = 'Unesite email i lozinku';
-        errorEl.style.display = 'block';
-        return;
-      }
-
-      btnEl.textContent = 'Prijavljivanje...';
-      btnEl.disabled = true;
-      errorEl.style.display = 'none';
-
+      const email = $('login-email').value.trim();
+      const password = $('login-password').value;
+      if (!email || !password) return loginError('Unesite email i lozinku.');
+      const btn = $('login-btn');
+      btn.disabled = true;
+      btn.textContent = 'Prijavljujem…';
+      loginError('');
       const result = await desktopApi.login(email, password);
-
-      if (result.success) {
-        document.getElementById('login-section').style.display = 'none';
-        document.getElementById('status-section').style.display = 'block';
-        const config = await desktopApi.getConfig();
-        if (!config.syncFolder) {
-          switchTab('settings');
-          selectFolder();
-        }
-      } else {
-        errorEl.textContent = result.error;
-        errorEl.style.display = 'block';
-      }
-
-      btnEl.textContent = 'Prijavi se';
-      btnEl.disabled = false;
+      btn.disabled = false;
+      btn.textContent = 'Prijavi se';
+      if (result.success) afterLogin();
+      else loginError(result.error || 'Prijava nije uspela.');
     }
+    $('login-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
 
     // Google sign-in: opens the system browser, desktop receives tokens via loopback.
     async function googleLogin() {
-      const errorEl = document.getElementById('login-error');
-      const btnEl = document.getElementById('google-login-btn');
-      btnEl.textContent = 'Otvaranje pregledača…';
-      btnEl.disabled = true;
-      errorEl.style.display = 'none';
-
+      const btn = $('google-login-btn');
+      btn.disabled = true;
+      btn.textContent = 'Nastavite u pregledaču…';
+      loginError('');
       try {
         const result = await desktopApi.googleLogin();
-        if (result.success) {
-          document.getElementById('login-section').style.display = 'none';
-          document.getElementById('status-section').style.display = 'block';
-          const config = await desktopApi.getConfig();
-          if (!config.syncFolder) {
-            switchTab('settings');
-            selectFolder();
-          }
-        } else {
-          errorEl.textContent = result.error || 'Google prijava nije uspela';
-          errorEl.style.display = 'block';
-        }
-      } catch (e) {
-        errorEl.textContent = 'Greška pri Google prijavi';
-        errorEl.style.display = 'block';
+        if (result.success) afterLogin();
+        else loginError(result.error || 'Google prijava nije uspela.');
+      } catch {
+        loginError('Greška pri Google prijavi.');
       }
-
-      btnEl.textContent = 'Nastavi sa Google';
-      btnEl.disabled = false;
+      btn.disabled = false;
+      btn.textContent = 'Nastavi sa Google nalogom';
     }
 
-    // Logout
     async function logout() {
-      await desktopApi.saveConfig({ apiToken: '' });
-      document.getElementById('login-section').style.display = 'block';
-      document.getElementById('status-section').style.display = 'none';
-      switchTab('status');
+      await desktopApi.logout();
+      config.apiToken = '';
+      showApp(false);
+      switchTab('home');
     }
 
-    // Select folder
+    async function refreshAccount() {
+      const acc = await desktopApi.getAccount();
+      if (!acc) return;
+      $('account-email').textContent = acc.email || acc.displayName || '—';
+      if (acc.storageLimit > 0) {
+        const pct = Math.min(100, (acc.storageUsed / acc.storageLimit) * 100);
+        $('space-bar').firstElementChild.style.width = pct.toFixed(1) + '%';
+        $('space-bar').classList.toggle('high', pct >= 85);
+        $('space-used').textContent = `${fmtBytes(acc.storageUsed)} od ${fmtBytes(acc.storageLimit)}`;
+        $('space-free').textContent = `slobodno ${fmtBytes(Math.max(0, acc.storageLimit - acc.storageUsed))}`;
+        $('space-upgrade').style.fontWeight = pct >= 85 ? '700' : '500';
+      }
+    }
+
+    // ---- Folder & settings ----
     async function selectFolder() {
       const folder = await desktopApi.selectFolder();
-      if (folder) {
-        document.getElementById('sync-folder').value = folder;
-      }
+      if (folder) $('sync-folder').value = folder;
+      return folder;
     }
 
-    // Save settings
+    async function chooseFolderAndSave() {
+      const folder = await selectFolder();
+      if (folder) await saveSettings();
+    }
+
     async function saveSettings() {
       await desktopApi.saveConfig({
-        syncFolder: document.getElementById('sync-folder').value,
-        syncEnabled: document.getElementById('sync-enabled').checked,
-        startOnBoot: document.getElementById('start-on-boot').checked,
-        showNotifications: document.getElementById('show-notifications').checked,
+        syncFolder: $('sync-folder').value,
+        syncEnabled: $('sync-enabled').checked,
+        startOnBoot: $('start-on-boot').checked,
+        showNotifications: $('show-notifications').checked,
       });
-      alert('Podešavanja sačuvana!');
+      config = await desktopApi.getConfig();
+      renderFolder();
+      setStatus(config.syncEnabled ? 'syncing' : 'paused');
+      toast('Sačuvano');
     }
 
-    // Force sync
     async function forceSync() {
       await desktopApi.forceSync();
+      toast('Proveravam sve fajlove…');
     }
 
-    // Open folder — handled by main process now
-    function openFolder() {
-      const folder = document.getElementById('sync-folder').value;
-      if (folder) alert('Folder: ' + folder);
-    }
-
-    // Update stats periodically
-    async function updateStats() {
-      const stats = await desktopApi.getSyncStats();
-      document.getElementById('stat-watched').textContent = stats.filesWatched;
-      document.getElementById('stat-synced').textContent = stats.filesSynced;
-      if (stats.lastSync) {
-        document.getElementById('last-sync-text').textContent =
-          'Poslednja sinhronizacija: ' + new Date(stats.lastSync).toLocaleTimeString('sr-Latn');
+    async function openWeb(page, btn) {
+      const label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Otvaram…';
+      try { await desktopApi.openWeb(page); } finally {
+        btn.disabled = false;
+        btn.textContent = label;
       }
+    }
+
+    // ---- Stats & pending deletes ----
+    async function updateStats() {
+      if ($('view-app').classList.contains('hidden')) return;
+      const stats = await desktopApi.getSyncStats();
+      $('stat-synced').textContent = stats.filesSynced;
+      $('stat-last').textContent = stats.lastSync
+        ? new Date(stats.lastSync).toLocaleTimeString('sr-Latn', { hour: '2-digit', minute: '2-digit' })
+        : '—';
+      renderPending(stats.pendingDeletes || null);
     }
     setInterval(updateStats, 3000);
 
-    // Log messages from main process
-    const logContainer = document.getElementById('log-container');
+    function renderPending(p) {
+      show('pending-card', !!p);
+      if (!p) return;
+      const local = p.side === 'local';
+      $('pending-title').textContent = `${p.count} fajlova je obrisano ${local ? 'na računaru' : 'u oblaku'}`;
+      $('pending-text').textContent = local
+        ? 'Da li da ih obrišem i iz oblaka? Ako je ovo slučajno, vratiću ih u folder.'
+        : 'Da li da ih obrišem i sa ovog računara (idu u Korpu)? Ako je ovo slučajno, vratiću ih u oblak.';
+      $('pending-sample').innerHTML = p.sample.map((s) => `<li>${esc(s)}</li>`).join('') + (p.count > p.sample.length ? '<li>…</li>' : '');
+      $('pending-yes').textContent = local ? 'Obriši i iz oblaka' : 'Obriši i ovde';
+      $('pending-no').textContent = 'Vrati fajlove';
+    }
+    async function resolvePending(approve) {
+      show('pending-card', false);
+      await desktopApi.resolvePendingDeletes(approve);
+      toast(approve ? 'Obrisano' : 'Vraćam fajlove…');
+    }
+    desktopApi.onPendingDeletes((p) => { renderPending(p); if (p) switchTab('home'); });
+    desktopApi.onSyncStatus((s) => setStatus(s));
+
+    // ---- Activity log ----
+    const logContainer = $('log-container');
     desktopApi.onLog((msg) => {
       const entry = document.createElement('div');
       entry.className = 'log-entry' + (msg.includes('✗') ? ' error' : msg.includes('✓') ? ' success' : '');
       entry.textContent = msg;
       logContainer.appendChild(entry);
       logContainer.scrollTop = logContainer.scrollHeight;
-      while (logContainer.children.length > 200) {
-        logContainer.removeChild(logContainer.firstChild);
+      while (logContainer.children.length > 300) logContainer.removeChild(logContainer.firstChild);
+    });
+
+    // ---- Google Photos (Takeout) import ----
+    function gpLink(which) {
+      desktopApi.openLink(which);
+      return false;
+    }
+
+    async function gpPick(kind) {
+      show('gp-error', false);
+      const paths = await desktopApi.takeoutPick(kind);
+      if (!paths.length) return;
+      const summaryEl = $('gp-summary');
+      show(summaryEl, true);
+      summaryEl.textContent = 'Čitam arhivu… (za velike arhive može da potraje par minuta)';
+      show('gp-run', false);
+
+      const res = await desktopApi.takeoutScan(paths);
+      if (res.error) {
+        show(summaryEl, false);
+        $('gp-error').textContent = res.error;
+        show('gp-error', true);
+        return;
       }
+      const s = res.summary;
+      if (s.photos + s.videos === 0) {
+        summaryEl.innerHTML = '<div class="msg warn">U izabranoj arhivi nema slika ni videa. Proverite da li ste u Takeout-u izabrali Google Photos.</div>';
+        return;
+      }
+      let html = `<b>${s.photos}</b> slika i <b>${s.videos}</b> videa · ${fmtBytes(s.totalBytes)}`;
+      if (s.albums.length) html += `<br>Albumi: ${esc(s.albums.slice(0, 6).join(', '))}${s.albums.length > 6 ? '…' : ''}`;
+      if (s.duplicatesSkipped) html += `<br>Kopije iz albuma (ne šalju se dvaput): ${s.duplicatesSkipped}`;
+      if (s.alreadyImported) html += `<br>Već uvezeno ranije: ${s.alreadyImported}`;
+      if (s.withoutDate) html += `<br>Bez datuma: ${s.withoutDate} (idu u folder „Bez datuma")`;
+      if (s.tooLarge) html += `<br>Preskočeno (veće od 10 GB): ${s.tooLarge}`;
+      html += `<br>Za uvoz: <b>${s.pendingFiles}</b> fajlova, <b>${fmtBytes(s.pendingBytes)}</b>`;
+      if (s.storageLimit !== null) {
+        const free = Math.max(0, s.storageLimit - s.storageUsed);
+        html += `<br>Slobodno na nalogu: ${fmtBytes(free)}`;
+        if (s.pendingBytes > free) {
+          html += `<div class="msg warn">Nema dovoljno mesta — fali ${fmtBytes(s.pendingBytes - free)}. Uvoz staje kad se prostor popuni. ` +
+            `<a onclick="desktopApi.openWeb('pricing')">Povećajte prostor</a> pa nastavite.</div>`;
+        }
+      }
+      if (s.pendingFiles === 0) html += '<div class="msg ok">Sve iz ove arhive je već na MyPhoto.</div>';
+      summaryEl.innerHTML = html;
+      if (s.pendingFiles > 0) {
+        gpRender({ phase: 'idle', totalFiles: s.pendingFiles, totalBytes: s.pendingBytes, doneFiles: 0, doneBytes: 0, failedFiles: 0 });
+      }
+    }
+
+    async function gpStart() {
+      const res = await desktopApi.takeoutStart();
+      if (res && res.error) $('gp-message').innerHTML = `<div class="msg warn">${esc(res.error)}</div>`;
+    }
+
+    function gpRender(p) {
+      if (!p) return;
+      const running = p.phase === 'uploading';
+      show('gp-run', true);
+      const startBtn = $('gp-start');
+      show(startBtn, !running && p.phase !== 'done');
+      startBtn.textContent = p.phase === 'stopped' || p.phase === 'error' ? 'Nastavi uvoz' : 'Pokreni uvoz';
+      show('gp-stop', running);
+      const pct = p.totalBytes > 0 ? Math.min(100, (p.doneBytes / p.totalBytes) * 100) : (p.phase === 'done' ? 100 : 0);
+      $('gp-bar').style.width = pct.toFixed(1) + '%';
+      let text = `${p.doneFiles} / ${p.totalFiles} fajlova · ${fmtBytes(p.doneBytes)} / ${fmtBytes(p.totalBytes)}`;
+      if (p.failedFiles) text += ` · neuspešno: ${p.failedFiles}`;
+      $('gp-progress-text').textContent = text;
+      $('gp-current').textContent = running && p.currentFile ? 'Šaljem: ' + p.currentFile : '';
+      const msgEl = $('gp-message');
+      if (p.phase === 'done' && !p.failedFiles) {
+        msgEl.innerHTML = '<div class="msg ok"><b>Gotovo!</b> Slike su na MyPhoto, u folderu „Google Photos". ' +
+          'Prvo ih pogledajte <a onclick="desktopApi.openWeb(\'photos\')">na MyPhoto</a>, ' +
+          'pa tek onda obrišite sa <a onclick="return gpLink(\'google-photos\')">Google Photos</a> ' +
+          'i ispraznite Otpad — tek tada Google oslobađa prostor.</div>';
+      } else if (p.message && !running) {
+        msgEl.innerHTML = `<div class="msg ${p.phase === 'done' ? 'ok' : 'warn'}">${esc(p.message)}</div>`;
+      } else {
+        msgEl.innerHTML = '';
+      }
+    }
+    desktopApi.onTakeoutProgress(gpRender);
+    desktopApi.takeoutProgress().then((p) => {
+      if (p && p.phase !== 'idle' && p.phase !== 'scanning') gpRender(p);
     });
 
     // Init

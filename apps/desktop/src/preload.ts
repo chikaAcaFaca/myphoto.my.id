@@ -9,10 +9,31 @@ contextBridge.exposeInMainWorld('api', {
   // Auth
   login: (email: string, password: string) => ipcRenderer.invoke('login', email, password),
   googleLogin: () => ipcRenderer.invoke('google-login'),
+  logout: () => ipcRenderer.invoke('logout'),
+  getAccount: () => ipcRenderer.invoke('get-account'),
+
+  // App windows / folders
+  openWeb: (page: 'meme-wall' | 'meme-creator' | 'myspace' | 'photos' | 'pricing') => ipcRenderer.invoke('open-web', page),
+  openSyncFolder: () => ipcRenderer.invoke('open-sync-folder'),
 
   // Sync
   getSyncStats: () => ipcRenderer.invoke('get-sync-stats'),
   forceSync: () => ipcRenderer.invoke('force-sync'),
+  resolvePendingDeletes: (approve: boolean) => ipcRenderer.invoke('resolve-pending-deletes', approve),
+  onPendingDeletes: (callback: (pending: unknown) => void) => {
+    ipcRenderer.on('pending-deletes', (_event, pending) => callback(pending));
+  },
+
+  // Google Takeout import
+  takeoutPick: (kind: 'zip' | 'folder') => ipcRenderer.invoke('takeout-pick', kind),
+  takeoutScan: (paths: string[]) => ipcRenderer.invoke('takeout-scan', paths),
+  takeoutStart: () => ipcRenderer.invoke('takeout-start'),
+  takeoutStop: () => ipcRenderer.invoke('takeout-stop'),
+  takeoutProgress: () => ipcRenderer.invoke('takeout-progress'),
+  onTakeoutProgress: (callback: (p: unknown) => void) => {
+    ipcRenderer.on('takeout-progress', (_event, p) => callback(p));
+  },
+  openLink: (which: 'takeout' | 'google-photos' | 'web') => ipcRenderer.invoke('open-link', which),
 
   // Events from main process
   onNotification: (callback: (data: { title: string; message: string }) => void) => {

@@ -1,7 +1,9 @@
-// Upload the desktop build zip to a stable public S3 key so the website serves
-// it from /api/download/desktop. Mirrors upload-public-apk.js.
+// Upload the latest Windows desktop installer to a stable, public S3 key so the
+// website serves it from /api/download/desktop (as MyPhoto-Setup.exe) without
+// auth. Mirrors upload-public-apk.js (admin presigned PUT + Node https stream,
+// the proven Wasabi path).
 //
-// Usage: node apps/web/scripts/upload-public-desktop.js <zipPath>
+// Usage: node apps/web/scripts/upload-public-desktop.js "<path to Setup .exe>"
 
 const path = require('path');
 const fs = require('fs');
@@ -11,23 +13,27 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
-const zipPath = process.argv[2];
-if (!zipPath) {
-  console.error('Usage: node upload-public-desktop.js <zipPath>');
-  process.exit(1);
-}
-const abs = path.resolve(zipPath);
-if (!fs.existsSync(abs)) {
-  console.error('Zip not found:', abs);
+const exePath = process.argv[2];
+if (!exePath) {
+  console.error('Usage: node upload-public-desktop.js "<exePath>"');
   process.exit(1);
 }
 
+const abs = path.resolve(exePath);
+if (!fs.existsSync(abs)) {
+  console.error('Installer not found:', abs);
+  process.exit(1);
+}
+
+// Match @myphoto/shared exactly — Wasabi region is the bare name.
 const REGION = 'eu-central-2';
 const ENDPOINT = `https://s3.${REGION}.wasabisys.com`;
 const BUCKET = process.env.WASABI_BUCKET || 'myphoto-prod';
 const KEY = 'public/myphoto-desktop-latest.exe';
 const CONTENT_TYPE = 'application/vnd.microsoft.portable-executable';
 
+// The local .env stores the access key with a label prefix ("access-key= AKIA…")
+// the deployed env lacks. Strip any "<label>= " prefix before signing.
 const cleanCreds = (v) => (v || '').replace(/^[a-z][a-z0-9._-]*=\s*/i, '').trim();
 
 const s3 = new S3Client({
@@ -62,7 +68,8 @@ function putFileViaHttps(uploadUrl, absPath, size) {
       }
     );
     req.on('error', reject);
-    let sent = 0, lastPct = -1;
+    let sent = 0;
+    let lastPct = -1;
     const stream = fs.createReadStream(absPath);
     stream.on('data', (chunk) => {
       sent += chunk.length;

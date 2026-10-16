@@ -1,14 +1,19 @@
-import { app, BrowserWindow, Tray, Menu, dialog, ipcMain, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, Tray, Menu, dialog, ipcMain, nativeImage, session, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as http from 'http';
 import { randomBytes } from 'crypto';
 import Store from 'electron-store';
 import { SyncEngine } from './sync-engine';
+import { TakeoutImporter, TakeoutProgress } from './takeout-importer';
 
 const store = new Store({
   defaults: {
     syncFolder: '',
+    // MySpace folder everything syncs under. Empty → derived from the sync
+    // folder's own name at init, so the cloud mirrors a named tree (e.g.
+    // "NKNET CONSULTING DOO") instead of dumping contents at the root.
+    remoteBasePath: '',
     apiToken: '',
     refreshToken: '',
     // Wall-clock ms at which the current apiToken stops being valid.
@@ -68,22 +73,9 @@ async function getValidToken(): Promise<string> {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
-// Single instance only. Auto-start + a manual launch (or repeated clicks) were
-// spawning several parallel MyPhoto processes. If we don't get the lock another
-// instance is already running — quit immediately and just focus that one.
-const gotSingleInstanceLock = app.requestSingleInstanceLock();
-if (!gotSingleInstanceLock) {
-  app.quit();
-} else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
-}
 let syncEngine: SyncEngine | null = null;
+let takeout: TakeoutImporter | null = null;
+let takeoutUid = '';
 
 // Register (or clear) the Windows auto-start login item. In a packaged build
 // process.execPath is the app's own exe, so the bare form is correct. In dev
@@ -100,8 +92,9 @@ function applyAutoStart(openAtLogin: boolean) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 480,
-    height: 620,
+    width: 460,
+    height: 700,
+    backgroundColor: '#FAFAF8',
     resizable: false,
     maximizable: false,
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
@@ -181,6 +174,10 @@ function updateTrayMenu(status: 'idle' | 'syncing' | 'error' | 'paused') {
       },
     },
     {
+      label: 'Mimovi',
+      click: () => { void openWebPage('meme-wall'); },
+    },
+    {
       label: 'Otvori myphotomy.space',
       click: () => shell.openExternal(store.get('serverUrl') as string),
     },
@@ -208,6 +205,7 @@ function updateTrayMenu(status: 'idle' | 'syncing' | 'error' | 'paused') {
       label: 'Izlaz',
       click: () => {
         syncEngine?.stop();
+        takeout?.dispose();
         mainWindow?.destroy();
         app.quit();
       },
@@ -230,14 +228,22 @@ async function initSyncEngine() {
     fs.mkdirSync(syncFolder, { recursive: true });
   }
 
+  // Default the cloud base folder to the local folder's name so the MySpace
+  // tree mirrors it (and lines up with Boty writing into the same folder).
+  const remoteBasePath = (store.get('remoteBasePath') as string) || path.basename(syncFolder);
+
   syncEngine = new SyncEngine({
     syncFolder,
+    remoteBasePath,
     // Pass the refresh callback so the engine can ask for a fresh token
     // mid-flight instead of failing once the cached one expires.
     apiToken,
     getToken: getValidToken,
     serverUrl,
-    onStatus: (status) => updateTrayMenu(status),
+    onStatus: (status) => {
+      updateTrayMenu(status);
+      mainWindow?.webContents.send('sync-status', status);
+    },
     onNotification: (title, message) => {
       if (store.get('showNotifications')) {
         mainWindow?.webContents.send('notification', { title, message });
@@ -246,6 +252,12 @@ async function initSyncEngine() {
     onLog: (msg) => {
       mainWindow?.webContents.send('log', msg);
     },
+    // Cloud-side deletes land in the Windows Recycle Bin, never a hard delete.
+    trashLocal: (absPath) => shell.trashItem(absPath),
+    onPendingDeletes: (pending) => {
+      mainWindow?.webContents.send('pending-deletes', pending);
+      if (pending) mainWindow?.show();
+    },
   });
 
   if (store.get('syncEnabled')) {
@@ -253,9 +265,18 @@ async function initSyncEngine() {
   }
 }
 
+// (Re)start syncing after a sign-in — with a folder already chosen there is
+// no settings save to do it, so the app would sit idle until restarted.
+function restartSyncEngine() {
+  syncEngine?.stop();
+  syncEngine = null;
+  initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
+}
+
 // IPC handlers for renderer
 ipcMain.handle('get-config', () => ({
   syncFolder: store.get('syncFolder'),
+  remoteBasePath: store.get('remoteBasePath'),
   apiToken: store.get('apiToken'),
   serverUrl: store.get('serverUrl'),
   syncEnabled: store.get('syncEnabled'),
@@ -280,8 +301,7 @@ ipcMain.handle('save-config', (_event, config: Record<string, unknown>) => {
   }
 
   // Restart sync engine with new config
-  syncEngine?.stop();
-  initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
+  restartSyncEngine();
 
   // Auto-start on boot
   applyAutoStart((config.startOnBoot as boolean) || false);
@@ -314,6 +334,7 @@ ipcMain.handle('login', async (_event, email: string, password: string) => {
     store.set('apiToken', data.token);
     store.set('refreshToken', data.refreshToken || '');
     store.set('tokenExpiresAt', Date.now() + (data.expiresIn || 3600) * 1000);
+    restartSyncEngine();
     return { success: true, token: data.token };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Connection failed' };
@@ -374,6 +395,7 @@ ipcMain.handle('google-login', async () => {
           store.set('apiToken', data.idToken);
           store.set('refreshToken', data.refreshToken || '');
           store.set('tokenExpiresAt', Date.now() + (data.expiresIn || 3600) * 1000);
+          restartSyncEngine();
 
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
           res.end('<html><body style="font-family:system-ui,sans-serif;text-align:center;padding-top:48px;color:#374151">Prijava uspešna. Možete zatvoriti ovaj prozor i vratiti se u MyPhoto aplikaciju.</body></html>');
@@ -406,16 +428,254 @@ ipcMain.handle('force-sync', () => {
   syncEngine?.forceSync();
 });
 
-// App lifecycle
-app.whenReady().then(() => {
-  createWindow();
-  createTray();
-  // Apply the start-with-Windows preference on every launch so the default
-  // (startOnBoot: true) actually registers the login item — previously this
-  // only ran when settings were saved, so a fresh install never auto-started.
-  applyAutoStart(store.get('startOnBoot') as boolean);
-  initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
+ipcMain.handle('resolve-pending-deletes', (_event, approve: boolean) => {
+  return syncEngine?.resolvePendingDeletes(approve === true);
 });
+
+// ---- Built-in web window (MemeWall, meme creator, MySpace, plans) ----
+
+// Fixed destinations only — the renderer never hands us a URL.
+const WEB_PAGES: Record<string, string> = {
+  'meme-wall': '/meme-wall',
+  'meme-creator': '/meme-creator',
+  myspace: '/myspace',
+  photos: '/photos',
+  pricing: '/pricing',
+};
+let webWindow: BrowserWindow | null = null;
+
+/**
+ * Open a myphotomy.space page in the app's own window, signed into the same
+ * account as the desktop app: we trade our ID token for a Firebase custom
+ * token and hand it to /desktop-session in the URL fragment. If that fails
+ * the page simply opens and the user can sign in there.
+ */
+async function openWebPage(page: string): Promise<void> {
+  const target = WEB_PAGES[page];
+  if (!target) return;
+  const serverUrl = store.get('serverUrl') as string;
+  const origin = new URL(serverUrl).origin;
+
+  let url = `${serverUrl}${target}`;
+  try {
+    const token = await getValidToken();
+    if (token) {
+      const res = await fetch(`${serverUrl}/api/auth/custom-token`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const { customToken } = (await res.json()) as { customToken: string };
+        url = `${serverUrl}/desktop-session#t=${encodeURIComponent(customToken)}&next=${encodeURIComponent(target)}`;
+      }
+    }
+  } catch (e) {
+    console.error('Web sign-in handoff failed:', e);
+  }
+
+  if (!webWindow || webWindow.isDestroyed()) {
+    webWindow = new BrowserWindow({
+      width: 1180,
+      height: 820,
+      minWidth: 420,
+      minHeight: 600,
+      title: 'MyPhoto',
+      icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+      autoHideMenuBar: true,
+      backgroundColor: '#FAFAF8',
+      webPreferences: {
+        // Its own persistent session: the web login survives restarts and
+        // never mixes with the app's own renderer.
+        partition: 'persist:myphoto-web',
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+    const isOurs = (u: string) => {
+      try { return new URL(u).origin === origin; } catch { return false; }
+    };
+    // Our site stays in the window; everything else opens in the real browser.
+    webWindow.webContents.setWindowOpenHandler(({ url: u }) => {
+      if (isOurs(u)) {
+        webWindow?.loadURL(u);
+      } else if (/^https?:/.test(u)) {
+        shell.openExternal(u);
+      }
+      return { action: 'deny' };
+    });
+    webWindow.webContents.on('will-navigate', (e, u) => {
+      if (!isOurs(u)) {
+        e.preventDefault();
+        if (/^https?:/.test(u)) shell.openExternal(u);
+      }
+    });
+    webWindow.on('closed', () => { webWindow = null; });
+  }
+  await webWindow.loadURL(url);
+  webWindow.show();
+  webWindow.focus();
+}
+
+ipcMain.handle('open-web', (_event, page: string) => openWebPage(page));
+
+ipcMain.handle('get-account', async () => {
+  const token = await getValidToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${store.get('serverUrl')}/api/users/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const d = (await res.json()) as { email?: string; displayName?: string; storageUsed?: number; storageLimit?: number };
+    return {
+      email: d.email || '',
+      displayName: d.displayName || '',
+      storageUsed: d.storageUsed || 0,
+      storageLimit: d.storageLimit || 0,
+    };
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('open-sync-folder', () => {
+  const folder = store.get('syncFolder') as string;
+  if (folder && fs.existsSync(folder)) shell.openPath(folder);
+});
+
+// Sign out completely: clearing only apiToken left the refresh token behind,
+// so the next getValidToken() silently signed the user straight back in.
+ipcMain.handle('logout', async () => {
+  syncEngine?.stop();
+  syncEngine = null;
+  takeout?.dispose();
+  takeout = null;
+  store.set('apiToken', '');
+  store.set('refreshToken', '');
+  store.set('tokenExpiresAt', 0);
+  if (webWindow && !webWindow.isDestroyed()) webWindow.close();
+  await session.fromPartition('persist:myphoto-web').clearStorageData();
+  updateTrayMenu('paused');
+});
+
+// ---- Google Takeout import ----
+
+// Firebase ID tokens carry the uid in the JWT payload. Import progress is
+// kept per account so a different login never sees "already imported".
+function uidFromToken(token: string): string {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf-8'));
+    return String(payload.user_id || payload.sub || '');
+  } catch {
+    return '';
+  }
+}
+
+async function getTakeout(): Promise<TakeoutImporter> {
+  const uid = uidFromToken(await getValidToken());
+  if (!uid) throw new Error('Prijavite se na svoj MyPhoto nalog');
+  if (takeout && takeoutUid === uid) return takeout;
+  if (takeout?.isRunning()) throw new Error('Uvoz je već u toku');
+  takeout?.dispose();
+
+  // Progress fires per uploaded chunk; forward at most ~4×/s, but always
+  // pass phase changes through immediately.
+  let lastSent = 0;
+  let lastPhase = '';
+  takeoutUid = uid;
+  takeout = new TakeoutImporter({
+    serverUrl: store.get('serverUrl') as string,
+    getToken: getValidToken,
+    statePath: path.join(app.getPath('userData'), `takeout-import-${uid}.json`),
+    onProgress: (p: TakeoutProgress) => {
+      const now = Date.now();
+      if (p.phase === lastPhase && now - lastSent < 250) return;
+      lastSent = now;
+      lastPhase = p.phase;
+      mainWindow?.webContents.send('takeout-progress', p);
+    },
+    onLog: (msg) => mainWindow?.webContents.send('log', msg),
+  });
+  return takeout;
+}
+
+ipcMain.handle('takeout-pick', async (_event, kind: 'zip' | 'folder') => {
+  const result = await dialog.showOpenDialog(
+    kind === 'folder'
+      ? { properties: ['openDirectory'], title: 'Izaberite raspakovan Takeout folder' }
+      : {
+          properties: ['openFile', 'multiSelections'],
+          title: 'Izaberite Google Takeout ZIP fajlove (sve delove)',
+          filters: [{ name: 'Google Takeout', extensions: ['zip'] }],
+        }
+  );
+  return result.canceled ? [] : result.filePaths;
+});
+
+ipcMain.handle('takeout-scan', async (_event, paths: string[]) => {
+  try {
+    const importer = await getTakeout();
+    return { summary: await importer.scan(paths) };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('takeout-start', async () => {
+  try {
+    const importer = await getTakeout();
+    // Runs for minutes to hours — report through 'takeout-progress' events.
+    importer.start().catch((e) => console.error('Takeout import error:', e));
+    return { ok: true };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle('takeout-stop', () => {
+  takeout?.stop();
+});
+
+ipcMain.handle('takeout-progress', () => takeout?.getProgress() || null);
+
+// Fixed destinations only — the renderer never hands us an arbitrary URL.
+ipcMain.handle('open-link', (_event, which: 'takeout' | 'google-photos' | 'web') => {
+  const urls: Record<string, string> = {
+    takeout: 'https://takeout.google.com/settings/takeout/custom/photos',
+    'google-photos': 'https://photos.google.com/',
+    web: store.get('serverUrl') as string,
+  };
+  if (urls[which]) shell.openExternal(urls[which]);
+});
+
+// App lifecycle.
+// Single-instance lock: the app lives in the tray with its window hidden, so
+// when the user clicks the launcher again they expect the window to surface —
+// not a second silent background process. Grab the lock; if another instance
+// already holds it, hand off (show its window) and quit this one.
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(() => {
+    createWindow();
+    createTray();
+    // Apply the start-with-Windows preference on every launch so the default
+    // (startOnBoot: true) actually registers the login item — previously this
+    // only ran when settings were saved, so a fresh install never auto-started.
+    applyAutoStart(store.get('startOnBoot') as boolean);
+    initSyncEngine().catch((e) => console.error('initSyncEngine error:', e));
+  });
+}
 
 app.on('window-all-closed', (e: Event) => {
   // Don't quit, keep in tray
